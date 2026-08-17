@@ -9,7 +9,6 @@ import type {
   MasteryVerification,
   MasteryAction,
   SettlementToApply,
-  SkillEdge,
   XpTransaction,
 } from "./types";
 
@@ -56,13 +55,19 @@ export class SettlementService {
 
     const now = new Date().toISOString();
     const skillName = assessment.proposal.affected_skills[0]?.name ?? "General Growth";
+    const skillLabel = assessment.proposal.affected_skills[0]?.name ?? "General Growth";
     const activityType = assessment.proposal.activity.type;
 
-    // Repetition only counts SIMILAR prior activities (same skill + same type
-    // + 30-day window) — never the total ledger size.
+    // Read-only stable id lookup: skill creation happens ONLY inside the store's
+    // atomic applySettlement, never here (Round6 — no side effects on failure).
+    const existingSkillId = await this.repo.lookupSkillId(skillLabel);
+    const skillId = existingSkillId ?? "";
+
+    // Repetition only counts SIMILAR prior activities by the SAME STABLE SKILL ID
+    // (aliases count as one and the same skill) + same type + 30-day window.
     const transactions = await this.repo.listTransactions();
     const recentSimilarCount = countRecentSimilar(transactions, {
-      skillName,
+      skillId,
       activityType,
       windowDays: SIMILARITY_WINDOW_DAYS,
     });
@@ -81,9 +86,7 @@ export class SettlementService {
     const xpResult = calculateXp(xpInput);
     const xpDelta = xpResult.finalXp;
 
-    // Stable skill identity — display name is never the DB primary identity.
-    const skillId = await this.repo.resolveSkillId(skillName);
-    const currentSkill = await this.repo.getSkill(skillName);
+    const currentSkill = await this.repo.getSkill(skillLabel);
     const currentMastery = currentSkill?.masteryLevel ?? DEFAULT_SKILL_MASTERY;
     const masteryAction = decideMasteryAction({
       changes: assessment.proposal.mastery_changes,
@@ -96,7 +99,7 @@ export class SettlementService {
     if (masteryAction.action === "request_verification") {
       masteryVerification = {
         id: crypto.randomUUID(),
-        skillId,
+        skillId, // placeholder — the repository sets the authoritative id
         skillName,
         fromLevel: masteryAction.fromLevel,
         toLevel: masteryAction.toLevel,
@@ -108,22 +111,18 @@ export class SettlementService {
       };
     }
 
-    // Related skills (names) + candidate edges for the Skill Tree.
-    const relatedSkillNames = assessment.proposal.affected_skills
+    // Secondary skills: only labels travel; the store resolves/creates nodes
+    // and related edges by stable id inside the atomic settlement.
+    const relatedSkillLabels = assessment.proposal.affected_skills
       .slice(1)
       .map((s) => s.name);
-    const newEdges: SkillEdge[] = relatedSkillNames.map((name) => ({
-      source: skillName,
-      target: name,
-      relation: "related",
-    }));
 
     const transaction: XpTransaction = {
       id: crypto.randomUUID(),
       activityId: activity.id,
       assessmentId: assessment.id,
       xpType: "activity",
-      skillId,
+      skillId, // placeholder — the repository sets the authoritative id
       skillName,
       activityType,
       repetitionCount: recentSimilarCount,
@@ -143,13 +142,11 @@ export class SettlementService {
       transaction,
       xpDelta,
       primarySkill: {
-        id: skillId,
         name: skillName,
         xpDelta,
         masteryAction,
       },
-      relatedSkillNames,
-      newEdges,
+      relatedSkillLabels,
       player: { xpDelta },
       masteryVerification,
     };
@@ -159,9 +156,9 @@ export class SettlementService {
       return {
         result: {
           ok: true,
-          transaction: settlement.transaction,
+          transaction: result.transaction,
           assessment: (await this.repo.getAssessment(assessmentId)) ?? undefined,
-          masteryVerification,
+          masteryVerification: result.masteryVerification ?? undefined,
         },
         retry: false,
       };

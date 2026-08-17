@@ -116,14 +116,19 @@ status
 last_used_at
 ```
 
-**身份原则（Milestone 2.7）**：
+**身份原则（Milestone 2.7 + Preflight）**：
 
 ```text
-Skill ID  = 永久身份（ledger / mastery_verifications / Undo 都引用它）
+Skill ID  = 永久身份（ledger / mastery_verifications / 边 都引用它）
+            运行时一律 crypto.randomUUID() —— 绝不由名字派生
 Skill name = 可编辑显示名称
 Aliases   = AI 匹配辅助（Statistics / 回归分析 / Regression Analysis 收敛到一起）
-Domain    = 分类
+Normalized label = 查找用（大小写 + 空白不敏感，防 "Statistics" vs "statistics" 误判）
 ```
+
+- **防碰撞/防覆盖**：查找失败绝不直接 `db.skills[id 由名字推导] = ...`；Skill 创建只发生在
+  结算的原子事务内，且 id 是随机 UUID。
+- 旧 v2/v3 数据迁移：仅在**迁移时**用确定性 v5 UUID 重建 id（运行时不再派生）。
 
 在 SupabaseRepository 里**绝不能**把 `skill_name` 当数据库主身份，否则改个名字会牵扯所有历史。
 
@@ -289,7 +294,12 @@ pending
 confirmed
 edited
 rejected
+superseded   -- Round6：同一 Activity 的多份 pending revision 中，
+               -- 一份被确认后，其余自动标记 superseded（不产生永远 pending 的僵尸项）
 ```
+
+> Revision 生命周期（Round6 方案 B，MVP）：已 confirmed 的 Activity 暂时拒绝再次 Assess
+> （`409 activity_already_settled`），直到 correction pipeline 做好。
 
 ---
 
@@ -320,13 +330,16 @@ skill_id             -- 引用稳定 skill id（不是 name）
 activity_type        -- 结算时的活动类型，用于重复惩罚的 similarity 判定
 repetition_count     -- 结算时的相似行为计数（服务器权威结果，非 AI 估算）
 repetition_penalty   -- 结算时的重复修正系数（Growth Engine 结果）
-xp_type              -- activity | adjustment | correction
+xp_type              -- activity | adjustment | correction（DB 有 CHECK）
 amount
 base_amount
 modifier_json
 reason
 rules_version       -- 冻结于 Activity 创建时（Round5）
 ```
+
+> 重复惩罚（Round6）：similarity 按 **同一个 skill_id**（不是 skill_name）判定——别名
+> 收敛到同一技能时仍算重复；`skill_name` 只留作历史显示快照。
 
 **xp_type 语义（Milestone 2.7）**：
 
@@ -342,6 +355,11 @@ correction  → 纠正错误结算（另起交易）
 -- 一个 assessment 只能被结算一次，数据库层面兜底并发幂等
 alter table xp_transactions
   add constraint xp_transactions_assessment_id_key unique (assessment_id);
+
+-- Round6：DB 不变量 —— 拼写错误不能绕过 activity 唯一索引
+alter table xp_transactions
+  add constraint xp_transactions_xp_type_check
+  check (xp_type in ('activity', 'adjustment', 'correction'));
 
 -- Round5：一个 Activity 至多一笔原始 activity 结算
 -- （Assessment revision 可以有多个，但只有第一笔 activity 结算能落账）

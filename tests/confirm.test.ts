@@ -245,7 +245,7 @@ describe("Mastery verification is enforced (Round4 P1)", () => {
 });
 
 describe("Milestone 2.7 — settlement integrity", () => {
-  test("one Activity => at most ONE original activity settlement (re-assess cannot mint XP twice)", async () => {
+  test("one Activity => at most ONE original activity settlement (no re-assess after confirm)", async () => {
     const activity = await createActivity({ rawInput: "同一次活动先评后复评" });
     const firstAssessment = await createAssessment({
       activityId: activity.id,
@@ -257,22 +257,49 @@ describe("Milestone 2.7 — settlement integrity", () => {
     expect(first.ok).toBe(true);
     const xpAfterFirst = readDb().player.totalXp;
 
-    // Revision #2 on the SAME activity, then confirm.
-    const secondAssessment = await createAssessment({
+    // Round6 (option B): a confirmed Activity cannot be re-assessed.
+    await expect(
+      createAssessment({
+        activityId: activity.id,
+        proposal,
+        modelName: "test-model",
+        promptVersion: "test-prompt",
+      }),
+    ).rejects.toThrow();
+
+    const db = readDb();
+    expect(db.assessments).toHaveLength(1); // no zombie revision minted
+    expect(db.transactions).toHaveLength(1); // exactly one ledger entry
+    expect(db.player.totalXp).toBe(xpAfterFirst); // no duplicate XP
+    expect(db.transactions[0].xpType).toBe("activity");
+  });
+
+  test("pre-confirm revision is superseded when one assessment is confirmed", async () => {
+    const activity = await createActivity({ rawInput: "先有多份评估再确认" });
+    const s1 = await createAssessment({
       activityId: activity.id,
       proposal,
       modelName: "test-model",
       promptVersion: "test-prompt",
     });
-    const second = await confirmAssessment(secondAssessment.id);
-    expect(second.ok).toBe(false);
-    expect(second.reason).toBe("already_settled");
+    const s2 = await createAssessment({
+      activityId: activity.id,
+      proposal,
+      modelName: "test-model",
+      promptVersion: "test-prompt",
+    });
+
+    const confirmed = await confirmAssessment(s1.id);
+    expect(confirmed.ok).toBe(true);
 
     const db = readDb();
-    expect(db.assessments).toHaveLength(2); // revisions allowed
-    expect(db.transactions).toHaveLength(1); // but only one ledger entry
-    expect(db.player.totalXp).toBe(xpAfterFirst); // no duplicate XP
-    expect(db.transactions[0].xpType).toBe("activity");
+    expect(db.assessments.find((a) => a.id === s1.id)?.status).toBe("confirmed");
+    expect(db.assessments.find((a) => a.id === s2.id)?.status).toBe("superseded");
+    expect(db.transactions).toHaveLength(1);
+
+    // The superseded revision is gone from the pending queue (no zombie).
+    const dashboard = await getDashboard();
+    expect(dashboard.pendingAssessments.map((a) => a.id)).not.toContain(s2.id);
   });
 
   test("ledger records frozen rulesVersion from the Activity", async () => {

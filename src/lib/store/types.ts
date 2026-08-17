@@ -15,7 +15,7 @@ export interface Activity {
   createdAt: string;
 }
 
-export type AssessmentStatus = "pending" | "confirmed" | "edited" | "rejected";
+export type AssessmentStatus = "pending" | "confirmed" | "edited" | "rejected" | "superseded";
 
 export interface Assessment {
   id: string;
@@ -43,7 +43,10 @@ export interface XpTransaction {
   activityId: string;
   assessmentId: string;
   xpType: XpTransactionType;
-  /** Stable skill identity (not the display name). */
+  /**
+   * Stable skill identity (not the display name).
+   * Authoritative — set by the repository at settlement; service passes "".
+   */
   skillId: string;
   /** Display-name snapshot at settle time. */
   skillName: string;
@@ -77,9 +80,10 @@ export interface SkillState {
   lastUsedAt: string | null;
 }
 
+/** Skill tree edge — endpoints are STABLE skill IDs (never display names). */
 export interface SkillEdge {
-  source: string;
-  target: string;
+  sourceId: string;
+  targetId: string;
   relation: string;
 }
 
@@ -114,7 +118,7 @@ export interface MasteryVerification {
 }
 
 export interface Db {
-  version: 3;
+  version: 4;
   activities: Activity[];
   assessments: Assessment[];
   transactions: XpTransaction[];
@@ -145,25 +149,27 @@ export type MasteryAction =
  * repository must apply `+= xpDelta` on the current stored state inside its own
  * atomic transaction — it must NOT blindly overwrite totals with values the
  * service computed from an older snapshot (that is the lost-update bug).
+ *
+ * Preflight (Round6): NO skill is created outside the atomic settlement. The
+ * command carries display labels only; the repository resolves-or-creates the
+ * stable skill (random UUID, never derived from the name) inside the atomic
+ * write and returns the authoritative persisted result.
  */
 export interface SettlementToApply {
   assessmentId: string;
-  /** Exact ledger row (authoritative record of this settlement). */
+  /** Exact ledger row content; the repository sets the authoritative skillId. */
   transaction: XpTransaction;
   /** = transaction.amount; applied as `current += xpDelta`. */
   xpDelta: number;
-  /** Primary skill: apply xpDelta to current stored xp and act on mastery. */
+  /** Primary skill candidate: resolved-or-created atomically by the store. */
   primarySkill: {
-    /** Stable identity (resolved before settlement). */
-    id: string;
+    /** Display name / AI label used for normalized matching. */
     name: string;
     xpDelta: number;
     masteryAction: MasteryAction;
   };
-  /** Secondary skills that must exist so the Skill Tree can show them. */
-  relatedSkillNames: string[];
-  /** New skill edges to persist (deduped by the repository). */
-  newEdges: SkillEdge[];
+  /** Secondary skill labels; nodes + related edges are created atomically. */
+  relatedSkillLabels: string[];
   /** Apply as `player.totalXp += xpDelta`; level is recomputed by the store. */
   player: { xpDelta: number };
   /** Created when the mastery upgrade requires verification. */

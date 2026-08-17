@@ -25,6 +25,12 @@ export interface SettlementResult {
   reason?: SettlementConflictReason | string;
   /** Present when reason === "repetition_conflict": the fresh authoritative count. */
   actualRepetitionCount?: number;
+  /** Authoritative primary skill id used by this settlement. */
+  skillId?: string;
+  /** Authoritative persisted transaction (with skillId filled). */
+  transaction?: XpTransaction;
+  /** Authoritative mastery verification: newly created OR existing pending, else null. */
+  masteryVerification?: MasteryVerification | null;
 }
 
 /**
@@ -67,12 +73,17 @@ export interface Repository {
   addActivity(input: NewActivityInput): Promise<Activity>;
   addAssessment(input: NewAssessmentInput): Promise<Assessment>;
   /**
-   * Resolve an incoming skill label to a stable skill id: match by exact name
-   * or alias, creating the skill (persisted) when unknown. Never name-based as
-   * primary identity.
+   * READ-ONLY lookup of a stable skill id by label (normalized name/alias match).
+   * Returns null when unknown. MUST NOT create or write anything — skill creation
+   * happens only inside `applySettlement`'s atomic unit.
    */
-  resolveSkillId(name: string): Promise<string>;
-  /** Atomically persist the result of a confirmed settlement (delta-based). */
+  lookupSkillId(label: string): Promise<string | null>;
+  /**
+   * Atomically persist the result of a confirmed settlement (delta-based).
+   * Resolves-or-creates the primary/secondary skills with stable UUID ids
+   * INSIDE this atomic unit and returns authoritative `skillId`/`transaction`/
+   * `masteryVerification`.
+   */
   applySettlement(settlement: SettlementToApply): Promise<SettlementResult>;
   /** Wipe the store (demo/testing only). */
   reset(): Promise<void>;

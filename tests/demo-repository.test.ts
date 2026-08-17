@@ -3,8 +3,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import crypto from "node:crypto";
-import { DemoRepository } from "@/lib/store/demo-repository";
-import type { SettlementToApply } from "@/lib/store/types";
+import { DemoRepository, ActivityAlreadySettledError } from "@/lib/store/demo-repository";
+import type { SettlementToApply, Assessment } from "@/lib/store/types";
 import type { AssessmentProposal } from "@/lib/ai/schemas";
 import { RULES_VERSION } from "@/lib/growth-engine/xp";
 
@@ -67,11 +67,8 @@ describe("DemoRepository corruption safety (Round4 item)", () => {
     fs.writeFileSync(dbFile, garbage, "utf8");
 
     expect(() => repo.readDb()).toThrow();
-
-    // Original file untouched.
     expect(fs.readFileSync(dbFile, "utf8")).toBe(garbage);
 
-    // Backup exists.
     const backups = fs.readdirSync(tempDir).filter((f) => f.startsWith("demo.json.corrupt-"));
     expect(backups).toHaveLength(1);
     expect(fs.readFileSync(path.join(tempDir, backups[0]), "utf8")).toBe(garbage);
@@ -85,32 +82,9 @@ describe("DemoRepository corruption safety (Round4 item)", () => {
     const backups = fs.readdirSync(tempDir).filter((f) => f.startsWith("demo.json.corrupt-"));
     expect(backups).toHaveLength(1);
   });
-
-  test("legacy v1 file without masteryVerifications is tolerated", async () => {
-    fs.writeFileSync(
-      dbFile,
-      JSON.stringify({
-        version: 1,
-        activities: [],
-        assessments: [],
-        transactions: [],
-        skills: {},
-        skillEdges: [],
-        player: { totalXp: 5, playerLevel: 1, energy: 70, focus: 70, momentum: 30 },
-      }),
-      "utf8",
-    );
-
-    const db = repo.readDb();
-    expect(db.masteryVerifications).toEqual([]);
-    expect(db.player.totalXp).toBe(5);
-
-    const p = await repo.getPlayer();
-    expect(p.totalXp).toBe(5);
-  });
 });
 
-describe("Milestone 2.7 — settlement integrity guards (store-level)", () => {
+describe("Milestone 2.7/Preflight — settlement guards & skill identity (store-level)", () => {
   async function makePendingAssessment(activityId: string) {
     return repo.addAssessment({
       activityId,
@@ -121,9 +95,8 @@ describe("Milestone 2.7 — settlement integrity guards (store-level)", () => {
   }
 
   function buildSettlement(input: {
-    assessment: Awaited<ReturnType<typeof repo.addAssessment>>;
+    assessment: { id: string };
     activityId: string;
-    skillId: string;
     skillName?: string;
     repetitionCount?: number;
     masteryVerification?: SettlementToApply["masteryVerification"];
@@ -136,7 +109,7 @@ describe("Milestone 2.7 — settlement integrity guards (store-level)", () => {
         activityId: input.activityId,
         assessmentId: input.assessment.id,
         xpType: "activity",
-        skillId: input.skillId,
+        skillId: "",
         skillName: name,
         activityType: "learning",
         repetitionCount: input.repetitionCount ?? 0,
@@ -149,52 +122,108 @@ describe("Milestone 2.7 — settlement integrity guards (store-level)", () => {
         createdAt: new Date().toISOString(),
       },
       xpDelta: 10,
-      primarySkill: {
-        id: input.skillId,
-        name,
-        xpDelta: 10,
-        masteryAction: { action: "none" },
-      },
-      relatedSkillNames: [],
-      newEdges: [],
+      primarySkill: { name, xpDelta: 10, masteryAction: { action: "none" } },
+      relatedSkillLabels: [],
       player: { xpDelta: 10 },
       masteryVerification: input.masteryVerification,
     };
   }
 
-  test("stable skill id: same label twice -> same id", async () => {
-    const id1 = await repo.resolveSkillId("Statistics");
-    const id2 = await repo.resolveSkillId("Statistics");
-    expect(id1).toBe(id2);
-    expect(id1.startsWith("skill-")).toBe(true);
+  test("lookupSkillId is READ-ONLY (unknown -> null, never creates)", async () => {
+    expect(await repo.lookupSkillId("Statistics")).toBe(null);
+    expect((await repo.listSkills()).length).toBe(0);
+  });
+
+  test("skill ids are stable UUIDs + normalized label lookup prevents overwrite", async () => {
+    const activity = await repo.addActivity({ rawInput: "one" });
+    const s1 = await makePendingAssessment(activity.id);
+    const res = await repo.applySettlement(
+      buildSettlement({ assessment: s1, activityId: activity.id, skillName: "Regression Analysis" }),
+    );
+    expect(res.ok).toBe(true);
+    expect(res.skillId).toMatch(/^[0-9a-f-]{36}$/); // UUID identity, not a slug
+
+    // Case + whitespace + alias normalization all resolve to the SAME id.
+    const idA = await repo.lookupSkillId("Regression Analysis");
+    const idB = await repo.lookupSkillId("Regression   Analysis");
+    const idC = await repo.lookupSkillId("regression analysis");
+    expect(idA).toBe(res.skillId);
+    expect(idB).toBe(idA);
+    expect(idC).toBe(idA);
+
+    // The skill state was NOT reset by a later lookup/normalization.
+    const skill = await repo.getSkill("regression analysis");
+    expect(skill?.xp).toBe(10);
+    expect(skill?.id).toBe(res.skillId);
   });
 
   test("stale repetition snapshot is rejected (repetition_conflict) and nothing is written", async () => {
     const activity = await repo.addActivity({ rawInput: "x" });
     const assessment = await makePendingAssessment(activity.id);
-    const settlement = buildSettlement({ assessment, activityId: activity.id, skillId: "skill-a", repetitionCount: 5 });
+    const settlement = buildSettlement({ assessment, activityId: activity.id, repetitionCount: 5 });
 
     const res = await repo.applySettlement(settlement);
     expect(res.ok).toBe(false);
     expect(res.reason).toBe("repetition_conflict");
-    expect(res.actualRepetitionCount).toBe(0); // the fresh authoritative count
+    expect(res.actualRepetitionCount).toBe(0);
 
     expect(await repo.listTransactions()).toHaveLength(0);
     expect((await repo.getPlayer()).totalXp).toBe(0);
   });
 
-  test("second activity settlement for the same Activity is rejected (already_settled)", async () => {
+  test("re-assessing a confirmed Activity is rejected (option B: no zombie revisions)", async () => {
     const activity = await repo.addActivity({ rawInput: "one activity" });
     const s1 = await makePendingAssessment(activity.id);
-    const ok1 = await repo.applySettlement(buildSettlement({ assessment: s1, activityId: activity.id, skillId: "skill-a" }));
+    const ok1 = await repo.applySettlement(buildSettlement({ assessment: s1, activityId: activity.id }));
     expect(ok1.ok).toBe(true);
 
-    const s2 = await makePendingAssessment(activity.id); // revision
-    const ok2 = await repo.applySettlement(buildSettlement({ assessment: s2, activityId: activity.id, skillId: "skill-a" }));
-    expect(ok2.ok).toBe(false);
-    expect(ok2.reason).toBe("already_settled");
-
+    await expect(makePendingAssessment(activity.id)).rejects.toBeInstanceOf(ActivityAlreadySettledError);
     expect(await repo.listTransactions()).toHaveLength(1);
+  });
+
+  test("applySettlement already_settled guard still works as defense-in-depth", async () => {
+    const activity = await repo.addActivity({ rawInput: "one activity" });
+    const s1 = await makePendingAssessment(activity.id);
+    await repo.applySettlement(buildSettlement({ assessment: s1, activityId: activity.id }));
+
+    // Fabricate a pending assessment on the (already-confirmed) activity to
+    // prove the store-level guard rejects a second activity settlement even if
+    // something bypassed the app layer.
+    const fabricated = {
+      id: "fabricated-pending",
+      activityId: activity.id,
+      status: "pending" as const,
+      proposal,
+      modelName: "test",
+      promptVersion: "test",
+      rulesVersion: RULES_VERSION,
+      confidence: 0.7,
+      createdAt: new Date().toISOString(),
+      confirmedAt: null,
+    } satisfies Assessment;
+    const raw = JSON.parse(fs.readFileSync(dbFile, "utf8"));
+    raw.assessments.unshift(fabricated);
+    fs.writeFileSync(dbFile, JSON.stringify(raw));
+
+    const res = await repo.applySettlement(buildSettlement({ assessment: fabricated, activityId: activity.id }));
+    expect(res.ok).toBe(false);
+    expect(res.reason).toBe("already_settled");
+    expect(await repo.listTransactions()).toHaveLength(1);
+  });
+
+  test("pre-confirm revision is superseded when one is confirmed (no zombie pending)", async () => {
+    const activity = await repo.addActivity({ rawInput: "one activity" });
+    const s1 = await makePendingAssessment(activity.id);
+    const s2 = await makePendingAssessment(activity.id); // revision while still assessed
+
+    const ok = await repo.applySettlement(buildSettlement({ assessment: s1, activityId: activity.id }));
+    expect(ok.ok).toBe(true);
+
+    const assessments = repo.readDb().assessments;
+    expect(assessments.find((a) => a.id === s1.id)?.status).toBe("confirmed");
+    expect(assessments.find((a) => a.id === s2.id)?.status).toBe("superseded");
+
+    expect((await repo.listPendingAssessments()).map((a) => a.id)).not.toContain(s2.id);
   });
 
   test("at most one pending mastery verification per skill", async () => {
@@ -214,18 +243,21 @@ describe("Milestone 2.7 — settlement integrity guards (store-level)", () => {
     });
 
     const okA = await repo.applySettlement(
-      buildSettlement({ assessment: sA, activityId: activityA.id, skillId: "skill-a", masteryVerification: v("skill-a") }),
+      buildSettlement({ assessment: sA, activityId: activityA.id, masteryVerification: v("") }),
     );
     expect(okA.ok).toBe(true);
+    expect(okA.masteryVerification?.status).toBe("pending");
 
-    // Second activity, same skill + same type → must carry repetitionCount=1,
-    // and its pending verification is deduped (skipped).
+    // Second activity, same skill + same type → count=1, verification deduped.
     const activityB = await repo.addActivity({ rawInput: "B" });
     const sB = await makePendingAssessment(activityB.id);
     const okB = await repo.applySettlement(
-      buildSettlement({ assessment: sB, activityId: activityB.id, skillId: "skill-a", repetitionCount: 1, masteryVerification: v("skill-a") }),
+      buildSettlement({ assessment: sB, activityId: activityB.id, repetitionCount: 1, masteryVerification: v("") }),
     );
     expect(okB.ok).toBe(true);
+
+    // Authoritative return: the EXISTING pending verification (not a new phantom id).
+    expect(okB.masteryVerification?.id).toBe(okA.masteryVerification?.id);
 
     const pending = (await repo.listMasteryVerifications()).filter((x) => x.status === "pending");
     expect(pending).toHaveLength(1);

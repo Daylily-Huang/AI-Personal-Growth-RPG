@@ -6,6 +6,7 @@ interface FlowNode {
   position: { x: number; y: number };
   data: {
     label: string;
+    skillName: string;
     level: number;
     masteryLevel: number;
     masteryConfidence: number;
@@ -27,40 +28,42 @@ export async function GET() {
     const skills = await repo.listSkills();
     const edges = await repo.listSkillEdges();
 
+    // Nodes are keyed by stable skill id; edges endpoints are skill ids too.
     const levels = new Map<string, number>();
     const indegree = new Map<string, number>();
     for (const skill of skills) {
-      levels.set(skill.name, 0);
-      indegree.set(skill.name, 0);
+      levels.set(skill.id, 0);
+      indegree.set(skill.id, 0);
     }
     for (const edge of edges) {
-      if (!indegree.has(edge.source) || !indegree.has(edge.target)) continue;
-      indegree.set(edge.target, (indegree.get(edge.target) ?? 0) + 1);
+      if (!indegree.has(edge.sourceId) || !indegree.has(edge.targetId)) continue;
+      indegree.set(edge.targetId, (indegree.get(edge.targetId) ?? 0) + 1);
     }
 
     // Topological layering: a node's layer = max(source layer) + 1.
-    const queue = skills.filter((s) => (indegree.get(s.name) ?? 0) === 0).map((s) => s.name);
+    const queue = skills.filter((s) => (indegree.get(s.id) ?? 0) === 0).map((s) => s.id);
     let head = 0;
     while (head < queue.length) {
-      const name = queue[head++];
-      for (const edge of edges.filter((e) => e.source === name)) {
-        levels.set(edge.target, Math.max(levels.get(edge.target) ?? 0, (levels.get(name) ?? 0) + 1));
-        indegree.set(edge.target, (indegree.get(edge.target) ?? 0) - 1);
-        if ((indegree.get(edge.target) ?? 0) === 0) queue.push(edge.target);
+      const id = queue[head++];
+      for (const edge of edges.filter((e) => e.sourceId === id)) {
+        levels.set(edge.targetId, Math.max(levels.get(edge.targetId) ?? 0, (levels.get(id) ?? 0) + 1));
+        indegree.set(edge.targetId, (indegree.get(edge.targetId) ?? 0) - 1);
+        if ((indegree.get(edge.targetId) ?? 0) === 0) queue.push(edge.targetId);
       }
     }
 
     // Group by layer for stable vertical spacing.
     const layerIndex = new Map<number, number>();
     const nodes: FlowNode[] = skills.map((skill) => {
-      const layer = levels.get(skill.name) ?? 0;
+      const layer = levels.get(skill.id) ?? 0;
       const index = layerIndex.get(layer) ?? 0;
       layerIndex.set(layer, index + 1);
       return {
-        id: skill.name,
+        id: skill.id,
         position: { x: layer * 280, y: index * 140 },
         data: {
           label: skill.name,
+          skillName: skill.name,
           level: skill.level,
           masteryLevel: skill.masteryLevel,
           masteryConfidence: skill.masteryConfidence,
@@ -70,9 +73,9 @@ export async function GET() {
     });
 
     const flowEdges: FlowEdge[] = edges.map((edge, index) => ({
-      id: `${edge.source}-${edge.target}-${index}`,
-      source: edge.source,
-      target: edge.target,
+      id: `${edge.sourceId}-${edge.targetId}-${index}`,
+      source: edge.sourceId,
+      target: edge.targetId,
       label: edge.relation,
       animated: true,
     }));

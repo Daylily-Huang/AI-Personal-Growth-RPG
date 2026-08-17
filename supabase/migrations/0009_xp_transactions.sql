@@ -17,7 +17,10 @@ create table if not exists public.xp_transactions (
     -- Round3: sync with domain model —
     repetition_count integer not null default 0,
     repetition_penalty numeric not null default 1,
-    xp_type text not null default 'activity',
+    -- Round6: DB-level invariant — a typo like 'activty' must never bypass the
+    -- partial unique index that guards "one activity settlement".
+    xp_type text not null default 'activity'
+        check (xp_type in ('activity', 'adjustment', 'correction')),
     amount integer not null,
     base_amount integer not null,
     modifier_json jsonb not null default '{}'::jsonb,

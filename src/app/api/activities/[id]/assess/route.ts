@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getRepository } from "@/lib/store/demo-db";
+import { ActivityAlreadySettledError } from "@/lib/store/demo-repository";
 import { assessActivity } from "@/lib/ai/assess";
 import { getPromptVersion } from "@/lib/ai/prompts";
 import { AI_MODEL_NAME } from "@/lib/ai/config";
@@ -34,6 +35,14 @@ export async function POST(_request: Request, ctx: { params: Promise<{ id: strin
 
     return NextResponse.json({ assessment }, { status: 200 });
   } catch (error) {
+    if (error instanceof ActivityAlreadySettledError) {
+      // Round6: a confirmed Activity yields one original settlement; no zombie
+      // pending revisions until a correction pipeline exists.
+      return NextResponse.json(
+        { error: error.message, code: error.code },
+        { status: 409 },
+      );
+    }
     console.error("Failed to assess activity", error);
     return NextResponse.json({ error: "Failed to assess activity" }, { status: 500 });
   }

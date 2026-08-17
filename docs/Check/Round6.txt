@@ -1,0 +1,664 @@
+我审完了 `e0d3b71` 相对上一轮 `0384465b` 的实际代码，不只是看这份 Round5 摘要。开发方对本轮 10 项工作的描述大体属实。 GitHub Actions 对这个 commit 也是真实 `success`，lint / test / build 都通过；日志里确实是 **6 files / 43 tests passed**。
+
+# Round5 结论：**CONDITIONAL PASS**
+
+Milestone 2.7 已经把前一轮最危险的几个 settlement 漏洞修掉了，我认为这轮是明显进步。但我**仍不建议马上开始 SupabaseRepository**，因为 Skill Identity 这次的新实现本身带来了一个可能造成数据覆盖的 P1，而且 settlement 的“原子边界”还差最后一点。
+
+## 10 项整改的实际验收
+
+| 项目 | 结果 |
+|---|---|
+| 一个 Activity 只能产生一笔原始 XP | ✅ |
+| Assessment revision 不重复发 XP | ✅ 账本层；⚠️ 生命周期有问题 |
+| `xpType` | ✅ |
+| 同 skill/type 并发 repetition | ✅ |
+| repetition conflict + retry | ✅ |
+| Activity 冻结 `rulesVersion` | ✅ 数据字段；⚠️ 执行层尚未真正版本化 |
+| mock base_value 去除时间 | ✅ |
+| pending Mastery verification 唯一 | ✅ |
+| primary-only skill XP | ✅ |
+| Stable Skill ID | ⚠️ **部分通过，存在 P1** |
+
+其中同类并发测试这次写得是对的：两个 `Statistics + learning` 并发后明确要求 `repetitionCount == [0,1]`，并重新用 `calculateXp()` 验证两笔 XP；这正是我上轮要求的 invariant。
+
+一个 Activity 一笔原始 settlement 也已经有两层保护：DemoRepository 在原子落账前检查，Postgres migration 还加了 `WHERE xp_type='activity'` 的 partial unique index。 
+
+---
+
+# P1：当前 Stable Skill ID 有真实的数据覆盖风险
+
+这是本轮最重要的新问题。
+
+现在创建 Skill ID 的方式是：
+
+```ts
+slugSkillId("Statistics")
+→ "skill-statistics"
+```
+
+而 `resolveSkillId()` 先按**大小写敏感的 name/alias**查找；如果没找到，就直接：
+
+```ts
+db.skills[id] = defaultSkill(id, name);
+```
+
+
+
+于是很容易发生：
+
+```text
+第一次：
+"Statistics"
+→ id = skill-statistics
+→ XP = 100
+
+后来 AI 输出：
+"statistics"
+```
+
+`findSkillByLabel()` 因大小写不同找不到现有 Skill，但 slug 还是：
+
+```text
+skill-statistics
+```
+
+然后：
+
+```ts
+db.skills["skill-statistics"] = defaultSkill(...)
+```
+
+**直接覆盖旧对象。**
+
+结果可能从：
+
+```text
+Statistics
+XP 100
+M4
+```
+
+变成：
+
+```text
+statistics
+XP 0
+M1
+```
+
+Ledger 没丢，但缓存 Skill 状态被重置。
+
+类似问题还会出现在：
+
+```text
+Regression Analysis
+Regression-Analysis
+Regression   Analysis
+```
+
+这种不同文本产生相同 slug 的情况。
+
+### 我建议不要继续修 slug
+
+既然下一阶段就是 PostgreSQL/Supabase，直接把 Skill ID 改成真正独立于名称的 UUID：
+
+```ts
+id = crypto.randomUUID()
+```
+
+然后：
+
+```text
+id      = 永久身份
+name    = 当前显示名
+aliases = 别名
+normalized label = 查找用
+```
+
+不要再让名字推导 ID。
+
+这同时解决你马上会遇到的一个 schema mismatch：现在 Demo 的 ID 是：
+
+```text
+skill-statistics
+```
+
+而 Supabase migration 已经设计成：
+
+```sql
+skill_id uuid
+```
+
+
+
+二者目前并不能直接迁移。
+
+---
+
+# P1：既然已经有 Skill ID，repetition 就不应该继续按 Skill Name
+
+当前 transaction 已经有：
+
+```ts
+skillId
+skillName
+```
+
+
+
+但 `countRecentSimilar()` 仍然定义成：
+
+```ts
+skillName: string
+```
+
+并执行：
+
+```ts
+tx.skillName !== params.skillName
+```
+
+
+
+这意味着 Stable ID 没真正进入 anti-farming 的核心规则。
+
+例如以后你建立 alias：
+
+```text
+skill id = uuid-123
+
+name:
+Statistics
+
+alias:
+统计学
+```
+
+两次 Activity：
+
+```text
+第一次 AI → Statistics
+第二次 AI → 统计学
+```
+
+如果两者最终都对应 `uuid-123`，理论上应该算同一个 Skill。
+
+但当前 repetition 仍可能：
+
+```text
+Statistics != 统计学
+→ repetitionCount = 0
+```
+
+等于绕过重复惩罚。
+
+### 应改成
+
+```text
+same skillId
++
+same activityType
++
+window
+```
+
+`skillName` 只保留为历史显示快照。
+
+这是 Stable Skill Identity 真正落地的关键一步。
+
+---
+
+# P1：Skill 创建目前发生在 atomic settlement 之外
+
+Repository 文档现在声称：
+
+> `applySettlement` 是唯一原子 settlement mutation。
+
+但 Service 实际上在调用 `applySettlement()` **之前**：
+
+```ts
+const skillId =
+  await repo.resolveSkillId(skillName);
+```
+
+
+
+而 `resolveSkillId()` 不只是“resolve”。
+
+它在不存在的时候会：
+
+```text
+创建 Skill
+↓
+writeDb()
+```
+
+
+
+所以理论上：
+
+```text
+Confirm
+↓
+resolveSkillId()
+→ 新 Skill 已经永久写入
+
+↓
+applySettlement()
+
+↓
+already_settled
+或 repetition retry exhausted
+
+↓
+Confirm 失败
+```
+
+但新 Skill 已经留下来了。
+
+这说明：
+
+```text
+settlement 失败
+≠
+零永久副作用
+```
+
+不符合我们一直坚持的 transaction boundary。
+
+### 推荐
+
+把：
+
+```ts
+resolveSkillId()
+```
+
+改成**无副作用的 lookup**，或者更好：
+
+```text
+SettlementToApply
+携带：
+primarySkillCandidate {
+  existingId?
+  normalizedLabel
+  name
+}
+```
+
+然后真正的：
+
+```text
+resolve/create skill
+```
+
+放进：
+
+```text
+applySettlement transaction / PostgreSQL RPC
+```
+
+内部完成。
+
+---
+
+# P1：Assessment revision 现在会制造“僵尸 Pending”
+
+这轮确实允许：
+
+```text
+Activity
+→ Assessment #1
+→ Confirm
+→ XP settled
+
+然后：
+Activity
+→ Assessment #2
+```
+
+而第二次 Confirm 会正确返回：
+
+```text
+already_settled
+```
+
+所以不会重复发 XP。
+
+但是问题是：
+
+第二个 Assessment 创建时状态仍然是：
+
+```text
+pending
+```
+
+而 `applySettlement()` 返回 `already_settled` 时没有改变它的状态。
+
+所以它仍然会被：
+
+```ts
+listPendingAssessments()
+```
+
+持续返回。
+
+于是 Dashboard 很可能一直显示一个：
+
+> “待确认”
+
+但用户永远确认不了的 Assessment。
+
+### 这里有两个合理方案
+
+**A，我更推荐长期方案：**
+
+```text
+已结算 Activity
+→ 可以 Re-assess
+→ Assessment revision 保存为 review_only / superseded
+→ 不进入 settlement pending queue
+```
+
+未来如果用户真的要修历史：
+
+```text
+Correction
+→ adjustment/correction transaction
+```
+
+而不是再次原始结算。
+
+**B，最简单 MVP：**
+
+已 confirmed 的 Activity 暂时禁止再 Assess：
+
+```text
+409 activity_already_settled
+```
+
+直到 correction pipeline 做好。
+
+如果你现在想快速进入 Supabase，我建议 **B**，成本最低、状态最干净。
+
+---
+
+# P1/P2：Mastery Verification 去重时，Service 返回的对象可能并不存在
+
+Service 在调用 Repository 前先生成：
+
+```ts
+masteryVerification = {
+  id: randomUUID(),
+  ...
+}
+```
+
+然后 settlement 成功后直接把这个对象返回给 API。
+
+但是 Repository 如果发现同一个 Skill 已经有 pending：
+
+```ts
+if (!hasPending) {
+  db.masteryVerifications.unshift(...)
+}
+```
+
+否则就**跳过创建**。
+
+于是可能出现：
+
+```text
+API 返回：
+verification id = NEW-123
+
+实际数据库：
+没有 NEW-123
+只有 OLD-456
+```
+
+这属于“返回结果不是 authoritative persisted state”。
+
+Supabase 上线以后这个更重要。
+
+### 建议
+
+`applySettlement()` 返回：
+
+```ts
+{
+  ok: true,
+  masteryVerification:
+    createdVerification | existingPendingVerification | null
+}
+```
+
+Service 不要自己假设它成功创建了哪个对象。
+
+---
+
+# DB 层还有一个很小但值得现在修的约束
+
+`xp_type` 现在只是：
+
+```sql
+xp_type text not null default 'activity'
+```
+
+
+
+但你的一 Activity 一笔 XP 唯一索引依赖：
+
+```sql
+where xp_type = 'activity'
+```
+
+如果以后一个 bug 写出：
+
+```text
+activty
+Activity
+activity_
+```
+
+它就能绕过这个唯一索引。
+
+所以正式 migration 建议增加：
+
+```sql
+check (
+  xp_type in ('activity', 'adjustment', 'correction')
+)
+```
+
+这是数据库 invariant，不能只靠 TypeScript union。
+
+---
+
+# Rules Version：这轮只完成了“标签冻结”，还没完成“算法冻结”
+
+Activity 现在确实保存：
+
+```ts
+rulesVersion
+```
+
+transaction 也记录 Activity 的 frozen version。
+
+这是正确 groundwork。
+
+但 Confirm 实际计算仍直接调用：
+
+```ts
+calculateXp(xpInput)
+```
+
+
+
+也就是说未来如果你修改 `calculateXp()` 为 v0.2：
+
+```text
+旧 Activity.rulesVersion = v0.1
+
+但 Confirm 时：
+执行的是部署中的 v0.2 算法
+
+ledger 最后却写：
+v0.1
+```
+
+那会产生“标签说 v0.1，实际是 v0.2”的严重审计错误。
+
+当前因为只有 v0.1，**还没有实际 bug**。
+
+所以这不是现在阻塞 Supabase 的 P1，但必须明确一个 Gate：
+
+> **在第一次 bump Growth Engine rulesVersion 之前，必须实现 version → engine registry。**
+
+例如：
+
+```ts
+calculateXpForVersion(
+  activity.rulesVersion,
+  xpInput
+)
+```
+
+---
+
+# Time → XP 这次已经修干净了
+
+这一点可以正式关闭。
+
+mock 的：
+
+```ts
+base_value
+```
+
+已经变成：
+
+```ts
+Math.min(
+  30,
+  10 + evidenceLevel * 3
+)
+```
+
+不再读取 `totalMinutes`。
+
+时间现在只通过 Growth Engine 的 capped `effectiveMinutes → timeFactor` 进入。
+
+这和系统宪法明显更一致。
+
+---
+
+# 我的总评价
+
+这一轮之后，我认为你的 settlement 系统已经从：
+
+```text
+“基本不会重复记账”
+```
+
+进化到了：
+
+```text
+“开始具有真正 ledger/invariant 思维”
+```
+
+这是质变。
+
+尤其现在已经有：
+
+```text
+Activity idempotency
+Assessment idempotency
+delta settlement
+repetition conflict retry
+Mastery verification
+XP transaction types
+rules version metadata
+primary-only allocation
+CI invariant tests
+```
+
+这个底座已经不像普通打卡 App 了。
+
+但这次 Skill ID 的改动属于：
+
+> **正确方向 + 实现还没收口。**
+
+---
+
+# 当前 Gate
+
+我给 Milestone 2.7：
+
+## **8.6 / 10 — CONDITIONAL PASS**
+
+P0：
+
+```text
+0
+```
+
+P1 我认为需要在正式 Supabase schema 定型前解决 4 组：
+
+1. **Skill Identity hardening**
+   - UUID identity
+   - normalized aliases
+   - 防 slug collision / overwrite
+   - repetition 改按 skillId
+   - SkillEdge 最终也改 ID
+
+2. **Settlement atomicity**
+   - Skill resolve/create 不得在 transaction 外写永久状态
+   - Repository 返回 persisted authoritative result
+
+3. **Assessment revision lifecycle**
+   - 不能产生永远 pending 的 revision
+
+4. **数据库 invariant**
+   - `xp_type CHECK`
+   - 后续完整 0001–0008 schema bootstrap
+
+---
+
+# 我建议下一步不要再开一个很大的“2.8”
+
+这里已经进入边际收益很低的区域。
+
+做一个**非常小的 Supabase Preflight Fix** 就够了：
+
+```text
+Skill ID 改 UUID
+→ similarity 改 skillId
+→ skill creation 移入 atomic settlement
+→ fix revision zombie pending
+→ authoritative masteryVerification return
+→ xp_type CHECK
+```
+
+这些做完，我认为就应该停止继续在 JSON Demo 上雕刻。
+
+然后正式进入：
+
+# **Milestone 3 — Supabase Foundation**
+
+也就是：
+
+```text
+完整 MVP migrations
+→ Auth
+→ RLS
+→ request-scoped Supabase client
+→ SupabaseRepository
+→ PostgreSQL settlement RPC/transaction
+→ empty-database migration test
+→ real integration test
+```
+
+**到那个阶段，下一轮审查重点就不再是 DemoRepository，而是数据库约束、RLS 是否真的隔离用户、以及 RPC 是否真正原子。**
+
+这会是项目从“可靠本地 MVP”进入“真实可长期使用系统”的分界线。

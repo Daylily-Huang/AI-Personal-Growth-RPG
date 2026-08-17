@@ -5,7 +5,7 @@ const now = "2026-08-17T12:00:00.000Z";
 
 function tx(overrides: Partial<SimilarTransactionLike> = {}): SimilarTransactionLike {
   return {
-    skillName: "Statistics",
+    skillId: "skill-stats",
     activityType: "learning",
     createdAt: "2026-08-10T12:00:00.000Z",
     ...overrides,
@@ -14,9 +14,9 @@ function tx(overrides: Partial<SimilarTransactionLike> = {}): SimilarTransaction
 
 describe("countRecentSimilar (MVP repetition similarity)", () => {
   test("different skill never counts", () => {
-    const transactions = [tx({ skillName: "Biology" }), tx({ skillName: "Programming" })];
+    const transactions = [tx({ skillId: "skill-bio" }), tx({ skillId: "skill-prog" })];
     expect(
-      countRecentSimilar(transactions, { skillName: "Statistics", activityType: "learning", refTime: now }),
+      countRecentSimilar(transactions, { skillId: "skill-stats", activityType: "learning", refTime: now }),
     ).toBe(0);
   });
 
@@ -24,7 +24,7 @@ describe("countRecentSimilar (MVP repetition similarity)", () => {
     // Same skill, but one was learning and this one is production.
     const transactions = [tx({ activityType: "learning" }), tx({ activityType: "physical" })];
     expect(
-      countRecentSimilar(transactions, { skillName: "Statistics", activityType: "production", refTime: now }),
+      countRecentSimilar(transactions, { skillId: "skill-stats", activityType: "production", refTime: now }),
     ).toBe(0);
   });
 
@@ -34,28 +34,28 @@ describe("countRecentSimilar (MVP repetition similarity)", () => {
       tx({ createdAt: "2026-08-16T00:00:00.000Z" }),
     ];
     expect(
-      countRecentSimilar(transactions, { skillName: "Statistics", activityType: "learning", refTime: now }),
+      countRecentSimilar(transactions, { skillId: "skill-stats", activityType: "learning", refTime: now }),
     ).toBe(2);
   });
 
   test("older than 30 days is ignored", () => {
     const transactions = [tx({ createdAt: "2026-07-10T00:00:00.000Z" })];
     expect(
-      countRecentSimilar(transactions, { skillName: "Statistics", activityType: "learning", refTime: now }),
+      countRecentSimilar(transactions, { skillId: "skill-stats", activityType: "learning", refTime: now }),
     ).toBe(0);
   });
 
   test("a transaction after refTime never counts", () => {
     const transactions = [tx({ createdAt: "2026-08-18T00:00:00.000Z" })];
     expect(
-      countRecentSimilar(transactions, { skillName: "Statistics", activityType: "learning", refTime: now }),
+      countRecentSimilar(transactions, { skillId: "skill-stats", activityType: "learning", refTime: now }),
     ).toBe(0);
   });
 
   test("legacy transactions without activityType never match a typed activity", () => {
     const transactions = [tx({ activityType: null })];
     expect(
-      countRecentSimilar(transactions, { skillName: "Statistics", activityType: "learning", refTime: now }),
+      countRecentSimilar(transactions, { skillId: "skill-stats", activityType: "learning", refTime: now }),
     ).toBe(0);
   });
 
@@ -63,7 +63,7 @@ describe("countRecentSimilar (MVP repetition similarity)", () => {
     const transactions = [tx({ createdAt: "2026-08-15T00:00:00.000Z" })];
     expect(
       countRecentSimilar(transactions, {
-        skillName: "Statistics",
+        skillId: "skill-stats",
         activityType: "learning",
         refTime: now,
         windowDays: 7,
@@ -72,7 +72,7 @@ describe("countRecentSimilar (MVP repetition similarity)", () => {
     const older = [tx({ createdAt: "2026-08-01T00:00:00.000Z" })];
     expect(
       countRecentSimilar(older, {
-        skillName: "Statistics",
+        skillId: "skill-stats",
         activityType: "learning",
         refTime: now,
         windowDays: 7,

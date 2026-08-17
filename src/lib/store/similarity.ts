@@ -2,23 +2,22 @@
  * MVP similarity rule for the repetition penalty (Round1 review fix).
  *
  * Two activities count as "similar" when ALL of the following hold:
- *   - same primary skill
+ *   - same primary SKILL ID (stable identity — Round6: never the display name)
  *   - same activity type
  *   - happened within the recent window (default 30 days) before `refTime`
  *
- * This is intentionally a deterministic, database-free rule. Later we can
- * upgrade to semantic embedding similarity (cosine > threshold), but the
- * deterministic engine that turns the count into XP must stay pure.
+ * `skillId` is the authoritative anti-farming key: two labels that alias the
+ * same skill (Statistics / 统计学) must count as one and the same.
  */
 
 export interface SimilarTransactionLike {
-  skillName: string;
+  skillId: string;
   activityType: string | null;
   createdAt: string;
 }
 
 export interface CountRecentSimilarParams {
-  skillName: string;
+  skillId: string;
   activityType: string | null;
   /** ISO timestamp used as the reference "now"; defaults to Date.now(). */
   refTime?: string;
@@ -32,7 +31,7 @@ export function countRecentSimilar(
   transactions: SimilarTransactionLike[],
   params: CountRecentSimilarParams,
 ): number {
-  if (params.skillName === "") return 0;
+  if (!params.skillId) return 0;
 
   const refMs = params.refTime ? new Date(params.refTime).getTime() : Date.now();
   if (Number.isNaN(refMs)) return 0;
@@ -45,7 +44,7 @@ export function countRecentSimilar(
     const createdAtMs = new Date(tx.createdAt).getTime();
     if (Number.isNaN(createdAtMs)) continue;
     if (createdAtMs > refMs || createdAtMs < cutoffMs) continue;
-    if (tx.skillName !== params.skillName) continue;
+    if (tx.skillId !== params.skillId) continue;
     if (params.activityType != null && tx.activityType !== params.activityType) continue;
     count += 1;
   }
