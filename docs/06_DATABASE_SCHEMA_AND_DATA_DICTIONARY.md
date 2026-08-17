@@ -298,15 +298,24 @@ verified
 ```text
 activity_id
 quest_id
-assessment_id
+assessment_id        -- UNIQUE：一个 assessment 至多产生一笔结算
 domain_id
 skill_id
+activity_type        -- 结算时的活动类型，用于重复惩罚的 similarity 判定
 xp_type
 amount
 base_amount
 modifier_json
 reason
 rules_version
+```
+
+**强制约束（必做）**：
+
+```sql
+-- 一个 assessment 只能被结算一次，数据库层面兜底并发幂等
+alter table xp_transactions
+  add constraint xp_transactions_assessment_id_key unique (assessment_id);
 ```
 
 修正 XP 时：
@@ -489,6 +498,23 @@ unique confirmed settlement per assessment_id
 ```
 
 确保重复请求不会重复发 XP。
+
+## 23.1 Sequential vs Concurrent 幂等（重要区分）
+
+| 场景 | 含义 | 当前实现 |
+| --- | --- | --- |
+| **Sequential idempotency** | 同一个 assessment 按顺序确认两次：第一次成功，第二次返回 `already_confirmed`，账本只记 1 笔 | ✅ 已实现 + 单测覆盖 |
+| **Concurrent idempotency（单进程）** | 两个确认请求几乎同时到达 | ✅ 本地 JSON store 的 `confirmAssessment` 是**同步读改写**（Node 单线程内原子完成），并发调用实际仍串行，账本只记 1 笔（已有 Promise.all 测试） |
+| **Concurrent idempotency（跨进程 / 多实例）** | 多个 Node 进程 / 多台机器同时确认同一个 assessment | ❌ 尚未保证。必须靠数据库 `UNIQUE(assessment_id)` 兜底（两个 INSERT 只会成功一个，另一个触发 unique constraint） |
+
+因此本地 Demo 阶段的结论是：
+
+```text
+顺序幂等：已保证
+并发幂等：单进程内已保证；跨进程/多实例需数据库 UNIQUE 约束
+```
+
+这也就是接入 Supabase/PostgreSQL 时 `xp_transactions.assessment_id UNIQUE` 必须一次性建好的原因。
 
 ---
 

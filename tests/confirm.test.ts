@@ -105,4 +105,77 @@ describe("confirmAssessment idempotency", () => {
     const result = confirmAssessment(assessment.id);
     expect(result.transaction?.rulesVersion).toBe(RULES_VERSION);
   });
+
+  test("different activity type of the same skill does NOT trigger repetition penalty", () => {
+    // First: learning Statistics.
+    const learningActivity = createActivity({ rawInput: "读统计论文" });
+    const learningAssessment = createAssessment({
+      activityId: learningActivity.id,
+      proposal,
+      modelName: "test-model",
+      promptVersion: "test-prompt",
+    });
+    const learning = confirmAssessment(learningAssessment.id);
+    expect(learning.transaction?.modifierJson?.repetitionPenalty).toBe(1);
+
+    // Second: PRODUCTION using Statistics — same skill, different type.
+    const productionProposal: AssessmentProposal = {
+      ...proposal,
+      activity: { ...proposal.activity, type: "production" },
+    };
+    const productionActivity = createActivity({ rawInput: "用统计完成一个实际分析产出" });
+    const productionAssessment = createAssessment({
+      activityId: productionActivity.id,
+      proposal: productionProposal,
+      modelName: "test-model",
+      promptVersion: "test-prompt",
+    });
+    const production = confirmAssessment(productionAssessment.id);
+
+    expect(production.transaction?.activityType).toBe("production");
+    expect(production.transaction?.modifierJson?.repetitionPenalty).toBe(1);
+  });
+
+  test("same skill + same activity type DOES trigger repetition penalty", () => {
+    const seed = confirmActivity(proposal, "读统计论文 #1");
+    expect(seed.transaction?.modifierJson?.repetitionPenalty).toBe(1);
+
+    const repeat = confirmActivity(proposal, "读统计论文 #2");
+    expect(repeat.transaction?.modifierJson?.repetitionPenalty).toBeLessThan(1);
+
+    const db = readDb();
+    expect(db.transactions).toHaveLength(2);
+  });
+
+  test("concurrent confirm calls settle exactly one transaction", async () => {
+    const activity = createActivity({ rawInput: "并发确认的统计学习" });
+    const assessment = createAssessment({
+      activityId: activity.id,
+      proposal,
+      modelName: "test-model",
+      promptVersion: "test-prompt",
+    });
+
+    const results = await Promise.all([
+      confirmAssessment(assessment.id),
+      confirmAssessment(assessment.id),
+    ]);
+
+    expect(results.filter((r) => r.ok)).toHaveLength(1);
+    expect(results.filter((r) => !r.ok && r.reason === "already_confirmed")).toHaveLength(1);
+
+    const db = readDb();
+    expect(db.transactions).toHaveLength(1);
+  });
 });
+
+function confirmActivity(p: AssessmentProposal, rawInput: string) {
+  const activity = createActivity({ rawInput });
+  const assessment = createAssessment({
+    activityId: activity.id,
+    proposal: p,
+    modelName: "test-model",
+    promptVersion: "test-prompt",
+  });
+  return confirmAssessment(assessment.id);
+}

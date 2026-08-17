@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getActivity, createAssessment, getRecentSimilarCount } from "@/lib/store/demo-db";
+import { getActivity, createAssessment } from "@/lib/store/demo-db";
 import { assessActivity } from "@/lib/ai/assess";
 import { getPromptVersion } from "@/lib/ai/prompts";
 import { AI_MODEL_NAME } from "@/lib/ai/config";
@@ -12,7 +12,10 @@ export async function POST(_request: Request, ctx: { params: Promise<{ id: strin
       return NextResponse.json({ error: "Activity not found" }, { status: 404 });
     }
 
-    const recentSimilarCount = getRecentSimilarCount();
+    // Primary skill / activity type are only known AFTER the proposal exists,
+    // so similarity can't be computed here. 0 is honest: the real repetition
+    // penalty is enforced deterministically at confirm time (see similarity.ts).
+    const recentSimilarCount = 0;
     const proposal = await assessActivity({
       rawInput: activity.rawInput,
       totalMinutes: activity.totalMinutes,

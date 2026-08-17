@@ -1,0 +1,1134 @@
+我已经按“独立审查者”读了仓库，不是只看 README。当前结论是：
+
+# 总体结论：**CONDITIONAL PASS（有条件通过）**
+
+这个初版不是“假的 Demo”，核心架构确实已经搭起来了，而且**Growth Engine、AI Proposal、Confirm→XP Ledger、Dashboard、Skill Tree 雏形**都是真代码。仓库结构也比较清晰。
+
+但我**不建议马上无脑继续堆功能**。现在有一个和游戏底层规则直接冲突的问题，应该先修；另外 Confirm 的“幂等性”目前只证明了顺序调用安全，没有证明并发安全。
+
+---
+
+# 一、我确认做对了的地方
+
+## 1. Growth Engine 的方向是正确的
+
+`src/lib/growth-engine/xp.ts` 是真正独立的确定性模块。
+
+它明确做到：
+
+```text
+相同 input
+→ 相同 XP
+```
+
+不读取数据库、不调用 AI、不依赖当前时间。
+
+这个架构非常重要，我赞成继续保持：
+
+```text
+AI
+↓
+给语义评分
+
+Growth Engine
+↓
+根据固定规则算 XP
+```
+
+而不是：
+
+```text
+AI：我觉得你应该 +357 XP
+```
+
+### 时间规则也实现对了
+
+目前：
+
+```ts
+1.00 → 1.15
+```
+
+时间最多只提供 15% 的修正，而且 180 分钟以后基本饱和。
+
+所以：
+
+```text
+60 min
+```
+
+和
+
+```text
+300 min
+```
+
+绝不会因为时间本身变成 5 倍 XP。
+
+这符合我们之前定的原则。
+
+---
+
+# 二、重复行为机制本身也写出来了
+
+代码中：
+
+```text
+第一次        ×1.00
+2–3 次        ×0.80
+4–10 次       ×0.40
+更高重复       ×0.15
+```
+
+同时：
+
+```text
+Novelty 越高
+→ 可以解除部分重复惩罚
+```
+
+所以设计思想实际上不错。
+
+例如：
+
+```text
+第 20 次读类似论文
++
+只是机械阅读
+```
+
+XP 很低。
+
+但：
+
+```text
+第 20 次读论文
++
+第一次真正搞懂 LC 推导
+```
+
+Novelty 高，就能减轻重复惩罚。
+
+这个逻辑值得保留。
+
+---
+
+# 三、Mastery 和 XP 已经被分开
+
+这也是非常正确的一点。
+
+测试明确包含：
+
+> XP does not automatically raise mastery
+
+也就是说：
+
+```text
+刷很多 XP
+≠
+自动变成大师
+```
+
+Mastery 仍然受到 Evidence 约束。
+
+例如测试里明确：
+
+```text
+E0
+不能直接 M6
+```
+
+而高 Mastery 还要求 verification。
+
+这正是这个系统区别于普通“打卡积分器”的关键。
+
+---
+
+# 四、AI 的权限边界总体正确
+
+AI 返回的是：
+
+```text
+AssessmentProposal
+```
+
+而不是直接写数据库。
+
+并且结果要经过 Zod Schema：
+
+```text
+0–1
+E0–E6
+Mastery 范围
+base_value 范围
+...
+```
+
+约束。
+
+真正 Confirm 时，服务器重新提取：
+
+```text
+baseValue
+difficulty
+masteryGain
+evidence
+novelty
+goalAlignment
+repetitionCount
+effectiveMinutes
+```
+
+然后调用：
+
+```ts
+calculateXp()
+```
+
+最后才创建 `XpTransaction`。
+
+所以目前不存在：
+
+```text
+AI 输出：
+
+"xp": 999999
+
+→ 系统直接 +999999
+```
+
+这种致命架构问题。
+
+这一条：
+
+**PASS。**
+
+---
+
+# 五、AI fallback 确实存在，不只是嘴上说
+
+`assessActivity()` 确实尝试：
+
+```text
+OpenAI-compatible endpoint
+```
+
+失败以后：
+
+```text
+catch
+↓
+mockAssessment()
+```
+
+而且模型结果还会通过：
+
+```ts
+AssessmentProposalSchema.safeParse()
+```
+
+如果 Schema 不合法，也不会直接采用。
+
+所以：
+
+> bridge 失败 → 本地 deterministic mock
+
+这个机制确实存在。
+
+**代码层面 PASS。**
+
+但注意：
+
+我现在验证的是**实现存在**。
+
+不是证明：
+
+```text
+127.0.0.1:3099
+```
+
+当前一定真实调用 DeepSeek 成功。
+
+这个需要运行环境做 Integration Test。
+
+---
+
+# 六、Skill Tree 其实已经做了
+
+这一点和之前那个 AI 给你的汇报已经有变化。
+
+现在仓库里面明确有：
+
+```text
+src/app/skills/page.tsx
+```
+
+而且是真的 React Flow：
+
+```ts
+ReactFlow
+Background
+Controls
+MiniMap
+Handle
+useNodesState
+useEdgesState
+```
+
+不是占位页面。
+
+技能节点已经显示：
+
+```text
+Skill Name
+
+Lv.X
+M.X
+
+XP
+Mastery Confidence
+```
+
+所以目前不能再说：
+
+> “Skill Tree 尚未实现。”
+
+准确描述应该是：
+
+> **Skill Tree v0 已实现，但技能分类、树结构语义和成长逻辑还很初级。**
+
+---
+
+# 七、我发现的第一个重要问题
+
+这个我建议作为 **P0/P1 边界问题立即修复**。
+
+现在代码写的是：
+
+```ts
+const recentSimilarCount = db.transactions.length;
+```
+
+注释却说：
+
+```ts
+// simple proxy for repetition
+```
+
+
+
+这意味着现在根本没有判断：
+
+> **“这是不是相似 Activity？”**
+
+而是：
+
+> **“你以前总共做过多少个 Activity？”**
+
+---
+
+## 举个实际例子
+
+你第一天：
+
+```text
+阅读 LC 论文
+```
+
+第二天：
+
+```text
+跑步
+```
+
+第三天：
+
+```text
+DNA 提取
+```
+
+第四天：
+
+```text
+学 QGIS
+```
+
+第五天：
+
+```text
+写 Introduction
+```
+
+这些明明完全不同。
+
+但系统看到的是：
+
+```text
+transaction count = 5
+```
+
+于是：
+
+```text
+repetitionCount = 5
+```
+
+第五件事情开始被当作：
+
+> “你已经重复很多次了。”
+
+---
+
+# 这会导致什么？
+
+如果你长期用了 100 天：
+
+```text
+db.transactions.length = 300
+```
+
+那么任何新任务：
+
+```text
+第一次学习 PGLMM
+第一次使用新的实验技术
+第一次写 Discussion
+```
+
+都会进入：
+
+```text
+repetitionCount > 9
+```
+
+基础重复系数：
+
+```text
+×0.15
+```
+
+然后靠 novelty 救回来一点。
+
+这会造成非常严重的：
+
+> **XP 全局衰减。**
+
+最终系统会变成：
+
+```text
+你越努力使用这个 App
+↓
+所有事情越来越不值 XP
+```
+
+这个明显不是我们的目标。
+
+---
+
+# 正确逻辑应该是
+
+例如：
+
+```text
+新 Activity
+↓
+识别 primary skill / activity fingerprint
+↓
+只搜索最近 N 天中的相似 Activity
+↓
+计算 similarCount
+```
+
+例如：
+
+```text
+阅读 LC 论文
+```
+
+只应该和：
+
+```text
+阅读 LC 方法论文
+学习 LC
+研究个体识别聚类算法
+```
+
+形成一定重复关系。
+
+而：
+
+```text
+跑步
+DNA 提取
+写 Introduction
+```
+
+不能算进去。
+
+---
+
+# 我建议改成两阶段
+
+MVP 可以先简单：
+
+```text
+same primary skill
++
+same activity type
++
+最近 30 天
+```
+
+例如：
+
+```ts
+similar =
+  same skill
+  && same activityType
+  && within 30 days
+```
+
+以后再升级成：
+
+```text
+semantic embedding similarity
+```
+
+例如：
+
+```text
+cosine similarity > 0.80
+```
+
+才算同类 Activity。
+
+---
+
+# 八、第二个重要问题：所谓“atomic confirm”并不真正 atomic
+
+源码注释：
+
+> Confirm an assessment and atomically write the XP ledger.
+
+
+
+但实际上：
+
+```text
+readDb()
+↓
+检查 assessment.status
+↓
+修改 JS object
+↓
+writeDb()
+```
+
+这是典型：
+
+```text
+read
+modify
+write
+```
+
+没有锁。
+
+---
+
+## 顺序执行没问题
+
+现在测试的是：
+
+```text
+Confirm A
+↓
+写文件
+
+Confirm B
+↓
+读取已 confirmed
+↓
+拒绝
+```
+
+测试确实覆盖了这个情况。
+
+所以：
+
+### Sequential idempotency
+
+**PASS**
+
+---
+
+# 但并发情况存在风险
+
+如果两个请求同时来：
+
+```text
+Request A        Request B
+
+read pending     read pending
+     ↓                ↓
+calculate XP     calculate XP
+     ↓                ↓
+write            write
+```
+
+两边在读取时都有可能看到：
+
+```text
+status = pending
+```
+
+当前 JSON store 没有：
+
+```text
+DB transaction
+unique constraint
+mutex
+row lock
+```
+
+因此我不会接受：
+
+> “Confirm 已完整保证幂等。”
+
+更准确应该是：
+
+> **单线程/顺序场景幂等已实现；并发幂等未保证。**
+
+---
+
+# 为什么 Supabase 后这个问题比较好解决？
+
+数据库里可以直接设置：
+
+```sql
+unique (assessment_id)
+```
+
+例如：
+
+```text
+xp_transactions.assessment_id UNIQUE
+```
+
+即使两个请求同时进来：
+
+```text
+A → INSERT 成功
+B → UNIQUE constraint failed
+```
+
+数据库会帮你守住。
+
+这也是 Supabase/PostgreSQL 的真正价值之一。
+
+---
+
+# 九、测试目前“质量不错，但覆盖不够”
+
+现在正式测试只有：
+
+```text
+tests/growth-engine.test.ts
+tests/confirm.test.ts
+```
+
+仓库也有 Harness starter 测试框架。
+
+Growth Engine 测试覆盖：
+
+- determinism
+- 时间非线性
+- repetition decay
+- evidence
+- novelty relief
+- modifier bounds
+- level
+- mastery
+
+
+
+这作为第一版已经不错。
+
+---
+
+# 但是至少缺 5 类测试
+
+### ① 相似行为判断
+
+目前甚至没有真正实现，所以当然也没测。
+
+应该有：
+
+```text
+Activity A = 阅读 LC
+Activity B = 跑步
+
+B repetitionCount
+必须 = 0
+```
+
+---
+
+### ② 并发 Confirm
+
+至少需要：
+
+```ts
+await Promise.all([
+  confirm(id),
+  confirm(id),
+])
+```
+
+最终：
+
+```text
+transactions.length === 1
+```
+
+---
+
+### ③ AI Schema failure
+
+例如模型返回：
+
+```json
+{
+  "base_value": 99999999
+}
+```
+
+应自动 fallback。
+
+---
+
+### ④ bridge failure integration
+
+模拟 connection refused：
+
+```text
+AI endpoint down
+↓
+Activity 仍然存在
+↓
+mock Assessment 返回
+```
+
+---
+
+### ⑤ E2E
+
+现在 `package.json` 根本没有：
+
+```text
+playwright
+test:e2e
+```
+
+只有：
+
+```text
+vitest
+```
+
+
+
+所以 AI 之前说：
+
+> Playwright 尚未配置
+
+这一点是准确的。
+
+---
+
+# 十、Supabase：只是装了依赖，还没真正接入
+
+有一个值得注意的地方。
+
+`package.json` 已经安装：
+
+```text
+@supabase/ssr
+@supabase/supabase-js
+```
+
+
+
+`.env.example` 也预留：
+
+```text
+NEXT_PUBLIC_SUPABASE_URL
+NEXT_PUBLIC_SUPABASE_ANON_KEY
+SUPABASE_SERVICE_ROLE_KEY
+```
+
+但明确标注：
+
+```text
+Supabase (future real backend)
+```
+
+
+
+而实际业务目前仍然全部走：
+
+```text
+.data/demo.json
+```
+
+
+
+所以：
+
+### Supabase dependency
+
+✅ 已准备
+
+### Supabase backend
+
+❌ 尚未实现
+
+### Auth
+
+❌
+
+### RLS
+
+❌
+
+### Migration
+
+❌
+
+这个和开发报告基本一致。
+
+---
+
+# 十一、一个小问题：AI 仍然影响 XP 很大
+
+虽然 AI **不能直接发 XP**，这是正确的。
+
+但你要认识到：
+
+```text
+AI → xp_semantics.base_value
+AI → difficulty
+AI → mastery_gain
+AI → novelty
+AI → goal_alignment
+```
+
+
+
+这些变量几乎决定了 XP。
+
+也就是说现在实际上是：
+
+```text
+AI 不能写 XP
+```
+
+但：
+
+```text
+AI 可以决定 XP 公式绝大部分输入
+```
+
+所以最终：
+
+> Growth Engine 是 deterministic，
+
+并不等于：
+
+> XP 评价是客观的。
+
+---
+
+# 后面 Harness 最重要的工作之一
+
+就是拿固定案例测试不同模型：
+
+```text
+GPT
+DeepSeek
+Claude
+```
+
+对同一个 Activity：
+
+```text
+“我阅读 LC 论文 2 小时，能够完整解释算法，
+但还没有在真实数据上使用。”
+```
+
+是不是都大致给：
+
+```text
+Evidence ≈ E2
+Mastery Gain 中等
+Novelty 中高
+Difficulty 中高
+```
+
+而不是：
+
+```text
+模型 A：+30 XP
+模型 B：+170 XP
+```
+
+这才是 Harness 真正应该解决的问题。
+
+---
+
+# 十二、Skill Tree 目前属于“展示图”，还不是成熟技能系统
+
+虽然 React Flow 页面已经存在， 但技能创建目前很依赖：
+
+```text
+AI affected_skills
+```
+
+例如 mock 里通过关键词：
+
+```text
+LC
+LR
+Statistics
+Academic Writing
+Programming
+```
+
+创建 Skill。
+
+如果没识别：
+
+```text
+General Growth
+```
+
+所以它目前更像：
+
+```text
+AI 自动生成标签
+↓
+React Flow 可视化
+```
+
+而不是我们最终想要的：
+
+```text
+Domain
+ ↓
+Skill
+ ↓
+Subskill
+ ↓
+Knowledge
+ ↓
+Evidence
+ ↓
+Mastery
+```
+
+因此不要急着美化 Skill Tree。
+
+**先把 Skill ontology 定下来。**
+
+---
+
+# 我的优先级建议
+
+我会把接下来开发顺序改成：
+
+## P0：先修规则漏洞
+
+### 1. 重复惩罚
+
+把：
+
+```ts
+db.transactions.length
+```
+
+彻底移除。
+
+改成：
+
+```text
+真正 similar activity count
+```
+
+---
+
+### 2. 补 repetition 测试
+
+必须覆盖：
+
+```text
+不同技能不会互相惩罚
+```
+
+---
+
+# P1：增强数据可靠性
+
+### 3. Supabase + PostgreSQL
+
+现在可以开始做了。
+
+因为已经开始出现：
+
+```text
+并发
+数据一致性
+幂等
+```
+
+这些 JSON 很难正确解决的问题。
+
+---
+
+### 4. DB Constraint
+
+尤其：
+
+```text
+UNIQUE assessment_id
+```
+
+保证一个 assessment 最多产生一笔 XP transaction。
+
+---
+
+# P1：补真正产品闭环
+
+### 5. Activity List
+
+现在仓库树里还没有：
+
+```text
+src/app/activities/page.tsx
+src/app/activities/[id]/page.tsx
+```
+
+
+
+这两个值得做。
+
+因为以后你真正天天用的时候，回顾历史比首页更重要。
+
+---
+
+# P1：Skill system
+
+### 6. 不要继续随机长 Skill Tree
+
+先定义：
+
+```text
+Domain
+Skill
+Subskill
+Knowledge
+```
+
+之间是什么关系。
+
+否则以后会出现：
+
+```text
+Statistics
+统计学
+Regression
+Regression Analysis
+Linear Regression
+回归分析
+```
+
+全部成为不同节点。
+
+最后 Skill Tree 会炸掉。
+
+---
+
+# P2：Playwright
+
+随后加入：
+
+```text
+Quick Log
+↓
+Assessment
+↓
+Confirm
+↓
+XP
+↓
+Refresh
+↓
+数据还存在
+```
+
+完整 E2E。
+
+---
+
+# 我的评分
+
+按照“第一版垂直切片”来评：
+
+| 部分 | 评分 |
+|---|---:|
+| 项目结构 | **8.5/10** |
+| Growth Engine 架构 | **9/10** |
+| Growth Engine 当前规则实现 | **7/10** |
+| AI 权限隔离 | **8.5/10** |
+| Mastery 设计 | **8.5/10** |
+| 数据层 | **5/10** |
+| 幂等/一致性 | **6/10** |
+| 测试 | **6.5/10** |
+| UI MVP | **7.5/10** |
+| Skill Tree | **6/10** |
+| 长期可扩展性 | **8/10** |
+
+### 当前综合：
+
+# **7.5 / 10**
+
+对于第一版 MVP，我认为是**合格而且架构方向基本正确**。
+
+但现在最大的风险已经不是：
+
+> “代码写得出来吗？”
+
+而开始变成：
+
+> **“游戏规则是否被代码准确实现？”**
+
+这反而是你这个项目最重要的阶段。
+
+---
+
+## 给开发 AI 的下一条指令，我建议非常明确
+
+现在**不要先做新的大功能**。
+
+先让它完成：
+
+```text
+1. 修复 repetitionCount：不得使用全部 transaction 数量；
+2. 设计 MVP similarity 判定；
+3. 添加“不同类型 Activity 不互相触发重复惩罚”的测试；
+4. 添加并发 confirm 测试；
+5. 将 XP transaction assessmentId 设计为未来数据库 UNIQUE；
+6. 更新文档，明确 sequential idempotency 与 concurrent idempotency 的差异；
+7. build + lint + test 全部通过后再继续。
+```
+
+等这轮修完，我建议你再让我**第二轮审查 commit diff**。这种方式比每次让我重新读完整仓库有效得多：我可以直接判断“它有没有真正把这一轮问题解决”，再决定是否允许进入 Supabase / Activity History 阶段。

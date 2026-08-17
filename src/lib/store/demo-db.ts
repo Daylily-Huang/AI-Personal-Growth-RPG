@@ -5,6 +5,7 @@ import { calculateXp, RULES_VERSION, type XpInput } from "@/lib/growth-engine/xp
 import { levelFromXp } from "@/lib/growth-engine/levels";
 import { checkMasteryProposal } from "@/lib/growth-engine/mastery";
 import type { AssessmentProposal } from "@/lib/ai/schemas";
+import { countRecentSimilar } from "@/lib/store/similarity";
 
 export interface Activity {
   id: string;
@@ -35,6 +36,8 @@ export interface XpTransaction {
   activityId: string;
   assessmentId: string;
   skillName: string;
+  /** Activity type at confirm time (from the proposal), used for similarity. */
+  activityType: string | null;
   amount: number;
   baseAmount: number;
   modifierJson: Record<string, unknown>;
@@ -211,7 +214,16 @@ export function confirmAssessment(assessmentId: string): ConfirmResult {
   const activity = db.activities.find((a) => a.id === assessment.activityId);
   if (!activity) return { ok: false, reason: "activity_not_found" };
 
-  const recentSimilarCount = db.transactions.length; // simple proxy for repetition
+  // Repetition must only count SIMILAR prior activities — never the total
+  // ledger size. MVP similarity: same primary skill + same activity type +
+  // within the last 30 days (see src/lib/store/similarity.ts).
+  const skillName = assessment.proposal.affected_skills[0]?.name ?? "General Growth";
+  const activityType = assessment.proposal.activity.type;
+  const recentSimilarCount = countRecentSimilar(db.transactions, {
+    skillName,
+    activityType,
+    windowDays: 30,
+  });
   const xpInput: XpInput = {
     baseValue: assessment.proposal.xp_semantics.base_value,
     difficulty: assessment.proposal.xp_semantics.difficulty,
@@ -224,7 +236,6 @@ export function confirmAssessment(assessmentId: string): ConfirmResult {
   };
   const xpResult = calculateXp(xpInput);
 
-  const skillName = assessment.proposal.affected_skills[0]?.name ?? "General Growth";
   const skill = db.skills[skillName] ?? {
     name: skillName,
     xp: 0,
@@ -239,6 +250,7 @@ export function confirmAssessment(assessmentId: string): ConfirmResult {
     activityId: activity.id,
     assessmentId: assessment.id,
     skillName,
+    activityType,
     amount: xpResult.finalXp,
     baseAmount: assessment.proposal.xp_semantics.base_value,
     modifierJson: xpResult.modifiers as unknown as Record<string, unknown>,
@@ -324,10 +336,6 @@ export function getDashboard(): DashboardSnapshot {
     activities: db.activities.slice(0, 20),
     skills: Object.values(db.skills).sort((a, b) => b.xp - a.xp),
   };
-}
-
-export function getRecentSimilarCount(): number {
-  return readDb().transactions.length;
 }
 
 export function listSkillEdges(): SkillEdge[] {
