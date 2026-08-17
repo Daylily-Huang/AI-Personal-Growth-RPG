@@ -1,0 +1,15 @@
+{
+  "id": "G003_E0_NOT_HIGH_MASTERY",
+  "golden": true,
+  "category": "mastery",
+  "description": "仅凭自述不能进入高 Mastery",
+  "input": {
+    "currentMastery": 2,
+    "claimedMastery": 10,
+    "evidenceLevel": 0
+  },
+  "expected": {
+    "maxProposedMastery": 3,
+    "verificationRequired": true
+  }
+}

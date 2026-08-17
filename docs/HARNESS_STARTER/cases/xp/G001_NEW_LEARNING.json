@@ -1,0 +1,21 @@
+{
+  "id": "G001_NEW_LEARNING",
+  "golden": true,
+  "category": "xp",
+  "description": "首次真正理解重要新概念应获得合理成长经验，而非仅按时间计分",
+  "input": {
+    "baseValue": 20,
+    "difficulty": 1.2,
+    "masteryGain": 1.1,
+    "evidence": 1.0,
+    "novelty": 1.2,
+    "goalAlignment": 1.0,
+    "repetitionCount": 0
+  },
+  "expected": {
+    "xp": {
+      "min": 20,
+      "max": 45
+    }
+  }
+}

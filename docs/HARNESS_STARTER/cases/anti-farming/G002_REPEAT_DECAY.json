@@ -1,0 +1,17 @@
+{
+  "id": "G002_REPEAT_DECAY",
+  "golden": true,
+  "category": "anti-farming",
+  "description": "熟练后的低难度重复行为必须有显著经验递减",
+  "pair": {
+    "first": {
+      "repetitionCount": 0
+    },
+    "repeated": {
+      "repetitionCount": 29
+    }
+  },
+  "expected": {
+    "invariant": "REPETITION_REDUCES_XP"
+  }
+}

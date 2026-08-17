@@ -1,0 +1,6 @@
+{
+  "promptVersion": "activity-evaluator-v0.1",
+  "rulesVersion": "growth-engine-v0.1",
+  "criticalViolations": 0,
+  "note": "Example only. Do not treat as an approved production baseline."
+}

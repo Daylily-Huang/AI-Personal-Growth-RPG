@@ -1,0 +1,18 @@
+{
+  "id": "G004_READING_ONLY",
+  "golden": true,
+  "category": "llm-assessment",
+  "description": "仅阅读和主观感觉掌握，不应被高估为真实应用证据",
+  "input": {
+    "rawInput": "今天读了两个小时PGLS材料，我感觉已经完全掌握了。"
+  },
+  "context": {
+    "currentMastery": 1,
+    "previousEvidence": 0
+  },
+  "expected": {
+    "evidenceMax": 2,
+    "masteryMax": 4,
+    "verificationRequiredForHighClaim": true
+  }
+}
