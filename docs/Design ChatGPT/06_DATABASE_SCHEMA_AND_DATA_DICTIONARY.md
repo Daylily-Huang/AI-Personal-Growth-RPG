@@ -75,6 +75,7 @@ updated_at
 注意：
 
 > `total_xp` 是缓存，最终依据始终是 XP Ledger。
+> `player_level` 目前为 **Provisional XP Level**（由 XP 曲线 `levelFromXp` 导出）。正式 Player Level 属于 Domain 系统，后续定义（Round4 采纳）。
 
 ---
 
@@ -330,6 +331,43 @@ alter table xp_transactions
 
 ---
 
+# 14.5 mastery_verifications
+
+需要验证的高阶 Mastery 升级（Round4 P1）。
+
+```text
+skill_id
+skill_name
+from_level
+to_level
+evidence_level
+status            -- pending | verified | rejected
+proposal_assessment_id
+created_at
+resolved_at
+```
+
+规则：
+
+```text
+proposal 需要 verification（to>=5 或 to-from>=2）
+  ↓
+不直接授予 mastery
+  ↓
+只创建 pending 记录 + 在确认时保持 skill.mastery 不变
+  ↓
+verified 后才真正升级
+```
+
+```sql
+-- 一个 skill 的 pending 验证只允许一条（防止重复排队）
+create unique index mastery_verifications_one_pending_idx
+  on public.mastery_verifications (skill_id)
+  where status = 'pending';
+```
+
+---
+
 # 15. mastery_events
 
 ```text
@@ -439,13 +477,14 @@ archived
 0007_ai_assessments
 0008_evidence
 0009_xp_transactions
-0010_mastery_events
-0011_knowledge_graph
-0012_artifacts
-0013_reviews
-0014_rules_versions
-0015_indexes
-0016_rls
+0010_mastery_verifications
+0011_mastery_events
+0012_knowledge_graph
+0013_artifacts
+0014_reviews
+0015_rules_versions
+0016_indexes
+0017_rls
 ```
 
 ---

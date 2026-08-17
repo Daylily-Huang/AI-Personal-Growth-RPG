@@ -15,10 +15,10 @@ import { RULES_VERSION } from "@/lib/growth-engine/xp";
 
 let tempDir: string;
 
-beforeEach(() => {
+beforeEach(async () => {
   tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "growth-rpg-"));
   process.env.DEMO_DB_PATH = path.join(tempDir, "demo.json");
-  resetDemoDb();
+  await resetDemoDb();
 });
 
 afterEach(() => {
@@ -47,7 +47,7 @@ const proposal: AssessmentProposal = {
       from_level: 1,
       proposed_level: 3,
       confidence: 0.7,
-      verification_required: false,
+      verification_required: true,
       reason: "evidence supports recall/explain",
     },
   ],
@@ -65,95 +65,103 @@ const proposal: AssessmentProposal = {
   uncertainty_notes: [],
 };
 
+async function confirmActivity(p: AssessmentProposal, rawInput: string) {
+  const activity = await createActivity({ rawInput });
+  const assessment = await createAssessment({
+    activityId: activity.id,
+    proposal: p,
+    modelName: "test-model",
+    promptVersion: "test-prompt",
+  });
+  return confirmAssessment(assessment.id);
+}
+
 describe("confirmAssessment idempotency", () => {
-  test("second confirm does not add XP twice", () => {
-    const activity = createActivity({ rawInput: "读了一篇统计论文并理解了回归" });
-    const assessment = createAssessment({
+  test("second confirm does not add XP twice", async () => {
+    const activity = await createActivity({ rawInput: "读了一篇统计论文并理解了回归" });
+    const assessment = await createAssessment({
       activityId: activity.id,
       proposal,
       modelName: "test-model",
       promptVersion: "test-prompt",
     });
 
-    const first = confirmAssessment(assessment.id);
+    const first = await confirmAssessment(assessment.id);
     expect(first.ok).toBe(true);
     expect(first.transaction?.amount).toBeGreaterThan(0);
 
     const dbAfterFirst = readDb();
     expect(dbAfterFirst.transactions).toHaveLength(1);
 
-    const second = confirmAssessment(assessment.id);
+    const second = await confirmAssessment(assessment.id);
     expect(second.ok).toBe(false);
     expect(second.reason).toBe("already_confirmed");
 
     const dbAfterSecond = readDb();
     expect(dbAfterSecond.transactions).toHaveLength(1);
 
-    const dashboard = getDashboard();
+    const dashboard = await getDashboard();
     expect(dashboard.player.totalXp).toBe(first.transaction!.amount);
   });
 
-  test("rules version is recorded on transaction", () => {
-    const activity = createActivity({ rawInput: "完成一个实际分析任务" });
-    const assessment = createAssessment({
+  test("rules version is recorded on transaction", async () => {
+    const activity = await createActivity({ rawInput: "完成一个实际分析任务" });
+    const assessment = await createAssessment({
       activityId: activity.id,
       proposal,
       modelName: "test-model",
       promptVersion: "test-prompt",
     });
 
-    const result = confirmAssessment(assessment.id);
+    const result = await confirmAssessment(assessment.id);
     expect(result.transaction?.rulesVersion).toBe(RULES_VERSION);
   });
 
-  test("different activity type of the same skill does NOT trigger repetition penalty", () => {
-    // First: learning Statistics.
-    const learningActivity = createActivity({ rawInput: "读统计论文" });
-    const learningAssessment = createAssessment({
+  test("different activity type of the same skill does NOT trigger repetition penalty", async () => {
+    const learningActivity = await createActivity({ rawInput: "读统计论文" });
+    const learningAssessment = await createAssessment({
       activityId: learningActivity.id,
       proposal,
       modelName: "test-model",
       promptVersion: "test-prompt",
     });
-    const learning = confirmAssessment(learningAssessment.id);
+    const learning = await confirmAssessment(learningAssessment.id);
     expect(learning.transaction?.modifierJson?.repetitionPenalty).toBe(1);
 
-    // Second: PRODUCTION using Statistics — same skill, different type.
     const productionProposal: AssessmentProposal = {
       ...proposal,
       activity: { ...proposal.activity, type: "production" },
     };
-    const productionActivity = createActivity({ rawInput: "用统计完成一个实际分析产出" });
-    const productionAssessment = createAssessment({
+    const productionActivity = await createActivity({ rawInput: "用统计完成一个实际分析产出" });
+    const productionAssessment = await createAssessment({
       activityId: productionActivity.id,
       proposal: productionProposal,
       modelName: "test-model",
       promptVersion: "test-prompt",
     });
-    const production = confirmAssessment(productionAssessment.id);
+    const production = await confirmAssessment(productionAssessment.id);
 
     expect(production.transaction?.activityType).toBe("production");
     expect(production.transaction?.repetitionCount).toBe(0);
-    expect(production.transaction?.modifierJson?.repetitionPenalty).toBe(1);
+    expect(production.transaction?.repetitionPenalty).toBe(1);
   });
 
-  test("same skill + same activity type DOES trigger repetition penalty", () => {
-    const seed = confirmActivity(proposal, "读统计论文 #1");
+  test("same skill + same activity type DOES trigger repetition penalty", async () => {
+    const seed = await confirmActivity(proposal, "读统计论文 #1");
     expect(seed.transaction?.repetitionCount).toBe(0);
     expect(seed.transaction?.repetitionPenalty).toBe(1);
 
-    const repeat = confirmActivity(proposal, "读统计论文 #2");
+    const repeat = await confirmActivity(proposal, "读统计论文 #2");
     expect(repeat.transaction?.repetitionCount).toBe(1);
     expect(repeat.transaction?.repetitionPenalty).toBeLessThan(1);
-    expect(repeat.transaction?.modifierJson?.repetitionPenalty).toBeLessThan(1);
 
     const db = readDb();
     expect(db.transactions).toHaveLength(2);
   });
 
   test("concurrent confirm calls settle exactly one transaction", async () => {
-    const activity = createActivity({ rawInput: "并发确认的统计学习" });
-    const assessment = createAssessment({
+    const activity = await createActivity({ rawInput: "并发确认的统计学习" });
+    const assessment = await createAssessment({
       activityId: activity.id,
       proposal,
       modelName: "test-model",
@@ -173,13 +181,60 @@ describe("confirmAssessment idempotency", () => {
   });
 });
 
-function confirmActivity(p: AssessmentProposal, rawInput: string) {
-  const activity = createActivity({ rawInput });
-  const assessment = createAssessment({
-    activityId: activity.id,
-    proposal: p,
-    modelName: "test-model",
-    promptVersion: "test-prompt",
+describe("Mastery verification is enforced (Round4 P1)", () => {
+  test("immediate allowed upgrade is applied", async () => {
+    const smallProposal: AssessmentProposal = {
+      ...proposal,
+      evidence: { level: 1, explanation: "summarized the material" },
+      mastery_changes: [
+        {
+          target_type: "skill",
+          target_name: "Statistics",
+          from_level: 1,
+          proposed_level: 2,
+          confidence: 0.8,
+          verification_required: false,
+          reason: "E1 supports a small step",
+        },
+      ],
+    };
+    const result = await confirmActivity(smallProposal, "总结一篇统计材料");
+    expect(result.ok).toBe(true);
+    expect(result.masteryVerification).toBeUndefined();
+
+    const skill = readDb().skills["Statistics"];
+    expect(skill?.masteryLevel).toBe(2);
   });
-  return confirmAssessment(assessment.id);
-}
+
+  test("large jump requiring verification is NOT auto-granted + creates pending verification", async () => {
+    const bigProposal: AssessmentProposal = {
+      ...proposal,
+      evidence: { level: 4, explanation: "applied in a real analysis" },
+      mastery_changes: [
+        {
+          target_type: "skill",
+          target_name: "Statistics",
+          from_level: 1,
+          proposed_level: 5,
+          confidence: 0.7,
+          verification_required: true,
+          reason: "M5 requires verification",
+        },
+      ],
+    };
+    const result = await confirmActivity(bigProposal, "大跨度 Mastery 提议");
+    expect(result.ok).toBe(true);
+    expect(result.masteryVerification).toBeDefined();
+    expect(result.masteryVerification?.status).toBe("pending");
+    expect(result.masteryVerification?.toLevel).toBe(5);
+
+    // Skill is NOT upgraded yet.
+    const skill = readDb().skills["Statistics"];
+    expect(skill?.masteryLevel).toBe(1);
+
+    // Pending verification is persisted.
+    const db = readDb();
+    expect(db.masteryVerifications).toHaveLength(1);
+    expect(db.masteryVerifications[0].skillName).toBe("Statistics");
+  });
+});

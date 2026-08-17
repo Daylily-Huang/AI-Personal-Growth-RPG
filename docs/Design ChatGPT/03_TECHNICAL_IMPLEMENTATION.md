@@ -1277,14 +1277,14 @@ Row Level Security
 浏览器端允许：
 
 ```text
-Supabase public / anon key
+Supabase public / publishable key
 ```
 
 但绝对禁止暴露：
 
 ```text
 OPENAI_API_KEY
-SUPABASE_SERVICE_ROLE_KEY
+SUPABASE_SECRET_KEY   （旧命名 SERVICE_ROLE_KEY，已废弃）
 ```
 
 这些只能存在服务器环境变量。
@@ -1297,11 +1297,43 @@ SUPABASE_SERVICE_ROLE_KEY
 
 ```env
 NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
 
 OPENAI_API_KEY=
 
-SUPABASE_SERVICE_ROLE_KEY=
+SUPABASE_SECRET_KEY=sb_secret_...   # 仅服务端管理员场景，默认不配置
+```
+
+> 密钥模型（2026-08-17 采纳，替换旧 ANON_KEY / SERVICE_ROLE_KEY 命名）：
+
+```text
+浏览器
+  ↓ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY（公开，等同 anon key）
+Supabase Auth
+  ↓ 用户 JWT
+RLS
+  ↓
+只能操作自己的数据
+
+SUPABASE_SECRET_KEY（旧 SERVICE_ROLE_KEY）
+  ↓ 仅少量真正需要后台管理员权限的服务端场景
+  绕过 RLS，不能因为"服务端方便"就全员使用
+```
+
+默认架构是：
+
+```text
+User-scoped Supabase client
++ Auth
++ RLS
+```
+
+而不是：
+
+```text
+所有 API Route
+→ SUPABASE_SECRET_KEY
+→ 全权限操作数据库
 ```
 
 如果 MVP 不需要 service role：

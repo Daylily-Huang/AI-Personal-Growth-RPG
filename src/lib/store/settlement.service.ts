@@ -1,43 +1,46 @@
 import crypto from "node:crypto";
-import { levelFromXp } from "@/lib/growth-engine/levels";
 import { checkMasteryProposal } from "@/lib/growth-engine/mastery";
-import { calculateXp, type XpInput } from "@/lib/growth-engine/xp";
+import { calculateXp, type QuestSize, type XpInput } from "@/lib/growth-engine/xp";
 import { countRecentSimilar } from "@/lib/store/similarity";
+import type { AssessmentProposal } from "@/lib/ai/schemas";
 import type { Repository } from "./repository";
-import type { ConfirmResult, SettlementToApply, SkillEdge, SkillState, XpTransaction } from "./types";
+import type {
+  ConfirmResult,
+  MasteryVerification,
+  MasteryAction,
+  SettlementToApply,
+  SkillEdge,
+  XpTransaction,
+} from "./types";
 
-const DEFAULT_SKILL_IDENTITY = {
-  level: 1,
-  masteryLevel: 1,
-  masteryConfidence: 0.5,
-} as const;
+const DEFAULT_SKILL_MASTERY = 1;
+
+/** Round4: every ordinary Activity settles as `standard` until a Quest is bound. */
+export const DEFAULT_QUEST_SIZE: QuestSize = "standard";
 
 const SIMILARITY_WINDOW_DAYS = 30;
 
 /**
- * Domain service for the Growth Loop.
+ * Domain service for the Growth Loop — the SINGLE copy of settlement rules.
  *
- * This is the SINGLE copy of the settlement business rules:
- *   - similarity counting (repetition)
- *   - deterministic XP calculation
- *   - evidence-constrained mastery updates
- *   - primary/related skill state and edges
- *   - player totals
- *
- * It speaks to the `Repository` port, so the demo JSON store and the future
- * Supabase store share this exact logic — never duplicated.
+ * Milestone 2.6:
+ * - async (Repository port is async for Supabase)
+ * - DELTA semantics: it computes the transaction + deltas, the repository
+ *   applies `current += delta` atomically (no lost updates).
+ * - Mastery verification is now enforced: `verificationRequired` upgrades are
+ *   NOT applied; they create a pending MasteryVerification instead.
  */
 export class SettlementService {
   constructor(private readonly repo: Repository) {}
 
-  confirmAssessment(assessmentId: string): ConfirmResult {
-    const assessment = this.repo.getAssessment(assessmentId);
+  async confirmAssessment(assessmentId: string): Promise<ConfirmResult> {
+    const assessment = await this.repo.getAssessment(assessmentId);
     if (!assessment) return { ok: false, reason: "not_found" };
     if (assessment.status !== "pending") {
       return { ok: false, reason: "already_confirmed", assessment };
     }
 
-    const activity = this.repo.getActivity(assessment.activityId);
+    const activity = await this.repo.getActivity(assessment.activityId);
     if (!activity) return { ok: false, reason: "activity_not_found" };
 
     const now = new Date().toISOString();
@@ -46,7 +49,8 @@ export class SettlementService {
 
     // Repetition only counts SIMILAR prior activities (same skill + same type
     // + 30-day window) — never the total ledger size.
-    const recentSimilarCount = countRecentSimilar(this.repo.listTransactions(), {
+    const transactions = await this.repo.listTransactions();
+    const recentSimilarCount = countRecentSimilar(transactions, {
       skillName,
       activityType,
       windowDays: SIMILARITY_WINDOW_DAYS,
@@ -61,8 +65,10 @@ export class SettlementService {
       goalAlignment: assessment.proposal.xp_semantics.goal_alignment,
       repetitionCount: recentSimilarCount,
       effectiveMinutes: activity.effectiveMinutes ?? undefined,
+      questSize: DEFAULT_QUEST_SIZE,
     };
     const xpResult = calculateXp(xpInput);
+    const xpDelta = xpResult.finalXp;
 
     const transaction: XpTransaction = {
       id: crypto.randomUUID(),
@@ -72,7 +78,7 @@ export class SettlementService {
       activityType,
       repetitionCount: recentSimilarCount,
       repetitionPenalty: xpResult.modifiers.repetitionPenalty,
-      amount: xpResult.finalXp,
+      amount: xpDelta,
       baseAmount: assessment.proposal.xp_semantics.base_value,
       modifierJson: xpResult.modifiers as unknown as Record<string, unknown>,
       reason: activity.rawInput,
@@ -80,60 +86,62 @@ export class SettlementService {
       createdAt: now,
     };
 
-    const currentSkill = this.repo.getSkill(skillName) ?? defaultSkill(skillName);
-    const primarySkill: SkillState = {
-      ...currentSkill,
-      xp: currentSkill.xp + xpResult.finalXp,
-      level: levelFromXp(currentSkill.xp + xpResult.finalXp).level,
-      lastUsedAt: now,
-    };
+    const currentSkill = await this.repo.getSkill(skillName);
+    const currentMastery = currentSkill?.masteryLevel ?? DEFAULT_SKILL_MASTERY;
+    const masteryAction = decideMasteryAction({
+      changes: assessment.proposal.mastery_changes,
+      skillName,
+      currentMastery,
+      evidenceLevel: assessment.proposal.evidence.level,
+    });
 
-    const masteryChange = assessment.proposal.mastery_changes[0];
-    if (masteryChange) {
-      const check = checkMasteryProposal(
-        primarySkill.masteryLevel,
-        masteryChange.proposed_level,
-        assessment.proposal.evidence.level,
-      );
-      if (check.allowed && masteryChange.proposed_level > primarySkill.masteryLevel) {
-        primarySkill.masteryLevel = masteryChange.proposed_level;
-        primarySkill.masteryConfidence = masteryChange.confidence;
-      }
+    let masteryVerification: MasteryVerification | undefined;
+    if (masteryAction.action === "request_verification") {
+      masteryVerification = {
+        id: crypto.randomUUID(),
+        skillName,
+        fromLevel: masteryAction.fromLevel,
+        toLevel: masteryAction.toLevel,
+        evidenceLevel: assessment.proposal.evidence.level,
+        status: "pending",
+        proposalAssessmentId: assessment.id,
+        createdAt: now,
+        resolvedAt: null,
+      };
     }
 
-    // Related skills (so the Skill Tree can show them) + candidate edges.
-    const relatedSkills: SkillState[] = [];
-    const newEdges: SkillEdge[] = [];
-    for (const related of assessment.proposal.affected_skills.slice(1)) {
-      if (!this.repo.getSkill(related.name)) {
-        relatedSkills.push(defaultSkill(related.name));
-      }
-      newEdges.push({ source: skillName, target: related.name, relation: "related" });
-    }
-
-    const player = this.repo.getPlayer();
-    const updatedPlayer = {
-      ...player,
-      totalXp: player.totalXp + xpResult.finalXp,
-      playerLevel: levelFromXp(player.totalXp + xpResult.finalXp).level,
-    };
+    // Related skills (names) + candidate edges for the Skill Tree.
+    const relatedSkillNames = assessment.proposal.affected_skills
+      .slice(1)
+      .map((s) => s.name);
+    const newEdges: SkillEdge[] = relatedSkillNames.map((name) => ({
+      source: skillName,
+      target: name,
+      relation: "related",
+    }));
 
     const settlement: SettlementToApply = {
       assessmentId: assessment.id,
       transaction,
-      primarySkill,
-      relatedSkills,
+      xpDelta,
+      primarySkill: {
+        name: skillName,
+        xpDelta,
+        masteryAction,
+      },
+      relatedSkillNames,
       newEdges,
-      player: updatedPlayer,
+      player: { xpDelta },
+      masteryVerification,
     };
 
-    const result = this.repo.applySettlement(settlement);
+    const result = await this.repo.applySettlement(settlement);
     if (!result.ok) {
       if (result.reason === "already_confirmed") {
         return {
           ok: false,
           reason: "already_confirmed",
-          assessment: this.repo.getAssessment(assessmentId) ?? undefined,
+          assessment: (await this.repo.getAssessment(assessmentId)) ?? undefined,
         };
       }
       return { ok: false, reason: result.reason };
@@ -142,18 +150,33 @@ export class SettlementService {
     return {
       ok: true,
       transaction: settlement.transaction,
-      assessment: this.repo.getAssessment(assessmentId) ?? undefined,
+      assessment: (await this.repo.getAssessment(assessmentId)) ?? undefined,
+      masteryVerification,
     };
   }
 }
 
-export const SIMILARITY_WINDOW_DAYS_CONFIG = SIMILARITY_WINDOW_DAYS;
+function decideMasteryAction(input: {
+  changes: AssessmentProposal["mastery_changes"];
+  skillName: string;
+  currentMastery: number;
+  evidenceLevel: number;
+}): MasteryAction {
+  const change =
+    input.changes.find((c) => c.target_name === input.skillName) ?? input.changes[0];
+  if (!change) return { action: "none" };
 
-function defaultSkill(name: string): SkillState {
-  return {
-    name,
-    xp: 0,
-    ...DEFAULT_SKILL_IDENTITY,
-    lastUsedAt: null,
-  };
+  const check = checkMasteryProposal(input.currentMastery, change.proposed_level, input.evidenceLevel);
+  if (!check.allowed) return { action: "none" };
+  if (change.proposed_level <= input.currentMastery) return { action: "none" };
+
+  if (check.verificationRequired) {
+    return {
+      action: "request_verification",
+      fromLevel: input.currentMastery,
+      toLevel: change.proposed_level,
+      confidence: change.confidence,
+    };
+  }
+  return { action: "upgrade", proposedLevel: change.proposed_level, confidence: change.confidence };
 }

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getActivity, createAssessment } from "@/lib/store/demo-db";
+import { getRepository } from "@/lib/store/demo-db";
 import { assessActivity } from "@/lib/ai/assess";
 import { getPromptVersion } from "@/lib/ai/prompts";
 import { AI_MODEL_NAME } from "@/lib/ai/config";
@@ -7,7 +7,8 @@ import { AI_MODEL_NAME } from "@/lib/ai/config";
 export async function POST(_request: Request, ctx: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await ctx.params;
-    const activity = getActivity(id);
+    const repo = getRepository();
+    const activity = await repo.getActivity(id);
     if (!activity) {
       return NextResponse.json({ error: "Activity not found" }, { status: 404 });
     }
@@ -24,7 +25,7 @@ export async function POST(_request: Request, ctx: { params: Promise<{ id: strin
       activeMainQuest: null,
     });
 
-    const assessment = createAssessment({
+    const assessment = await repo.addAssessment({
       activityId: activity.id,
       proposal,
       modelName: AI_MODEL_NAME,

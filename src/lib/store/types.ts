@@ -66,28 +66,79 @@ export interface PlayerState {
   momentum: number;
 }
 
+/**
+ * A requested Mastery upgrade that could NOT be applied immediately because it
+ * requires verification (per the Growth Constitution: high/large mastery jumps
+ * must be evidenced, not auto-granted).
+ */
+export type MasteryVerificationStatus = "pending" | "verified" | "rejected";
+
+export interface MasteryVerification {
+  id: string;
+  skillName: string;
+  fromLevel: number;
+  toLevel: number;
+  evidenceLevel: number;
+  status: MasteryVerificationStatus;
+  /** Assessment that proposed the upgrade. */
+  proposalAssessmentId: string;
+  createdAt: string;
+  resolvedAt: string | null;
+}
+
 export interface Db {
-  version: 1;
+  version: 2;
   activities: Activity[];
   assessments: Assessment[];
   transactions: XpTransaction[];
   skills: Record<string, SkillState>;
   skillEdges: SkillEdge[];
+  masteryVerifications: MasteryVerification[];
   player: PlayerState;
 }
 
-/** The full change set a settlement produces, applied atomically by a Repository. */
+// ---------------------------------------------------------------------------
+// Settlement command (delta semantics — see repository.ts for the rationale)
+// ---------------------------------------------------------------------------
+
+export type MasteryAction =
+  | { action: "none" }
+  | { action: "upgrade"; proposedLevel: number; confidence: number }
+  | {
+      action: "request_verification";
+      fromLevel: number;
+      toLevel: number;
+      confidence: number;
+    };
+
+/**
+ * The full change set a settlement produces.
+ *
+ * CRITICAL (Milestone 2.6): this is DELTA-based, not absolute-state. The
+ * repository must apply `+= xpDelta` on the current stored state inside its own
+ * atomic transaction — it must NOT blindly overwrite totals with values the
+ * service computed from an older snapshot (that is the lost-update bug).
+ */
 export interface SettlementToApply {
   assessmentId: string;
+  /** Exact ledger row (authoritative record of this settlement). */
   transaction: XpTransaction;
-  /** Updated (or brand-new) primary skill state. */
-  primarySkill: SkillState;
-  /** Secondary skills that need to exist so the Skill Tree can show them. */
-  relatedSkills: SkillState[];
+  /** = transaction.amount; applied as `current += xpDelta`. */
+  xpDelta: number;
+  /** Primary skill: apply xpDelta to current stored xp and act on mastery. */
+  primarySkill: {
+    name: string;
+    xpDelta: number;
+    masteryAction: MasteryAction;
+  };
+  /** Secondary skills that must exist so the Skill Tree can show them. */
+  relatedSkillNames: string[];
   /** New skill edges to persist (deduped by the repository). */
   newEdges: SkillEdge[];
-  /** Updated player totals. */
-  player: PlayerState;
+  /** Apply as `player.totalXp += xpDelta`; level is recomputed by the store. */
+  player: { xpDelta: number };
+  /** Created when the mastery upgrade requires verification. */
+  masteryVerification?: MasteryVerification;
 }
 
 export interface NewActivityInput {
@@ -108,6 +159,7 @@ export interface ConfirmResult {
   reason?: string;
   transaction?: XpTransaction;
   assessment?: Assessment;
+  masteryVerification?: MasteryVerification;
 }
 
 export interface DashboardSnapshot {
@@ -121,4 +173,5 @@ export interface DashboardSnapshot {
   pendingAssessments: Assessment[];
   activities: Activity[];
   skills: SkillState[];
+  pendingMasteryVerifications: MasteryVerification[];
 }

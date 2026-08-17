@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { demoRepository } from "@/lib/store/demo-db";
+import { getRepository } from "@/lib/store/demo-db";
 
 interface FlowNode {
   id: string;
@@ -23,8 +23,9 @@ interface FlowEdge {
 
 export async function GET() {
   try {
-    const skills = demoRepository.listSkills();
-    const edges = demoRepository.listSkillEdges();
+    const repo = getRepository();
+    const skills = await repo.listSkills();
+    const edges = await repo.listSkillEdges();
 
     const levels = new Map<string, number>();
     const indegree = new Map<string, number>();

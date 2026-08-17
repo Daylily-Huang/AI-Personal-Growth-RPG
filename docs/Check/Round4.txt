@@ -1,0 +1,954 @@
+继续审查完了。这次我没有只看你上传的 `Round3_FIX_SUMMARY.md`，而是核对了 GitHub 上实际的 `cfee7e3` commit、核心重构代码和 CI。你上传的摘要对“做了什么”的描述基本属实。
+
+# Round3 / Milestone 2.5 结论
+
+## **CONDITIONAL PASS**
+
+Repository 重构方向是正确的，而且比上一版明显健康。
+
+但是我现在**不建议直接开始写 SupabaseRepository**。
+
+因为这轮继续往下挖以后，发现了 **3 个必须在 Supabase 前处理的 P1**，其中两个属于数据一致性架构问题，一个属于游戏核心规则问题。
+
+---
+
+# 一、这轮确实做对了什么
+
+### 1. migration drift 已修
+
+数据库 migration 现在确实有：
+
+```sql
+repetition_count integer not null default 0,
+repetition_penalty numeric not null default 1,
+```
+
+并保留：
+
+```sql
+unique (assessment_id)
+```
+
+所以 TypeScript / 文档 / migration 三方重新一致。
+
+**PASS。**
+
+---
+
+### 2. Repository abstraction 不是“假抽象”
+
+`demo-db.ts` 已经从 God Object 变成 wiring facade：
+
+```text
+DemoRepository
+      ↓
+SettlementService
+      ↓
+DashboardService
+```
+
+它自己已经不再保存那一大坨 XP / Mastery / Skill 更新规则。
+
+真正结算逻辑集中到了：
+
+```text
+settlement.service.ts
+```
+
+里面统一执行：
+
+```text
+similarity
+→ XP
+→ Mastery
+→ skill
+→ player
+→ SettlementToApply
+```
+
+
+
+所以我上一轮担心的：
+
+```text
+demo-db 一套规则
+Supabase 再复制一套规则
+```
+
+目前确实得到了明显改善。
+
+---
+
+### 3. `applySettlement()` 作为唯一结算写入口，方向正确
+
+Repository port 明确规定：
+
+```ts
+applySettlement(settlement)
+```
+
+是 XP Ledger 的统一 mutation point。
+
+这是值得保留的架构决定。
+
+---
+
+### 4. CI 也是真绿
+
+我独立检查了 `cfee7e3` 对应 GitHub Actions。
+
+结果：
+
+```text
+Install dependencies ✅
+Lint                 ✅
+Test                 ✅
+Build                ✅
+```
+
+而且是对应当前 commit 的 run，不是上一轮。
+
+测试数量也确实已经是：
+
+```text
+4 files
+25 tests
+25 passed
+```
+
+所以开发方摘要里这项属实。
+
+---
+
+# 二、P1：Repository port 现在其实还不能直接支持 Supabase
+
+这是我认为下一步最先要修的。
+
+当前接口是：
+
+```ts
+getActivity(id): Activity | null;
+listActivities(): Activity[];
+getPlayer(): PlayerState;
+applySettlement(...): SettlementResult;
+```
+
+全部是**同步接口**。
+
+Demo JSON 当然没问题，因为：
+
+```ts
+fs.readFileSync()
+```
+
+但是 Supabase 是远程数据库。
+
+真实 SupabaseRepository 必然类似：
+
+```ts
+await supabase
+  .from(...)
+  .select(...)
+```
+
+所以未来根本不可能保持：
+
+```ts
+getPlayer(): PlayerState
+```
+
+必须是：
+
+```ts
+getPlayer(): Promise<PlayerState>
+```
+
+这意味着目前这句话：
+
+> “SupabaseRepository 实现同一 Repository port，SettlementService 完全不用变”
+
+**严格来说还不成立。**
+
+---
+
+## 应该现在就改
+
+Repository 应该从第一天就定义成 async port：
+
+```ts
+interface Repository {
+  getActivity(id: string): Promise<Activity | null>;
+
+  getAssessment(id: string): Promise<Assessment | null>;
+
+  listTransactions(): Promise<XpTransaction[]>;
+
+  getSkill(name: string): Promise<SkillState | null>;
+
+  getPlayer(): Promise<PlayerState>;
+
+  applySettlement(
+    settlement: SettlementToApply
+  ): Promise<SettlementResult>;
+}
+```
+
+DemoRepository 即使内部同步读 JSON，也可以：
+
+```ts
+async getPlayer() {
+  return this.readDb().player;
+}
+```
+
+然后：
+
+```ts
+SettlementService.confirmAssessment()
+```
+
+也改成：
+
+```ts
+async confirmAssessment(...)
+```
+
+这一刀应该**现在改**。
+
+不要等 Supabase 写到一半才被迫重构所有 service / route / test。
+
+---
+
+# 三、P1：更严重——现在的 transaction boundary 有 lost update 风险
+
+这个问题非常重要。
+
+当前 `SettlementService` 是先在 Repository 外部读取：
+
+```ts
+const currentSkill = repo.getSkill(...)
+const player = repo.getPlayer()
+```
+
+然后计算：
+
+```ts
+primarySkill.xp =
+  currentSkill.xp + xp
+
+updatedPlayer.totalXp =
+  player.totalXp + xp
+```
+
+最后才：
+
+```ts
+repo.applySettlement(settlement)
+```
+
+
+
+而 `SettlementToApply` 传进去的已经是**算好的绝对状态**：
+
+```ts
+primarySkill: SkillState
+player: PlayerState
+```
+
+
+
+DemoRepository 最后直接：
+
+```ts
+db.skills[...] = settlement.primarySkill
+db.player = settlement.player
+```
+
+
+
+---
+
+# 这会造成什么？
+
+假设：
+
+```text
+当前 total XP = 100
+```
+
+两个**不同 assessment**同时结算：
+
+### A
+
+```text
+读到 100
++20
+→ 算出 120
+```
+
+### B
+
+也同时：
+
+```text
+读到 100
++30
+→ 算出 130
+```
+
+然后：
+
+```text
+A 写入 120
+B 写入 130
+```
+
+最后：
+
+```text
+Ledger:
++20
++30
+
+理论 total XP:
+150
+
+实际 Player:
+130
+```
+
+这叫：
+
+# **lost update**
+
+而：
+
+```sql
+UNIQUE(assessment_id)
+```
+
+救不了这个问题。
+
+因为：
+
+```text
+assessment A
+assessment B
+```
+
+本来就是两个不同 ID。
+
+---
+
+# 所以真正的事务边界应该调整
+
+不能只是：
+
+```text
+业务层先算完全部最终状态
+↓
+数据库事务负责“写进去”
+```
+
+应该是：
+
+```text
+取得当前 authoritative state
+↓
+计算/校验
+↓
+写 ledger
+↓
+更新 skill
+↓
+更新 player
+↓
+更新 assessment
+↓
+commit
+```
+
+这个过程必须保证没有其他 settlement 在中间修改状态。
+
+---
+
+## 我建议下一步采用
+
+至少把 `SettlementToApply` 从：
+
+```ts
+player: PlayerState
+primarySkill: SkillState
+```
+
+逐渐改成类似：
+
+```ts
+xpDelta: number
+
+primarySkill: {
+  name: string;
+  xpDelta: number;
+  masteryCandidate?: ...
+}
+
+transaction: ...
+```
+
+不要让 Service 拿旧数据算出：
+
+```text
+totalXp = 130
+```
+
+然后 Repository 无脑覆盖。
+
+Repository / DB 应执行：
+
+```text
+current total
++
+delta
+```
+
+或者使用 version / optimistic concurrency。
+
+Supabase 阶段还需要真正设计：
+
+```text
+transaction
+或
+DB RPC / atomic settlement function
+```
+
+而不是连续调用五六个 `.update()`。
+
+---
+
+# 四、P1：Mastery verification 现在其实被绕过了
+
+这个是我继续对照系统规则时发现的。
+
+你自己的 Growth Engine 已经写了：
+
+```ts
+checkMasteryProposal()
+```
+
+对于某些升级会返回：
+
+```ts
+allowed: true
+verificationRequired: true
+```
+
+例如测试明确：
+
+```text
+E4
+M4 → M6
+
+allowed = true
+verificationRequired = true
+```
+
+
+
+而 Mastery Engine 本身也明确：
+
+```ts
+to >= 5
+```
+
+或者大跨度升级：
+
+```ts
+to - from >= 2
+```
+
+需要 verification。
+
+但是 SettlementService 当前实际代码是：
+
+```ts
+if (
+  check.allowed &&
+  masteryChange.proposed_level > primarySkill.masteryLevel
+) {
+  primarySkill.masteryLevel =
+    masteryChange.proposed_level;
+}
+```
+
+它根本没有检查：
+
+```ts
+check.verificationRequired
+```
+
+
+
+所以：
+
+```text
+M4
+↓
+AI proposal M6
+↓
+Evidence E4
+↓
+check:
+allowed = true
+verificationRequired = true
+↓
+Confirm
+↓
+直接 M6
+```
+
+---
+
+## 这和你的系统宪法冲突
+
+规范明确要求信息不足/重要判断时：
+
+```text
+请求验证
+延迟 Mastery 晋级
+```
+
+
+
+所以这不是 UI 问题，而是：
+
+# **核心游戏规则没有真正执行**
+
+---
+
+## 正确逻辑应该变成
+
+```ts
+if (!check.allowed) {
+  // reject mastery upgrade
+}
+
+else if (check.verificationRequired) {
+  // 不升级
+  // 创建 pending mastery verification
+}
+
+else {
+  // 可以立即升级
+}
+```
+
+以后产生：
+
+```text
+Mastery Candidate
+M4 → M6
+
+Status:
+Pending Verification
+```
+
+完成 Verification Quest 后：
+
+```text
+Verified
+→ M6
+```
+
+这才符合这个 RPG 的设计哲学。
+
+---
+
+# 五、另一个明显 Spec Drift：Player Level 目前还是“总 XP 等级”
+
+系统规则非常明确：
+
+> Player Level 不得简单等于所有 XP 相加。
+
+而且要综合：
+
+- 多维属性
+- 核心领域
+- 最低领域
+- Verified Mastery
+- 长期任务
+- 总 XP
+
+ 
+
+但现在 SettlementService：
+
+```ts
+const updatedPlayer = {
+  ...player,
+  totalXp: player.totalXp + xpResult.finalXp,
+
+  playerLevel:
+    levelFromXp(
+      player.totalXp + xpResult.finalXp
+    ).level,
+};
+```
+
+
+
+也就是说现在实际上：
+
+```text
+Player Level
+=
+Total XP Level
+```
+
+---
+
+## 我的判断
+
+这项我暂时不要求立刻把完整多维等级公式做出来。
+
+因为：
+
+```text
+Domain
+Attribute
+Quest progression
+Verified Mastery
+```
+
+的数据结构还没成熟。
+
+现在硬做容易过度设计。
+
+### MVP 推荐
+
+先明确改名/标记为：
+
+```text
+XP Level
+```
+
+或者：
+
+```text
+Provisional Player Level
+```
+
+不要让当前 UI 暗示它已经符合最终 Player Level 宪法。
+
+等 Domain system 建立后，再做正式 Player Level v1。
+
+---
+
+# 六、P2：Quest Size Cap 现在实际没有接上业务链路
+
+Growth Engine 明明支持：
+
+```text
+micro      cap 25
+minor      cap 60
+standard   cap 120
+major      cap 300
+epic       cap 800
+main       cap 2000
+```
+
+
+
+但 SettlementService 构造 `XpInput` 时没有传：
+
+```ts
+questSize
+```
+
+
+
+于是实际 Confirm 永远走默认：
+
+```text
+cap = 300
+```
+
+所以现在：
+
+```text
+micro activity
+```
+
+理论应该：
+
+```text
+≤25 XP
+```
+
+但真实链路并没有这个约束。
+
+---
+
+## 建议
+
+MVP 可以先采用：
+
+```text
+普通 Activity
+→ standard
+→ cap 120
+```
+
+真正绑定 Quest 后才允许：
+
+```text
+major
+epic
+main
+```
+
+比现在所有 Activity 默认 `300` 更安全。
+
+---
+
+# 七、Repository abstraction 还有一个小缺口
+
+摘要说：
+
+> `/api/skills` 已改用 Repository port
+
+
+
+实际代码是：
+
+```ts
+import { demoRepository }
+  from "@/lib/store/demo-db";
+```
+
+然后：
+
+```ts
+demoRepository.listSkills()
+```
+
+
+
+所以它实际上还是：
+
+```text
+API Route
+→ concrete DemoRepository
+```
+
+并没有真正：
+
+```text
+API Route
+→ Repository abstraction
+```
+
+这个目前不严重。
+
+但进入 Supabase + Auth 后，不建议继续：
+
+```ts
+export const demoRepository =
+  new DemoRepository();
+```
+
+这种全局 singleton wiring。
+
+更适合：
+
+```ts
+const repo = await getRepository();
+```
+
+未来：
+
+```text
+request
+↓
+authenticated user
+↓
+request-scoped Supabase client
+↓
+Repository
+```
+
+否则 RLS/Auth 上下文不好管理。
+
+---
+
+# 八、还有一个老的数据安全债务
+
+`DemoRepository.readDb()` 目前还是：
+
+```ts
+try {
+  JSON.parse(...)
+} catch {
+  return emptyDb();
+}
+```
+
+
+
+这意味着：
+
+```text
+文件不存在
+```
+
+和：
+
+```text
+文件损坏
+```
+
+会被当成同一件事。
+
+最坏情况：
+
+```text
+demo.json 损坏
+↓
+系统返回空 DB
+↓
+下一次 write
+↓
+空数据覆盖旧历史
+```
+
+对于“个人成长长期账本”，这是不理想的。
+
+建议：
+
+```text
+ENOENT
+→ 初始化空 DB
+
+JSON parse failure
+→ 报错
+→ 保留原文件
+→ backup
+→ 禁止覆盖
+```
+
+Supabase 上线以后风险会下降，但 Demo 仍建议修。
+
+---
+
+# 现在的优先级，我建议重新排一次
+
+不要直接：
+
+```text
+Supabase
+```
+
+而是先做一个很短的：
+
+# **Milestone 2.6 — Supabase Readiness Hardening**
+
+建议开发 AI 一次性完成：
+
+1. **Repository 全部 async 化**
+2. **重画 settlement transaction boundary**
+3. **修 Mastery verification bypass**
+4. **增加两个不同 assessment 并发结算一致性测试**
+5. **修 Demo DB corruption handling**
+6. **普通 Activity 默认 questSize=standard**
+7. **建立 request-scoped repository factory**
+8. Player Level 暂时明确标记为 provisional / XP Level
+
+其中最重要的新测试应该是：
+
+```text
+初始 total XP = 100
+
+Assessment A = +20
+Assessment B = +30
+
+并发结算
+
+Ledger sum = 150
+Player total XP = 150
+Skill XP = 对应 ledger sum
+```
+
+以及：
+
+```text
+M4
++
+E4
++
+Proposal M6
+
+→ verificationRequired = true
+→ Confirm 后仍为 M4
+→ 产生 Pending Verification
+```
+
+---
+
+# 当前评分
+
+我会这样看：
+
+| 模块 | 当前评价 |
+|---|---:|
+| Growth Engine 纯函数架构 | 9/10 |
+| AI → Server 权限边界 | 9/10 |
+| Repetition 系统 | 8.5/10 |
+| Repository 分层 | 8/10 |
+| 当前事务模型 | **6/10** |
+| Mastery 规则执行 | **6.5/10** |
+| 数据持久性安全 | 6/10 |
+| 自动测试 / CI | 8.5/10 |
+| Spec-Code 一致性 | 7/10 |
+| 整体 MVP 架构 | **8/10** |
+
+这次我不给 8.5+，主要不是重构做差了，而是重构以后把之前隐藏在 God Object 里的几个**核心一致性问题暴露得更清楚了**。
+
+---
+
+# Gate 决策
+
+## 当前 Milestone 2.5
+
+### ✅ **PASS**
+
+Repository abstraction 是值得保留的。
+
+## 直接进入 SupabaseRepository
+
+### ❌ **暂时不建议**
+
+先处理上面 2.6 的三个核心 P1：
+
+```text
+Async Repository
+Transaction Boundary
+Mastery Verification
+```
+
+处理完这三项以后，我认为就可以真正开始：
+
+```text
+Supabase
+→ Auth
+→ RLS
+→ transactional settlement
+```
+
+而且从下一轮开始，我建议我们的审查模式正式升级成：
+
+# **Spec → Architecture → Code → Test 四层审查**
+
+因为现在项目已经不是“能不能跑起来”的阶段了，真正危险的已经变成：
+
+> **代码看起来很漂亮，但悄悄违反了你最初制定的游戏宪法。**
+
+这才是后面最需要盯住的东西。

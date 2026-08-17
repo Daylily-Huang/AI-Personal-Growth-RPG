@@ -1,23 +1,41 @@
 /**
- * Store facade (was the "god object" growth store).
+ * Store facade / composition root.
  *
- * Milestone 2.5 refactor: all settlement/business logic moved out into
- * `settlement.service.ts` (the single copy of the rules). This file only WIRES
- * the demo JSON repository + services and re-exports the compatibility surface
- * the app and tests use today.
+ * Milestone 2.6: NO global singleton wiring. Every call goes through a
+ * request-scoped factory (`getRepository` / `getSettlementService`) so a
+ * future authenticated, request-scoped Supabase client can replace the demo
+ * repository without touching call sites.
  *
- * Later, a SupabaseRepository will implement the same `Repository` port and the
- * exact same SettlementService will run against it — no logic duplication.
+ * The compat functions below exist for the API routes and tests; they all
+ * resolve a fresh repository/service from the factory.
  */
 
 import { DemoRepository } from "./demo-repository";
 import { SettlementService } from "./settlement.service";
 import { buildDashboardSnapshot } from "./dashboard.service";
-import type { NewActivityInput, NewAssessmentInput, Db } from "./types";
+import type { Repository } from "./repository";
+import type {
+  NewActivityInput,
+  NewAssessmentInput,
+  Db,
+  ConfirmResult,
+  DashboardSnapshot,
+  Activity,
+  Assessment,
+  MasteryVerification,
+  SkillEdge,
+} from "./types";
 
-// ---- wiring (demo backend) ----
-export const demoRepository = new DemoRepository();
-export const settlementService = new SettlementService(demoRepository);
+// ---- factory (request-scoped) ----
+export function getRepository(): Repository {
+  // Demo: stateless + file-backed, so a fresh instance per request is cheap.
+  // Supabase later: resolve a request-scoped client here (auth context → repo).
+  return new DemoRepository();
+}
+
+export function getSettlementService(): SettlementService {
+  return new SettlementService(getRepository());
+}
 
 // ---- types (compat) ----
 export type {
@@ -26,6 +44,7 @@ export type {
   XpTransaction,
   SkillState,
   SkillEdge,
+  MasteryVerification,
   PlayerState,
   Db,
   ConfirmResult,
@@ -39,45 +58,49 @@ export { DemoRepository };
 
 // ---- compat functions (routes + tests) ----
 export function readDb(): Db {
-  return demoRepository.readDb();
+  return (getRepository() as DemoRepository).readDb();
 }
 
-export function createActivity(input: NewActivityInput) {
-  return demoRepository.addActivity(input);
+export function createActivity(input: NewActivityInput): Promise<Activity> {
+  return getRepository().addActivity(input);
 }
 
-export function getActivity(id: string) {
-  return demoRepository.getActivity(id);
+export function getActivity(id: string): Promise<Activity | null> {
+  return getRepository().getActivity(id);
 }
 
-export function listActivities() {
-  return demoRepository.listActivities();
+export function listActivities(): Promise<Activity[]> {
+  return getRepository().listActivities();
 }
 
-export function createAssessment(input: NewAssessmentInput) {
-  return demoRepository.addAssessment(input);
+export function createAssessment(input: NewAssessmentInput): Promise<Assessment> {
+  return getRepository().addAssessment(input);
 }
 
-export function listPendingAssessments() {
-  return demoRepository.listPendingAssessments();
+export function listPendingAssessments(): Promise<Assessment[]> {
+  return getRepository().listPendingAssessments();
 }
 
-export function getAssessment(id: string) {
-  return demoRepository.getAssessment(id);
+export function getAssessment(id: string): Promise<Assessment | null> {
+  return getRepository().getAssessment(id);
 }
 
-export function confirmAssessment(assessmentId: string) {
-  return settlementService.confirmAssessment(assessmentId);
+export function confirmAssessment(assessmentId: string): Promise<ConfirmResult> {
+  return getSettlementService().confirmAssessment(assessmentId);
 }
 
-export function getDashboard() {
-  return buildDashboardSnapshot(demoRepository);
+export function getDashboard(): Promise<DashboardSnapshot> {
+  return buildDashboardSnapshot(getRepository());
 }
 
-export function listSkillEdges() {
-  return demoRepository.listSkillEdges();
+export function listSkillEdges(): Promise<SkillEdge[]> {
+  return getRepository().listSkillEdges();
 }
 
-export function resetDemoDb() {
-  demoRepository.reset();
+export function resetDemoDb(): Promise<void> {
+  return getRepository().reset();
+}
+
+export function listPendingMasteryVerifications(): Promise<MasteryVerification[]> {
+  return getRepository().listMasteryVerifications();
 }

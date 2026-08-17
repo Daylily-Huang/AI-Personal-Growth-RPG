@@ -21,6 +21,10 @@
 /.gh-sync/
 /.npmrc
 
+# secrets / keys (never commit)
+/docs/Supabase-information.txt
+/docs/*/Supabase-information.txt
+
 # next.js
 /.next/
 /out/

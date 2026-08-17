@@ -3,10 +3,18 @@ import type { Repository } from "./repository";
 import type { DashboardSnapshot } from "./types";
 
 /** Read model for the dashboard, composed from the Repository port. */
-export function buildDashboardSnapshot(repo: Repository): DashboardSnapshot {
-  const player = repo.getPlayer();
+export async function buildDashboardSnapshot(repo: Repository): Promise<DashboardSnapshot> {
+  const player = await repo.getPlayer();
   const level = levelFromXp(player.totalXp);
-  const skills = repo.listSkills().sort((a, b) => b.xp - a.xp);
+
+  const [activities, transactions, pendingAssessments, skills, verifications] =
+    await Promise.all([
+      repo.listActivities(),
+      repo.listTransactions(),
+      repo.listPendingAssessments(),
+      repo.listSkills(),
+      repo.listMasteryVerifications(),
+    ]);
 
   return {
     player,
@@ -15,9 +23,10 @@ export function buildDashboardSnapshot(repo: Repository): DashboardSnapshot {
       xpNeededForNext: level.xpNeededForNext,
       progress: level.progress,
     },
-    recentGrowth: repo.listTransactions().slice(0, 10),
-    pendingAssessments: repo.listPendingAssessments(),
-    activities: repo.listActivities().slice(0, 20),
-    skills,
+    recentGrowth: transactions.slice(0, 10),
+    pendingAssessments,
+    activities: activities.slice(0, 20),
+    skills: [...skills].sort((a, b) => b.xp - a.xp),
+    pendingMasteryVerifications: verifications.filter((v) => v.status === "pending"),
   };
 }

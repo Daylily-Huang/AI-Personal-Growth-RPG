@@ -1,6 +1,7 @@
 import type {
   Activity,
   Assessment,
+  MasteryVerification,
   NewActivityInput,
   NewAssessmentInput,
   PlayerState,
@@ -18,33 +19,35 @@ export interface SettlementResult {
 /**
  * Storage port (Repository pattern).
  *
- * A Repository is intentionally free of *business logic*: it only reads and
- * persists domain data. Business rules live in the domain/settlement service,
- * which depends on this interface — so there is exactly ONE copy of the rules,
- * shared by the demo JSON store today and the Supabase store later.
- *
- * `applySettlement` is the single mutation point for the XP ledger. The
- * implementation is responsible for making it atomic:
- *   - Demo  store: single synchronous read + write (one process, effectively serial)
- *   - Supabase:   PostgreSQL transaction + UNIQUE(assessment_id)
+ * SEMANTICS (Milestone 2.6):
+ * - ALL methods are async, because the Supabase implementation is remote
+ *   (`await supabase.from(...)`). An async port is set from day one.
+ * - The port NEVER contains business rules — it only reads/persists data.
+ * - `applySettlement` is the single atomic settlement mutation. It receives a
+ *   DELTA-based `SettlementToApply` and must apply it inside an atomic unit:
+ *     Demo:    one synchronous read → apply deltas (current += delta) → write
+ *     Supabase: one DB transaction / RPC; adds to current stored rows
+ *   The store (not the service) is responsible for keeping running totals and
+ *   derived levels consistent under concurrency — see docs/06 for the design.
  */
 export interface Repository {
   // ---- reads ----
-  getActivity(id: string): Activity | null;
-  listActivities(): Activity[];
-  getAssessment(id: string): Assessment | null;
-  listPendingAssessments(): Assessment[];
-  listTransactions(): XpTransaction[];
-  getSkill(name: string): SkillState | null;
-  listSkills(): SkillState[];
-  listSkillEdges(): SkillEdge[];
-  getPlayer(): PlayerState;
+  getActivity(id: string): Promise<Activity | null>;
+  listActivities(): Promise<Activity[]>;
+  getAssessment(id: string): Promise<Assessment | null>;
+  listPendingAssessments(): Promise<Assessment[]>;
+  listTransactions(): Promise<XpTransaction[]>;
+  getSkill(name: string): Promise<SkillState | null>;
+  listSkills(): Promise<SkillState[]>;
+  listSkillEdges(): Promise<SkillEdge[]>;
+  getPlayer(): Promise<PlayerState>;
+  listMasteryVerifications(): Promise<MasteryVerification[]>;
 
   // ---- writes ----
-  addActivity(input: NewActivityInput): Activity;
-  addAssessment(input: NewAssessmentInput): Assessment;
-  /** Atomically persist the full result of a confirmed settlement. */
-  applySettlement(settlement: SettlementToApply): SettlementResult;
+  addActivity(input: NewActivityInput): Promise<Activity>;
+  addAssessment(input: NewAssessmentInput): Promise<Assessment>;
+  /** Atomically persist the result of a confirmed settlement (delta-based). */
+  applySettlement(settlement: SettlementToApply): Promise<SettlementResult>;
   /** Wipe the store (demo/testing only). */
-  reset(): void;
+  reset(): Promise<void>;
 }

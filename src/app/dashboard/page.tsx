@@ -1,8 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import type { Activity, Assessment, DashboardSnapshot, XpTransaction } from "@/lib/store/demo-db";
-import { Sparkles, Zap, Check, RefreshCw, Loader2, TrendingUp, BookOpen, Plus } from "lucide-react";
+import type {
+  Activity,
+  Assessment,
+  DashboardSnapshot,
+  MasteryVerification,
+  XpTransaction,
+} from "@/lib/store/demo-db";
+import { Sparkles, Zap, Check, RefreshCw, Loader2, TrendingUp, BookOpen, Plus, ShieldAlert } from "lucide-react";
 
 export default function DashboardPage() {
   const [dashboard, setDashboard] = useState<DashboardSnapshot | null>(null);
@@ -127,6 +133,8 @@ export default function DashboardPage() {
           onConfirm={handleConfirm}
         />
 
+        <PendingVerifications verifications={dashboard.pendingMasteryVerifications} />
+
         <RecentGrowth transactions={dashboard.recentGrowth} />
 
         <ActivityHistory activities={dashboard.activities} />
@@ -170,9 +178,14 @@ function PlayerHeader({ dashboard }: { dashboard: DashboardSnapshot }) {
     <section className="rounded-xl border border-white/10 bg-gradient-to-br from-slate-900 to-slate-950 p-5 shadow-xl">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <div className="text-xs uppercase tracking-widest text-zinc-500">Player</div>
+          <div className="text-xs uppercase tracking-widest text-zinc-500">
+            Player
+            <span className="ml-2 rounded bg-sky-400/10 px-1.5 py-0.5 normal-case tracking-normal text-sky-300">
+              Provisional XP Level
+            </span>
+          </div>
           <div className="mt-1 flex items-baseline gap-2">
-            <span className="text-4xl font-bold">Lv.{player.playerLevel}</span>
+            <span className="text-4xl font-bold">XP Lv.{player.playerLevel}</span>
             <span className="text-sm text-zinc-400">
               {player.totalXp} XP total
             </span>
@@ -198,7 +211,7 @@ function PlayerHeader({ dashboard }: { dashboard: DashboardSnapshot }) {
           {skills.slice(0, 6).map((skill) => (
             <div key={skill.name} className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs">
               <span className="text-zinc-300">{skill.name}</span>{" "}
-              <span className="text-amber-300">Lv.{skill.level}</span>{" "}
+              <span className="text-amber-300">XP Lv.{skill.level}</span>{" "}
               <span className="text-zinc-500">M{skill.masteryLevel}</span>
             </div>
           ))}
@@ -342,6 +355,37 @@ function InfoBox({ label, value, detail }: { label: string; value: string; detai
       <div className="mt-1 font-medium">{value}</div>
       {detail ? <div className="mt-1 text-xs text-zinc-500">{detail}</div> : null}
     </div>
+  );
+}
+
+function PendingVerifications({ verifications }: { verifications: MasteryVerification[] }) {
+  if (verifications.length === 0) return null;
+  return (
+    <section className="rounded-xl border border-sky-300/20 bg-sky-300/[0.04] p-5">
+      <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-sky-200">
+        <ShieldAlert className="h-4 w-4" />
+        Mastery 待验证
+      </div>
+      <ul className="space-y-2">
+        {verifications.map((v) => (
+          <li
+            key={v.id}
+            className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-white/5 bg-white/[0.03] px-3 py-2 text-sm"
+          >
+            <span>
+              <span className="font-medium text-sky-200">{v.skillName}</span>{" "}
+              <span className="text-zinc-400">M{v.fromLevel} → M{v.toLevel}</span>
+            </span>
+            <span className="text-xs text-zinc-500">
+              E{v.evidenceLevel} · Pending · 尚未授予
+            </span>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-2 text-xs text-zinc-500">
+        这些升级需要验证以后才会真正生效（不会自动授予）。
+      </p>
+    </section>
   );
 }
 
