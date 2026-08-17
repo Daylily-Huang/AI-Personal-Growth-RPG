@@ -52,6 +52,12 @@ export interface SkillState {
   lastUsedAt: string | null;
 }
 
+export interface SkillEdge {
+  source: string;
+  target: string;
+  relation: string;
+}
+
 export interface PlayerState {
   totalXp: number;
   playerLevel: number;
@@ -66,6 +72,7 @@ export interface Db {
   assessments: Assessment[];
   transactions: XpTransaction[];
   skills: Record<string, SkillState>;
+  skillEdges: SkillEdge[];
   player: PlayerState;
 }
 
@@ -78,6 +85,7 @@ function emptyDb(): Db {
     assessments: [],
     transactions: [],
     skills: {},
+    skillEdges: [],
     player: {
       totalXp: 0,
       playerLevel: 1,
@@ -257,6 +265,26 @@ export function confirmAssessment(assessmentId: string): ConfirmResult {
   }
 
   db.skills[skillName] = skill;
+
+  // Link related skills so the Skill Tree can show a meaningful graph.
+  for (const related of assessment.proposal.affected_skills.slice(1)) {
+    if (!db.skills[related.name]) {
+      db.skills[related.name] = {
+        name: related.name,
+        xp: 0,
+        level: 1,
+        masteryLevel: 1,
+        masteryConfidence: 0.5,
+        lastUsedAt: null,
+      };
+    }
+    const edge: SkillEdge = { source: skillName, target: related.name, relation: "related" };
+    const exists = db.skillEdges.some(
+      (e) => e.source === edge.source && e.target === edge.target && e.relation === edge.relation,
+    );
+    if (!exists) db.skillEdges.push(edge);
+  }
+
   db.transactions.unshift(transaction);
   db.player.totalXp += xpResult.finalXp;
   db.player.playerLevel = levelFromXp(db.player.totalXp).level;
@@ -300,6 +328,10 @@ export function getDashboard(): DashboardSnapshot {
 
 export function getRecentSimilarCount(): number {
   return readDb().transactions.length;
+}
+
+export function listSkillEdges(): SkillEdge[] {
+  return readDb().skillEdges;
 }
 
 export function resetDemoDb(): void {

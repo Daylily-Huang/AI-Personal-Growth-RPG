@@ -148,7 +148,15 @@ function Shell({ children }: { children: React.ReactNode }) {
             <Sparkles className="h-5 w-5 text-amber-300" />
             AI Personal Growth RPG
           </div>
-          <div className="text-xs text-zinc-400">Demo Mode · Local Ledger</div>
+          <nav className="flex items-center gap-4 text-xs">
+            <a href="/dashboard" className="text-zinc-400 hover:text-zinc-200">
+              Dashboard
+            </a>
+            <a href="/skills" className="text-zinc-400 hover:text-zinc-200">
+              Skill Tree
+            </a>
+            <span className="text-zinc-500">Demo Mode · Local Ledger</span>
+          </nav>
         </div>
       </header>
       <main>{children}</main>
