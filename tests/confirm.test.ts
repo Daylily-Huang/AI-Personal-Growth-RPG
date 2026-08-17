@@ -311,6 +311,8 @@ describe("Milestone 2.7 — settlement integrity", () => {
       promptVersion: "test-prompt",
     });
     expect(activity.rulesVersion).toBe(RULES_VERSION);
+    // Round7: the assessment also inherits the activity's frozen version.
+    expect(assessment.rulesVersion).toBe(activity.rulesVersion);
 
     const result = await confirmAssessment(assessment.id);
     expect(result.transaction?.rulesVersion).toBe(activity.rulesVersion);

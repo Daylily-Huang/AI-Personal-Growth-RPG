@@ -1,0 +1,593 @@
+可以。我的 Gate 结论是：
+
+# **Round6：PASS**
+# **允许正式进入 Milestone 3 — Supabase Foundation**
+
+这次我对 GitHub 上实际的 `9acde94b` 相对 `e0d3b71` 做了 diff 审查，不只是看你上传的 Round6 摘要。摘要列出的 6 个 Preflight Fix 基本都真实落地。 GitHub Actions 对 `9acde94b` 的 run #5 也确实是 `completed / success`，其中 Install、Lint、Test、Build 全部成功。 
+
+## 六项验收结果
+
+| Preflight 项目 | 审查结果 |
+|---|---|
+| Skill ID 改真正 UUID | ✅ PASS |
+| repetition 改按 skillId | ✅ PASS |
+| Skill 创建进入 atomic settlement | ✅ PASS |
+| zombie Assessment revision | ✅ PASS |
+| authoritative transaction / mastery verification 返回 | ✅ PASS |
+| `xp_type CHECK` | ✅ PASS |
+
+### 1. Skill Identity 这次真正修到位了
+
+运行时不再使用：
+
+```text
+skill-statistics
+```
+
+这种 name-derived ID，而是：
+
+```ts
+crypto.randomUUID()
+```
+
+名称只参与 normalized lookup；`Statistics`、`statistics`、多余空格这种变体不会再生成新技能并覆盖旧状态。SkillEdge 也已经由名称边改成 `sourceId / targetId`。 
+
+这是我上一轮最主要的 blocker，现在可以关闭。
+
+### 2. Anti-farming 已真正使用稳定 Skill Identity
+
+`countRecentSimilar()` 已从：
+
+```ts
+skillName
+```
+
+改成：
+
+```ts
+skillId
+```
+
+并执行：
+
+```ts
+tx.skillId !== params.skillId
+```
+
+因此 repetition 的核心 identity 已经不再依赖可变显示名称。
+
+这一步很重要。
+
+### 3. Skill 创建不再发生在 settlement 外
+
+`lookupSkillId()` 现在明确是只读：
+
+```text
+unknown → null
+不会创建
+不会写文件
+```
+
+真正的 `resolveOrCreateSkill()` 已经移入 `applySettlement()` 的原子区间。 
+
+这样：
+
+```text
+Confirm 失败
+→ 不应该留下一个凭空创建的 Skill
+```
+
+这个事务边界终于比较干净了。
+
+### 4. Assessment zombie 已经解决
+
+现在确认其中一个 revision 后：
+
+```text
+confirmed revision → confirmed
+其他 pending siblings → superseded
+```
+
+而已经结算的 Activity 再创建 Assessment 会抛 `ActivityAlreadySettledError`，API 返回 409。测试也覆盖了 superseded 不再出现在 pending queue。 
+
+因此上一轮那个“永远无法 Confirm 的待确认卡片”问题可以关闭。
+
+### 5. MasteryVerification 的 phantom return 也修了
+
+Repository 现在要么：
+
+```text
+创建新的 pending
+```
+
+要么：
+
+```text
+返回已经存在的 pending
+```
+
+Service 最终使用的是 Repository 返回的 persisted authoritative object，而不是自己预生成但数据库没保存的 UUID。 
+
+正确。
+
+### 6. `xp_type` 已有数据库级约束
+
+现在是：
+
+```sql
+check (
+  xp_type in (
+    'activity',
+    'adjustment',
+    'correction'
+  )
+)
+```
+
+所以拼错 `activty` 已无法绕过：
+
+```sql
+WHERE xp_type = 'activity'
+```
+
+的“一 Activity 一笔原始结算”唯一索引。
+
+---
+
+# 还有几个问题，但我不再阻塞进入 Supabase
+
+现在继续雕 JSON Demo 的收益已经很低了。下面这些应该直接列入 **Milestone 3 acceptance criteria**。
+
+## P1：Supabase RPC 必须额外保证 Mastery 单调更新
+
+当前 DemoRepository 对立即升级仍然是：
+
+```ts
+primary.masteryLevel =
+  masteryAction.proposedLevel;
+```
+
+
+
+正式数据库 RPC 最好不要无条件覆盖。
+
+至少应该：
+
+```text
+只有 proposed_mastery > current_mastery
+才允许普通 Activity 提升
+```
+
+也就是类似：
+
+```sql
+mastery_level =
+greatest(mastery_level, proposed_level)
+```
+
+或者在 transaction 内显式校验。
+
+原因是普通 Growth settlement 不应该因为旧 snapshot 或错误 command：
+
+```text
+M4
+→ M3
+```
+
+把永久 Mastery 倒退。
+
+真正的降低/纠错未来应该走：
+
+```text
+correction pipeline
+```
+
+而不是普通 Activity settlement。
+
+**把这个作为 Milestone 3 的 DB invariant 即可，不需要再开 2.8。**
+
+---
+
+# P2：409 检查现在放得太晚
+
+当前 API 的流程实际上还是：
+
+```text
+读取 Activity
+↓
+调用 AI assessActivity
+↓
+repo.addAssessment()
+↓
+发现已经 confirmed
+↓
+抛错
+↓
+409
+```
+
+
+
+所以用户对 confirmed Activity 再点 Assess：
+
+> 最终确实得到 409，但可能已经白调用一次模型。
+
+这会浪费：
+
+- Token
+- API 钱
+- 响应时间
+
+简单改成：
+
+```ts
+if (activity.status === "confirmed") {
+  return 409;
+}
+```
+
+放在：
+
+```ts
+assessActivity()
+```
+
+之前即可。
+
+不影响数据正确性，因此不是 blocker。
+
+---
+
+# P1 架构小问题：API 又泄露出 DemoRepository 具体实现了
+
+现在 route：
+
+```ts
+import {
+  ActivityAlreadySettledError
+} from "@/lib/store/demo-repository";
+```
+
+
+
+这和我们之前做 Repository abstraction 的目标有一点冲突。
+
+未来切：
+
+```text
+DemoRepository
+→ SupabaseRepository
+```
+
+API route 不应该还认识：
+
+```text
+demo-repository.ts
+```
+
+建议在 Milestone 3 一开始把错误移动到：
+
+```text
+src/lib/store/errors.ts
+```
+
+例如：
+
+```ts
+export class ActivityAlreadySettledError
+  extends Error {}
+```
+
+然后：
+
+```text
+DemoRepository
+SupabaseRepository
+API route
+```
+
+共同依赖 domain error。
+
+或者让：
+
+```ts
+addAssessment()
+```
+
+返回 typed result，而不是 throw concrete implementation error。
+
+这是很小的改动。
+
+---
+
+# Rules Version 还有一个明确的未来 Gate
+
+Activity 已经正确冻结：
+
+```ts
+activity.rulesVersion
+```
+
+Ledger 也使用冻结值。
+
+但 `SettlementService` 目前仍然直接：
+
+```ts
+calculateXp(xpInput)
+```
+
+
+
+所以现在只有 `v0.1` 时完全没问题。
+
+但在第一次升级：
+
+```text
+growth-engine-v0.2
+```
+
+之前必须实现：
+
+```ts
+calculateXpForVersion(
+  activity.rulesVersion,
+  input
+)
+```
+
+否则可能发生：
+
+```text
+Activity 标签 = v0.1
+实际算法 = v0.2
+Ledger 写的又是 v0.1
+```
+
+这条我建议直接写进 ADR / backlog：
+
+> **BLOCKER before first rules_version bump**
+
+但不阻止 Supabase。
+
+---
+
+# 关于 alias，我也做一个边界说明
+
+当前所谓 normalized aliases 解决的是：
+
+```text
+Statistics
+statistics
+ Statistics
+Statistics   ← whitespace/case variation
+```
+
+这种文本规范问题。
+
+它**不会自动知道**：
+
+```text
+Statistics
+统计学
+```
+
+语义上是同一个技能。
+
+要让二者共享 skillId，需要未来：
+
+```text
+Skill Ontology
++
+alias management
++
+AI candidate matching / user merge
+```
+
+这正好属于你已经明确排到后面的 Skill ontology，不是这一轮缺陷。
+
+---
+
+# 所以现在不要再做 Round7 Preflight
+
+我认为从 Round1 到现在已经审得够深了。
+
+继续让 AI：
+
+```text
+修 Demo
+→ 审
+→ 再修 Demo
+→ 再审
+```
+
+容易陷入局部最优。
+
+真正需要验证的下一个风险已经变成：
+
+```text
+PostgreSQL
+Auth
+RLS
+RPC
+Multi-user isolation
+```
+
+而这些只有真正接 Supabase 才能验证。
+
+---
+
+# 我批准的 Milestone 3 顺序
+
+不要第一步就写 `SupabaseRepository`。
+
+建议严格按：
+
+```text
+① Complete MVP Schema
+   0001 → ...
+   真正从空数据库能创建
+
+↓
+
+② Auth model
+   auth.users
+   ↓
+   profile / player state
+
+↓
+
+③ RLS
+   所有 user-owned table：
+   auth.uid() = user_id
+
+↓
+
+④ Supabase client factory
+   browser client
+   server user-scoped client
+   admin/secret client strictly isolated
+
+↓
+
+⑤ SupabaseRepository
+   实现现有 Repository port
+
+↓
+
+⑥ settle_activity RPC
+   PostgreSQL transaction
+   repetition snapshot
+   idempotency
+   skill resolve/create
+   player += XP
+   skill += XP
+   mastery
+   verification
+   assessment status
+   全部一个 transaction
+
+↓
+
+⑦ DB invariant tests
+
+↓
+
+⑧ RLS isolation tests
+
+↓
+
+⑨ Empty DB migration test
+
+↓
+
+⑩ Real integration smoke
+QuickLog
+→ Assess
+→ Confirm
+→ Refresh
+→ 数据仍在
+```
+
+---
+
+# 特别重要：RLS 测试不要只测“自己能读”
+
+至少要创建：
+
+```text
+User A
+User B
+```
+
+然后验证：
+
+```text
+A 能看到 A 的 Activity   ✅
+A 看不到 B 的 Activity   ✅
+
+A 能看到 A 的 XP         ✅
+A 看不到 B 的 XP         ✅
+
+A 不能修改 B 的 Skill    ✅
+A 不能 Confirm B 的 Assessment ✅
+```
+
+这个比单纯：
+
+```text
+RLS enabled
+```
+
+有意义得多。
+
+---
+
+# Secret key 的原则也继续保持
+
+你前面已经准备好了 Supabase 项目。
+
+Milestone 3 应默认：
+
+```text
+Browser
+→ Publishable key
+→ Auth JWT
+→ RLS
+```
+
+普通业务 API：
+
+```text
+Server user-scoped Supabase client
+→ 用户 JWT
+→ RLS
+```
+
+而不是：
+
+```text
+所有 server API
+→ SUPABASE_SECRET_KEY
+→ 绕过 RLS
+```
+
+Secret key 只用于真正需要管理员权限的极少数 backend path。
+
+---
+
+# 最终 Gate
+
+我现在给当前 `9acde94b`：
+
+### P0
+**0**
+
+### 必须在进入 Milestone 3 前再修的 P1
+**0**
+
+### Milestone 3 内需要处理的 P1
+- DB/RPC 的 Mastery monotonic invariant
+- Domain error 从 DemoRepository 解耦
+- 完整 schema + RLS + transactional RPC
+
+### P2
+- confirmed Activity 在调用 AI **之前**直接 409
+- Assessment 的 rulesVersion 最好继承 Activity rulesVersion
+- Semantic aliases 等 Skill ontology 后续处理
+- 第一次 rules version bump 前实现 engine registry
+
+# **评分：9.0 / 10**
+
+## **正式决定：GO ✅**
+
+> **可以开始 Milestone 3 — Supabase Foundation。**
+
+而且我建议现在不要再让 Coding Agent 问你“要不要先做什么”。直接给它明确范围：
+
+> **开始 Milestone 3，但先只完成 Schema Bootstrap + Auth + RLS + Supabase client architecture，不要立即删除 DemoRepository，不要修改 Growth Constitution，不要扩 UI。完成第一阶段后提交独立 commit，等待数据库/RLS Gate Review，再继续 SupabaseRepository + settlement RPC。**
+
+这样下一轮我就可以第一次真正审查：
+
+> **“User A 到底能不能看到 User B 的成长记录？”**
+
+这会比继续审 JSON store 有价值得多。

@@ -1344,6 +1344,34 @@ User-scoped Supabase client
 
 ---
 
+# 43.5 Supabase client 工厂（M3 Stage1 架构落点）
+
+M3 Stage1 只落地"连接架构"，不接业务（DemoRepository 仍在跑）。Agent 改的是：
+
+```text
+src/lib/supabase/env.ts      键名解析（惰性读取，可单测）
+src/lib/supabase/browser.ts  浏览器客户端（publishable key，客户端组件可用）
+src/lib/supabase/server.ts   用户会话客户端（publishable key + cookies，RLS 生效）
+src/lib/supabase/admin.ts    服务管理员客户端（SUPABASE_SECRET_KEY，绕过 RLS，禁用型）
+src/lib/supabase/index.ts    统一出口
+```
+
+使用纪律：
+
+```text
+处理"当前登录用户"数据        → getSupabaseServerClient()（RLS 上 auth.uid()）
+客户端组件 / 页面             → getSupabaseBrowserClient()
+仅后台信任路径（修正/reconcile/管理）→ getSupabaseAdminClient()，且不得由浏览器输入触发
+```
+
+> Next 16：`cookies()` 是 async，server 工厂也为 async；每次请求新建、不跨请求缓存。
+> session refresh 的 setAll 在 Server Component 里会抛 → 由 middleware（Stage2 接线）接管
+> 并合并 ssr 传入的 `Cache-Control: private, no-store`（防 CDN 串用户会话）。
+
+生成型 Database TS 类型：接入 SupabaseRepository（Stage2）时用 supabase CLI 生成并替换。
+
+---
+
 # 44. AI 不能拥有数据库管理员权限
 
 禁止：
@@ -2419,18 +2447,24 @@ XP 高
 
 # 91. RLS Tests
 
-至少验证：
+至少验证（M3 Stage1 已落地的离线静态面 + Stage2/CI 待补的在线集成面）：
 
 ```text
-User A
-不能读取 User B activity
+[✅ 离线静态测试 tests/supabase-schema.test.ts]
+  迁移链 0001..0017 完整且按序
+  每个私有表在 0017 被 enable RLS 并挂 auth.uid() 策略
+  xp_type CHECK / assessment unique / one-confirmed-per-activity /
+  one-pending-mastery-verification 等 DB 不变量字面存在
 
-User A
-不能修改 User B skill
-
-Anon
-不能读取 private growth data
+[🔜 在线集成测试（接入 SupabaseRepository + 两个真实用户会话后必做，需 cloud secrets）]
+User A 不能读取 User B activity
+User A 不能修改 User B skill
+Anon    不能读取 private growth data
+两用户同时 confirm 同一 assessment → 数据库 UNIQUE 兜底只落一笔
 ```
+
+> 静态测试**不能**替代在线隔离验证：真实多租户隔离（A 看不到 B）
+> 必须在可执行 RLS 的库里用两个会话互查验证（Stage2/CI）。
 
 ---
 

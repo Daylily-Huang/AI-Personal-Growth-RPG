@@ -3,7 +3,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import crypto from "node:crypto";
-import { DemoRepository, ActivityAlreadySettledError } from "@/lib/store/demo-repository";
+import { DemoRepository } from "@/lib/store/demo-repository";
+import { ActivityAlreadySettledError } from "@/lib/store/errors";
 import type { SettlementToApply, Assessment } from "@/lib/store/types";
 import type { AssessmentProposal } from "@/lib/ai/schemas";
 import { RULES_VERSION } from "@/lib/growth-engine/xp";
@@ -224,6 +225,21 @@ describe("Milestone 2.7/Preflight — settlement guards & skill identity (store-
     expect(assessments.find((a) => a.id === s2.id)?.status).toBe("superseded");
 
     expect((await repo.listPendingAssessments()).map((a) => a.id)).not.toContain(s2.id);
+  });
+
+  test("assessment inherits the Activity frozen rulesVersion (not engine current)", async () => {
+    const activity = await repo.addActivity({ rawInput: "旧活动" });
+    const db = repo.readDb();
+    db.activities[0]!.rulesVersion = "legacy-v0"; // simulate an activity minted under an older engine
+    fs.writeFileSync(dbFile, JSON.stringify(db));
+
+    const assessment = await repo.addAssessment({
+      activityId: activity.id,
+      proposal,
+      modelName: "test-model",
+      promptVersion: "test-prompt",
+    });
+    expect(assessment.rulesVersion).toBe("legacy-v0");
   });
 
   test("at most one pending mastery verification per skill", async () => {

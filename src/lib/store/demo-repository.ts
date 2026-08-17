@@ -18,19 +18,11 @@ import type {
   XpTransaction,
 } from "./types";
 import type { Repository, SettlementResult } from "./repository";
+import { ActivityAlreadySettledError } from "./errors";
 
 const DEFAULT_DB_PATH = path.join(process.cwd(), ".data", "demo.json");
 /** Same 30-day window as the service — kept here so the coupon is atomic. */
 const SIMILARITY_WINDOW_DAYS = 30;
-
-/** Thrown when a confirmed Activity is re-assessed (correction pipeline comes later). */
-export class ActivityAlreadySettledError extends Error {
-  code = "activity_already_settled";
-  constructor(activityId: string) {
-    super(`Activity ${activityId} already settled; re-assessment is disabled until a correction pipeline exists`);
-    this.name = "ActivityAlreadySettledError";
-  }
-}
 
 function emptyDb(): Db {
   return {
@@ -238,7 +230,9 @@ export class DemoRepository implements Repository {
       proposal: input.proposal,
       modelName: input.modelName,
       promptVersion: input.promptVersion,
-      rulesVersion: RULES_VERSION,
+      // Round7: inherit the Activity's frozen rules_version (not the engine's
+      // current one) so an old activity is never assessed under future rules.
+      rulesVersion: activity.rulesVersion,
       confidence: input.proposal.confidence,
       createdAt: new Date().toISOString(),
       confirmedAt: null,

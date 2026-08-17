@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getRepository } from "@/lib/store/demo-db";
-import { ActivityAlreadySettledError } from "@/lib/store/demo-repository";
+import { ActivityAlreadySettledError, STORE_ERROR_CODES } from "@/lib/store/errors";
 import { assessActivity } from "@/lib/ai/assess";
 import { getPromptVersion } from "@/lib/ai/prompts";
 import { AI_MODEL_NAME } from "@/lib/ai/config";
@@ -12,6 +12,19 @@ export async function POST(_request: Request, ctx: { params: Promise<{ id: strin
     const activity = await repo.getActivity(id);
     if (!activity) {
       return NextResponse.json({ error: "Activity not found" }, { status: 404 });
+    }
+
+    // Round7 (P2): fail BEFORE spending model tokens/API money/response time on
+    // an Activity that can never be assessed again. (addAssessment still throws
+    // as defense-in-depth, but the cheap guard lives here first.)
+    if (activity.status === "confirmed") {
+      return NextResponse.json(
+        {
+          error: `Activity ${activity.id} already settled; re-assessment is disabled until a correction pipeline exists`,
+          code: STORE_ERROR_CODES.activityAlreadySettled,
+        },
+        { status: 409 },
+      );
     }
 
     // Primary skill / activity type are only known AFTER the proposal exists,

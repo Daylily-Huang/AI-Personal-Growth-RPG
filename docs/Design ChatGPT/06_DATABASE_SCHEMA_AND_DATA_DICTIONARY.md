@@ -534,7 +534,7 @@ archived
 0005_quests
 0006_activities
 0007_ai_assessments
-0008_evidence
+0008_evidence_records
 0009_xp_transactions
 0010_mastery_verifications
 0011_mastery_events
@@ -545,6 +545,11 @@ archived
 0016_indexes
 0017_rls
 ```
+
+> Auth/RLS 落点（M3 Stage1）：`0017_rls` 一次性 `enable RLS` + 给每个私有表挂
+> `auth.uid()` 四类策略（select/insert with check/update/delete），并创建
+> `handle_new_user` 触发器：注册 auth user 自动补 `profiles` + `player_states`。
+> service_role 绕过 RLS，仅供服务端信任路径（见 docs/03 §42–§43.5）。
 
 ---
 
