@@ -13,7 +13,8 @@
 - ✅ Proposal Review + Confirm
 - ✅ XP Ledger（幂等确认，重复 confirm 不会重复加分）
 - ✅ Dashboard / Activity History
-- ⏳ Supabase 真实后端、Auth、RLS、Skill Tree、Knowledge Map（下一步）
+- ✅ Skill Tree（/skills，React Flow 交互图谱）
+- ⏳ Supabase 真实后端、Auth、RLS、Knowledge Map（下一步）
 
 ## 技术栈
 
@@ -62,6 +63,7 @@ OPENAI_MODEL=gpt-4.1-mini
 | POST | `/api/activities/[id]/assess` | 生成 AI Assessment Proposal |
 | POST | `/api/assessments/[id]/confirm` | 确认并原子写入 XP Ledger（幂等） |
 | GET | `/api/dashboard` | 获取 Dashboard 快照 |
+| GET | `/api/skills` | 获取 Skill Tree 的 React Flow nodes/edges |
 
 ## 测试
 
