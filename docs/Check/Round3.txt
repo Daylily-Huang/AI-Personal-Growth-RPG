@@ -1,0 +1,451 @@
+我审完了 `9704eaf1` 相对上一轮 `bcf0e0b` 的 diff。结论：
+
+# Round2 跟进审查：**PASS，但有 1 个需要在 Supabase 前修掉的 P1**
+
+这次提交总体质量是好的，两个上一轮提醒确实都处理了，而且 CI 我已经独立核实，不是照开发 AI 的汇报复述。
+
+## 已确认通过的部分
+
+**1. AI 估算和服务器权威判定已经真正分开。**
+
+待确认卡片现在明确显示：
+
+```text
+重复风险（AI 估算）
+非最终判定；服务器确认时重新计算
+```
+
+而不是把 AI 的 `repetition_risk` 冒充最终规则结果。
+
+Prompt 也明确告诉模型：
+
+```text
+repetition_risk 只是 AI 估算
+服务器 Confirm 时重新计算权威 repetitionCount
+```
+
+
+
+这个问题可以正式关闭。
+
+---
+
+**2. Server settlement 已经真正保存权威 repetition 数据。**
+
+`XpTransaction` 现在新增：
+
+```ts
+repetitionCount: number
+repetitionPenalty: number
+```
+
+而且不是 UI 临时算出来，而是在 `confirmAssessment()` 中：
+
+```text
+countRecentSimilar()
+↓
+calculateXp()
+↓
+transaction.repetitionCount
+transaction.repetitionPenalty
+```
+
+一起落账。
+
+这是正确设计。
+
+Activity Detail 以后可以直接审计历史结算，而不用重新计算旧规则。
+
+---
+
+**3. 测试也跟进了。**
+
+现在明确断言：
+
+```text
+第一次相似行为
+repetitionCount = 0
+repetitionPenalty = 1
+
+第二次相似行为
+repetitionCount = 1
+repetitionPenalty < 1
+```
+
+以及不同 activity type：
+
+```text
+repetitionCount = 0
+```
+
+
+
+所以不是只增加字段但没人验证。
+
+---
+
+# GitHub Actions：正式 PASS
+
+这次我查到了 commit `9704eaf1e8f07f...` 对应的真实 GitHub Actions Run：
+
+```text
+CI
+event: push
+status: completed
+conclusion: success
+```
+
+
+
+而且我继续查了 job：
+
+```text
+Install dependencies  success
+Lint                  success
+Test                  success
+Build                 success
+```
+
+因此上一轮：
+
+> “lint/test/build 只有开发者自报”
+
+这个问题现在可以**彻底关闭**。
+
+`.github/workflows/ci.yml` 本身也合理：
+
+```text
+push main
+pull_request
+
+pnpm install --frozen-lockfile
+pnpm lint
+pnpm test
+pnpm build
+```
+
+
+
+这已经是合格的 MVP CI gate。
+
+---
+
+# 但我发现一个新的 P1：数据库文档和 migration 已经漂移
+
+这是这一轮最值得注意的问题。
+
+你现在更新了 `docs/06_DATABASE_SCHEMA_AND_DATA_DICTIONARY.md`，增加：
+
+```text
+repetition_count
+repetition_penalty
+```
+
+commit diff 里可以确认。
+
+JSON `XpTransaction` 也已经有这两个字段。
+
+但是上一轮新增的真实 Supabase migration：
+
+```text
+supabase/migrations/0009_xp_transactions.sql
+```
+
+**这一轮没有修改。**
+
+而上一轮我读到的 migration 仍然只有：
+
+```sql
+activity_type text,
+xp_type text,
+amount integer,
+base_amount integer,
+modifier_json jsonb,
+...
+```
+
+并没有：
+
+```sql
+repetition_count
+repetition_penalty
+```
+
+所以现在出现了：
+
+```text
+TypeScript model
+        ✅ repetitionCount
+        ✅ repetitionPenalty
+
+Data dictionary
+        ✅ repetition_count
+        ✅ repetition_penalty
+
+Supabase migration
+        ❌ repetition_count
+        ❌ repetition_penalty
+```
+
+这就是典型 **schema drift**。
+
+### 为什么现在不算 blocker？
+
+因为 Supabase migration 目前还没有真正执行，项目仍在 JSON Demo 阶段。
+
+### 为什么必须在接 Supabase 前修？
+
+否则一旦下一阶段直接执行 migration，数据库结构会落后于当前 domain model。
+
+因此我把它定义为：
+
+# **P1 — 接 Supabase 前必须修**
+
+最简单：
+
+```sql
+repetition_count integer not null default 0,
+repetition_penalty numeric not null default 1,
+```
+
+具体 numeric 精度可以再定。
+
+---
+
+# 还有两个非阻塞建议
+
+### P2：Recent Growth 目前只在 penalty < 1 时展示服务器判定
+
+现在 UI 条件是：
+
+```tsx
+tx.repetitionPenalty < 1
+```
+
+所以：
+
+```text
+repetitionCount = 0
+repetitionPenalty = 1
+```
+
+不会显示。
+
+这没错。
+
+但以后 Activity Detail 建议**始终展示**：
+
+```text
+Similar activities: 0
+Repetition modifier: ×1.00
+```
+
+因为审计页的目标不是只显示“惩罚”，而是完整解释 XP。
+
+---
+
+### P2：`repetition_risk` 这个字段名以后可以考虑改
+
+现在 schema 仍叫：
+
+```text
+repetition_risk
+```
+
+只是 UI 标了：
+
+```text
+AI 估算
+```
+
+MVP 完全可接受。
+
+以后如果做 schema v2，我更倾向：
+
+```text
+estimated_repetition_risk
+```
+
+因为这样数据本身就带语义，避免别的消费者误把它当 authoritative state。
+
+现在不值得为了改名破坏兼容性。
+
+---
+
+# 当前整个项目的总体评价
+
+经过这几轮，我认为项目已经从：
+
+```text
+概念 Demo
+```
+
+进入了：
+
+```text
+规则可信的 MVP 核心
+```
+
+目前最健康的部分是：
+
+```text
+User Activity
+      ↓
+AI semantic proposal
+      ↓
+User confirmation
+      ↓
+Server-side deterministic rules
+      ↓
+Authoritative XP settlement
+      ↓
+Ledger
+```
+
+其中：
+
+- AI 不直接发 XP；
+- XP Engine 是纯函数；
+- Mastery 与 XP 分离；
+- Evidence 有上限约束；
+- 时间不线性刷 XP；
+- repetition 不再全局误伤；
+- AI 估算和服务器裁决已经区分；
+- settlement 保存 rules version 和权威修正数据；
+- CI 已建立。
+
+这些都是后面扩展系统的好基础。
+
+---
+
+# 我现在最不建议做什么
+
+**暂时不要继续往 Skill Tree 上堆复杂 UI。**
+
+React Flow 已经够证明概念。
+
+现在真正欠缺的是底层：
+
+```text
+持久数据架构
++
+用户身份
++
+审计历史
+```
+
+否则继续加 Knowledge Map、Artifact、Quest 等，会让 `demo-db.ts` 越来越胖，之后迁移成本越来越高。
+
+---
+
+# 下一阶段我的最终建议
+
+我现在建议稍微调整成：
+
+```text
+0. 修 migration schema drift
+   repetition_count
+   repetition_penalty
+
+↓
+
+1. Repository abstraction
+   把业务规则从 demo-db.ts 剥离
+
+↓
+
+2. Supabase schema + Auth + RLS
+
+↓
+
+3. PostgreSQL transactional XP settlement
+   UNIQUE(assessment_id)
+
+↓
+
+4. Activity List
+
+↓
+
+5. Activity Detail / XP Audit
+
+↓
+
+6. Playwright 核心 E2E
+
+↓
+
+7. 再扩 Quest / Knowledge / Artifact
+```
+
+## 为什么 Repository abstraction 应该排在 Supabase 前？
+
+因为现在 `demo-db.ts` 已经同时承担了：
+
+```text
+文件 IO
+Activity repository
+Assessment repository
+XP settlement
+Skill update
+Mastery update
+similarity orchestration
+player state update
+```
+
+
+
+它已经开始变成一个“大泥球”。
+
+如果直接接 Supabase，AI 很容易写成：
+
+```text
+demo-db.ts 一套业务逻辑
+
+supabase-db.ts
+再复制一套业务逻辑
+```
+
+这是我下一轮最想防止的。
+
+正确目标应该是：
+
+```text
+                 ┌ DemoRepository
+Domain Service ──┤
+                 └ SupabaseRepository
+
+calculateXp()
+checkMasteryProposal()
+countRecentSimilar()
+```
+
+业务规则只有一份。
+
+---
+
+# 本轮 Gate
+
+### P0
+**0**
+
+### P1
+**1**
+
+- Supabase migration 尚未同步 `repetition_count / repetition_penalty`
+
+### P2
+- Activity Detail 应完整展示 ×1.00 等未处罚情况
+- schema v2 可把 `repetition_risk` 更名为 `estimated_repetition_risk`
+
+### 决策
+
+# **PASS — 可以继续。**
+
+但我建议给开发 AI 下一条任务不要叫“接 Supabase”。
+
+而叫：
+
+> **Milestone 2.5 — Data Layer Refactor / Repository Abstraction**
+
+做完后先让我审一次。那一轮非常关键，因为如果数据层抽象做得干净，后面 Supabase、移动端、备份、E2E 都会容易很多；如果这里设计烂了，未来每加一个功能都会越来越难改。

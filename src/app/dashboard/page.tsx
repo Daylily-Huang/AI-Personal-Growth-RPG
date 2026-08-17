@@ -361,9 +361,11 @@ function RecentGrowth({ transactions }: { transactions: XpTransaction[] }) {
               <div className="text-xs text-zinc-500">
                 {tx.skillName} · {new Date(tx.createdAt).toLocaleString()}
               </div>
-              {tx.repetitionPenalty != null && tx.repetitionPenalty < 1 ? (
+              {tx.repetitionPenalty != null ? (
                 <div className="mt-0.5 text-xs text-amber-300/80">
-                  重复 ×{tx.repetitionPenalty}（第 {tx.repetitionCount} 次类似活动，服务器判定）
+                  {tx.repetitionPenalty < 1
+                    ? `重复 ×${tx.repetitionPenalty}（第 ${tx.repetitionCount} 次类似，服务器判定）`
+                    : `无重复惩罚（第 ${tx.repetitionCount} 次类似，服务器判定）`}
                 </div>
               ) : null}
             </div>

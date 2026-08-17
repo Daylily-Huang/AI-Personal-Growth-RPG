@@ -14,6 +14,9 @@ create table if not exists public.xp_transactions (
     domain_id uuid,
     skill_id uuid,
     activity_type text,
+    -- Round3: sync with domain model —
+    repetition_count integer not null default 0,
+    repetition_penalty numeric not null default 1,
     xp_type text not null default 'activity',
     amount integer not null,
     base_amount integer not null,
