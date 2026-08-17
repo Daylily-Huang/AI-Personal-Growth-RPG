@@ -133,14 +133,18 @@ describe("confirmAssessment idempotency", () => {
     const production = confirmAssessment(productionAssessment.id);
 
     expect(production.transaction?.activityType).toBe("production");
+    expect(production.transaction?.repetitionCount).toBe(0);
     expect(production.transaction?.modifierJson?.repetitionPenalty).toBe(1);
   });
 
   test("same skill + same activity type DOES trigger repetition penalty", () => {
     const seed = confirmActivity(proposal, "读统计论文 #1");
-    expect(seed.transaction?.modifierJson?.repetitionPenalty).toBe(1);
+    expect(seed.transaction?.repetitionCount).toBe(0);
+    expect(seed.transaction?.repetitionPenalty).toBe(1);
 
     const repeat = confirmActivity(proposal, "读统计论文 #2");
+    expect(repeat.transaction?.repetitionCount).toBe(1);
+    expect(repeat.transaction?.repetitionPenalty).toBeLessThan(1);
     expect(repeat.transaction?.modifierJson?.repetitionPenalty).toBeLessThan(1);
 
     const db = readDb();

@@ -60,6 +60,7 @@ ${input.rawInput}
 - evidence.level 使用数字 E0–E6：0 自述、1 总结、2 正确解释、3 复现、4 真实应用、5 多次独立使用、6 系统化/创造。
 - mastery_changes 只给保守提议；高 Mastery 必须 verification_required=true。
 - xp_semantics 是语义判断，不是最终 XP；最终 XP 由服务器 Growth Engine 计算。
+- repetition_risk 只是基于当前单条文字的 AI 估算（可能为 low/medium/high）；服务器会在 Confirm 时按最近相似行为重新计算权威 repetitionCount，并施加真正的重复惩罚。
 - 若信息不足，降低 confidence 并写入 uncertainty_notes。
 `.trim();
 }

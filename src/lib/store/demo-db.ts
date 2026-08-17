@@ -38,6 +38,10 @@ export interface XpTransaction {
   skillName: string;
   /** Activity type at confirm time (from the proposal), used for similarity. */
   activityType: string | null;
+  /** Authoritative similar-activity count computed server-side at confirm time. */
+  repetitionCount: number;
+  /** Authoritative repetition modifier produced by the Growth Engine. */
+  repetitionPenalty: number;
   amount: number;
   baseAmount: number;
   modifierJson: Record<string, unknown>;
@@ -251,6 +255,8 @@ export function confirmAssessment(assessmentId: string): ConfirmResult {
     assessmentId: assessment.id,
     skillName,
     activityType,
+    repetitionCount: recentSimilarCount,
+    repetitionPenalty: xpResult.modifiers.repetitionPenalty,
     amount: xpResult.finalXp,
     baseAmount: assessment.proposal.xp_semantics.base_value,
     modifierJson: xpResult.modifiers as unknown as Record<string, unknown>,

@@ -1,0 +1,718 @@
+第二轮 commit diff 审查完成。
+
+基线是上一轮的 `867c9cb`，当前 `main` 是 `bcf0e0b`，中间**只有 1 个整改 commit**，没有混入新功能，因此这轮结论比较干净。该 commit 的目标也明确对应上一轮 7 项整改。
+
+# 第二轮结论：**PASS，可以进入下一阶段**
+
+但我会留下 **2 个非阻塞性 P2/P1 提醒**。没有发现新的 P0 blocker。
+
+---
+
+## 逐项验收
+
+| 上一轮要求 | 本轮结果 |
+|---|---|
+| 1. 不得再用全部 transactions 作为 repetitionCount | ✅ **已修复** |
+| 2. 建立 MVP similarity 判定 | ✅ **已实现** |
+| 3. 不同 Activity 不互相惩罚的测试 | ✅ **已补** |
+| 4. 并发 Confirm 测试 | ✅ **已补，且文档表述更准确** |
+| 5. 未来 DB `assessment_id UNIQUE` | ✅ **已设计 migration** |
+| 6. 区分 sequential/concurrent idempotency | ✅ **已明确** |
+| 7. lint/test/build | ⚠️ commit 自报通过；GitHub 当前没有 CI status 可独立验证 |
+
+---
+
+# 1. repetitionCount 问题真正修掉了
+
+上一版是：
+
+```ts
+const recentSimilarCount = db.transactions.length;
+```
+
+这会造成“全局 XP 衰减”。
+
+现在改成了：
+
+```ts
+const recentSimilarCount = countRecentSimilar(db.transactions, {
+  skillName,
+  activityType,
+  windowDays: 30,
+});
+```
+
+并且新增 transaction 字段：
+
+```ts
+activityType
+```
+
+用于后续判断。
+
+所以现在变成：
+
+```text
+历史 Activity
+     ↓
+same skill?
+     ↓
+same activity type?
+     ↓
+within 30 days?
+     ↓
+才计入 repetitionCount
+```
+
+这是实质性修复，不是改注释。
+
+### 这一项
+
+**PASS**
+
+---
+
+# 2. similarity 已经被拆成独立模块
+
+新增：
+
+```text
+src/lib/store/similarity.ts
+```
+
+规则非常清楚：
+
+> same primary skill  
+> same activity type  
+> recent 30-day window
+
+
+
+而且这段逻辑没有塞进 `calculateXp()`。
+
+这一点我认为处理得对。
+
+现在架构是：
+
+```text
+Store / Domain logic
+↓
+判断哪些行为属于重复
+↓
+得到 repetitionCount
+
+Growth Engine
+↓
+只负责：
+repetitionCount → penalty
+```
+
+这样 Growth Engine 依然保持纯函数。
+
+---
+
+# 3. 测试覆盖比第一轮明显改善
+
+新测试已经覆盖：
+
+### 不同 Skill
+
+```text
+Biology
+Programming
+≠
+Statistics
+```
+
+不算重复。
+
+### 同一 Skill、不同 Activity type
+
+例如：
+
+```text
+Statistics + learning
+```
+
+和：
+
+```text
+Statistics + production
+```
+
+不算重复。
+
+### 同 Skill + 同 type + 30 天以内
+
+计入重复。
+
+### 超过 30 天
+
+不计。
+
+### future transaction
+
+不计。
+
+### legacy transaction 无 activityType
+
+不匹配 typed activity。
+
+这些都是真正有价值的边界测试。
+
+---
+
+# 4. Integration-level repetition test 也补上了
+
+这比单测 `countRecentSimilar()` 更重要。
+
+现在 `confirm.test.ts` 实际跑：
+
+```text
+创建 Activity
+→ 创建 Assessment
+→ Confirm
+→ 写 transaction
+→ 再创建第二条
+→ Confirm
+→ 检查 repetitionPenalty
+```
+
+并验证：
+
+```text
+same skill
+different activity type
+→ repetitionPenalty = 1
+```
+
+而：
+
+```text
+same skill
+same activity type
+→ repetitionPenalty < 1
+```
+
+
+
+所以不是单独函数正确、业务链路却没使用它。
+
+这一点：
+
+**PASS。**
+
+---
+
+# 5. Confirm 并发问题：这次文档说法准确多了
+
+它补了：
+
+```ts
+await Promise.all([
+  confirmAssessment(id),
+  confirmAssessment(id),
+]);
+```
+
+并要求：
+
+```text
+1 success
+1 already_confirmed
+transactions.length = 1
+```
+
+
+
+但这里有一个技术细节需要说明。
+
+`confirmAssessment()` 本身是**同步函数**。
+
+因此：
+
+```ts
+Promise.all([
+  confirmAssessment(),
+  confirmAssessment()
+])
+```
+
+并不会制造真正的异步 race。
+
+实际上执行更接近：
+
+```text
+第一个完整执行结束
+↓
+第二个执行
+```
+
+所以这个测试严格来说仍不是：
+
+> 真正的 concurrent storage race test。
+
+但是这次开发 AI 已经在文档里承认了这个边界：
+
+```text
+单 Node 进程：
+同步读改写，实际串行
+
+跨进程 / 多实例：
+当前不保证
+```
+
+并明确把最终保证放在 PostgreSQL `UNIQUE` 上。
+
+所以我现在接受这个设计。
+
+### 判定
+
+**PASS for Demo**
+
+而不是：
+
+**Production concurrency PASS**
+
+二者不能混为一谈。
+
+---
+
+# 6. `assessment_id UNIQUE` 已真正进入 migration
+
+新增：
+
+```text
+supabase/migrations/0009_xp_transactions.sql
+```
+
+里面明确：
+
+```sql
+constraint xp_transactions_assessment_id_key
+unique (assessment_id)
+```
+
+
+
+这意味着未来数据库层：
+
+```text
+Request A
+INSERT assessment_123
+→ 成功
+
+Request B
+INSERT assessment_123
+→ UNIQUE violation
+```
+
+所以就算应用层 race：
+
+> 数据库最终只允许一笔 settlement。
+
+这个方向正确。
+
+---
+
+# 7. 但这里我留一个 P2：migration 目前只是“未来设计”
+
+文件自己已经明确写：
+
+> 本迁移尚未真正执行（Supabase 接入时运行）
+
+
+
+所以现在不能说：
+
+> “数据库并发幂等已经实现。”
+
+只能说：
+
+> **数据库约束已经设计完成，等待 Supabase 接入后生效。**
+
+这个没问题，因为当前仍是 Demo 阶段。
+
+---
+
+# 8. 我发现一个新的小问题：AI Proposal 里的 repetition_risk 现在会失真
+
+这次修改：
+
+```ts
+const recentSimilarCount = 0;
+```
+
+然后才调用：
+
+```ts
+assessActivity(...)
+```
+
+理由是：
+
+> Primary skill / activity type 要等 AI proposal 出来后才知道，所以 assessment 阶段无法提前算 similarity。
+
+这个技术逻辑可以理解。
+
+但有一个副作用。
+
+你之前的 AI mock 是根据：
+
+```ts
+context.recentSimilarCount
+```
+
+生成：
+
+```text
+repetition_risk
+```
+
+现在永远：
+
+```text
+recentSimilarCount = 0
+```
+
+因此 Proposal 页面可能告诉用户：
+
+```text
+Repetition risk: low
+```
+
+但真正 Confirm 时：
+
+```text
+countRecentSimilar = 7
+```
+
+Growth Engine 又会施加明显 penalty。
+
+于是可能出现 UX 矛盾：
+
+```text
+AI Proposal：
+“重复风险低”
+
+用户 Confirm
+
+结果：
+repetition ×0.4
+```
+
+---
+
+## 我建议怎么处理
+
+不要为了这个问题重新阻塞开发。
+
+下一步可以选一个：
+
+### A. MVP 简单处理
+
+AI Proposal 不再显示/声称：
+
+```text
+repetition_risk
+```
+
+是真实最终判断。
+
+改成类似：
+
+```text
+estimated_repetition_risk
+```
+
+最终 Confirm 后显示服务器确定的：
+
+```text
+actual repetition count
+actual repetition modifier
+```
+
+我更推荐这个。
+
+---
+
+### B. 两阶段 Assessment
+
+先 AI 判断：
+
+```text
+skill
+activity type
+```
+
+服务器计算 similarity。
+
+然后第二次调用或 rule enrichment。
+
+更复杂，当前没必要。
+
+---
+
+# 9. 第二个 P2：当前 similarity 仍然比较粗
+
+现在：
+
+```text
+same skill
++
+same activity type
+```
+
+就算重复。
+
+例如：
+
+```text
+Statistics + learning + 学 OLS
+```
+
+和：
+
+```text
+Statistics + learning + 第一次学 Bayesian hierarchical model
+```
+
+在当前系统里仍会算“相似”。
+
+但从真正成长逻辑看：
+
+这两件事显然不应该完全视为重复。
+
+---
+
+## 不过我不要求现在修
+
+因为这是合理的 MVP 近似。
+
+现在的重要目标是：
+
+> 不再产生“做跑步也惩罚读论文”的致命错误。
+
+这次已经解决。
+
+以后 Skill ontology / embedding 做成熟以后再升级成：
+
+```text
+same skill
++
+same activity type
++
+semantic similarity > threshold
+```
+
+或者：
+
+```text
+same subskill / knowledge node
+```
+
+会更准确。
+
+所以这一项：
+
+**P2 future refinement**
+
+而不是 blocker。
+
+---
+
+# 10. 一个代码细节我也检查了
+
+`countRecentSimilar()` 有：
+
+```ts
+if (params.activityType != null &&
+    tx.activityType !== params.activityType)
+  continue;
+```
+
+也就是说：
+
+如果当前 `activityType = null`：
+
+> 不会过滤 activity type。
+
+理论上和注释里的“ALL conditions”稍微不完全一致。
+
+不过当前 Confirm 使用的是：
+
+```ts
+assessment.proposal.activity.type
+```
+
+而这个字段由 Zod enum 强制：
+
+```text
+learning
+skill
+production
+physical
+maintenance
+reflection
+```
+
+所以正常业务路径不会传 `null`。
+
+因此目前没有实际 bug。
+
+---
+
+# 11. 关于 “lint/test/build all green”
+
+commit message 声称：
+
+```text
+lint/test/build all green
+```
+
+
+
+但我查看 GitHub 当前 commit status：
+
+```text
+statuses = []
+```
+
+即：
+
+> 这个仓库目前没有 GitHub CI check 可以让我独立从 GitHub 验证。
+
+所以这里我只能区分：
+
+### 开发者本地报告
+
+✅ Passed
+
+### GitHub CI 独立证据
+
+❌ 暂无
+
+这不影响本轮代码审查 PASS，但之后应该补 GitHub Actions。
+
+---
+
+# 最终分级
+
+## P0
+
+**0**
+
+没有阻止进入下一阶段的问题。
+
+## P1
+
+目前也没有必须立即停工处理的问题。
+
+我会把下面这个接近 P1/P2：
+
+> Proposal `repetition_risk` 与 confirm 实际重复惩罚可能不一致。
+
+最好在 Activity Detail / Assessment UX 做之前处理。
+
+## P2
+
+- similarity 仍是粗粒度规则
+- `Promise.all(syncFn)` 不是真 race test
+- migration 尚未执行
+- GitHub Actions CI 尚未建立
+
+---
+
+# 相比第一轮
+
+第一轮：
+
+```text
+CONDITIONAL PASS
+7.5 / 10
+```
+
+第二轮我会提高到：
+
+# **8.3 / 10**
+
+更重要的不是分数，而是：
+
+> **上一轮核心规则 bug 已经确实被修掉。**
+
+而且 AI 没有为了修这个问题大幅改架构，改动范围比较克制：
+
+```text
+9 files changed
+核心新增：
+similarity.ts
+similarity.test.ts
+xp_transactions migration
+```
+
+这类整改方式是好的。
+
+---
+
+# 我的 Gate 决策
+
+## ✅ **允许进入下一阶段**
+
+我不建议再对这轮继续反复雕琢。
+
+下一阶段可以开始：
+
+```text
+Supabase
++
+真实 database repository layer
++
+Activity History / Detail
+```
+
+不过我建议顺序稍微讲究一下：
+
+```text
+① Supabase schema + Auth + RLS
+
+② Repository abstraction
+   demo-db
+      ↓
+   Repository interface
+      ↓
+   Supabase implementation
+
+③ XP settlement transaction
+   UNIQUE assessment_id
+
+④ Activity List
+
+⑤ Activity Detail
+   展示完整 XP breakdown
+
+⑥ Playwright E2E
+
+⑦ GitHub Actions
+   lint + test + build
+```
+
+尤其 Activity Detail 很重要，因为到那个阶段你应该能真正看到：
+
+```text
+为什么这条 Activity 是 84 XP？
+
+Base
+Difficulty
+Mastery
+Evidence
+Novelty
+Goal Alignment
+Repetition
+Time
+
+→ Final XP
+```
+
+这会让这套游戏的“裁判系统”第一次真正做到**用户可审计**，而不是只看到一个神秘的 `+84 XP`。
+
+第二轮的整改我认为可以签字通过。

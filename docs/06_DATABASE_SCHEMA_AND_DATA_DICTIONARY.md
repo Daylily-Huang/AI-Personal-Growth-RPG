@@ -302,6 +302,8 @@ assessment_id        -- UNIQUE：一个 assessment 至多产生一笔结算
 domain_id
 skill_id
 activity_type        -- 结算时的活动类型，用于重复惩罚的 similarity 判定
+repetition_count     -- 结算时的相似行为计数（服务器权威结果，非 AI 估算）
+repetition_penalty   -- 结算时的重复修正系数（Growth Engine 结果）
 xp_type
 amount
 base_amount
