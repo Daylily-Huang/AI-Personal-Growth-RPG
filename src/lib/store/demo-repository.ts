@@ -3,6 +3,7 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { RULES_VERSION } from "@/lib/growth-engine/xp";
 import { levelFromXp } from "@/lib/growth-engine/levels";
+import { countRecentSimilar } from "./similarity";
 import type {
   Activity,
   Assessment,
@@ -19,10 +20,12 @@ import type {
 import type { Repository, SettlementResult } from "./repository";
 
 const DEFAULT_DB_PATH = path.join(process.cwd(), ".data", "demo.json");
+/** Same 30-day window as the service — kept here so the coupon is atomic. */
+const SIMILARITY_WINDOW_DAYS = 30;
 
 function emptyDb(): Db {
   return {
-    version: 2,
+    version: 3,
     activities: [],
     assessments: [],
     transactions: [],
@@ -39,9 +42,21 @@ function emptyDb(): Db {
   };
 }
 
-function defaultSkill(name: string): SkillState {
+/** Deterministic stable skill id derived from a display name (MVP identity). */
+function slugSkillId(name: string): string {
+  const slug = name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9\u4e00-\u9fa5]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return `skill-${slug || "unnamed"}`;
+}
+
+function defaultSkill(id: string, name: string): SkillState {
   return {
+    id,
     name,
+    aliases: [],
     xp: 0,
     level: 1,
     masteryLevel: 1,
@@ -56,6 +71,16 @@ function dbPath(): string {
 
 function isEnoent(err: unknown): boolean {
   return typeof err === "object" && err !== null && (err as NodeJS.ErrnoException).code === "ENOENT";
+}
+
+/** Match a skill by exact name or alias inside a normalized id→skill map. */
+function findSkillByLabel(skills: Record<string, SkillState>, label: string): SkillState | undefined {
+  const raw = label.trim();
+  for (const skill of Object.values(skills)) {
+    if (skill.name === raw) return skill;
+    if (skill.aliases.includes(raw)) return skill;
+  }
+  return undefined;
 }
 
 /**
@@ -89,13 +114,7 @@ export class DemoRepository implements Repository {
       this.backupCorrupt(file, raw);
       throw new Error(`Demo store has an invalid shape (backup kept, DB NOT overwritten): ${file}`);
     }
-    const p = parsed as Db;
-    return {
-      ...emptyDb(),
-      ...p,
-      player: { ...emptyDb().player, ...p.player },
-      masteryVerifications: p.masteryVerifications ?? [],
-    };
+    return normalizeDb(parsed as Db);
   }
 
   private writeDb(db: Db): void {
@@ -137,8 +156,9 @@ export class DemoRepository implements Repository {
     return this.readDb().transactions;
   }
 
-  async getSkill(name: string): Promise<SkillState | null> {
-    return this.readDb().skills[name] ?? null;
+  async getSkill(label: string): Promise<SkillState | null> {
+    const db = this.readDb();
+    return findSkillByLabel(db.skills, label) ?? null;
   }
 
   async listSkills(): Promise<SkillState[]> {
@@ -170,6 +190,8 @@ export class DemoRepository implements Repository {
       status: "pending_assessment",
       totalMinutes: input.totalMinutes ?? null,
       effectiveMinutes: input.effectiveMinutes ?? null,
+      // Milestone 2.7: freeze the rule set at creation time (audit of history).
+      rulesVersion: RULES_VERSION,
       createdAt: now,
     };
     db.activities.unshift(activity);
@@ -196,18 +218,36 @@ export class DemoRepository implements Repository {
     };
 
     db.assessments.unshift(assessment);
-    activity.status = "assessed";
+    // A confirmed Activity keeps its confirmed status; revisions are allowed,
+    // but the once-settled ledger entry stays frozen (guarded in applySettlement).
+    if (activity.status !== "confirmed") {
+      activity.status = "assessed";
+    }
     this.writeDb(db);
     return assessment;
+  }
+
+  /** Resolve-or-create a stable skill id for a display label. */
+  async resolveSkillId(label: string): Promise<string> {
+    const db = this.readDb();
+    const existing = findSkillByLabel(db.skills, label);
+    if (existing) return existing.id;
+
+    const name = label.trim();
+    const id = slugSkillId(name);
+    db.skills[id] = defaultSkill(id, name);
+    this.writeDb(db);
+    return id;
   }
 
   /**
    * Single atomic settlement write.
    *
-   * Delta semantics (Milestone 2.6): totals are updated as `current += delta`
-   * and derived levels are recomputed HERE from the updated stored value — so
-   * concurrent settlements converge on the true final state instead of
-   * overwriting each other with stale absolute values.
+   * Delta semantics (Milestone 2.6) + integrity guards (Milestone 2.7):
+   *   1. an Activity may have only ONE `xpType=activity` settlement → otherwise `already_settled`;
+   *   2. the repetition snapshot is derived from the committed view INSIDE this
+   *      atomic write; if the service's snapshot is stale → `repetition_conflict`;
+   *   3. at most one `pending` MasteryVerification per skill.
    */
   async applySettlement(settlement: SettlementToApply): Promise<SettlementResult> {
     const db = this.readDb();
@@ -218,34 +258,64 @@ export class DemoRepository implements Repository {
     const activity = db.activities.find((a) => a.id === settlement.transaction.activityId);
     if (!activity) return { ok: false, reason: "activity_not_found" };
 
+    // Guard 1: one original activity settlement per Activity (re-assess → revision,
+    // but re-confirming must never mint a second XP entry).
+    const alreadySettled = db.transactions.some(
+      (t) => t.activityId === activity.id && t.xpType === "activity",
+    );
+    if (alreadySettled) return { ok: false, reason: "already_settled", };
+
+    // Guard 2: repetition snapshot must be derived from the committed view.
+    const authoritativeCount = countRecentSimilar(db.transactions, {
+      skillName: settlement.transaction.skillName,
+      activityType: settlement.transaction.activityType,
+      refTime: settlement.transaction.createdAt,
+      windowDays: SIMILARITY_WINDOW_DAYS,
+    });
+    if (authoritativeCount !== settlement.transaction.repetitionCount) {
+      return { ok: false, reason: "repetition_conflict", actualRepetitionCount: authoritativeCount };
+    }
+
     const now = settlement.transaction.createdAt;
 
+    // Resolve-or-create the primary skill under its stable id.
+    const primary = db.skills[settlement.primarySkill.id] ?? defaultSkill(settlement.primarySkill.id, settlement.primarySkill.name);
+    if (primary.name !== settlement.primarySkill.name && !primary.aliases.includes(settlement.primarySkill.name)) {
+      primary.aliases.push(settlement.primarySkill.name);
+    }
+    db.skills[primary.id] = primary;
+
     // 1) ledger (append-only)
-    db.transactions.unshift(settlement.transaction);
+    db.transactions.unshift({
+      ...settlement.transaction,
+      skillId: settlement.transaction.skillId || primary.id,
+      xpType: settlement.transaction.xpType ?? "activity",
+    });
 
     // 2) player total (delta) + derived provisional XP level
     db.player.totalXp += settlement.player.xpDelta;
     db.player.playerLevel = levelFromXp(db.player.totalXp).level;
 
     // 3) primary skill (delta) + derived skill level + mastery action
-    const skill = db.skills[settlement.primarySkill.name] ?? defaultSkill(settlement.primarySkill.name);
-    skill.xp += settlement.primarySkill.xpDelta;
-    skill.level = levelFromXp(skill.xp).level;
-    skill.lastUsedAt = now;
+    primary.xp += settlement.primarySkill.xpDelta;
+    primary.level = levelFromXp(primary.xp).level;
+    primary.lastUsedAt = now;
     const masteryAction = settlement.primarySkill.masteryAction;
     if (masteryAction.action === "upgrade") {
-      skill.masteryLevel = masteryAction.proposedLevel;
-      skill.masteryConfidence = masteryAction.confidence;
+      primary.masteryLevel = masteryAction.proposedLevel;
+      primary.masteryConfidence = masteryAction.confidence;
     }
-    // `request_verification` leaves mastery untouched; the pending record below
-    // is the source of truth until it is verified.
-    db.skills[skill.name] = skill;
+    // request_verification leaves mastery untouched; the pending record below
+    // is the source of truth until verified.
 
-    // 4) related skills exist for the Skill Tree
+    // 4) related skills exist (stable ids), 5) edges (deduped)
     for (const name of settlement.relatedSkillNames) {
-      if (!db.skills[name]) db.skills[name] = defaultSkill(name);
+      const existing = findSkillByLabel(db.skills, name);
+      if (!existing) {
+        const id = slugSkillId(name);
+        db.skills[id] = defaultSkill(id, name.trim());
+      }
     }
-    // 5) edges (deduped)
     for (const edge of settlement.newEdges) {
       const exists = db.skillEdges.some(
         (e) => e.source === edge.source && e.target === edge.target && e.relation === edge.relation,
@@ -253,9 +323,17 @@ export class DemoRepository implements Repository {
       if (!exists) db.skillEdges.push(edge);
     }
 
-    // 6) pending mastery verification (if the upgrade required one)
+    // 6) pending mastery verification — at most one per skill
     if (settlement.masteryVerification) {
-      db.masteryVerifications.unshift(settlement.masteryVerification);
+      const hasPending = db.masteryVerifications.some(
+        (v) => v.status === "pending" && v.skillId === primary.id,
+      );
+      if (!hasPending) {
+        db.masteryVerifications.unshift({
+          ...settlement.masteryVerification,
+          skillId: primary.id,
+        });
+      }
     }
 
     // 7) mark assessment + activity settled
@@ -285,4 +363,44 @@ function isValidDbShape(input: unknown): input is Db {
     typeof p.player === "object" &&
     p.player !== null
   );
+}
+
+/** Tolerate pre-v3 demo files: key skills by stable id, backfill skillId/xpType/rulesVersion. */
+function normalizeDb(parsed: Db): Db {
+  const out = emptyDb();
+  out.player = { ...out.player, ...parsed.player };
+  out.activities = (parsed.activities ?? []).map((a) => ({
+    ...a,
+    rulesVersion: a.rulesVersion ?? RULES_VERSION,
+  }));
+  out.assessments = parsed.assessments ?? [];
+  out.masteryVerifications = (parsed.masteryVerifications ?? []).map((v) => ({
+    ...v,
+    skillId: v.skillId ?? slugSkillId(v.skillName),
+  }));
+  out.skillEdges = parsed.skillEdges ?? [];
+
+  // Legacy skills were keyed by display name; re-key by stable id and keep the
+  // old name as an alias so nothing dangles.
+  const legacySkills: Record<string, SkillState> = parsed.skills ?? {};
+  const seenNames = new Set<string>();
+  for (const [key, s] of Object.entries(legacySkills)) {
+    const id = s.id ?? slugSkillId(s.name ?? key);
+    const name = s.name ?? key;
+    const aliases = [...(s.aliases ?? [])];
+    if (name !== key && !aliases.includes(key)) aliases.push(key);
+    if (!seenNames.has(name)) {
+      out.skills[id] = { ...s, id, name, aliases };
+      seenNames.add(name);
+    }
+  }
+
+  out.transactions = (parsed.transactions ?? []).map((t) => ({
+    ...t,
+    skillId: t.skillId ?? slugSkillId(t.skillName),
+    xpType: t.xpType ?? "activity",
+    rulesVersion: t.rulesVersion ?? RULES_VERSION,
+  }));
+
+  return out;
 }

@@ -8,7 +8,8 @@
 create table if not exists public.mastery_verifications (
     id uuid primary key default gen_random_uuid(),
     user_id uuid not null references auth.users(id),
-    skill_id uuid,
+    -- Round5: 一个验证必须绑定真实存在的 skill（不可依赖 NULL + UNIQUE 的坑）
+    skill_id uuid not null references skills(id),
     skill_name text not null,
     from_level integer not null,
     to_level integer not null,
@@ -22,3 +23,9 @@ create table if not exists public.mastery_verifications (
 
 create index if not exists mastery_verifications_user_status_idx
     on public.mastery_verifications (user_id, status);
+
+-- Round5: 每个 skill 至多一个 pending 验证（防止重复排队）。
+-- 需要 skill_id not null + 排除 NULL 的唯一索引（部分索引只约束 pending 行）。
+create unique index mastery_verifications_one_pending_idx
+    on public.mastery_verifications (user_id, skill_id)
+    where status = 'pending';

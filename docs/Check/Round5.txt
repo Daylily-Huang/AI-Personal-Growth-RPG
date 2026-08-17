@@ -1,0 +1,841 @@
+我继续查了，但先明确一点：**GitHub 当前 `main` 仍然是 `0384465b`，没有比 Round4 更新的 commit**。你这次上传的也是同一份 Milestone 2.6 摘要。
+
+所以这一轮不是“新 diff 验收”，而是我对当前版本做了更深的 **Growth Loop + Supabase 前置完整性审查**。结果是：又发现了一个必须优先修的核心漏洞，以及几个现在处理成本很低、以后处理成本会很高的问题。
+
+# 结论
+
+## 当前 `0384465b`：**Milestone 2.6 PASS**
+## 直接开始正式 Supabase：**仍建议暂缓一个很短的 Milestone 2.7**
+
+而且这次我认为优先级第一的问题已经不是 optimistic concurrency，而是：
+
+# P1：同一个 Activity 目前可以被重复 Assessment，并重复发 XP
+
+这个问题比较严重。
+
+现在 `/api/activities/[id]/assess` 的逻辑是：
+
+```text
+找到 Activity
+↓
+调用 AI
+↓
+repo.addAssessment()
+```
+
+没有检查：
+
+```text
+这个 Activity 是否已经 assessed？
+是否已有 pending assessment？
+是否已经 confirmed？
+```
+
+
+
+而 `DemoRepository.addAssessment()` 同样只是继续插入一个新 Assessment，并没有阻止同 Activity 多 Assessment；`applySettlement()` 又只检查 Assessment 自己是不是 `pending`，并没有检查这个 Activity 是否已经被另一 Assessment 结算。此前读取到的实现正是这种结构。
+
+于是理论上可以：
+
+```text
+Activity A
+   ↓
+Assessment 1
+   ↓ Confirm
++20 XP
+
+Activity A
+   ↓ 再调用 assess
+Assessment 2
+   ↓ Confirm
++20 XP
+```
+
+当前数据库保护只有：
+
+```sql
+UNIQUE(assessment_id)
+```
+
+它只能阻止：
+
+```text
+Assessment 1
+→ Confirm 两次
+```
+
+却阻止不了：
+
+```text
+同一个 Activity
+→ Assessment 1
+→ Assessment 2
+→ 分别 Confirm
+```
+
+这正好属于你项目治理文档明确举出的 **Bug**：
+
+> “一个 Activity 加了两次 XP。”
+
+
+
+这应该在 Supabase 前修。
+
+---
+
+# 我建议不要简单规定“一 Activity 只能一 Assessment”
+
+因为以后你可能需要：
+
+```text
+AI 第一次判断不准
+↓
+用户 Edit / Re-assess
+↓
+生成 Assessment revision 2
+```
+
+这属于合理需求。
+
+更好的不变量是：
+
+> **一个 Activity 可以拥有多个 Assessment revision，但一个 Activity 最多只能产生一笔原始 Activity XP settlement。**
+
+数据库层可以最终做成类似：
+
+```sql
+create unique index xp_transactions_one_activity_settlement_idx
+on xp_transactions(activity_id)
+where xp_type = 'activity';
+```
+
+而：
+
+```text
+adjustment
+correction
+rollback
+```
+
+仍可以另起交易。
+
+同时服务端 Confirm 再检查：
+
+```text
+activity.status === confirmed
+→ already_settled
+```
+
+形成应用层 + DB 层双保险。
+
+---
+
+# 这里还顺便暴露了一个 schema drift
+
+数据库字典和 migration 已经有：
+
+```text
+xp_type
+```
+
+但当前 TypeScript：
+
+```ts
+interface XpTransaction
+```
+
+里面却没有 `xpType`。
+
+这意味着：
+
+```text
+Domain model
+≠
+Postgres model
+```
+
+在真正写 `SupabaseRepository` 时一定要处理。
+
+我建议现在直接补：
+
+```ts
+xpType: "activity" | "adjustment" | "correction";
+```
+
+MVP 初期几乎所有正常结算：
+
+```text
+xpType = activity
+```
+
+以后 correction ledger 才有干净的扩展空间。
+
+---
+
+# P1：上一轮发现的 concurrent repetition 问题仍然存在
+
+这个没有新 commit，所以当然也还没有修。
+
+当前：
+
+```ts
+const transactions =
+  await repo.listTransactions();
+
+const recentSimilarCount =
+  countRecentSimilar(...);
+
+const xpResult =
+  calculateXp(...);
+
+await repo.applySettlement(...);
+```
+
+
+
+关键是：
+
+```text
+读取 repetition history
+```
+
+发生在：
+
+```text
+atomic applySettlement
+```
+
+之外。
+
+所以两个：
+
+```text
+Statistics
++
+learning
+```
+
+同时结算时，仍可能发生：
+
+```text
+A 看见 repetitionCount=0
+B 也看见 repetitionCount=0
+
+A → 首次奖励
+B → 也拿首次奖励
+```
+
+虽然 Round4 的 delta 已经保证：
+
+```text
+player.totalXp
+```
+
+不会丢，但：
+
+> **总账没丢 ≠ 每笔裁决正确。**
+
+现在的 concurrency test 用的是：
+
+```text
+SkillA
+SkillB
+```
+
+所以没有触发这个问题。
+
+因此我仍建议 Milestone 2.7 增加：
+
+```text
+same skill
+same activity type
+two concurrent confirmations
+
+最终必须：
+一条 repetitionCount = 0
+另一条 repetitionCount = 1
+```
+
+以及两条的 XP 必须分别符合真实 modifier。
+
+---
+
+# P1：Rules Version 现在并没有真正“冻结规则”
+
+这个是本轮深挖中新发现的另一个长期风险。
+
+你的治理规范明确规定：
+
+> **新规则只作用于新 Activity。**
+
+
+
+也就是说：
+
+```text
+Activity A 创建时
+Growth Rules = v0.1
+```
+
+即使两天以后系统升级：
+
+```text
+Growth Rules = v0.2
+```
+
+Activity A 原则上也不该被 v0.2 偷偷重新裁决。
+
+但当前：
+
+```ts
+Activity
+```
+
+根本没有：
+
+```ts
+rulesVersion
+```
+
+字段。
+
+Assessment 虽然记录了：
+
+```ts
+rulesVersion
+```
+
+但 Confirm 时真正执行的是：
+
+```ts
+calculateXp(...)
+```
+
+也就是**部署时当前代码里的 Growth Engine**。
+
+所以未来会出现：
+
+```text
+Activity 创建于 v0.1
+Assessment 创建于 v0.1
+
+系统部署 v0.2
+
+用户再 Confirm
+↓
+实际用 v0.2 calculateXp()
+```
+
+然后 Transaction 还记录成 v0.2。
+
+这会破坏历史规则审计。
+
+---
+
+## 推荐现在就确定一个原则
+
+### 推荐方案：Activity 创建时绑定 rulesVersion
+
+```ts
+Activity {
+  ...
+  rulesVersion: "growth-engine-v0.1"
+}
+```
+
+然后 Confirm：
+
+```ts
+getEngine(activity.rulesVersion)
+```
+
+未来可以形成：
+
+```ts
+growthEngines = {
+  "growth-engine-v0.1": calculateXpV01,
+  "growth-engine-v0.2": calculateXpV02,
+}
+```
+
+至少在还只有 v0.1 时把数据字段和边界设计好。
+
+否则等你已经积累一年成长数据以后再处理规则版本迁移，会麻烦很多。
+
+---
+
+# P1/P2：Difficulty 目前并不是真正“相对于玩家当前能力”
+
+你的系统宪法要求 XP 奖励真实成长，而且 Difficulty 本质上应该考虑能力差距；当前 Assessment schema 甚至有：
+
+```text
+expertise_gap
+```
+
+
+
+但 AI Assessment 实际收到的上下文只有：
+
+```text
+rawInput
+totalMinutes
+effectiveMinutes
+recentSimilarCount
+activeMainQuest
+```
+
+并没有：
+
+```text
+当前 Skill XP
+当前 Mastery
+当前 Skill Level
+过去 Evidence
+```
+
+
+
+所以同样一句：
+
+> “完成了一次线性回归分析”
+
+对于：
+
+```text
+M1 初学者
+```
+
+和：
+
+```text
+M8 统计学熟练者
+```
+
+AI 看到的上下文几乎一样。
+
+它实际上无法可靠判断：
+
+```text
+expertise_gap
+```
+
+这是评分质量层面的结构性问题。
+
+---
+
+## 我建议不要现在搞复杂双 Agent
+
+最简单的 MVP 解法是：
+
+### 第一步
+
+AI 先提出：
+
+```text
+affected skill candidate
+```
+
+### 第二步
+
+服务器查：
+
+```text
+当前 SkillState
+Mastery
+最近使用
+```
+
+### 第三步
+
+再做最终 Assessment enrichment。
+
+或者更简单，直接把已有 Skill Catalog + Mastery 放进第一次 prompt：
+
+```text
+Known Skills:
+Statistics M6
+R M4
+Academic Writing M3
+...
+```
+
+这样还有一个额外好处：
+
+> AI 不容易不断创造 `Statistics / 统计学 / Regression Analysis / 回归分析` 这种重复节点。
+
+这与后面 Skill ontology 正好可以一起解决。
+
+---
+
+# P1/P2：Demo mock 目前仍然把“耗时”重复计奖
+
+这个是一个老问题，现在我建议正式修掉。
+
+当前 mock：
+
+```ts
+base_value =
+10
++ evidenceLevel * 3
++ floor(totalMinutes / 30)
+```
+
+并封顶 30。
+
+但 Growth Engine 后面又有：
+
+```text
+timeFactor
+```
+
+所以时间实际上进入 XP 两次：
+
+```text
+totalMinutes
+→ base_value
+
+effectiveMinutes
+→ timeFactor
+```
+
+而且第一处用的是：
+
+```text
+totalMinutes
+```
+
+不是有效时间。
+
+例如同一件 E0 行为：
+
+```text
+短时间：
+base ≈ 10
+
+拖 10 小时：
+base 可以接近 30
+```
+
+即使什么额外学习成果都没有，Base 已经可能放大接近 3 倍。
+
+这已经比较接近违反宪法：
+
+> 时间不能成为经验的主要决定因素。
+
+
+
+---
+
+## 推荐修法
+
+最干净：
+
+```ts
+mock baseValue
+```
+
+**完全移除 minutes。**
+
+时间只进入：
+
+```text
+Growth Engine.timeFactor
+```
+
+如果以后确实要让“任务规模”考虑时间，则通过：
+
+```text
+Quest Size
+```
+
+或者独立：
+
+```text
+workload scale
+```
+
+表达，不要偷偷塞回 AI base value。
+
+---
+
+# P1：正式 Supabase schema 仍然没有 bootstrap
+
+这个上一轮结论不变。
+
+现在真实 migration 目录只有：
+
+```text
+0009_xp_transactions.sql
+0010_mastery_verifications.sql
+```
+
+而设计的数据表链是：
+
+```text
+0001 profiles
+0002 player_states
+0003 domains
+0004 skills
+0005 quests
+0006 activities
+0007 ai_assessments
+0008 evidence
+...
+```
+
+你的数据库规范自己也明确写出了完整顺序。
+
+所以你现在虽然已经有 Supabase 项目和 keys，**还不应该把当前这两张 migration 直接当完整后端部署**。
+
+先补 MVP bootstrap。
+
+---
+
+# Mastery pending unique 还有一个更细的坑
+
+文档建议：
+
+```sql
+unique(skill_id)
+where status = 'pending'
+```
+
+
+
+但当前 migration 中：
+
+```sql
+skill_id uuid
+```
+
+是 nullable。
+
+PostgreSQL 普通 UNIQUE 对多个 `NULL` 并不会按“同一个值”阻止。
+
+所以如果：
+
+```text
+skill_id = NULL
+```
+
+你仍可能得到：
+
+```text
+Statistics pending #1
+Statistics pending #2
+Statistics pending #3
+```
+
+因此正式 schema 最好不要依赖 nullable `skill_id`。
+
+推荐：
+
+```text
+MasteryVerification
+必须绑定真实 skill_id
+```
+
+并让：
+
+```sql
+skill_id uuid not null
+```
+
+然后 unique 至少应考虑：
+
+```sql
+(user_id, skill_id)
+WHERE status='pending'
+```
+
+---
+
+# 这进一步说明：Skill Identity 必须在 Supabase 前确定
+
+当前 Demo：
+
+```ts
+skills: Record<string, SkillState>
+```
+
+Skill 身份就是：
+
+```text
+name
+```
+
+
+
+但是正式数据库已经想要：
+
+```text
+skill_id
+domain_id
+```
+
+与此同时 AI 又可以自由产生：
+
+```text
+Statistics
+Regression
+Regression Analysis
+回归分析
+统计分析
+```
+
+所以现在是很好的时机确定：
+
+```text
+Skill ID = 永久身份
+Skill name = 可编辑显示名称
+Aliases = AI 匹配辅助
+Domain = 分类
+```
+
+不要在 SupabaseRepository 里把：
+
+```text
+skillName
+```
+
+当数据库主身份。
+
+否则以后改个名字都会非常痛苦。
+
+---
+
+# Multi-skill 还有一个必须明确、但不是立刻的 Bug
+
+当前：
+
+```ts
+affected_skills[0]
+```
+
+是 primary skill。
+
+只有它真正拿 XP、Mastery。其他技能主要被创建节点和 relation。
+
+这个并非一定错误，但必须明确成产品规则。
+
+你有两个方案：
+
+**A. MVP primary-only**
+
+```text
+总 XP → 100% primary skill
+secondary skills 只记录关联/证据
+```
+
+优点：简单，不膨胀 XP。
+
+**B. weighted allocation**
+
+例如：
+
+```text
+Total XP = 50
+
+Statistics 70% → 35
+R          30% → 15
+```
+
+必须保证：
+
+```text
+35 + 15 = 50
+```
+
+绝不能：
+
+```text
+Statistics +50
+R +50
+```
+
+否则凭空生成双倍 XP。
+
+**我推荐 MVP 继续 A，但明确写入规则文档。**
+
+---
+
+# 当前我会怎么排优先级
+
+经过这次更深审查，我建议 **Milestone 2.7 不要只叫“Supabase Schema Bootstrap”**。
+
+应该叫：
+
+# `Milestone 2.7 — Growth Settlement Integrity`
+
+只处理下面这些：
+
+1. **一个 Activity 最多一个原始 XP settlement**
+2. 支持 Assessment revision，但不能重复发 XP
+3. `XpTransaction` 增加 `xpType`
+4. 同类 Activity 并发 → repetition snapshot 正确
+5. settlement optimistic concurrency / retry
+6. Activity 创建时冻结 `rulesVersion`
+7. 移除 mock `base_value` 对 `totalMinutes` 的直接奖励
+8. pending Mastery verification 唯一性
+9. 明确 primary-only skill XP policy
+10. 给 Skill 建立稳定 ID，而不是 name 作为永久身份
+
+然后：
+
+# `Milestone 3 — Supabase Foundation`
+
+再做：
+
+```text
+完整 MVP migrations
+↓
+Auth
+↓
+RLS
+↓
+request-scoped user repository
+↓
+SupabaseRepository
+↓
+DB atomic settlement/RPC
+↓
+empty database migration test
+```
+
+---
+
+# Gate 更新
+
+当前我给：
+
+| 部分 | 评价 |
+|---|---:|
+| Growth Engine pure functions | 9/10 |
+| AI 永久状态权限隔离 | 9/10 |
+| Mastery verification | 9/10 |
+| Repository abstraction | 8.5/10 |
+| Ledger total consistency | 8.5/10 |
+| Settlement semantic concurrency | **6.5/10** |
+| Activity settlement idempotency | **6/10** |
+| Rules version governance | **6.5/10** |
+| Supabase schema readiness | **6/10** |
+| CI / automated tests | 9/10 |
+| 整体架构 | **8.2/10** |
+
+评分没有因为发现问题而下降很多，因为这些问题恰恰是在架构逐渐正规以后才能清楚看到的。
+
+最关键的变化是：**现在已经不应该再大规模重构。**
+
+接下来应该收敛。
+
+我建议给开发 AI 的下一条任务非常明确：
+
+> **不要开始做 SupabaseRepository，不要加新 UI，不要扩 Quest/Knowledge/Artifact。只完成 Milestone 2.7 的 Growth Settlement Integrity，并补对应 invariant tests。完成后提交单独 commit，等待下一轮 Gate Review。**
+
+这次最应该优先修的就是：
+
+```text
+同一 Activity 不能因为重新 Assessment 而重复产 XP
+```
+
+因为这是直接破坏这个 RPG “现实成长账本可信性”的漏洞。

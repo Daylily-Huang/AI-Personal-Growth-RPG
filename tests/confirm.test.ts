@@ -76,6 +76,11 @@ async function confirmActivity(p: AssessmentProposal, rawInput: string) {
   return confirmAssessment(assessment.id);
 }
 
+/** Skills are keyed by stable id in the store; look up by display name. */
+function skillByName(name: string) {
+  return Object.values(readDb().skills).find((s) => s.name === name);
+}
+
 describe("confirmAssessment idempotency", () => {
   test("second confirm does not add XP twice", async () => {
     const activity = await createActivity({ rawInput: "读了一篇统计论文并理解了回归" });
@@ -202,7 +207,7 @@ describe("Mastery verification is enforced (Round4 P1)", () => {
     expect(result.ok).toBe(true);
     expect(result.masteryVerification).toBeUndefined();
 
-    const skill = readDb().skills["Statistics"];
+    const skill = skillByName("Statistics");
     expect(skill?.masteryLevel).toBe(2);
   });
 
@@ -229,12 +234,96 @@ describe("Mastery verification is enforced (Round4 P1)", () => {
     expect(result.masteryVerification?.toLevel).toBe(5);
 
     // Skill is NOT upgraded yet.
-    const skill = readDb().skills["Statistics"];
+    const skill = skillByName("Statistics");
     expect(skill?.masteryLevel).toBe(1);
 
     // Pending verification is persisted.
     const db = readDb();
     expect(db.masteryVerifications).toHaveLength(1);
     expect(db.masteryVerifications[0].skillName).toBe("Statistics");
+  });
+});
+
+describe("Milestone 2.7 — settlement integrity", () => {
+  test("one Activity => at most ONE original activity settlement (re-assess cannot mint XP twice)", async () => {
+    const activity = await createActivity({ rawInput: "同一次活动先评后复评" });
+    const firstAssessment = await createAssessment({
+      activityId: activity.id,
+      proposal,
+      modelName: "test-model",
+      promptVersion: "test-prompt",
+    });
+    const first = await confirmAssessment(firstAssessment.id);
+    expect(first.ok).toBe(true);
+    const xpAfterFirst = readDb().player.totalXp;
+
+    // Revision #2 on the SAME activity, then confirm.
+    const secondAssessment = await createAssessment({
+      activityId: activity.id,
+      proposal,
+      modelName: "test-model",
+      promptVersion: "test-prompt",
+    });
+    const second = await confirmAssessment(secondAssessment.id);
+    expect(second.ok).toBe(false);
+    expect(second.reason).toBe("already_settled");
+
+    const db = readDb();
+    expect(db.assessments).toHaveLength(2); // revisions allowed
+    expect(db.transactions).toHaveLength(1); // but only one ledger entry
+    expect(db.player.totalXp).toBe(xpAfterFirst); // no duplicate XP
+    expect(db.transactions[0].xpType).toBe("activity");
+  });
+
+  test("ledger records frozen rulesVersion from the Activity", async () => {
+    const activity = await createActivity({ rawInput: "规则版本冻结测试" });
+    const assessment = await createAssessment({
+      activityId: activity.id,
+      proposal,
+      modelName: "test-model",
+      promptVersion: "test-prompt",
+    });
+    expect(activity.rulesVersion).toBe(RULES_VERSION);
+
+    const result = await confirmAssessment(assessment.id);
+    expect(result.transaction?.rulesVersion).toBe(activity.rulesVersion);
+    expect(result.transaction?.rulesVersion).toBe(RULES_VERSION);
+  });
+
+  test("primary-only skill policy: only the primary skill gets XP", async () => {
+    const multiSkill: AssessmentProposal = {
+      ...proposal,
+      affected_skills: [
+        { name: "Statistics", reason: "primary" },
+        { name: "R", reason: "secondary" },
+      ],
+    };
+    const activity = await createActivity({ rawInput: "用 R 做统计分析" });
+    const assessment = await createAssessment({
+      activityId: activity.id,
+      proposal: multiSkill,
+      modelName: "test-model",
+      promptVersion: "test-prompt",
+    });
+    const result = await confirmAssessment(assessment.id);
+    expect(result.ok).toBe(true);
+
+    const db = readDb();
+    // Exactly one XP transaction → primary skill only.
+    expect(db.transactions).toHaveLength(1);
+    expect(result.transaction?.skillName).toBe("Statistics");
+
+    const secondary = skillByName("R");
+    expect(secondary).toBeDefined(); // node exists for the skill tree
+    expect(secondary?.xp).toBe(0); // but zero XP
+    expect(secondary?.masteryLevel).toBe(1);
+  });
+
+  test("same skill label resolves to one stable skill id across activities", async () => {
+    const a1 = await confirmActivity(proposal, "统计第一课");
+    const a2 = await confirmActivity(proposal, "统计第二课（同技能，同类）");
+    expect(a1.ok && a2.ok).toBe(true);
+    expect(a2.transaction?.skillId).toBe(a1.transaction?.skillId);
+    expect(a2.transaction?.repetitionCount).toBe(1); // same skill + same type
   });
 });

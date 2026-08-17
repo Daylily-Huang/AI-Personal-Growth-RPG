@@ -9,6 +9,7 @@ import {
   readDb,
   resetDemoDb,
 } from "@/lib/store/demo-db";
+import { calculateXp } from "@/lib/growth-engine/xp";
 import type { AssessmentProposal } from "@/lib/ai/schemas";
 
 let tempDir: string;
@@ -107,11 +108,47 @@ describe("Milestone 2.6 — concurrent settlements must not lose updates", () =>
 
     expect(db.player.totalXp).toBe(150); // 100 + 50, NOT 100 + last-write
 
-    const skillXpSum = (db.skills["SkillA"]?.xp ?? 0) + (db.skills["SkillB"]?.xp ?? 0);
-    expect(skillXpSum).toBe(ledgerSum);
+    const skillXp = (name: string) => Object.values(db.skills).find((s) => s.name === name)?.xp ?? 0;
+    expect(skillXp("SkillA") + skillXp("SkillB")).toBe(ledgerSum);
 
     // Each skill's xp matches exactly its own ledger entry.
-    expect(db.skills["SkillA"]?.xp).toBe(db.transactions.find((t) => t.skillName === "SkillA")?.amount);
-    expect(db.skills["SkillB"]?.xp).toBe(db.transactions.find((t) => t.skillName === "SkillB")?.amount);
+    expect(skillXp("SkillA")).toBe(db.transactions.find((t) => t.skillName === "SkillA")?.amount);
+    expect(skillXp("SkillB")).toBe(db.transactions.find((t) => t.skillName === "SkillB")?.amount);
+  });
+
+  test("same skill + same type concurrent: repetition snapshot is consistent (one 0, one 1)", async () => {
+    const prop1 = unitProposal(20, "Statistics");
+    const prop2 = unitProposal(20, "Statistics");
+
+    const [r1, r2] = await Promise.all([
+      settle(prop1, "statistics #1"),
+      settle(prop2, "statistics #2"),
+    ]);
+    expect(r1.ok).toBe(true);
+    expect(r2.ok).toBe(true);
+
+    const db = readDb();
+    expect(db.transactions).toHaveLength(2);
+
+    const counts = db.transactions.map((t) => t.repetitionCount).sort((a, b) => a - b);
+    expect(counts).toEqual([0, 1]);
+
+    const expected = (count: number) =>
+      calculateXp({
+        baseValue: 20,
+        difficulty: 0.3333333333,
+        masteryGain: 0.5,
+        evidence: 3,
+        novelty: 0.8,
+        goalAlignment: 0.5,
+        repetitionCount: count,
+        questSize: "standard",
+      }).finalXp;
+
+    const tx0 = db.transactions.find((t) => t.repetitionCount === 0)!;
+    const tx1 = db.transactions.find((t) => t.repetitionCount === 1)!;
+    expect(tx0.amount).toBe(expected(0));
+    expect(tx1.amount).toBe(expected(1));
+    expect(tx0.amount).toBeGreaterThan(tx1.amount); // first-time > repeat
   });
 });

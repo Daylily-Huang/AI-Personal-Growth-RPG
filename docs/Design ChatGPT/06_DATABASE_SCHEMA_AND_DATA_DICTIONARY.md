@@ -103,8 +103,10 @@ sort_order
 # 6. skills
 
 ```text
+id                -- 永久身份（Round5：name 不再是主键身份）
 domain_id
-name
+name              -- 可编辑显示名
+aliases           -- AI 匹配辅助（同一技能的不同叫法合并到这里）
 description
 level
 xp
@@ -113,6 +115,17 @@ mastery_confidence
 status
 last_used_at
 ```
+
+**身份原则（Milestone 2.7）**：
+
+```text
+Skill ID  = 永久身份（ledger / mastery_verifications / Undo 都引用它）
+Skill name = 可编辑显示名称
+Aliases   = AI 匹配辅助（Statistics / 回归分析 / Regression Analysis 收敛到一起）
+Domain    = 分类
+```
+
+在 SupabaseRepository 里**绝不能**把 `skill_name` 当数据库主身份，否则改个名字会牵扯所有历史。
 
 `mastery_level` 范围：
 
@@ -233,7 +246,7 @@ archived
 
 # 11. activities
 
-活动是现实事实记录。
+活动是现实事实记录。一个 Activity 可以有多个 Assessment **revision（重评/编辑）**，但只能有**一笔原始 activity XP 结算**（见 §14 部分唯一索引）。
 
 ```text
 quest_id
@@ -246,11 +259,13 @@ ended_at
 total_minutes
 effective_minutes
 completion
+rules_version     -- Round5：创建时冻结的规则版本（审计"新规则只作用于新 Activity"）
 ```
 
 关键：
 
 > 永远保留 `raw_input`。
+> `rules_version` 冻结于 Activity 创建时；Confirm 结算的 ledger 记录该版本，而不是部署时引擎版本。
 
 ---
 
@@ -301,16 +316,24 @@ activity_id
 quest_id
 assessment_id        -- UNIQUE：一个 assessment 至多产生一笔结算
 domain_id
-skill_id
+skill_id             -- 引用稳定 skill id（不是 name）
 activity_type        -- 结算时的活动类型，用于重复惩罚的 similarity 判定
 repetition_count     -- 结算时的相似行为计数（服务器权威结果，非 AI 估算）
 repetition_penalty   -- 结算时的重复修正系数（Growth Engine 结果）
-xp_type
+xp_type              -- activity | adjustment | correction
 amount
 base_amount
 modifier_json
 reason
-rules_version
+rules_version       -- 冻结于 Activity 创建时（Round5）
+```
+
+**xp_type 语义（Milestone 2.7）**：
+
+```text
+activity    → 一个 Activity 至多一笔（原始 XP 结算）
+adjustment  → 后续人工修正（另起交易）
+correction  → 纠正错误结算（另起交易）
 ```
 
 **强制约束（必做）**：
@@ -319,7 +342,23 @@ rules_version
 -- 一个 assessment 只能被结算一次，数据库层面兜底并发幂等
 alter table xp_transactions
   add constraint xp_transactions_assessment_id_key unique (assessment_id);
+
+-- Round5：一个 Activity 至多一笔原始 activity 结算
+-- （Assessment revision 可以有多个，但只有第一笔 activity 结算能落账）
+create unique index xp_transactions_one_activity_settlement_idx
+  on xp_transactions (activity_id)
+  where xp_type = 'activity';
 ```
+
+**Primary-only 技能 XP 政策（产品规则，Milestone 2.7 明确）**：
+
+```text
+一次结算的 XP 100% 归 primary skill（affected_skills[0]）
+secondary skills 只创建节点/关联/证据，不分配 XP，不产生 ledger 行
+```
+
+> 严禁把 total XP 同时加到多个 skill（会凭空造双倍 XP）。若未来要按权重分配，
+> 必须保证 `Σ allocations == total XP` 且由同一个结算事务落账。
 
 修正 XP 时：
 
@@ -360,9 +399,11 @@ verified 后才真正升级
 ```
 
 ```sql
--- 一个 skill 的 pending 验证只允许一条（防止重复排队）
+-- Round5：每个 skill 至多一个 pending 验证（必须绑定真实 skill_id，
+-- 不要依赖 nullable skill_id；PostgreSQL 对多个 NULL 不视为重复）
+alter table mastery_verifications alter column skill_id set not null;
 create unique index mastery_verifications_one_pending_idx
-  on public.mastery_verifications (skill_id)
+  on public.mastery_verifications (user_id, skill_id)
   where status = 'pending';
 ```
 

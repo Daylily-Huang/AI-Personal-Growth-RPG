@@ -1806,3 +1806,24 @@ Next Best Action
 > **我下一步最值得做什么？**
 
 如果一个功能无法帮助回答这三个问题中的任何一个，应谨慎加入系统。
+
+---
+
+# 71. 技能 XP 分配：primary-only（产品规则，Milestone 2.7 明确）
+
+一次结算产生的 XP **100% 归主技能**（`affected_skills[0]`）。
+
+```text
+主技能   → 获得全部 XP 与可能的 Mastery
+副技能   → 只创建节点/关联/证据，不拿 XP，不产生 ledger 行
+```
+
+- 目的：保持 XP 账本简洁、不被稀释，也不凭空造出多倍 XP。
+- 若未来改为按权重分配：必须满足 `Σ allocations == total XP`，且由**同一结算事务**落账，绝不允许“给每个技能各加一份全额”。
+- AI 仍可提议多个 `affected_skills` 来表达关联，但只有主技能被结算。
+
+## 时间不是 XP（配套约束）
+
+- AI 的 `base_value` 不把 `total_minutes` 计入奖励（同一行为拖 10 小时不应多拿 3 倍 XP）。
+- 时间只经确定性引擎的 `effectiveMinutes → timeFactor` 进入一个**有上限的、很小的**努力参照（1.00–1.15），且只是封顶校验的输入之一。
+- 若以后要让“任务规模”体现工作量，走 Quest Size 或独立 workload scale，而不是塞进 AI 语义 base。

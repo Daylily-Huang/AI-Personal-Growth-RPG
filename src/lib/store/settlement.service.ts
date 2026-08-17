@@ -19,29 +19,40 @@ const DEFAULT_SKILL_MASTERY = 1;
 export const DEFAULT_QUEST_SIZE: QuestSize = "standard";
 
 const SIMILARITY_WINDOW_DAYS = 30;
+const MAX_REPETITION_CONFLICT_RETRIES = 3;
 
 /**
  * Domain service for the Growth Loop — the SINGLE copy of settlement rules.
  *
- * Milestone 2.6:
- * - async (Repository port is async for Supabase)
- * - DELTA semantics: it computes the transaction + deltas, the repository
- *   applies `current += delta` atomically (no lost updates).
- * - Mastery verification is now enforced: `verificationRequired` upgrades are
- *   NOT applied; they create a pending MasteryVerification instead.
+ * Milestone 2.7 additions:
+ * - one `xpType="activity"` settlement per Activity (the store also guards this);
+ * - `rulesVersion` is frozen on the Activity and recorded on the ledger, so a
+ *   future engine upgrade never silently re-arbitrates old histories;
+ * - repetition snapshot conflicts are retried with a fresh count (optimistic
+ *   concurrency), because the authoritative count is derived inside the store's
+ *   atomic write.
  */
 export class SettlementService {
   constructor(private readonly repo: Repository) {}
 
   async confirmAssessment(assessmentId: string): Promise<ConfirmResult> {
+    for (let attempt = 0; attempt < MAX_REPETITION_CONFLICT_RETRIES; attempt++) {
+      const { result, retry } = await this.trySettleOnce(assessmentId);
+      if (retry) continue;
+      return result;
+    }
+    return { ok: false, reason: "repetition_conflict_retry_exhausted" };
+  }
+
+  private async trySettleOnce(assessmentId: string): Promise<{ result: ConfirmResult; retry: boolean }> {
     const assessment = await this.repo.getAssessment(assessmentId);
-    if (!assessment) return { ok: false, reason: "not_found" };
+    if (!assessment) return { result: { ok: false, reason: "not_found" }, retry: false };
     if (assessment.status !== "pending") {
-      return { ok: false, reason: "already_confirmed", assessment };
+      return { result: { ok: false, reason: "already_confirmed", assessment }, retry: false };
     }
 
     const activity = await this.repo.getActivity(assessment.activityId);
-    if (!activity) return { ok: false, reason: "activity_not_found" };
+    if (!activity) return { result: { ok: false, reason: "activity_not_found" }, retry: false };
 
     const now = new Date().toISOString();
     const skillName = assessment.proposal.affected_skills[0]?.name ?? "General Growth";
@@ -70,22 +81,8 @@ export class SettlementService {
     const xpResult = calculateXp(xpInput);
     const xpDelta = xpResult.finalXp;
 
-    const transaction: XpTransaction = {
-      id: crypto.randomUUID(),
-      activityId: activity.id,
-      assessmentId: assessment.id,
-      skillName,
-      activityType,
-      repetitionCount: recentSimilarCount,
-      repetitionPenalty: xpResult.modifiers.repetitionPenalty,
-      amount: xpDelta,
-      baseAmount: assessment.proposal.xp_semantics.base_value,
-      modifierJson: xpResult.modifiers as unknown as Record<string, unknown>,
-      reason: activity.rawInput,
-      rulesVersion: xpResult.rulesVersion,
-      createdAt: now,
-    };
-
+    // Stable skill identity — display name is never the DB primary identity.
+    const skillId = await this.repo.resolveSkillId(skillName);
     const currentSkill = await this.repo.getSkill(skillName);
     const currentMastery = currentSkill?.masteryLevel ?? DEFAULT_SKILL_MASTERY;
     const masteryAction = decideMasteryAction({
@@ -99,6 +96,7 @@ export class SettlementService {
     if (masteryAction.action === "request_verification") {
       masteryVerification = {
         id: crypto.randomUUID(),
+        skillId,
         skillName,
         fromLevel: masteryAction.fromLevel,
         toLevel: masteryAction.toLevel,
@@ -120,11 +118,32 @@ export class SettlementService {
       relation: "related",
     }));
 
+    const transaction: XpTransaction = {
+      id: crypto.randomUUID(),
+      activityId: activity.id,
+      assessmentId: assessment.id,
+      xpType: "activity",
+      skillId,
+      skillName,
+      activityType,
+      repetitionCount: recentSimilarCount,
+      repetitionPenalty: xpResult.modifiers.repetitionPenalty,
+      amount: xpDelta,
+      baseAmount: assessment.proposal.xp_semantics.base_value,
+      modifierJson: xpResult.modifiers as unknown as Record<string, unknown>,
+      reason: activity.rawInput,
+      // Milestone 2.7: the ledger records the rule set frozen at Activity
+      // creation, NOT whatever engine is deployed today.
+      rulesVersion: activity.rulesVersion,
+      createdAt: now,
+    };
+
     const settlement: SettlementToApply = {
       assessmentId: assessment.id,
       transaction,
       xpDelta,
       primarySkill: {
+        id: skillId,
         name: skillName,
         xpDelta,
         masteryAction,
@@ -136,23 +155,28 @@ export class SettlementService {
     };
 
     const result = await this.repo.applySettlement(settlement);
-    if (!result.ok) {
-      if (result.reason === "already_confirmed") {
-        return {
-          ok: false,
-          reason: "already_confirmed",
+    if (result.ok) {
+      return {
+        result: {
+          ok: true,
+          transaction: settlement.transaction,
           assessment: (await this.repo.getAssessment(assessmentId)) ?? undefined,
-        };
-      }
-      return { ok: false, reason: result.reason };
+          masteryVerification,
+        },
+        retry: false,
+      };
     }
 
-    return {
-      ok: true,
-      transaction: settlement.transaction,
-      assessment: (await this.repo.getAssessment(assessmentId)) ?? undefined,
-      masteryVerification,
-    };
+    if (result.reason === "repetition_conflict") {
+      // Optimistic concurrency: re-read with the fresh authoritative count.
+      return {
+        result: { ok: false, reason: "repetition_conflict", actualRepetitionCount: result.actualRepetitionCount },
+        retry: true,
+      };
+    }
+
+    const assessmentNow = (await this.repo.getAssessment(assessmentId)) ?? undefined;
+    return { result: { ok: false, reason: result.reason, assessment: assessmentNow }, retry: false };
   }
 }
 

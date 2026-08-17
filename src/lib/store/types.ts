@@ -1,20 +1,26 @@
 import type { AssessmentProposal } from "@/lib/ai/schemas";
 
+export type ActivityStatus = "pending_assessment" | "assessed" | "confirmed";
+
 export interface Activity {
   id: string;
   rawInput: string;
   title: string;
   activityType: string | null;
-  status: "pending_assessment" | "assessed" | "confirmed";
+  status: ActivityStatus;
   totalMinutes: number | null;
   effectiveMinutes: number | null;
+  /** Frozen at creation: the governance audit of which rule set will settle this. */
+  rulesVersion: string;
   createdAt: string;
 }
+
+export type AssessmentStatus = "pending" | "confirmed" | "edited" | "rejected";
 
 export interface Assessment {
   id: string;
   activityId: string;
-  status: "pending" | "confirmed" | "edited" | "rejected";
+  status: AssessmentStatus;
   proposal: AssessmentProposal;
   modelName: string;
   promptVersion: string;
@@ -24,10 +30,22 @@ export interface Assessment {
   confirmedAt: string | null;
 }
 
+/**
+ * Ledger entry type (Milestone 2.7):
+ * - `activity`: the one original XP settlement per Activity (UNIQUE per activity).
+ * - `adjustment` / `correction`: future editor/admin corrections — allowed to
+ *   create their own entries without colliding with the activity settlement.
+ */
+export type XpTransactionType = "activity" | "adjustment" | "correction";
+
 export interface XpTransaction {
   id: string;
   activityId: string;
   assessmentId: string;
+  xpType: XpTransactionType;
+  /** Stable skill identity (not the display name). */
+  skillId: string;
+  /** Display-name snapshot at settle time. */
   skillName: string;
   /** Activity type at confirm time (from the proposal), used for similarity. */
   activityType: string | null;
@@ -43,8 +61,15 @@ export interface XpTransaction {
   createdAt: string;
 }
 
+/**
+ * Stable skill identity (Milestone 2.7): the database/domain always refers to a
+ * skill by `id`; `name` is a display label and `aliases` help AI matching. The
+ * display name must never be the primary identity again.
+ */
 export interface SkillState {
+  id: string;
   name: string;
+  aliases: string[];
   xp: number;
   level: number;
   masteryLevel: number;
@@ -75,6 +100,8 @@ export type MasteryVerificationStatus = "pending" | "verified" | "rejected";
 
 export interface MasteryVerification {
   id: string;
+  /** Stable skill identity being upgraded. */
+  skillId: string;
   skillName: string;
   fromLevel: number;
   toLevel: number;
@@ -87,7 +114,7 @@ export interface MasteryVerification {
 }
 
 export interface Db {
-  version: 2;
+  version: 3;
   activities: Activity[];
   assessments: Assessment[];
   transactions: XpTransaction[];
@@ -127,6 +154,8 @@ export interface SettlementToApply {
   xpDelta: number;
   /** Primary skill: apply xpDelta to current stored xp and act on mastery. */
   primarySkill: {
+    /** Stable identity (resolved before settlement). */
+    id: string;
     name: string;
     xpDelta: number;
     masteryAction: MasteryAction;
@@ -160,6 +189,8 @@ export interface ConfirmResult {
   transaction?: XpTransaction;
   assessment?: Assessment;
   masteryVerification?: MasteryVerification;
+  /** Present when reason === "repetition_conflict": fresh authoritative count. */
+  actualRepetitionCount?: number;
 }
 
 export interface DashboardSnapshot {

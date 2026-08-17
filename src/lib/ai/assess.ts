@@ -166,7 +166,12 @@ export function mockAssessment(context: AssessmentContext): AssessmentProposal {
       },
     ],
     xp_semantics: {
-      base_value: Math.min(30, 10 + evidenceLevel * 3 + (context.totalMinutes ? Math.floor(context.totalMinutes / 30) : 0)),
+      // Milestone 2.7: minutes are NOT an XP source here — time only enters the
+      // deterministic engine through effectiveMinutes → timeFactor (a small,
+      // saturated effort reference). Base value reflects evidence only. If a
+      // larger task should grant more, that belongs to Quest Size / workload
+      // scale, never to inflating the AI base by duration.
+      base_value: Math.min(30, 10 + evidenceLevel * 3),
       difficulty,
       mastery_gain: learning,
       novelty,
