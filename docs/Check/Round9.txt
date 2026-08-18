@@ -1,0 +1,510 @@
+我继续按“摘要只是自报，GitHub 实现才算数”的标准审了 `5c4e2c82`。这轮方向总体是对的：Round8 的核心 P0——客户端可直接修改自己的 XP / Mastery——已经被真正封住；Evidence 也已经统一到 E0–E6。你上传的摘要对改动范围描述基本准确。
+
+但我这次发现了一个**确定性的 migration 语法错误**，因此当前仍然不能进入 Stage2。
+
+# Gate：**NO-GO，修一个很小的 Stage1.2 后即可**
+
+## 已经真正通过的部分
+
+RLS authority matrix 这次是真的改了。`xp_transactions`、`player_states`、`skills`、`ai_assessments`、`evidence_records`、`mastery_verifications`、`mastery_events` 对 `authenticated` 现在只有 `SELECT`，不再给 INSERT / UPDATE / DELETE；而 profiles 和用户自建内容采用不同权限矩阵。
+
+因此上一轮最严重的：
+
+```text
+Browser JWT
+→ UPDATE skills
+→ mastery_level = 10
+```
+
+这条直接刷永久成长状态的通道，**可以正式关闭**。
+
+Evidence 也正确从数据库的 E0–E4 改成了 E0–E6：
+
+```sql
+check (evidence_level between 0 and 6)
+```
+
+
+
+这与现有 AI schema 和 Growth Engine 的 E0–E6 已重新一致。
+
+XP ledger 也开始补真实 FK，Skill 也开始加入 `normalized_name + unique(user_id, normalized_name)`，这些方向都正确。
+
+---
+
+# P0：`0019_schema_integrity.sql` 当前很可能根本执行不了
+
+这是这轮最重要的问题，而且不是设计争议，是 SQL 语法问题。
+
+你当前写了多处：
+
+```sql
+alter table public.evidence_records
+  add constraint if not exists
+  evidence_records_evidence_level_check
+  check (...);
+```
+
+以及：
+
+```sql
+alter table public.xp_transactions
+  add constraint if not exists fk_...
+```
+
+以及：
+
+```sql
+alter table public.skills
+  add constraint if not exists
+  skills_user_normalized_unique
+  unique (...);
+```
+
+
+
+问题在于 PostgreSQL 的 `ALTER TABLE ... ADD CONSTRAINT` 语法**没有 `IF NOT EXISTS` 这个位置**。官方 PostgreSQL 17 文档列出的形式是：
+
+```text
+ADD table_constraint [ NOT VALID ]
+```
+
+而 `IF NOT EXISTS` 支持的是 `ADD COLUMN` 等形式；`DROP CONSTRAINT` 支持 `IF EXISTS`，但 `ADD CONSTRAINT IF NOT EXISTS` 不是合法语法。
+
+所以现在：
+
+```text
+0001
+...
+0018
+↓
+0019
+↓
+syntax error
+```
+
+的概率不是“可能有点高”，而是这是当前代码中一个明确的 blocker。
+
+这也恰好说明为什么我前一轮坚持要求：
+
+> **必须真正执行一次空库 migration，而不能只做字符串测试。**
+
+---
+
+# 应该怎么改
+
+有两种正常方案。
+
+**方案 A，我更推荐：用 DO block 检查 constraint 是否存在。**
+
+类似：
+
+```sql
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname =
+      'skills_user_normalized_unique'
+  ) then
+    alter table public.skills
+      add constraint
+      skills_user_normalized_unique
+      unique (user_id, normalized_name);
+  end if;
+end $$;
+```
+
+FK 和 Evidence CHECK 同理。
+
+**方案 B：如果 migration 只要求“顺序执行一次”，直接使用标准 `ADD CONSTRAINT`。**
+
+因为 migration 系统本身应该记录：
+
+```text
+0019 已执行
+```
+
+通常没必要让每条 migration SQL 自己无限幂等。
+
+对于 Supabase migration，我倾向 **B 更简单**；对于你特意想兼容“某些库已经部分手工执行”的情况，再用 A。
+
+---
+
+# P1：你们声称有 empty-DB smoke test，但它其实仍然没有执行
+
+这份摘要自己已经明确承认：
+
+> Windows 环境没有真正执行；需要 WSL 复核。
+
+GitHub commit message 同样明确写的是：
+
+```text
+tests/build not run in this Windows shell
+Verify in WSL
+```
+
+
+
+而且 smoke test 现在还有一个不太好的行为：
+
+```ts
+try {
+  import("pg")
+} catch {
+  console.warn(...)
+  return;
+}
+```
+
+
+
+这意味着即使：
+
+```text
+XP_RPG_TEST_DB_URL 已设置
+```
+
+但 `pg` 没装，
+
+测试不是 FAIL，而是：
+
+```text
+warning
+→ return
+→ test passes
+```
+
+这会产生**假绿**。
+
+### 应该改成
+
+如果没有 `XP_RPG_TEST_DB_URL`：
+
+```text
+skip
+```
+
+可以。
+
+但是如果设置了 URL，却没有 `pg`：
+
+```text
+FAIL
+```
+
+而不是 pass。
+
+并且：
+
+```text
+pg
+```
+
+应该直接加入 `devDependencies`。
+
+否则这个测试还不能叫可靠的 migration gate。
+
+---
+
+# P1：Activity 仍然存在一个“规则冻结可被客户端改写”的权限洞
+
+这不是刷 XP 那么严重，但与规则治理直接冲突。
+
+目前 `activities` 被归类为：
+
+```text
+user-authored content
+→ SELECT
+→ INSERT
+→ UPDATE
+→ DELETE
+```
+
+
+
+但是 Activity 表里面不仅有普通用户内容，还有：
+
+```text
+status
+rules_version
+completion
+effective_minutes
+```
+
+其中 `rules_version` 按我们的治理原则应该是：
+
+> **Activity 创建时冻结。**
+
+所以如果 authenticated 用户可以直接：
+
+```sql
+UPDATE activities
+SET rules_version = 'whatever'
+```
+
+那“冻结版本”其实没有数据库级保证。
+
+类似地，confirmed Activity 也可以通过 Data API 改：
+
+```text
+raw_input
+status
+effective_minutes
+```
+
+从审计角度也不理想。
+
+---
+
+## 不建议马上把 Activity 完全只读
+
+因为用户确实需要：
+
+```text
+创建 Activity
+编辑尚未确认的 Activity
+```
+
+所以这里需要区分：
+
+```text
+Draft / unconfirmed mutable
+Confirmed immutable
+```
+
+推荐 Stage2 做一个小的 DB invariant：
+
+```text
+confirmed Activity
+→ raw_input / rules_version /
+   effective_minutes / status
+→ 普通用户不可直接修改
+```
+
+以及：
+
+```text
+rules_version
+→ creation 后不可由普通 client 修改
+```
+
+实现方式可以是：
+
+- trigger；
+- controlled RPC；
+- 或取消 general UPDATE，让服务端提供受控更新函数。
+
+**不要只靠 UI 不显示编辑按钮。**
+
+---
+
+# P2：Skill normalized identity 的注释写过头了
+
+`0019` 注释说当前 normalization 能防：
+
+```text
+"Statistics" / "统计学" / "统计"
+```
+
+产生重复 Skill。
+
+实际上 SQL 只是：
+
+```sql
+lower(
+  btrim(
+    regexp_replace(name, '\s+', ' ')
+  )
+)
+```
+
+所以它只能收敛：
+
+```text
+Statistics
+ statistics
+STATISTICS
+Statistics   ← 空白变化
+```
+
+它**不会**知道：
+
+```text
+Statistics
+统计学
+```
+
+语义上相同。
+
+这不是当前 bug，因为 semantic alias 本来就在未来 Skill Ontology 范围。
+
+但注释应该改准确，否则未来 Coding Agent 很容易误以为已经实现了跨语言 alias resolution。
+
+建议描述成：
+
+> normalized_name prevents case/whitespace duplicates; semantic aliases are handled separately.
+
+---
+
+# P2：tenant-owned FK 目前只完成了一半
+
+这轮已经给 XP ledger 补了：
+
+```text
+activity
+assessment
+skill
+```
+
+FK，这很好。
+
+但它仍然只是普通：
+
+```text
+activity_id → activities(id)
+```
+
+并不能数据库级保证：
+
+```text
+transaction.user_id
+=
+activity.user_id
+```
+
+这项你们摘要也明确列为后续工作。
+
+我同意**不继续卡 Stage1**，但 Stage2 的 `settle_activity` RPC 必须自己严格从 `auth.uid()` / 当前 Assessment 推导 user_id，而不能信任调用参数里的：
+
+```text
+user_id
+skill_id
+activity_id
+```
+
+否则仍可能造成 cross-tenant reference。
+
+长期再用：
+
+```sql
+foreign key (user_id, activity_id)
+references activities(user_id, id)
+```
+
+把它收紧到数据库层。
+
+---
+
+# 现在不要继续扩别的东西
+
+这一轮我认为已经非常接近 Stage2 了。
+
+当前状态：
+
+| 项目 | 结果 |
+|---|---:|
+| Permanent-state authority RLS | ✅ |
+| Evidence E0–E6 | ✅ |
+| XP核心 FK | ✅方向正确 |
+| Skill DB identity | ✅基础建立 |
+| Policy Matrix tests | ✅方向正确 |
+| Empty DB test code | ⚠️存在但未真正验证 |
+| **0019 SQL 可执行性** | ❌ |
+| Activity frozen-state authority | ⚠️ |
+
+所以我不会再要求另一个大型整改。
+
+---
+
+# 我的 Gate
+
+## 当前 Stage1.1：
+
+# **8.4 / 10 — NO-GO，只有一个硬 blocker**
+
+### P0
+**1 个**
+
+`0019_schema_integrity.sql` 的：
+
+```text
+ADD CONSTRAINT IF NOT EXISTS
+```
+
+必须修。
+
+### P1
+- 真正执行 empty DB migration；
+- URL 已提供但 `pg` 缺失时 migration smoke 必须 FAIL；
+- Stage2 要保护 Activity `rules_version` 和 confirmed factual state。
+
+### P2
+- normalized-name 注释修正；
+- tenant composite FK 后续增强。
+
+---
+
+# 下一步我建议只做一个非常小的 `Stage1.2 Migration Proof`
+
+不要继续加业务代码。
+
+只完成：
+
+```text
+1. 修掉所有 ADD CONSTRAINT IF NOT EXISTS
+
+2. pnpm add -D pg
+
+3. migration smoke：
+   没 DB URL → skip
+   有 DB URL但 pg/连接失败 → FAIL
+   SQL 任一 migration 失败 → FAIL
+
+4. 在真正干净的 Supabase/local Supabase DB
+   执行 0001 → 0019
+
+5. 验证：
+   所有 migration 成功
+   RLS 生效
+   xp_transactions authenticated SELECT only
+   E0..E6
+   XP FKs 存在
+   Skill normalized unique 存在
+
+6. GitHub CI / WSL：
+   lint
+   test
+   harness
+   build
+   全绿
+```
+
+这一步完成以后，**不要再来一轮 schema 打磨**。
+
+如果真实 migration 跑通，我下一轮预计会给：
+
+# **GO → Stage2**
+
+然后正式开始最关键的一块：
+
+```text
+SupabaseRepository
++
+settle_activity SECURITY DEFINER RPC
++
+mastery monotonic
++
+repetition transaction snapshot
++
+idempotency
++
+User A / User B live RLS tests
+```
+
+现在真正缺的已经不是设计，而是：
+
+> **证明这些 SQL 真能在真实 PostgreSQL/Supabase 上跑起来。**
+
+这是进入 Stage2 前最后值得坚持的 Gate。

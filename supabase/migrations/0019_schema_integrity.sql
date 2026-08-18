@@ -10,8 +10,9 @@
 --    (assessment→activity, activity→quest, mastery_verification→skill already exist.)
 -- 3) Skill normalized identity: normalized_name + unique(user_id, normalized_name)
 --    + BEFORE trigger, so concurrent settlements cannot create two Skill rows for
---    the same concept ("Statistics" / "统计学" / "统计"), which would corrupt the
---    repetition skillId that the Growth Engine relies on.
+--    the same NAME under one user. Normalization is case/whitespace only
+--    (lower + btrim + collapse internal spaces); it does NOT resolve semantic
+--    aliases ("Statistics" vs "统计学") — that belongs to a future Skill Ontology.
 
 -- ============================================================
 -- 1) Evidence level range → E0..E6 (idempotent, applied-DB safe)
@@ -34,20 +35,38 @@ begin
   end if;
 end $$;
 
-alter table public.evidence_records
-  add constraint if not exists evidence_records_evidence_level_check
-  check (evidence_level between 0 and 6);
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'evidence_records_evidence_level_check'
+  ) then
+    alter table public.evidence_records
+      add constraint evidence_records_evidence_level_check
+      check (evidence_level between 0 and 6);
+  end if;
+end $$;
 
 -- ============================================================
 -- 2) xp_transactions → core Growth Loop foreign keys
 -- ============================================================
-alter table public.xp_transactions
-  add constraint if not exists fk_xp_transactions_activity
-    foreign key (activity_id) references public.activities(id),
-  add constraint if not exists fk_xp_transactions_assessment
-    foreign key (assessment_id) references public.ai_assessments(id),
-  add constraint if not exists fk_xp_transactions_skill
-    foreign key (skill_id) references public.skills(id);
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'fk_xp_transactions_activity') then
+    alter table public.xp_transactions
+      add constraint fk_xp_transactions_activity
+      foreign key (activity_id) references public.activities(id);
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'fk_xp_transactions_assessment') then
+    alter table public.xp_transactions
+      add constraint fk_xp_transactions_assessment
+      foreign key (assessment_id) references public.ai_assessments(id);
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'fk_xp_transactions_skill') then
+    alter table public.xp_transactions
+      add constraint fk_xp_transactions_skill
+      foreign key (skill_id) references public.skills(id);
+  end if;
+end $$;
 
 -- ============================================================
 -- 3) Skill normalized identity (concurrency-safe dedupe)
@@ -61,9 +80,14 @@ update public.skills
 
 alter table public.skills alter column normalized_name set not null;
 
-alter table public.skills
-  add constraint if not exists skills_user_normalized_unique
-  unique (user_id, normalized_name);
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'skills_user_normalized_unique') then
+    alter table public.skills
+      add constraint skills_user_normalized_unique
+      unique (user_id, normalized_name);
+  end if;
+end $$;
 
 create or replace function public.skills_normalize_name()
 returns trigger

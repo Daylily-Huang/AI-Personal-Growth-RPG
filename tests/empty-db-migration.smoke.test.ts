@@ -7,12 +7,16 @@ import path from "node:path";
  *
  * This is the test Round8 demanded: "真正执行一次 empty DB migration" instead of
  * only static string checks. It is SKIPPED unless XP_RPG_TEST_DB_URL points at a
- * SUPABASE database (it needs the `auth` schema for the 0017 trigger), and `pg` is
- * installed. In WSL / CI:
+ * SUPABASE database (it needs the `auth` schema for the 0017 trigger), and `pg`
+ * (a declared devDependency) is installed. In WSL / CI:
  *
  *   pnpm add -D pg
  *   XP_RPG_TEST_DB_URL=postgresql://postgres:postgres@localhost:54322/postgres \
  *     pnpm vitest run tests/empty-db-migration.smoke.test.ts
+ *
+ * Gating: no XP_RPG_TEST_DB_URL -> skipped. URL set but `pg` missing or the DB
+ * unreachable -> the test FAILS (never silently passes), forcing the operator to
+ * provide a real DB + installed driver.
  *
  * It runs the full migration chain (0001..0019) against a FRESH database and then
  * asserts the bootstrapped schema is internally consistent:
@@ -28,18 +32,19 @@ import path from "node:path";
 const DATABASE_URL = process.env.XP_RPG_TEST_DB_URL;
 const MIGRATIONS_DIR = path.join(process.cwd(), "supabase", "migrations");
 
-// Gated: only runs when a Supabase DB URL is provided. When enabled but `pg` is
-// not installed, the test passes with a warning telling the operator to add it.
-describe.skipIf(!DATABASE_URL)("M3 Stage1.1 — empty-DB migration smoke", () => {
+// Gated: only runs when a Supabase DB URL is provided. If `pg` is missing while a
+// URL is set, the test FAILS loudly (it must not silently pass) — install it with
+// `pnpm add -D pg`.
+describe.skipIf(!DATABASE_URL)("M3 Stage1.2 — empty-DB migration smoke", () => {
   test("full migration chain bootstraps on an empty Supabase DB and is consistent", async () => {
     let Client: typeof import("pg").Client;
     try {
       ({ Client } = await import("pg"));
     } catch {
-      console.warn(
-        "[empty-db-migration.smoke] `pg` is not installed — run `pnpm add -D pg` to execute this test.",
+      throw new Error(
+        "[empty-db-migration.smoke] XP_RPG_TEST_DB_URL is set but `pg` is not installed. " +
+        "Run `pnpm add -D pg` before running this migration smoke test.",
       );
-      return;
     }
     const client = new Client({ connectionString: DATABASE_URL });
     await client.connect();
