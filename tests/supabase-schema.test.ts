@@ -40,6 +40,8 @@ const EXPECTED_ORDER = [
   "0015_rules_versions",
   "0016_indexes",
   "0017_rls",
+  "0018_authority_rls_matrix",
+  "0019_schema_integrity",
 ];
 
 const PRIVATE_TABLES = [
@@ -167,5 +169,90 @@ describe("M3 Stage1 — env key model (.env.example)", () => {
   test("SUPABASE_SECRET_KEY appears nowhere under a NEXT_PUBLIC_ prefix", () => {
     const example = fs.readFileSync(path.join(process.cwd(), ".env.example"), "utf8");
     expect(example).not.toContain("NEXT_PUBLIC_SUPABASE_SECRET");
+  });
+});
+
+describe("M3 Stage1.1 — RLS authority matrix (Round8 P0)", () => {
+  const migrations = readMigrations();
+  const rls = migrations.get("0018_authority_rls_matrix") ?? "";
+
+  test("0018 exists and tears down the old blanket 4-policy set", () => {
+    expect(rls).toContain("drop policy if exists");
+    expect(rls).toContain("_select_own");
+    expect(rls).toContain("_insert_own");
+    expect(rls).toContain("_update_own");
+    expect(rls).toContain("_delete_own");
+  });
+
+  // Helper: does the migration grant a given command to `authenticated` on `table`?
+  function grants(table: string, cmd: "select" | "insert" | "update" | "delete"): boolean {
+    return rls.includes(`${table}_${cmd}`);
+  }
+
+  // Permanent growth state / ledger: client (authenticated) is READ-ONLY.
+  for (const table of [
+    "xp_transactions",
+    "player_states",
+    "skills",
+    "ai_assessments",
+    "evidence_records",
+    "mastery_verifications",
+    "mastery_events",
+  ]) {
+    test(`${table}: authenticated may SELECT but NOT insert/update/delete`, () => {
+      expect(grants(table, "select"), `${table} missing select policy`).toBe(true);
+      expect(grants(table, "insert"), `${table} must not grant insert`).toBe(false);
+      expect(grants(table, "update"), `${table} must not grant update`).toBe(false);
+      expect(grants(table, "delete"), `${table} must not grant delete`).toBe(false);
+    });
+  }
+
+  test("profiles: authenticated may SELECT + UPDATE, but NOT insert/delete", () => {
+    expect(grants("profiles", "select")).toBe(true);
+    expect(grants("profiles", "update")).toBe(true);
+    expect(grants("profiles", "insert")).toBe(false);
+    expect(grants("profiles", "delete")).toBe(false);
+  });
+
+  // User-authored content: full CRUD on own rows.
+  for (const table of [
+    "domains",
+    "quests",
+    "activities",
+    "knowledge_nodes",
+    "knowledge_edges",
+    "artifacts",
+    "artifact_links",
+    "reviews",
+  ]) {
+    test(`${table}: authenticated has full CRUD on own rows`, () => {
+      expect(grants(table, "select")).toBe(true);
+      expect(grants(table, "insert")).toBe(true);
+      expect(grants(table, "update")).toBe(true);
+      expect(grants(table, "delete")).toBe(true);
+    });
+  }
+
+  test("every permanent-state read-only policy is scoped to auth.uid()", () => {
+    for (const table of ["xp_transactions", "player_states", "skills", "mastery_events"]) {
+      const re = new RegExp(`create policy ${table}_select[^;]*using \\(user_id = auth\\.uid\\(\\)\\)`, "s");
+      expect(rls, `${table}_select must be scoped to auth.uid()`).toMatch(re);
+    }
+  });
+});
+
+describe("M3 Stage1.1 — Evidence range consistency (Spec → Code → DB)", () => {
+  const migrations = readMigrations();
+  const evidenceSql = migrations.get("0008_evidence_records") ?? "";
+  const schemasTs = fs.readFileSync(path.join(process.cwd(), "src/lib/ai/schemas.ts"), "utf8");
+  const xpTs = fs.readFileSync(path.join(process.cwd(), "src/lib/growth-engine/xp.ts"), "utf8");
+
+  test("DB evidence CHECK matches the AI schema + Growth Engine range (E0..E6)", () => {
+    const dbMax = Number((evidenceSql.match(/evidence_level between 0 and (\d+)/) ?? [])[1]);
+    const aiMax = Number((schemasTs.match(/level:\s*z\.number\(\)\.int\(\)\.min\(0\)\.max\((\d+)\)/) ?? [])[1]);
+    expect(dbMax, "DB evidence_level upper bound").toBe(6);
+    expect(aiMax, "AI schema evidence.level upper bound").toBe(6);
+    expect(dbMax).toBe(aiMax);
+    expect(xpTs).toContain("E0..E6");
   });
 });

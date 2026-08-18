@@ -1,0 +1,924 @@
+我审了这次实际 GitHub commit `892137a3`，不是只看 `Round7_FIX_SUMMARY.md`。开发方描述的主体工作确实存在：0001–0017 migration、Auth trigger、RLS、browser/server/admin client、early 409、rulesVersion 继承都已经提交。 CI 也是真绿：这个 commit 的 GitHub Actions Run #6 为 `success`，Install / Lint / Test / Build 全通过。
+
+但这次我发现了一个**非常关键的权限设计问题**。
+
+# Gate 结论：**暂时 NO-GO 到 Stage2**
+
+不是说这一阶段做坏了，而是：
+
+> **Schema Bootstrap 基本合格，但当前 RLS 权限模型违反了这个 RPG 最核心的“权威结算”原则。**
+
+建议先做一个很小的 **Stage1 Security Fix**，修完再进入 `SupabaseRepository + settlement RPC`。
+
+---
+
+# 一、最严重的问题：当前登录用户可以直接给自己刷 XP / Mastery
+
+这属于我这轮的 **P0（部署前 blocker）**。
+
+`0017_rls.sql` 对所有 private table 统一生成了：
+
+```sql
+SELECT
+INSERT
+UPDATE
+DELETE
+```
+
+四种 own-row policy。
+
+而名单里包括：
+
+```text
+player_states
+skills
+xp_transactions
+mastery_verifications
+mastery_events
+```
+
+
+
+这意味着 RLS 当前解决的是：
+
+```text
+User A 不能修改 User B
+```
+
+但没有解决：
+
+```text
+User A 能不能绕过游戏规则修改 User A 自己
+```
+
+而答案目前是：
+
+# **可以。**
+
+理论上登录用户拿浏览器里的 publishable key + 自己的 JWT，就可以尝试直接：
+
+```text
+player_states.total_xp = 999999
+```
+
+或者：
+
+```text
+skills.mastery_level = 10
+```
+
+甚至：
+
+```text
+INSERT xp_transactions (...)
+```
+
+或：
+
+```text
+DELETE xp_transactions
+```
+
+因为当前 RLS 的判断只是：
+
+```sql
+user_id = auth.uid()
+```
+
+只要是“我的数据”，就允许 UPDATE / INSERT / DELETE。
+
+---
+
+# 这为什么特别严重？
+
+因为我们前面六轮一直坚持的核心架构是：
+
+```text
+AI
+↓
+Proposal
+
+User
+↓
+Confirm
+
+Growth Engine
+↓
+Deterministic calculation
+
+Server settlement
+↓
+XP Ledger
+```
+
+而现在数据库打开了一条后门：
+
+```text
+Browser
+↓
+Supabase Data API
+↓
+UPDATE skills
+SET mastery_level = 10
+```
+
+等于绕过了整套：
+
+```text
+Evidence
+Growth Engine
+Mastery Verification
+Repetition
+Settlement
+Ledger
+```
+
+所以：
+
+> **RLS ≠ 游戏规则安全。**
+
+RLS 只解决“谁的数据”，还必须解决：
+
+> **这个用户对自己的哪些数据有权直接修改？**
+
+这是本轮最重要的发现。
+
+---
+
+# 二、RLS 应该改成“权限矩阵”，不能所有表一刀切
+
+现在：
+
+```text
+所有 private tables
+→ SELECT
+→ INSERT
+→ UPDATE
+→ DELETE
+```
+
+这个设计必须拆开。
+
+我建议至少变成：
+
+| Table | 用户直接 SELECT | 用户直接 INSERT | UPDATE | DELETE |
+|---|---:|---:|---:|---:|
+| profiles | ✅ | ❌/trigger | ✅有限 | ❌ |
+| player_states | ✅ | ❌ | ❌ | ❌ |
+| domains | ✅ | ✅ | ✅ | ✅ |
+| quests | ✅ | ✅ | ✅ | ✅ |
+| activities | ✅ | ✅ | ⚠️有限 | ⚠️有限 |
+| ai_assessments | ✅ | ❌/server | ❌ | ❌ |
+| evidence_records | ✅ | ⚠️ | ⚠️ | ⚠️ |
+| skills | ✅ | ❌核心字段 | ❌核心字段 | ❌ |
+| xp_transactions | ✅ | **❌** | **❌** | **❌** |
+| mastery_verifications | ✅ | ❌ | ❌ | ❌ |
+| mastery_events | ✅ | **❌** | **❌** | **❌** |
+| knowledge/artifacts | ✅ | ✅ | ✅ | ✅ |
+| reviews | ✅ | ✅ | ✅ | ✅ |
+
+尤其：
+
+```text
+xp_transactions
+```
+
+应该是真正意义上的：
+
+# **用户只读账本**
+
+普通 authenticated session：
+
+```text
+SELECT ✅
+INSERT ❌
+UPDATE ❌
+DELETE ❌
+```
+
+只能通过之后的：
+
+```text
+settle_activity RPC
+```
+
+写入。
+
+---
+
+# 三、`player_states` 和 `skills` 也不能允许普通 UPDATE
+
+例如 `skills` 当前数据库有：
+
+```sql
+xp
+level
+mastery_level
+mastery_confidence
+```
+
+
+
+这些属于：
+
+```text
+Permanent Growth State
+```
+
+不应该让客户端：
+
+```sql
+UPDATE skills
+SET mastery_level = 10
+```
+
+同理：
+
+```text
+player_states.total_xp
+```
+
+是缓存值，但仍必须由 ledger settlement 推导。
+
+正确结构应该是：
+
+```text
+authenticated user
+      ↓
+READ own permanent state
+      ↓
+
+settle_activity RPC
+      ↓
+write XP transaction
+update player total
+update skill XP
+update mastery
+create verification
+```
+
+而不是普通 CRUD。
+
+---
+
+# 四、当前静态 RLS 测试反而没有捕捉这个问题
+
+现在 `supabase-schema.test.ts` 检查的是：
+
+```text
+每张 private table 有没有出现在 RLS array
+有没有 auth.uid()
+有没有 enable RLS
+```
+
+
+
+这只能证明：
+
+> “装了门。”
+
+不能证明：
+
+> “门锁设计正确。”
+
+现在实际上就是：
+
+```text
+A 进不了 B 的房间 ✅
+
+但 A 可以随便修改自己银行账户余额 ❌
+```
+
+所以下一步测试应该升级成 **Policy Matrix Test**：
+
+```text
+xp_transactions:
+SELECT own           ✅
+INSERT own           ❌
+UPDATE own           ❌
+DELETE own           ❌
+
+player_states:
+SELECT own           ✅
+UPDATE total_xp      ❌
+
+skills:
+SELECT own           ✅
+UPDATE mastery_level ❌
+```
+
+---
+
+# 五、第二个 P1：Evidence schema 出现明显 Code ↔ DB 漂移
+
+这个是明确 bug。
+
+数据库：
+
+```sql
+evidence_level integer
+check (evidence_level between 0 and 4)
+```
+
+
+
+但 AI schema 明确允许：
+
+```ts
+level:
+z.number()
+ .int()
+ .min(0)
+ .max(6)
+```
+
+
+
+Growth Engine 也明确：
+
+```text
+Evidence = E0 … E6
+```
+
+并存在：
+
+```text
+E0
+E1
+E2
+E3
+E4
+E5
+E6
+```
+
+七档 modifier。
+
+所以现在：
+
+```text
+AI Proposal:
+Evidence = E5
+✅ Zod 合法
+
+Growth Engine:
+E5
+✅ 合法
+
+数据库 evidence_records:
+E5
+❌ CHECK violation
+```
+
+这是典型的 Spec → Code → DB 不一致。
+
+### 应该修成
+
+如果你们现行宪法确实是 E0–E6：
+
+```sql
+check (
+  evidence_level between 0 and 6
+)
+```
+
+并加静态 invariant test：
+
+```text
+AI Evidence range
+=
+Growth Engine range
+=
+Database range
+```
+
+这一项建议 **Stage2 前修**。
+
+---
+
+# 六、第三个 P1：user_id RLS 还不能保证“引用对象也是我的”
+
+这是多租户数据库很容易忽略的问题。
+
+比如：
+
+```sql
+skills {
+    user_id
+    domain_id references domains(id)
+}
+```
+
+
+
+当前 RLS insert 只检查：
+
+```sql
+skills.user_id = auth.uid()
+```
+
+并没有数据库 invariant 保证：
+
+```text
+skill.user_id
+=
+domain.user_id
+```
+
+类似问题还有：
+
+```text
+activities → quest
+ai_assessments → activity
+knowledge_edges → source/target nodes
+artifact_links → artifact
+mastery events → skill/activity
+```
+
+例如 knowledge edge 有：
+
+```sql
+user_id = A
+source_node_id = 某 UUID
+target_node_id = 某 UUID
+```
+
+FK 只验证节点 ID 存不存在，并不编码：
+
+```text
+这个 node 也必须属于 A
+```
+
+
+
+---
+
+## 最稳妥的数据库设计
+
+重要 tenant-owned FK 使用组合约束：
+
+```text
+(user_id, id)
+```
+
+例如 Parent：
+
+```sql
+unique (user_id, id)
+```
+
+Child：
+
+```sql
+foreign key (user_id, activity_id)
+references activities(user_id, id)
+```
+
+这样数据库直接保证：
+
+> A 的 Assessment 永远不能指向 B 的 Activity。
+
+不仅依靠应用层“应该不会这么做”。
+
+这个对于你将来的：
+
+```text
+SupabaseRepository
++
+RPC
++
+multi-user
+```
+
+非常重要。
+
+---
+
+# 七、XP Ledger 本身现在还缺几个 FK
+
+`xp_transactions` 当前：
+
+```sql
+activity_id uuid not null,
+assessment_id uuid not null,
+skill_id uuid,
+quest_id uuid,
+domain_id uuid
+```
+
+但这些都没有实际 FK。
+
+
+
+这在早期 0009 单独存在时还能理解，因为以前相应 migration 不完整。
+
+但现在：
+
+```text
+0001–0008
+```
+
+都已经存在了。
+
+所以到了正式 schema bootstrap 阶段，至少应该重新判断：
+
+```text
+activity_id → activities
+assessment_id → ai_assessments
+skill_id → skills
+quest_id → quests
+domain_id → domains
+```
+
+哪些必须有 FK。
+
+我建议：
+
+```text
+assessment_id
+activity_id
+skill_id
+```
+
+至少建立真正的引用完整性。
+
+否则数据库可以出现：
+
+```text
+XP transaction
+→ 指向一个根本不存在的 Activity
+```
+
+对于“审计账本”不是好事。
+
+---
+
+# 八、Skill Identity 在 PostgreSQL 还少最后一层并发保护
+
+Demo 端之前已经做得不错：
+
+```text
+normalized label
+→ same stable UUID
+```
+
+但现在数据库 `skills` 表只有：
+
+```sql
+id
+user_id
+name
+aliases[]
+```
+
+没有：
+
+```text
+normalized_name
+```
+
+的 UNIQUE。
+
+所以未来两个并发 Settlement：
+
+```text
+Request A:
+Statistics 不存在
+
+Request B:
+Statistics 也不存在
+```
+
+同时：
+
+```text
+INSERT Statistics UUID-A
+INSERT Statistics UUID-B
+```
+
+数据库都可能成功。
+
+最后一个用户拥有两个：
+
+```text
+Statistics
+Statistics
+```
+
+这会再次破坏 repetition 的 `skillId` 身份。
+
+### 建议 Stage2 RPC 前确定
+
+MVP 简单方案：
+
+```sql
+normalized_name text
+```
+
+然后：
+
+```sql
+unique(user_id, normalized_name)
+```
+
+更长期的方案：
+
+```text
+skills
++
+skill_aliases
+```
+
+其中：
+
+```sql
+unique(user_id, normalized_alias)
+```
+
+这样才能真正支持：
+
+```text
+Statistics
+统计学
+统计
+Statistics Analysis
+```
+
+收敛到同一 Skill ID。
+
+---
+
+# 九、“空库可建”目前仍然只是声明，没有真正证明
+
+Round7 摘要很诚实地写了：
+
+> `supabase/config.toml` 未提供；没有真正执行 `db reset`。
+
+而测试文件自己也明确承认：
+
+> 当前测试**不证明 migrations actually run on an empty DB**。
+
+所以 commit message 里的：
+
+```text
+empty-DB bootstrappable
+```
+
+目前严格来说只能叫：
+
+```text
+静态上看起来 bootstrappable
+```
+
+而不是：
+
+```text
+已验证 bootstrappable
+```
+
+这件事不应该再推到很后面。
+
+现在你已经有 Supabase 项目。
+
+我建议修完上面 schema/RLS 后，**第一件事就是在干净数据库真正执行 migration**。
+
+---
+
+# 十、Supabase Client 架构总体方向是好的
+
+这一部分我给 PASS。
+
+Browser：
+
+```text
+Publishable key only
+```
+
+
+
+Server：
+
+```text
+publishable key
++
+request cookies
+→ user-scoped RLS client
+```
+
+
+
+Admin：
+
+```text
+SUPABASE_SECRET_KEY
+```
+
+并且注释明确：
+
+> normal business routes 不应使用。
+
+架构理念正确。
+
+---
+
+# 十一、但 client barrel 还有个 P2
+
+现在：
+
+```ts
+src/lib/supabase/index.ts
+```
+
+同时 re-export：
+
+```ts
+getSupabaseBrowserClient
+getSupabaseServerClient
+getSupabaseAdminClient
+getSecretKey
+```
+
+
+
+这不是我喜欢的结构。
+
+因为 Client Component 理论上只应该认识：
+
+```text
+browser
+```
+
+不应该在同一个公共入口里看到：
+
+```text
+admin
+secret
+server
+```
+
+### 推荐拆开
+
+```text
+@/lib/supabase/browser
+```
+
+给客户端。
+
+```text
+@/lib/supabase/server
+```
+
+给 Server Component / Route Handler。
+
+```text
+@/lib/supabase/admin
+```
+
+给极少数 privileged backend。
+
+并在：
+
+```text
+server.ts
+admin.ts
+```
+
+最顶部增加明确 server-only guard。
+
+这样减少 Coding Agent 以后：
+
+```ts
+import {
+  getSupabaseAdminClient
+} from "@/lib/supabase"
+```
+
+乱用的可能性。
+
+属于 P2，不是当前 blocker。
+
+---
+
+# 十二、这轮之前要求的几个小问题确实修了
+
+Early 409 已经真正移到 AI 调用之前：
+
+```ts
+if (activity.status === "confirmed")
+  return 409;
+```
+
+然后才 `assessActivity()`。
+
+所以不会再白烧模型 token。
+
+Assessment 也确实继承：
+
+```ts
+rulesVersion:
+activity.rulesVersion
+```
+
+
+
+这些可以关闭。
+
+---
+
+# 当前评分
+
+| 模块 | 评价 |
+|---|---:|
+| Migration coverage | 8.5/10 |
+| Auth bootstrap | 8/10 |
+| Client architecture | 8.5/10 |
+| Cross-user read isolation设计 | 8/10 |
+| **Permanent-state write authority** | **4/10** |
+| Tenant FK integrity | 6/10 |
+| Domain ↔ DB consistency | 7/10 |
+| Static tests | 8/10 |
+| Real DB validation | 4/10 |
+| 整体 Stage1 | **7.5/10** |
+
+这里降分最主要就一个原因：
+
+> **RLS 被当成“用户只能操作自己的数据”，但没有继续区分“哪些自己的数据也绝不能直接改”。**
+
+对于普通 SaaS 这是权限细节。
+
+对于这个项目，它是核心游戏规则。
+
+---
+
+# 我的 Gate 决定
+
+## Stage 1 当前：
+
+# **CONDITIONAL FAIL / NO-GO**
+
+不是推倒重来。
+
+只需做一个小的：
+
+# `M3 Stage1.1 — Authority & Schema Integrity Fix`
+
+我建议 Coding Agent **只做以下 6 项**：
+
+```text
+1. RLS 改成 table-specific policy matrix
+   尤其：
+   xp_transactions = authenticated SELECT ONLY
+   player_states permanent fields = client read-only
+   mastery_events = client read-only
+   mastery_verifications = client read-only
+   skills.xp/mastery = client不可直接改
+
+2. 修 Evidence：
+   DB E0..E4 → E0..E6
+
+3. tenant-owned FK 加 ownership integrity
+   至少核心 Growth Loop：
+   assessment → activity
+   transaction → activity/assessment/skill
+   mastery verification → skill
+   activity → quest
+
+4. PostgreSQL skill normalized identity
+   防并发创建重复 Skill
+
+5. 真正执行一次 empty DB migration
+   不再只做字符串静态测试
+
+6. 加测试：
+   RLS policy matrix 静态检查
+   +
+   empty DB migration smoke
+```
+
+修完之后：
+
+```text
+不要继续扩 Schema
+不要写新 UI
+不要做 Quest
+```
+
+直接给我看这一小个 commit。
+
+如果这 6 项过了，我下一次大概率会给：
+
+# **GO → Stage2 SupabaseRepository + settlement RPC**
+
+因为到那时最重要的问题就真的从：
+
+```text
+“数据库地基有没有漏洞”
+```
+
+切换成：
+
+```text
+“真正的 settle_activity RPC 是否原子且不可绕过”
+```
+
+这才应该是下一阶段。

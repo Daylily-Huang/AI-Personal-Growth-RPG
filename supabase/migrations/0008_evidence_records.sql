@@ -8,7 +8,7 @@ create table if not exists public.evidence_records (
     activity_id uuid references public.activities(id) on delete cascade,
     skill_id uuid references public.skills(id) on delete set null,
     knowledge_node_id uuid,
-    evidence_level integer not null default 1 check (evidence_level between 0 and 4),
+    evidence_level integer not null default 1 check (evidence_level between 0 and 6),
     evidence_type text,
     description text,
     verified boolean not null default false,
