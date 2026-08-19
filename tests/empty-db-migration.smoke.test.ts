@@ -95,7 +95,13 @@ describe.skipIf(!DATABASE_URL)("M3 Stage1.2 — empty-DB migration smoke", () =>
           where conrelid = 'public.evidence_records'::regclass
             and contype = 'c'`,
       );
-      expect(ev.rows.some((r) => /between 0 and 6/.test(r.consrc)), "evidence CHECK not 0..6").toBe(true);
+      expect(
+        ev.rows.some((r) =>
+          /evidence_level\s+between\s+0\s+and\s+6/i.test(r.consrc) ||
+          /evidence_level\s*>=\s*0.*evidence_level\s*<=\s*6/i.test(r.consrc),
+        ),
+        "evidence CHECK not 0..6",
+      ).toBe(true);
 
       // xp_transactions FKs actually exist.
       const fks = await client.query<{ conname: string }>(

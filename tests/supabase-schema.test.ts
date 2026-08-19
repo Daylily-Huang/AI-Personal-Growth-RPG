@@ -178,10 +178,9 @@ describe("M3 Stage1.1 — RLS authority matrix (Round8 P0)", () => {
 
   test("0018 exists and tears down the old blanket 4-policy set", () => {
     expect(rls).toContain("drop policy if exists");
-    expect(rls).toContain("_select_own");
-    expect(rls).toContain("_insert_own");
-    expect(rls).toContain("_update_own");
-    expect(rls).toContain("_delete_own");
+    expect(rls).toContain("array['select_own', 'insert_own', 'update_own', 'delete_own']");
+    expect(rls).toContain("create policy xp_transactions_select");
+    expect(rls).toContain("create policy domains_insert");
   });
 
   // Helper: does the migration grant a given command to `authenticated` on `table`?

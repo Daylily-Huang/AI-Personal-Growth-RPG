@@ -15,6 +15,7 @@ const eslintConfig = defineConfig([
     // Docs contain starter templates, not app code.
     "docs/**",
     ".data/**",
+    "supabase/.temp/**",
   ]),
 ]);
 
