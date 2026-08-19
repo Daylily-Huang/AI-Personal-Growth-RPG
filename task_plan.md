@@ -13,9 +13,9 @@
   - [complete] 6.1：诊断并修复本地网站启动阻断
   - [complete] 6.2：实现 SupabaseRepository 与基础 Auth wiring
   - [complete] 6.3：实现 Activity immutability 与基础映射测试
-  - [in_progress] 6.4：运行完整验证并确认 migration 与本地数据库兼容
+  - [complete] 6.4：运行完整验证并确认 migration 与本地数据库兼容
 - [pending] 阶段 7：实现 Stage2-B（settlement RPC/事务/幂等/repetition/mastery/concurrency/双用户测试）
-- [pending] 阶段 8：运行完整验证、生成报告、提交并推送
+- [in_progress] 阶段 8：生成 Round11 摘要、提交并推送
 
 ## 当前设计边界
 - 首个切片只覆盖 Activity → Assessment → Confirm → XP Ledger/Player/Skill 的真实 Supabase 路径。
