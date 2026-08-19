@@ -1,7 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { RULES_VERSION } from "@/lib/growth-engine/xp";
 import type { Database } from "@/lib/supabase/database.types";
-import { ActivityAlreadySettledError } from "./errors";
 import type { Repository, SettlementResult } from "./repository";
 import type { Activity, Assessment, MasteryVerification, NewActivityInput, NewAssessmentInput, PlayerState, SettlementToApply, SkillEdge, SkillState, XpTransaction } from "./types";
 import { mapActivity, mapAssessment, mapMasteryVerification, mapPlayer, mapSkill, mapTransaction } from "./supabase-mapping";
@@ -40,9 +39,17 @@ export class SupabaseRepository implements Repository {
   }
 
   async listTransactions(): Promise<XpTransaction[]> {
-    const { data, error } = await this.client.from("xp_transactions").select("*").eq("user_id", this.userId).order("created_at", { ascending: false });
+    const { data, error } = await this.client
+      .from("xp_transactions")
+      .select("*, skills!fk_xp_transactions_skill(name)")
+      .eq("user_id", this.userId)
+      .order("created_at", { ascending: false });
     if (error) throw error;
-    return (data ?? []).map(mapTransaction);
+    return (data ?? []).map((row) => {
+      const skill = row.skills;
+      const skillName = Array.isArray(skill) ? skill[0]?.name : skill?.name;
+      return mapTransaction(row, skillName);
+    });
   }
 
   async getSkill(name: string): Promise<SkillState | null> {
@@ -89,23 +96,10 @@ export class SupabaseRepository implements Repository {
     return mapActivity(data);
   }
 
-  async addAssessment(input: NewAssessmentInput): Promise<Assessment> {
-    const activity = await this.getActivity(input.activityId);
-    if (!activity) throw new Error("Activity not found");
-    if (activity.status === "confirmed") throw new ActivityAlreadySettledError(activity.id);
-    const { data, error } = await this.client.from("ai_assessments").insert({
-      user_id: this.userId,
-      activity_id: activity.id,
-      rules_version: activity.rulesVersion,
-      assessment_json: input.proposal,
-      model_name: input.modelName,
-      prompt_version: input.promptVersion,
-      confidence: input.proposal.confidence,
-    }).select("*").single();
-    if (error) throw error;
-    const { error: activityError } = await this.client.from("activities").update({ status: "assessed" }).eq("id", activity.id).eq("user_id", this.userId);
-    if (activityError) throw activityError;
-    return mapAssessment(data);
+  async addAssessment(_input: NewAssessmentInput): Promise<Assessment> {
+    throw new Error(
+      "AI assessments are server-authored. Use AssessmentPersistenceService after authenticating and reading the Activity through this RLS-scoped repository.",
+    );
   }
 
   async lookupSkillId(label: string): Promise<string | null> {

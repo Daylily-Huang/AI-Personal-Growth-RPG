@@ -15,7 +15,13 @@
   - [complete] 6.3：实现 Activity immutability 与基础映射测试
   - [complete] 6.4：运行完整验证并确认 migration 与本地数据库兼容
 - [pending] 阶段 7：实现 Stage2-B（settlement RPC/事务/幂等/repetition/mastery/concurrency/双用户测试）
-- [in_progress] 阶段 8：生成 Round11 摘要、提交并推送
+- [complete] 阶段 8：生成 Round11 摘要、提交并推送
+- [complete] 阶段 9：实施 Round12 Stage2-A.1 Authority Wiring Closure
+  - [complete] 9.1：Assessment trusted persistence 与原子状态转移
+  - [complete] 9.2：收紧 Activity 客户端状态权限
+  - [complete] 9.3：生成真实 Supabase Database types
+  - [complete] 9.4：修复 transaction skillName 显示映射
+  - [in_progress] 9.5：行为级集成测试、摘要、提交、推送
 
 ## 当前设计边界
 - 首个切片只覆盖 Activity → Assessment → Confirm → XP Ledger/Player/Skill 的真实 Supabase 路径。

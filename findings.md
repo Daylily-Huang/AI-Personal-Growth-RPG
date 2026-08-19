@@ -21,3 +21,13 @@
 - 网站无法进入根因已关闭：项目此前携带 WSL/Linux `node_modules`，Windows Next 缺少 `@next/swc-win32-x64-msvc`，造成 Ready 后请求挂起。现已备份旧依赖、安装 Windows 依赖、移除 `next/font/google` 网络字体；`/` 307、`/dashboard` 200、`/api/dashboard` 200，且受控 Node 22.22.2 + pnpm 11.7.0 下 production build 通过。
 - Stage2-A 已新增最小 `Database` 类型、纯 snake_case↔domain mapping、RLS 用户域 `SupabaseRepository` 与 `getAuthenticatedRepository()`。默认 API 仍使用 DemoRepository，避免无登录 UI 时把现有网站变为 401；真实 Confirm 结算明确留给 Stage2-B 的 `settle_activity` RPC。
 - 新增 `0020_activity_immutability.sql`：confirmed Activity 禁止任何 UPDATE；任何状态下 `raw_input` 与 `rules_version` 都不可修改。函数显式固定 `search_path=public`。
+
+## Round12 审查结论
+- 远程审查确认 Stage2-A 核心提交 `c882d91` 与摘要提交 `aa0b82f` 已进入 `main`。
+- Round12 结论：Stage2-A 7.9/10，CONDITIONAL FAIL；P0=0，P1=3，不应直接进入完整 Stage2-B。
+- P1-1：`SupabaseRepository.addAssessment()` 使用 authenticated client INSERT `ai_assessments`，但 0018 对该表仅 SELECT，真实 Supabase 必然被 RLS 拒绝；不能简单开放 INSERT，因为 Proposal 属于 server-authored state。应增加 trusted server-only assessment persistence，在一个数据库事务内写 assessment 并将 Activity 设为 assessed。
+- P1-2：activities 当前 authenticated UPDATE 仍可修改 status，0020 只阻止 old.status=confirmed 和 facts 改动，不能阻止客户端伪造 assessed/confirmed/pending 状态。应移除客户端 UPDATE 权限，状态转移只允许 trusted assessment persistence / settlement RPC。
+- P1-3：`database.types.ts` 是手写 mini schema，不是真正 generated types，且与真实 schema 漂移。应使用 `supabase gen types typescript --local` 并加入 `db:types` script。
+- 其他问题：xp transaction mapper 的 skillName 为空；getPlayer 缺行时静默返回默认玩家，应改为 invariant error（P2）。
+- Round12 建议先做 Stage2-A.1 Authority Wiring Closure：assessment trusted persistence、Activity state authority、真实 generated types、transaction skillName mapping，完成后再进入 Stage2-B。
+- Stage2-A.1 已完成代码和验证：0021 迁移在本地 Supabase 通过；authenticated 对 ai_assessments INSERT 和 activities status UPDATE 均被拒绝；service_role record_ai_assessment 原子写入并转移 Activity 状态；完整 suite 89 passed/1 skipped，harness 11 passed，tsc/lint/build 通过。首次迁移重放暴露的 0021 delete policy 幂等问题已修复。

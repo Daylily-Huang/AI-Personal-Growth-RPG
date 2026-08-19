@@ -8,7 +8,8 @@
     "start": "next start --hostname 127.0.0.1",
     "lint": "eslint",
     "test": "vitest run",
-    "harness:deterministic": "vitest run tests/growth-engine.test.ts"
+    "harness:deterministic": "vitest run tests/growth-engine.test.ts",
+    "db:types": "supabase gen types typescript --local > src/lib/supabase/database.types.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",

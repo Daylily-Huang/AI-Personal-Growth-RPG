@@ -1,108 +1,1046 @@
-export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
-
-type Row<T> = T;
-type Insert<T> = Partial<T>;
-type Update<T> = Partial<T>;
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
 
 export type Database = {
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       activities: {
-        Row: Row<{
-          id: string;
-          user_id: string;
-          quest_id: string | null;
-          title: string;
-          raw_input: string;
-          activity_type: string | null;
-          status: string;
-          total_minutes: number | null;
-          effective_minutes: number | null;
-          rules_version: string;
-          created_at: string;
-          updated_at: string;
-        }>;
-        Insert: Insert<Row<Database["public"]["Tables"]["activities"]["Row"]>> & { user_id: string; raw_input: string; title: string; rules_version: string };
-        Update: Update<Row<Database["public"]["Tables"]["activities"]["Row"]>>;
-        Relationships: [];
-      };
+        Row: {
+          activity_type: string | null
+          completion: number | null
+          created_at: string
+          effective_minutes: number | null
+          ended_at: string | null
+          id: string
+          quest_id: string | null
+          raw_input: string
+          rules_version: string
+          started_at: string | null
+          status: string
+          title: string
+          total_minutes: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          activity_type?: string | null
+          completion?: number | null
+          created_at?: string
+          effective_minutes?: number | null
+          ended_at?: string | null
+          id?: string
+          quest_id?: string | null
+          raw_input: string
+          rules_version: string
+          started_at?: string | null
+          status?: string
+          title: string
+          total_minutes?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          activity_type?: string | null
+          completion?: number | null
+          created_at?: string
+          effective_minutes?: number | null
+          ended_at?: string | null
+          id?: string
+          quest_id?: string | null
+          raw_input?: string
+          rules_version?: string
+          started_at?: string | null
+          status?: string
+          title?: string
+          total_minutes?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activities_quest_id_fkey"
+            columns: ["quest_id"]
+            isOneToOne: false
+            referencedRelation: "quests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_assessments: {
-        Row: Row<{
-          id: string;
-          user_id: string;
-          activity_id: string;
-          rules_version: string;
-          prompt_version: string | null;
-          model_name: string | null;
-          assessment_json: Json;
-          confidence: number | null;
-          status: string;
-          confirmed_at: string | null;
-          created_at: string;
-          updated_at: string;
-        }>;
-        Insert: Insert<Row<Database["public"]["Tables"]["ai_assessments"]["Row"]>> & { user_id: string; activity_id: string; rules_version: string; assessment_json: Json };
-        Update: Update<Row<Database["public"]["Tables"]["ai_assessments"]["Row"]>>;
-        Relationships: [];
-      };
-      skills: {
-        Row: Row<{
-          id: string;
-          user_id: string;
-          name: string;
-          aliases: string[];
-          level: number;
-          xp: number;
-          mastery_level: number;
-          mastery_confidence: number;
-          last_used_at: string | null;
-          normalized_name: string;
-          status: string;
-          created_at: string;
-          updated_at: string;
-        }>;
-        Insert: Insert<Row<Database["public"]["Tables"]["skills"]["Row"]>> & { user_id: string; name: string };
-        Update: Update<Row<Database["public"]["Tables"]["skills"]["Row"]>>;
-        Relationships: [];
-      };
-      xp_transactions: {
-        Row: Row<{
-          id: string;
-          user_id: string;
-          activity_id: string;
-          assessment_id: string;
-          skill_id: string | null;
-          activity_type: string | null;
-          repetition_count: number;
-          repetition_penalty: number;
-          xp_type: string;
-          amount: number;
-          base_amount: number;
-          modifier_json: Json;
-          reason: string | null;
-          rules_version: string;
-          created_at: string;
-        }>;
-        Insert: Insert<Row<Database["public"]["Tables"]["xp_transactions"]["Row"]>> & { user_id: string; activity_id: string; assessment_id: string; amount: number; base_amount: number; rules_version: string };
-        Update: Update<Row<Database["public"]["Tables"]["xp_transactions"]["Row"]>>;
-        Relationships: [];
-      };
-      player_states: {
-        Row: { user_id: string; player_level: number; total_xp: number; energy: number; focus: number; momentum: number; updated_at: string };
-        Insert: Insert<Row<Database["public"]["Tables"]["player_states"]["Row"]>> & { user_id: string };
-        Update: Update<Row<Database["public"]["Tables"]["player_states"]["Row"]>>;
-        Relationships: [];
-      };
+        Row: {
+          activity_id: string
+          assessment_json: Json
+          confidence: number | null
+          confirmed_at: string | null
+          created_at: string
+          id: string
+          model_name: string | null
+          prompt_version: string | null
+          rules_version: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          activity_id: string
+          assessment_json: Json
+          confidence?: number | null
+          confirmed_at?: string | null
+          created_at?: string
+          id?: string
+          model_name?: string | null
+          prompt_version?: string | null
+          rules_version: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          activity_id?: string
+          assessment_json?: Json
+          confidence?: number | null
+          confirmed_at?: string | null
+          created_at?: string
+          id?: string
+          model_name?: string | null
+          prompt_version?: string | null
+          rules_version?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_assessments_activity_id_fkey"
+            columns: ["activity_id"]
+            isOneToOne: false
+            referencedRelation: "activities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      artifact_links: {
+        Row: {
+          artifact_id: string
+          created_at: string
+          entity_id: string
+          entity_type: string
+          id: string
+          relation_type: string | null
+          user_id: string
+        }
+        Insert: {
+          artifact_id: string
+          created_at?: string
+          entity_id: string
+          entity_type: string
+          id?: string
+          relation_type?: string | null
+          user_id: string
+        }
+        Update: {
+          artifact_id?: string
+          created_at?: string
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          relation_type?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "artifact_links_artifact_id_fkey"
+            columns: ["artifact_id"]
+            isOneToOne: false
+            referencedRelation: "artifacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      artifacts: {
+        Row: {
+          artifact_type: string | null
+          created_at: string
+          description: string | null
+          external_url: string | null
+          id: string
+          reusability_score: number
+          storage_path: string | null
+          title: string
+          updated_at: string
+          user_id: string
+          version: string | null
+        }
+        Insert: {
+          artifact_type?: string | null
+          created_at?: string
+          description?: string | null
+          external_url?: string | null
+          id?: string
+          reusability_score?: number
+          storage_path?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+          version?: string | null
+        }
+        Update: {
+          artifact_type?: string | null
+          created_at?: string
+          description?: string | null
+          external_url?: string | null
+          id?: string
+          reusability_score?: number
+          storage_path?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+          version?: string | null
+        }
+        Relationships: []
+      }
+      domains: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          parent_id: string | null
+          slug: string
+          sort_order: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          parent_id?: string | null
+          slug: string
+          sort_order?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          parent_id?: string | null
+          slug?: string
+          sort_order?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "domains_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "domains"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      evidence_records: {
+        Row: {
+          activity_id: string | null
+          created_at: string
+          description: string | null
+          evidence_level: number
+          evidence_type: string | null
+          id: string
+          knowledge_node_id: string | null
+          skill_id: string | null
+          updated_at: string
+          user_id: string
+          verified: boolean
+        }
+        Insert: {
+          activity_id?: string | null
+          created_at?: string
+          description?: string | null
+          evidence_level?: number
+          evidence_type?: string | null
+          id?: string
+          knowledge_node_id?: string | null
+          skill_id?: string | null
+          updated_at?: string
+          user_id: string
+          verified?: boolean
+        }
+        Update: {
+          activity_id?: string | null
+          created_at?: string
+          description?: string | null
+          evidence_level?: number
+          evidence_type?: string | null
+          id?: string
+          knowledge_node_id?: string | null
+          skill_id?: string | null
+          updated_at?: string
+          user_id?: string
+          verified?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "evidence_records_activity_id_fkey"
+            columns: ["activity_id"]
+            isOneToOne: false
+            referencedRelation: "activities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evidence_records_skill_id_fkey"
+            columns: ["skill_id"]
+            isOneToOne: false
+            referencedRelation: "skills"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      knowledge_edges: {
+        Row: {
+          ai_inferred: boolean
+          confidence: number
+          created_at: string
+          id: string
+          relation_type: string
+          source_node_id: string
+          source_reference: string | null
+          source_type: string | null
+          target_node_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ai_inferred?: boolean
+          confidence?: number
+          created_at?: string
+          id?: string
+          relation_type: string
+          source_node_id: string
+          source_reference?: string | null
+          source_type?: string | null
+          target_node_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ai_inferred?: boolean
+          confidence?: number
+          created_at?: string
+          id?: string
+          relation_type?: string
+          source_node_id?: string
+          source_reference?: string | null
+          source_type?: string | null
+          target_node_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "knowledge_edges_source_node_id_fkey"
+            columns: ["source_node_id"]
+            isOneToOne: false
+            referencedRelation: "knowledge_nodes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "knowledge_edges_target_node_id_fkey"
+            columns: ["target_node_id"]
+            isOneToOne: false
+            referencedRelation: "knowledge_nodes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      knowledge_nodes: {
+        Row: {
+          confidence: number
+          created_at: string
+          description: string | null
+          domain_id: string | null
+          id: string
+          last_reviewed_at: string | null
+          last_used_at: string | null
+          mastery_level: number
+          skill_id: string | null
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          confidence?: number
+          created_at?: string
+          description?: string | null
+          domain_id?: string | null
+          id?: string
+          last_reviewed_at?: string | null
+          last_used_at?: string | null
+          mastery_level?: number
+          skill_id?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          confidence?: number
+          created_at?: string
+          description?: string | null
+          domain_id?: string | null
+          id?: string
+          last_reviewed_at?: string | null
+          last_used_at?: string | null
+          mastery_level?: number
+          skill_id?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "knowledge_nodes_domain_id_fkey"
+            columns: ["domain_id"]
+            isOneToOne: false
+            referencedRelation: "domains"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "knowledge_nodes_skill_id_fkey"
+            columns: ["skill_id"]
+            isOneToOne: false
+            referencedRelation: "skills"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mastery_events: {
+        Row: {
+          activity_id: string | null
+          confidence: number | null
+          created_at: string
+          event_type: string
+          evidence_id: string | null
+          from_level: number
+          id: string
+          knowledge_node_id: string | null
+          reason: string | null
+          skill_id: string | null
+          to_level: number
+          user_id: string
+        }
+        Insert: {
+          activity_id?: string | null
+          confidence?: number | null
+          created_at?: string
+          event_type?: string
+          evidence_id?: string | null
+          from_level: number
+          id?: string
+          knowledge_node_id?: string | null
+          reason?: string | null
+          skill_id?: string | null
+          to_level: number
+          user_id: string
+        }
+        Update: {
+          activity_id?: string | null
+          confidence?: number | null
+          created_at?: string
+          event_type?: string
+          evidence_id?: string | null
+          from_level?: number
+          id?: string
+          knowledge_node_id?: string | null
+          reason?: string | null
+          skill_id?: string | null
+          to_level?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mastery_events_activity_id_fkey"
+            columns: ["activity_id"]
+            isOneToOne: false
+            referencedRelation: "activities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mastery_events_skill_id_fkey"
+            columns: ["skill_id"]
+            isOneToOne: false
+            referencedRelation: "skills"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mastery_verifications: {
-        Row: { id: string; user_id: string; skill_id: string; skill_name: string; from_level: number; to_level: number; evidence_level: number; status: string; proposal_assessment_id: string | null; created_at: string; resolved_at: string | null };
-        Insert: Insert<Row<Database["public"]["Tables"]["mastery_verifications"]["Row"]>> & { user_id: string; skill_id: string; skill_name: string; from_level: number; to_level: number; evidence_level: number };
-        Update: Update<Row<Database["public"]["Tables"]["mastery_verifications"]["Row"]>>;
-        Relationships: [];
-      };
-    };
-    Views: Record<string, never>;
-    Functions: Record<string, never>;
-    Enums: Record<string, never>;
-    CompositeTypes: Record<string, never>;
-  };
-};
+        Row: {
+          created_at: string
+          evidence_level: number
+          from_level: number
+          id: string
+          proposal_assessment_id: string | null
+          resolved_at: string | null
+          skill_id: string
+          skill_name: string
+          status: string
+          to_level: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          evidence_level: number
+          from_level: number
+          id?: string
+          proposal_assessment_id?: string | null
+          resolved_at?: string | null
+          skill_id: string
+          skill_name: string
+          status?: string
+          to_level: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          evidence_level?: number
+          from_level?: number
+          id?: string
+          proposal_assessment_id?: string | null
+          resolved_at?: string | null
+          skill_id?: string
+          skill_name?: string
+          status?: string
+          to_level?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mastery_verifications_proposal_assessment_id_fkey"
+            columns: ["proposal_assessment_id"]
+            isOneToOne: false
+            referencedRelation: "ai_assessments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mastery_verifications_skill_id_fkey"
+            columns: ["skill_id"]
+            isOneToOne: false
+            referencedRelation: "skills"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      player_states: {
+        Row: {
+          energy: number
+          focus: number
+          momentum: number
+          player_level: number
+          stress: number
+          total_xp: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          energy?: number
+          focus?: number
+          momentum?: number
+          player_level?: number
+          stress?: number
+          total_xp?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          energy?: number
+          focus?: number
+          momentum?: number
+          player_level?: number
+          stress?: number
+          total_xp?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          display_name: string | null
+          onboarding_completed: boolean
+          timezone: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          display_name?: string | null
+          onboarding_completed?: boolean
+          timezone?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string | null
+          onboarding_completed?: boolean
+          timezone?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      quests: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          deadline: string | null
+          description: string | null
+          difficulty: number
+          goal_alignment: number
+          id: string
+          is_boss: boolean
+          is_main_quest: boolean
+          parent_quest_id: string | null
+          progress: number
+          quest_size: string | null
+          quest_type: string
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          deadline?: string | null
+          description?: string | null
+          difficulty?: number
+          goal_alignment?: number
+          id?: string
+          is_boss?: boolean
+          is_main_quest?: boolean
+          parent_quest_id?: string | null
+          progress?: number
+          quest_size?: string | null
+          quest_type: string
+          status?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          deadline?: string | null
+          description?: string | null
+          difficulty?: number
+          goal_alignment?: number
+          id?: string
+          is_boss?: boolean
+          is_main_quest?: boolean
+          parent_quest_id?: string | null
+          progress?: number
+          quest_size?: string | null
+          quest_type?: string
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quests_parent_quest_id_fkey"
+            columns: ["parent_quest_id"]
+            isOneToOne: false
+            referencedRelation: "quests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reviews: {
+        Row: {
+          created_at: string
+          id: string
+          narrative: string | null
+          period_end: string | null
+          period_start: string | null
+          review_type: string
+          summary_json: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          narrative?: string | null
+          period_end?: string | null
+          period_start?: string | null
+          review_type: string
+          summary_json?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          narrative?: string | null
+          period_end?: string | null
+          period_start?: string | null
+          review_type?: string
+          summary_json?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      rules_versions: {
+        Row: {
+          activated_at: string | null
+          config_json: Json
+          description: string | null
+          id: string
+          status: string
+          version: string
+        }
+        Insert: {
+          activated_at?: string | null
+          config_json?: Json
+          description?: string | null
+          id?: string
+          status?: string
+          version: string
+        }
+        Update: {
+          activated_at?: string | null
+          config_json?: Json
+          description?: string | null
+          id?: string
+          status?: string
+          version?: string
+        }
+        Relationships: []
+      }
+      skills: {
+        Row: {
+          aliases: string[]
+          created_at: string
+          description: string | null
+          domain_id: string | null
+          id: string
+          last_used_at: string | null
+          level: number
+          mastery_confidence: number
+          mastery_level: number
+          name: string
+          normalized_name: string
+          status: string
+          updated_at: string
+          user_id: string
+          xp: number
+        }
+        Insert: {
+          aliases?: string[]
+          created_at?: string
+          description?: string | null
+          domain_id?: string | null
+          id?: string
+          last_used_at?: string | null
+          level?: number
+          mastery_confidence?: number
+          mastery_level?: number
+          name: string
+          normalized_name: string
+          status?: string
+          updated_at?: string
+          user_id: string
+          xp?: number
+        }
+        Update: {
+          aliases?: string[]
+          created_at?: string
+          description?: string | null
+          domain_id?: string | null
+          id?: string
+          last_used_at?: string | null
+          level?: number
+          mastery_confidence?: number
+          mastery_level?: number
+          name?: string
+          normalized_name?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+          xp?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "skills_domain_id_fkey"
+            columns: ["domain_id"]
+            isOneToOne: false
+            referencedRelation: "domains"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      xp_transactions: {
+        Row: {
+          activity_id: string
+          activity_type: string | null
+          amount: number
+          assessment_id: string
+          base_amount: number
+          created_at: string
+          domain_id: string | null
+          id: string
+          modifier_json: Json
+          quest_id: string | null
+          reason: string | null
+          repetition_count: number
+          repetition_penalty: number
+          rules_version: string
+          skill_id: string | null
+          user_id: string
+          xp_type: string
+        }
+        Insert: {
+          activity_id: string
+          activity_type?: string | null
+          amount: number
+          assessment_id: string
+          base_amount: number
+          created_at?: string
+          domain_id?: string | null
+          id?: string
+          modifier_json?: Json
+          quest_id?: string | null
+          reason?: string | null
+          repetition_count?: number
+          repetition_penalty?: number
+          rules_version: string
+          skill_id?: string | null
+          user_id: string
+          xp_type?: string
+        }
+        Update: {
+          activity_id?: string
+          activity_type?: string | null
+          amount?: number
+          assessment_id?: string
+          base_amount?: number
+          created_at?: string
+          domain_id?: string | null
+          id?: string
+          modifier_json?: Json
+          quest_id?: string | null
+          reason?: string | null
+          repetition_count?: number
+          repetition_penalty?: number
+          rules_version?: string
+          skill_id?: string | null
+          user_id?: string
+          xp_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_xp_transactions_activity"
+            columns: ["activity_id"]
+            isOneToOne: false
+            referencedRelation: "activities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_xp_transactions_assessment"
+            columns: ["assessment_id"]
+            isOneToOne: true
+            referencedRelation: "ai_assessments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_xp_transactions_skill"
+            columns: ["skill_id"]
+            isOneToOne: false
+            referencedRelation: "skills"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      [_ in never]: never
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
+}
+
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
+  public: {
+    Enums: {},
+  },
+} as const
+

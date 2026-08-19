@@ -51,15 +51,16 @@ export function mapSkill(row: SkillRow): SkillState {
   };
 }
 
-export function mapTransaction(row: TransactionRow): XpTransaction {
+export function mapTransaction(row: TransactionRow, skillName?: string): XpTransaction {
   if (!row.skill_id) throw new Error(`xp_transactions row ${row.id} has no skill_id`);
+  if (!skillName) throw new Error(`xp_transactions row ${row.id} has no resolved skill name`);
   return {
     id: row.id,
     activityId: row.activity_id,
     assessmentId: row.assessment_id,
     xpType: row.xp_type as XpTransaction["xpType"],
     skillId: row.skill_id,
-    skillName: "",
+    skillName,
     activityType: row.activity_type,
     repetitionCount: row.repetition_count,
     repetitionPenalty: Number(row.repetition_penalty),
@@ -73,12 +74,13 @@ export function mapTransaction(row: TransactionRow): XpTransaction {
 }
 
 export function mapPlayer(row: PlayerRow | null): PlayerState {
+  if (!row) throw new Error("player_states invariant violated: authenticated user has no player state");
   return {
-    totalXp: Number(row?.total_xp ?? 0),
-    playerLevel: row?.player_level ?? 1,
-    energy: Number(row?.energy ?? 70),
-    focus: Number(row?.focus ?? 70),
-    momentum: Number(row?.momentum ?? 30),
+    totalXp: Number(row.total_xp),
+    playerLevel: row.player_level,
+    energy: Number(row.energy),
+    focus: Number(row.focus),
+    momentum: Number(row.momentum),
   };
 }
 
