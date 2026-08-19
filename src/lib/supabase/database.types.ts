@@ -907,7 +907,72 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      create_activity: {
+        Args: {
+          p_activity_type?: string
+          p_completion?: number
+          p_effective_minutes?: number
+          p_ended_at?: string
+          p_quest_id?: string
+          p_raw_input: string
+          p_started_at?: string
+          p_title: string
+          p_total_minutes?: number
+        }
+        Returns: {
+          activity_type: string | null
+          completion: number | null
+          created_at: string
+          effective_minutes: number | null
+          ended_at: string | null
+          id: string
+          quest_id: string | null
+          raw_input: string
+          rules_version: string
+          started_at: string | null
+          status: string
+          title: string
+          total_minutes: number | null
+          updated_at: string
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "activities"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      record_ai_assessment: {
+        Args: {
+          p_activity_id: string
+          p_assessment_json: Json
+          p_confidence: number
+          p_model_name: string
+          p_prompt_version: string
+          p_user_id: string
+        }
+        Returns: {
+          activity_id: string
+          assessment_json: Json
+          confidence: number | null
+          confirmed_at: string | null
+          created_at: string
+          id: string
+          model_name: string | null
+          prompt_version: string | null
+          rules_version: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "ai_assessments"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
     }
     Enums: {
       [_ in never]: never

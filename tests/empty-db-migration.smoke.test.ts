@@ -18,7 +18,7 @@ import path from "node:path";
  * unreachable -> the test FAILS (never silently passes), forcing the operator to
  * provide a real DB + installed driver.
  *
- * It runs the full migration chain (0001..0021) against a FRESH database and then
+ * It runs the full migration chain (0001..0022) against a FRESH database and then
  * asserts the bootstrapped schema is internally consistent:
  *   - all 16 private tables + xp_transactions exist and have RLS enabled;
  *   - xp_transactions is read-only for `authenticated` (SELECT policy only);
@@ -49,13 +49,26 @@ describe.skipIf(!DATABASE_URL)("M3 Stage1.2 — empty-DB migration smoke", () =>
     const client = new Client({ connectionString: DATABASE_URL });
     await client.connect();
     try {
-      const files = fs
-        .readdirSync(MIGRATIONS_DIR)
-        .filter((f) => f.endsWith(".sql"))
-        .sort();
-      for (const file of files) {
-        const sql = fs.readFileSync(path.join(MIGRATIONS_DIR, file), "utf8");
-        await client.query(sql);
+      const alreadyBootstrapped = await client
+        .query<{ n: number }>(
+          `select count(*)::int as n from pg_class
+            where relname = 'activities' and relnamespace = 'public'::regnamespace`,
+        )
+        .then((r) => r.rows[0].n > 0);
+
+      if (!alreadyBootstrapped) {
+        // Only (re)apply the chain on a genuinely empty database. When the DB is
+        // already provisioned (e.g. `supabase db start` / `supabase db reset`),
+        // re-applying races with the other DB-backed tests that share this
+        // instance — skip to avoid clobbering live state (Round13).
+        const files = fs
+          .readdirSync(MIGRATIONS_DIR)
+          .filter((f) => f.endsWith(".sql"))
+          .sort();
+        for (const file of files) {
+          const sql = fs.readFileSync(path.join(MIGRATIONS_DIR, file), "utf8");
+          await client.query(sql);
+        }
       }
 
       const tables = [

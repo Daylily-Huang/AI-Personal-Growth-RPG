@@ -2,6 +2,7 @@
 // component and never re-export the key. Code review gate: keep it server-only.
 import { createClient } from "@supabase/supabase-js";
 import { getProjectConfig, getSecretKey } from "./env";
+import type { Database } from "./database.types";
 
 /**
  * ✅ DO NOT USE IN NORMAL BUSINESS ROUTES.
@@ -26,7 +27,7 @@ export function getSupabaseAdminClient() {
         "Refusing to build an admin client without it.",
     );
   }
-  return createClient(url, secretKey, {
+  return createClient<Database>(url, secretKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 }

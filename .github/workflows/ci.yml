@@ -34,3 +34,43 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+  supabase-integration:
+    runs-on: ubuntu-latest
+    # Database-backed tests (migration smoke + final-state authority) need a live
+    # Supabase stack. They skip harmlessly without XP_RPG_TEST_DB_URL, but here we
+    # provision one so the authority gate actually runs in CI (Round13 P2-1/P2-2).
+    services:
+      docker:
+        image: docker:27-dind
+        options: --privileged
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.7.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.114.0
+
+      - name: Start local Supabase stack
+        run: supabase db start
+
+      - name: Run database-backed tests
+        env:
+          XP_RPG_TEST_DB_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+        run: pnpm test

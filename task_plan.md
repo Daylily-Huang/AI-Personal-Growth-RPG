@@ -21,7 +21,13 @@
   - [complete] 9.2：收紧 Activity 客户端状态权限
   - [complete] 9.3：生成真实 Supabase Database types
   - [complete] 9.4：修复 transaction skillName 显示映射
-  - [in_progress] 9.5：行为级集成测试、摘要、提交、推送
+  - [complete] 9.5：行为级集成测试、摘要、提交、推送
+- [in_progress] 阶段 10：实施 Round13 Stage2-A.2 Final Authority Closure
+  - [complete] 10.1：0022 删除 activities_insert，新增 create_activity SECURITY DEFINER RPC（封死 INSERT 伪造）
+  - [complete] 10.2：重生成 database.types.ts（含两个 RPC）并泛型化 admin/server/browser 客户端
+  - [complete] 10.3：SupabaseRepository 写入路径接线（addActivity→create_activity、addAssessment→AssessmentPersistenceService）+ 路由接入请求级 repository
+  - [complete] 10.4：新增真实 PostgreSQL 权限终态测试 + 修正静态 schema 测试漂移 + CI 集成 job
+  - [in_progress] 10.5：摘要、提交、推送、核验远程 main
 
 ## 当前设计边界
 - 首个切片只覆盖 Activity → Assessment → Confirm → XP Ledger/Player/Skill 的真实 Supabase 路径。

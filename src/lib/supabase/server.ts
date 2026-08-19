@@ -2,6 +2,7 @@
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { getProjectConfig } from "./env";
+import type { Database } from "./database.types";
 
 /**
  * User-scoped server Supabase client authenticated by the request session
@@ -19,7 +20,7 @@ import { getProjectConfig } from "./env";
 export async function getSupabaseServerClient() {
   const cookieStore = await cookies();
   const { url, publishableKey } = getProjectConfig();
-  return createServerClient(url, publishableKey, {
+  return createServerClient<Database>(url, publishableKey, {
     cookies: {
       getAll: () => cookieStore.getAll(),
       setAll: (cookiesToSet, headers: Record<string, string>) => {

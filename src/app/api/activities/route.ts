@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getRepository } from "@/lib/store/demo-db";
+import { getRequestRepository } from "@/lib/store/request-repository";
 
 export async function POST(request: Request) {
   try {
@@ -10,7 +10,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "rawInput is required" }, { status: 400 });
     }
 
-    const activity = await getRepository().addActivity({
+    const repo = await getRequestRepository();
+    const activity = await repo.addActivity({
       rawInput,
       totalMinutes: typeof body?.totalMinutes === "number" ? body.totalMinutes : null,
       effectiveMinutes: typeof body?.effectiveMinutes === "number" ? body.effectiveMinutes : null,

@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { RULES_VERSION } from "@/lib/growth-engine/xp";
 import type { Database } from "@/lib/supabase/database.types";
+import { AssessmentPersistenceService } from "./assessment-persistence.service";
 import type { Repository, SettlementResult } from "./repository";
 import type { Activity, Assessment, MasteryVerification, NewActivityInput, NewAssessmentInput, PlayerState, SettlementToApply, SkillEdge, SkillState, XpTransaction } from "./types";
 import { mapActivity, mapAssessment, mapMasteryVerification, mapPlayer, mapSkill, mapTransaction } from "./supabase-mapping";
@@ -84,22 +84,25 @@ export class SupabaseRepository implements Repository {
 
   async addActivity(input: NewActivityInput): Promise<Activity> {
     const rawInput = input.rawInput.trim();
-    const { data, error } = await this.client.from("activities").insert({
-      user_id: this.userId,
-      raw_input: rawInput,
-      title: rawInput.slice(0, 80) || "未命名 Activity",
-      total_minutes: input.totalMinutes ?? null,
-      effective_minutes: input.effectiveMinutes ?? null,
-      rules_version: RULES_VERSION,
-    }).select("*").single();
+    const title = rawInput.slice(0, 80) || "未命名 Activity";
+    // Round13 P1-1: Activity creation is server-owned. The client never chooses
+    // user_id/status/rules_version/audit timestamps — create_activity RPC derives
+    // them. Direct INSERT on activities is revoked (0022).
+    const { data, error } = await this.client.rpc("create_activity", {
+      p_title: title,
+      p_raw_input: rawInput,
+      p_total_minutes: input.totalMinutes ?? undefined,
+      p_effective_minutes: input.effectiveMinutes ?? undefined,
+    });
     if (error) throw error;
+    if (!data) throw new Error("create_activity returned no activity");
     return mapActivity(data);
   }
 
-  async addAssessment(_input: NewAssessmentInput): Promise<Assessment> {
-    throw new Error(
-      "AI assessments are server-authored. Use AssessmentPersistenceService after authenticating and reading the Activity through this RLS-scoped repository.",
-    );
+  async addAssessment(input: NewAssessmentInput): Promise<Assessment> {
+    // Round12/13: AI assessments are server-authored. The authorized persistence
+    // service writes through the service-role-only record_ai_assessment RPC.
+    return new AssessmentPersistenceService().recordForAuthenticatedActivity(this.userId, input);
   }
 
   async lookupSkillId(label: string): Promise<string | null> {

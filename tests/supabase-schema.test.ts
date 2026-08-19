@@ -44,6 +44,7 @@ const EXPECTED_ORDER = [
   "0019_schema_integrity",
   "0020_activity_immutability",
   "0021_assessment_authority",
+  "0022_activity_creation_authority",
 ];
 
 const PRIVATE_TABLES = [
@@ -216,10 +217,15 @@ describe("M3 Stage1.1 — RLS authority matrix (Round8 P0)", () => {
   });
 
   // User-authored content: full CRUD on own rows.
+  // NOTE: `activities` is intentionally EXCLUDED — Round13 (P1-1) revoked direct
+  // client INSERT/UPDATE on activities and restricted DELETE to pending rows,
+  // because Activity creation is server-owned via the create_activity RPC
+  // (0022) and status transitions are server-owned (0021). The real final-state
+  // authority matrix is asserted by tests/authority-final-state.test.ts against
+  // a live DB, not by grepping 0018 alone.
   for (const table of [
     "domains",
     "quests",
-    "activities",
     "knowledge_nodes",
     "knowledge_edges",
     "artifacts",
@@ -233,6 +239,22 @@ describe("M3 Stage1.1 — RLS authority matrix (Round8 P0)", () => {
       expect(grants(table, "delete")).toBe(true);
     });
   }
+
+  test("activities: 0018 grants CRUD but 0021/0022 revoke direct writes (server-owned)", () => {
+    // 0018 establishes the original policy set...
+    expect(rls).toContain("activities_insert");
+    expect(rls).toContain("activities_update");
+    expect(rls).toContain("activities_delete");
+    // ...and 0021 + 0022 close the authority gaps so clients cannot forge state.
+    const a21 = migrations.get("0021_assessment_authority") ?? "";
+    const a22 = migrations.get("0022_activity_creation_authority") ?? "";
+    expect(a21).toContain("drop policy if exists activities_update");
+    expect(a21).toContain("activities_delete_pending");
+    expect(a21).toContain("status = 'pending_assessment'");
+    expect(a22).toContain("drop policy if exists activities_insert");
+    expect(a22).toContain("create or replace function public.create_activity");
+    expect(a22).toContain("to authenticated");
+  });
 
   test("every permanent-state read-only policy is scoped to auth.uid()", () => {
     for (const table of ["xp_transactions", "player_states", "skills", "mastery_events"]) {
