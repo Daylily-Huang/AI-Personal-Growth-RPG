@@ -7,10 +7,14 @@
 - [complete] 阶段 1：读取审查记录、当前代码状态和项目规范
 - [complete] 阶段 2：整理未完成任务与优先级
 - [complete] 阶段 3：完成 Stage1 真实 Supabase 验证
-- [in_progress] 阶段 4：审查 Stage2 接口、schema 与测试缺口
-- [pending] 阶段 5：提交 Stage2 最小垂直切片设计并等待用户确认
-- [pending] 阶段 6：实现 schema/RPC/SupabaseRepository
-- [pending] 阶段 7：接线 API、补双用户隔离与并发测试
+- [complete] 阶段 4：审查 Stage2 接口、schema 与测试缺口
+- [complete] 阶段 5：读取 Round11 并冻结 Stage1、确定 Stage2-A/B 边界
+- [in_progress] 阶段 6：实现 Stage2-A（Repository/Auth wiring/generated DB types/Activity immutability/basic mapping）
+  - [complete] 6.1：诊断并修复本地网站启动阻断
+  - [complete] 6.2：实现 SupabaseRepository 与基础 Auth wiring
+  - [complete] 6.3：实现 Activity immutability 与基础映射测试
+  - [in_progress] 6.4：运行完整验证并确认 migration 与本地数据库兼容
+- [pending] 阶段 7：实现 Stage2-B（settlement RPC/事务/幂等/repetition/mastery/concurrency/双用户测试）
 - [pending] 阶段 8：运行完整验证、生成报告、提交并推送
 
 ## 当前设计边界

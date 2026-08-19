@@ -34,7 +34,7 @@ create table if not exists public.xp_transactions (
 -- Round5 (Milestone 2.7): 一个 Activity 最多只能有一笔"原始活动 XP 结算"。
 -- Assessment revision 可以有很多（重评/编辑），但只有第一笔 activity 结算能落账；
 -- adjustment / correction 类型不受此限制（xpath 走另一条 pipeline）。
-create unique index xp_transactions_one_activity_settlement_idx
+create unique index if not exists xp_transactions_one_activity_settlement_idx
     on public.xp_transactions (activity_id)
     where xp_type = 'activity';
 

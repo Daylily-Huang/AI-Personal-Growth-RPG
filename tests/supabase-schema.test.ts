@@ -42,6 +42,7 @@ const EXPECTED_ORDER = [
   "0017_rls",
   "0018_authority_rls_matrix",
   "0019_schema_integrity",
+  "0020_activity_immutability",
 ];
 
 const PRIVATE_TABLES = [

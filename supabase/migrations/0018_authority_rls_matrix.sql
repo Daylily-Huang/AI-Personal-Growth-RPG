@@ -45,6 +45,10 @@ begin
     loop
       execute format('drop policy if exists %I on public.%I', t || '_' || p, t);
     end loop;
+    foreach p in array array['select', 'insert', 'update', 'delete']
+    loop
+      execute format('drop policy if exists %I on public.%I', t || '_' || p, t);
+    end loop;
   end loop;
 end $$;
 

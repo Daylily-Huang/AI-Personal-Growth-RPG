@@ -26,6 +26,6 @@ create index if not exists mastery_verifications_user_status_idx
 
 -- Round5: 每个 skill 至多一个 pending 验证（防止重复排队）。
 -- 需要 skill_id not null + 排除 NULL 的唯一索引（部分索引只约束 pending 行）。
-create unique index mastery_verifications_one_pending_idx
+create unique index if not exists mastery_verifications_one_pending_idx
     on public.mastery_verifications (user_id, skill_id)
     where status = 'pending';
