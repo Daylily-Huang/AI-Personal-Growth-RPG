@@ -51,7 +51,7 @@
   - [complete] 12.3：database.types.ts 新增 skill_name_snapshot 字段 + supabase-mapping.test.ts 适配
   - [complete] 12.4：settlement-rpc.test.ts 新增 9 个 Stage2-B.1 测试（共 16 个）：stale mastery / canonical XP mismatch / negative XP / xpType 强制 / cross-activity 并发 / quest ownership / repetition 零副作用 / verification 字段值 / skill_name_snapshot
   - [complete] 12.5：supabase-schema.test.ts EXPECTED_ORDER 扩展至 0025
-  - [in_progress] 12.6：摘要、提交、推送、核验远程 main
+  - [complete] 12.6：摘要、提交、推送、核验远程 main
 
 ## 当前设计边界
 - 首个切片只覆盖 Activity → Assessment → Confirm → XP Ledger/Player/Skill 的真实 Supabase 路径。
