@@ -28,6 +28,12 @@
   - [complete] 10.3：SupabaseRepository 写入路径接线（addActivity→create_activity、addAssessment→AssessmentPersistenceService）+ 路由接入请求级 repository
   - [complete] 10.4：新增真实 PostgreSQL 权限终态测试 + 修正静态 schema 测试漂移 + CI 集成 job
   - [in_progress] 10.5：摘要、提交、推送、核验远程 main
+- [complete] 阶段 11：实施 Round14 Stage2-A.3 Authority Final-Final Closure
+  - [complete] 11.1：0023 修复 rules_version 权威（active-only + activated_at 排序 + 唯一 active 约束 + 无 active 时 fail-closed + 注册 growth-engine-v0.1=active）
+  - [complete] 11.2：getRequestRepository 改为 fail-closed（已配置即走 Supabase，未认证 401、基础设施异常 5xx，禁止静默 Demo 降级）
+  - [complete] 11.3：两个 API 路由将 AuthRequiredError 映射为 401
+  - [complete] 11.4：新增真实 PostgreSQL rules_version 断言（active 优先于 draft、无 active 失败关闭）+ getRequestRepository fail-closed 单元测试 + 扩展 EXPECTED_ORDER 至 0023
+  - [in_progress] 11.5：摘要、提交、推送、核验远程 main
 
 ## 当前设计边界
 - 首个切片只覆盖 Activity → Assessment → Confirm → XP Ledger/Player/Skill 的真实 Supabase 路径。

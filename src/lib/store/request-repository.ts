@@ -20,10 +20,16 @@ export async function getAuthenticatedRepository(): Promise<Repository> {
 }
 
 /**
- * Request-scoped repository for the Activity creation + AI assessment paths
- * (Round13 P1-3). Uses the authenticated Supabase repository when Supabase is
- * configured AND the request carries a session; otherwise falls back to the
- * Demo repository so the local site keeps working without an auth UI.
+ * Request-scoped repository for the Activity creation + AI assessment paths.
+ *
+ * Fail-closed authority model (Round14 P1-2):
+ *   - Supabase NOT configured  -> Demo mode (local site works without an auth UI).
+ *   - Supabase configured       -> Supabase mode. The request MUST resolve through
+ *     the authenticated repository. A missing session throws AuthRequiredError
+ *     (route maps it to 401); an auth-infra failure throws and the route maps it
+ *     to 5xx. We deliberately do NOT catch-and-fall-back to Demo: silently
+ *     writing authoritative permanent growth state into demo.json would create a
+ *     second source of truth.
  *
  * This wires the real "Activity → AI → trusted Assessment RPC" path without a
  * big-bang switch of every read path. Reads (dashboard, skills, ledger) still
@@ -31,12 +37,8 @@ export async function getAuthenticatedRepository(): Promise<Repository> {
  */
 export async function getRequestRepository(): Promise<Repository> {
   if (!isSupabaseConfigured()) return new DemoRepository();
-  try {
-    const client = await getSupabaseServerClient();
-    const { data, error } = await client.auth.getUser();
-    if (error || !data.user) return new DemoRepository();
-    return new SupabaseRepository(client, data.user.id);
-  } catch {
-    return new DemoRepository();
-  }
+  // Supabase is configured: require a real authenticated Supabase session.
+  // Throws AuthRequiredError (unauthenticated) or a transport error (infra
+  // failure) — both must surface to the caller, never downgrade to Demo.
+  return getAuthenticatedRepository();
 }

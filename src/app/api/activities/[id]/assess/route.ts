@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getRequestRepository } from "@/lib/store/request-repository";
+import { getRequestRepository, AuthRequiredError } from "@/lib/store/request-repository";
 import { ActivityAlreadySettledError, STORE_ERROR_CODES } from "@/lib/store/errors";
 import { assessActivity } from "@/lib/ai/assess";
 import { getPromptVersion } from "@/lib/ai/prompts";
@@ -57,6 +57,9 @@ export async function POST(_request: Request, ctx: { params: Promise<{ id: strin
       );
     }
     console.error("Failed to assess activity", error);
+    if (error instanceof AuthRequiredError) {
+      return NextResponse.json({ error: error.message }, { status: 401 });
+    }
     return NextResponse.json({ error: "Failed to assess activity" }, { status: 500 });
   }
 }

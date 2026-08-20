@@ -18,7 +18,7 @@ import path from "node:path";
  * unreachable -> the test FAILS (never silently passes), forcing the operator to
  * provide a real DB + installed driver.
  *
- * It runs the full migration chain (0001..0022) against a FRESH database and then
+ * It runs the full migration chain (0001..0023) against a FRESH database and then
  * asserts the bootstrapped schema is internally consistent:
  *   - all 16 private tables + xp_transactions exist and have RLS enabled;
  *   - xp_transactions is read-only for `authenticated` (SELECT policy only);

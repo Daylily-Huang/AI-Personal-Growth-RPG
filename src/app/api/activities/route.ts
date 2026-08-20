@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getRequestRepository } from "@/lib/store/request-repository";
+import { getRequestRepository, AuthRequiredError } from "@/lib/store/request-repository";
 
 export async function POST(request: Request) {
   try {
@@ -19,6 +19,9 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ activity }, { status: 201 });
   } catch (error) {
+    if (error instanceof AuthRequiredError) {
+      return NextResponse.json({ error: error.message }, { status: 401 });
+    }
     console.error("Failed to create activity", error);
     return NextResponse.json({ error: "Failed to create activity" }, { status: 500 });
   }

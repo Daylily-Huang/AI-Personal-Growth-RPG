@@ -153,8 +153,8 @@ describe.skipIf(!DATABASE_URL)("Round13 — final-state authority matrix (live D
     expect(r.rows.length).toBe(1);
     expect(r.rows[0].user_id).toBe(USER_A);
     expect(r.rows[0].status).toBe("pending_assessment");
-    // rules_version is authoritative (registry or fallback), never client-chosen.
-    expect(r.rows[0].rules_version).toBeTruthy();
+    // rules_version is the authoritative ACTIVE version, frozen at creation.
+    expect(r.rows[0].rules_version).toBe("growth-engine-v0.1");
     expect(r.rows[0].rules_version).not.toBe("evil-v9");
     await client.query("reset role");
   });
@@ -173,5 +173,52 @@ describe.skipIf(!DATABASE_URL)("Round13 — final-state authority matrix (live D
     }
     expect(denied, "authenticated must not EXECUTE record_ai_assessment").toBe(true);
     await client.query("reset role");
+  });
+
+  test("create_activity selects the ACTIVE rules version and ignores drafts (no string-sort, no v1 fallback)", async () => {
+    // The active seed (growth-engine-v0.1) already exists from migration 0023.
+    // Add drafts, including one whose TEXT sort would win under the OLD
+    // `order by version desc` bug ('v999' > 'v0.1' as strings).
+    await client.query(
+      `insert into public.rules_versions (version, status, activated_at) values
+         ('growth-engine-v999', 'draft', now()),
+         ('growth-engine-v0.2', 'draft', now())`,
+    );
+    await client.query("set role authenticated");
+    await client.query("select set_config('request.jwt.claim.sub', $1, false)", [USER_A]);
+    const r = await client.query<{ rules_version: string }>(
+      `select rules_version from public.create_activity($1, $2)`,
+      ["Round14 activity", "real raw input"],
+    );
+    expect(r.rows.length).toBe(1);
+    expect(r.rows[0].rules_version, "must freeze the ACTIVE version, not a draft").toBe(
+      "growth-engine-v0.1",
+    );
+    await client.query("reset role");
+    await client.query(
+      "delete from public.rules_versions where version in ('growth-engine-v999', 'growth-engine-v0.2')",
+    );
+  });
+
+  test("create_activity fails closed when no active rules version exists", async () => {
+    // Remove the active version so the registry has no active row.
+    await client.query("update public.rules_versions set status = 'archived' where status = 'active'");
+    await client.query("set role authenticated");
+    await client.query("select set_config('request.jwt.claim.sub', $1, false)", [USER_A]);
+    let failed = false;
+    let message = "";
+    try {
+      await client.query(`select public.create_activity($1, $2)`, ["x", "y"]);
+    } catch (e) {
+      failed = true;
+      message = String(e);
+    }
+    expect(failed, "create_activity must FAIL CLOSED when no active rules version exists").toBe(true);
+    expect(message.toLowerCase()).toContain("no_active_rules_version");
+    await client.query("reset role");
+    // Restore the seed active version for subsequent tests / runs.
+    await client.query(
+      "update public.rules_versions set status = 'active' where version = 'growth-engine-v0.1'",
+    );
   });
 });
