@@ -19,10 +19,13 @@ export function createRedirectWithSession(
   sourceResponse.cookies.getAll().forEach((cookie) => {
     redirectResponse.cookies.set(cookie.name, cookie.value, cookie);
   });
-  // Propagate cache-busting headers from @supabase/ssr
-  sourceResponse.headers.forEach((value, key) => {
-    redirectResponse.headers.set(key, value);
-  });
+  // Selectively propagate cache-busting headers from @supabase/ssr (avoid internal Next headers)
+  for (const headerName of ["cache-control", "pragma", "expires"]) {
+    const headerValue = sourceResponse.headers.get(headerName);
+    if (headerValue) {
+      redirectResponse.headers.set(headerName, headerValue);
+    }
+  }
   return redirectResponse;
 }
 

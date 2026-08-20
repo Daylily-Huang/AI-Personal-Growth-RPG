@@ -17,7 +17,7 @@ export default function LoginPage() {
 
   const isConfigured = isSupabaseConfigured();
   const isDevDemoEnabled =
-    process.env.NODE_ENV !== "production" ||
+    process.env.NODE_ENV !== "production" &&
     process.env.NEXT_PUBLIC_ENABLE_DEV_DEMO_ACCOUNT === "true";
 
   async function handleAuth(e: React.FormEvent) {

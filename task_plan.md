@@ -82,6 +82,13 @@
   - [complete] 16.4：0029_default_privileges_tighten.sql 撤销 public 宽泛默认权限恢复 fail-closed
   - [complete] 16.5：tests/http-auth-flow.test.ts 覆盖未登录 API 401、登出、中间件会话传播
   - [complete] 16.6：全量套件 17 passed (136/136), tsc 0 errors, harness 11/11 passed, eslint 0 errors / 0 warnings
+- [complete] 阶段 17：实施 Stage 3 Final Acceptance（生产构建 + 真实 HTTP E2E 验收）
+  - [complete] 17.1：生产构建门禁验证 `pnpm build`（0 errors, 0 warnings）
+  - [complete] 17.2：迁移 `src/middleware.ts` 至 Next.js 16 规范 `src/proxy.ts`
+  - [complete] 17.3：新增 `tests/e2e-http-browser.test.ts`（6 个用例，真实 HTTP TCP 生产服务器 + Auth Cookies + PostgreSQL 全链路 E2E 测试）
+  - [complete] 17.4：/login Demo 账号双重安全门禁（NODE_ENV !== production && NEXT_PUBLIC_ENABLE_DEV_DEMO_ACCOUNT === "true"）
+  - [complete] 17.5：0030_function_default_privileges_tighten.sql 收紧函数默认 EXECUTE 权限
+  - [complete] 17.6：全量套件 18 passed (142/142), tsc 0 errors, build 0 errors, harness 11/11 passed, eslint 0 errors / 0 warnings
 
 ## 当前设计边界
 - 首个切片只覆盖 Activity → Assessment → Confirm → XP Ledger/Player/Skill 的真实 Supabase 路径。
