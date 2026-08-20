@@ -70,7 +70,17 @@ jobs:
       - name: Start local Supabase stack
         run: supabase db start
 
+      - name: Build production app
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_test_key
+          SUPABASE_SECRET_KEY: test_secret_key
+        run: pnpm build
+
       - name: Run database-backed tests
         env:
           XP_RPG_TEST_DB_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+          NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_test_key
+          SUPABASE_SECRET_KEY: test_secret_key
         run: pnpm test

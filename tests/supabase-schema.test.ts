@@ -53,6 +53,7 @@ const EXPECTED_ORDER = [
   "0028_schema_grants",
   "0029_default_privileges_tighten",
   "0030_function_default_privileges_tighten",
+  "0031_global_function_default_privileges",
 ];
 
 const PRIVATE_TABLES = [

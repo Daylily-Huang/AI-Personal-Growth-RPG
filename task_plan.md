@@ -89,6 +89,12 @@
   - [complete] 17.4：/login Demo 账号双重安全门禁（NODE_ENV !== production && NEXT_PUBLIC_ENABLE_DEV_DEMO_ACCOUNT === "true"）
   - [complete] 17.5：0030_function_default_privileges_tighten.sql 收紧函数默认 EXECUTE 权限
   - [complete] 17.6：全量套件 18 passed (142/142), tsc 0 errors, build 0 errors, harness 11/11 passed, eslint 0 errors / 0 warnings
+- [complete] 阶段 18：实施 Stage 3 Final Acceptance Closure (Round 22 Final-Final Patch)
+  - [complete] 18.1：0031_global_function_default_privileges.sql 采用 Global Default Privileges 撤销新建函数公网默认 EXECUTE 权限并为 service_role 赋权
+  - [complete] 18.2：tests/authority-final-state.test.ts 新增 live DB probe 探测测试，断言新函数 fail-closed（public/anon/authenticated = false, service_role = true）
+  - [complete] 18.3：package.json 引入独立 "test:e2e" 测试脚本
+  - [complete] 18.4：.github/workflows/ci.yml 完善 pnpm build 步骤解耦 CI 编排
+  - [complete] 18.5：全量套件 18 passed (143/143), tsc 0 errors, build 0 errors, harness 11/11 passed, eslint 0 errors / 0 warnings
 
 ## 当前设计边界
 - 首个切片只覆盖 Activity → Assessment → Confirm → XP Ledger/Player/Skill 的真实 Supabase 路径。

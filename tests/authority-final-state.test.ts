@@ -229,4 +229,26 @@ describe.skipIf(!DATABASE_URL)("Round13 — final-state authority matrix (live D
       "update public.rules_versions set status = 'active' where version = 'growth-engine-v0.1'",
     );
   });
+
+  test("new functions created by postgres are fail-closed by default (0031)", async () => {
+    // Create a new probe function as postgres
+    await client.query(`
+      create function public.__test_future_rpc_probe()
+      returns int language sql as $$ select 42 $$;
+    `);
+
+    try {
+      const publicExec = await hasExec(client, "public", "public.__test_future_rpc_probe()");
+      const anonExec = await hasExec(client, "anon", "public.__test_future_rpc_probe()");
+      const authExec = await hasExec(client, "authenticated", "public.__test_future_rpc_probe()");
+      const serviceExec = await hasExec(client, "service_role", "public.__test_future_rpc_probe()");
+
+      expect(publicExec, "public must NOT have EXECUTE on newly created functions by default").toBe(false);
+      expect(anonExec, "anon must NOT have EXECUTE on newly created functions by default").toBe(false);
+      expect(authExec, "authenticated must NOT have EXECUTE on newly created functions by default").toBe(false);
+      expect(serviceExec, "service_role must have EXECUTE on newly created functions by default").toBe(true);
+    } finally {
+      await client.query(`drop function if exists public.__test_future_rpc_probe()`);
+    }
+  });
 });
