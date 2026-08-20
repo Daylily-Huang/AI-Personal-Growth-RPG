@@ -837,13 +837,66 @@ describe.skipIf(!DATABASE_URL)("Stage2-B — settle_activity (live DB)", () => {
     const r2 = await settle(client, USERS.f, s2);
     expect(r2.ok).toBe(true);
     // Verification should NOT have been created (toLevel ≤ currentMastery → none).
-    expect(r2.masteryVerification).toBeUndefined();
+    expect(r2.masteryVerification).toBeNull();
 
     // No pending verification should exist for this skill.
     const pendings = await client.query<{ n: number }>(
       `select count(*)::int as n from public.mastery_verifications
         where user_id = $1 and skill_id = $2 and status = 'pending'`,
       [USERS.f, r1.skillId as string],
+    );
+    expect(pendings.rows[0].n).toBe(0);
+  });
+
+  // ── Stage2-B Final Freeze Patch tests (Round18 review) ───────────
+
+  test("P1-1: new Skill + upgrade proposedLevel=0 → mastery stays M1, no event", async () => {
+    // Use a unique skill name to ensure it's brand new for this user.
+    const act = await createActivityAndAssessment(client, USERS.e, "null mastery guard");
+    const settlement = buildSettlement({
+      assessmentId: act.assessmentId,
+      activityId: act.activityId,
+      skillName: "Null Mastery Guard Skill",
+      masteryAction: { action: "upgrade", proposedLevel: 0, confidence: 0.5 },
+    });
+    const result = await settle(client, USERS.e, settlement);
+    expect(result.ok).toBe(true);
+
+    // Skill was created with default mastery M1 (not downgraded to M0).
+    const skill = await client.query<{ mastery_level: number }>(
+      `select mastery_level from public.skills where id = $1`,
+      [result.skillId as string],
+    );
+    expect(skill.rows[0].mastery_level).toBe(1);
+
+    // No mastery event should exist (proposed M0 ≤ current M1 → demoted to none).
+    const events = await client.query<{ n: number }>(
+      `select count(*)::int as n from public.mastery_events
+        where user_id = $1 and skill_id = $2`,
+      [USERS.e, result.skillId as string],
+    );
+    expect(events.rows[0].n).toBe(0);
+  });
+
+  test("P1-1: new Skill + request_verification M1→M1 → no verification created", async () => {
+    const act = await createActivityAndAssessment(client, USERS.e, "null mastery RV guard");
+    const settlement = buildSettlement({
+      assessmentId: act.assessmentId,
+      activityId: act.activityId,
+      skillName: "Null Mastery RV Skill",
+      masteryAction: { action: "request_verification", fromLevel: 1, toLevel: 1, confidence: 0.8 },
+      masteryVerification: { evidenceLevel: 4 },
+    });
+    const result = await settle(client, USERS.e, settlement);
+    expect(result.ok).toBe(true);
+
+    // toLevel=1 ≤ currentMastery=1 → demoted to none → no verification.
+    expect(result.masteryVerification).toBeNull();
+
+    const pendings = await client.query<{ n: number }>(
+      `select count(*)::int as n from public.mastery_verifications
+        where user_id = $1 and skill_id = $2`,
+      [USERS.e, result.skillId as string],
     );
     expect(pendings.rows[0].n).toBe(0);
   });

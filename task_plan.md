@@ -61,7 +61,13 @@
   - [complete] 13.6：P2-2 listTransactions() 改用 skill_name_snapshot（不再 JOIN skills 表）
   - [complete] 13.7：新增 3 个 DB 测试（共 19 个）：orphan Skill 零创建 / skill_name mismatch / stale request_verification
   - [complete] 13.8：EXPECTED_ORDER 扩展至 0026
-  - [in_progress] 13.9：摘要、提交、推送、核验远程 main
+  - [complete] 13.9：摘要、提交、推送、核验远程 main
+- [complete] 阶段 14：实施 Round18 Final Freeze Patch
+  - [complete] 14.1：0027_mastery_null_closure.sql — v_current_mastery := coalesce(v_skill_row.mastery_level, 1)；Phase G 全部基于此权威值；verification fromLevel 直接取 DB current
+  - [complete] 14.2：新增 2 个 DB 测试（共 21 个）：new Skill + upgrade M0 → 保持 M1 / new Skill + request_verification M1→M1 → 无 verification
+  - [complete] 14.3：EXPECTED_ORDER 扩展至 0027
+  - [complete] 14.4：真实 DB gate 全通过 — supabase db reset 0001→0027 + settlement-rpc 21/21 + authority-final-state 10/10 + migration smoke 1/1 + 全量 124/124 tests passed, 0 skipped
+  - [in_progress] 14.5：摘要、提交、推送、核验远程 main
 
 ## 当前设计边界
 - 首个切片只覆盖 Activity → Assessment → Confirm → XP Ledger/Player/Skill 的真实 Supabase 路径。
