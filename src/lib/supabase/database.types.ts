@@ -943,6 +943,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      player_level_from_xp: { Args: { p_total_xp: number }; Returns: number }
       record_ai_assessment: {
         Args: {
           p_activity_id: string
@@ -973,6 +974,11 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      settle_activity: {
+        Args: { p_settlement: Json; p_user_id: string }
+        Returns: Json
+      }
+      xp_threshold_for_level: { Args: { p_level: number }; Returns: number }
     }
     Enums: {
       [_ in never]: never

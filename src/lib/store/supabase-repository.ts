@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database } from "@/lib/supabase/database.types";
+import type { Database, Json } from "@/lib/supabase/database.types";
+import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { AssessmentPersistenceService } from "./assessment-persistence.service";
 import type { Repository, SettlementResult } from "./repository";
 import type { Activity, Assessment, MasteryVerification, NewActivityInput, NewAssessmentInput, PlayerState, SettlementToApply, SkillEdge, SkillState, XpTransaction } from "./types";
@@ -109,11 +110,98 @@ export class SupabaseRepository implements Repository {
     return (await this.getSkill(label))?.id ?? null;
   }
 
-  async applySettlement(_settlement: SettlementToApply): Promise<SettlementResult> {
-    throw new Error("SupabaseRepository.applySettlement is reserved for the Stage2-B settle_activity RPC");
+  async applySettlement(settlement: SettlementToApply): Promise<SettlementResult> {
+    // Stage2-B: settlement is a server-owned atomic DB transaction via the
+    // service-role-only settle_activity RPC. The RPC enforces ownership,
+    // one-activity-settlement idempotency, the authoritative repetition
+    // snapshot, pending-verification dedupe and all state transitions inside
+    // one transaction — the client never re-implements growth rules.
+    const admin = getSupabaseAdminClient();
+    const { data, error } = await admin.rpc("settle_activity", {
+      p_user_id: this.userId,
+      p_settlement: settlement as unknown as Json,
+    });
+    if (error) throw error;
+    return mapSettlementRpcResult(data);
   }
 
   async reset(): Promise<void> {
     throw new Error("SupabaseRepository.reset is disabled; use explicit user-scoped test fixtures");
   }
+}
+
+interface SettlementRpcTx {
+  id: string;
+  userId: string;
+  activityId: string;
+  assessmentId: string;
+  skillId: string;
+  skillName: string;
+  activityType: string | null;
+  xpType: "activity" | "adjustment" | "correction";
+  repetitionCount: number;
+  repetitionPenalty: number;
+  amount: number;
+  baseAmount: number;
+  modifierJson: Record<string, unknown>;
+  reason: string | null;
+  rulesVersion: string;
+  createdAt: string;
+}
+
+interface SettlementRpcVerification {
+  id: string;
+  skillId: string;
+  skillName: string;
+  fromLevel: number;
+  toLevel: number;
+  evidenceLevel: number;
+  status: "pending" | "verified" | "rejected";
+  proposalAssessmentId: string;
+  createdAt: string;
+  resolvedAt: string | null;
+}
+
+type SettlementRpcResult =
+  | { ok: true; skillId: string; transaction: SettlementRpcTx; masteryVerification: SettlementRpcVerification | null }
+  | { ok: false; reason: string; actualRepetitionCount?: number };
+
+/** Map the settle_activity RPC's jsonb result to the Repository contract. */
+function mapSettlementRpcResult(data: unknown): SettlementResult {
+  if (!data || typeof data !== "object") {
+    throw new Error("settle_activity returned no result");
+  }
+  const result = data as SettlementRpcResult;
+
+  if (result.ok !== true) {
+    return {
+      ok: false,
+      reason: result.reason,
+      actualRepetitionCount: result.actualRepetitionCount,
+    };
+  }
+
+  const tx = result.transaction;
+  return {
+    ok: true,
+    skillId: result.skillId,
+    transaction: {
+      id: tx.id,
+      activityId: tx.activityId,
+      assessmentId: tx.assessmentId,
+      xpType: tx.xpType,
+      skillId: tx.skillId,
+      skillName: tx.skillName,
+      activityType: tx.activityType ?? null,
+      repetitionCount: tx.repetitionCount,
+      repetitionPenalty: tx.repetitionPenalty,
+      amount: tx.amount,
+      baseAmount: tx.baseAmount,
+      modifierJson: tx.modifierJson ?? {},
+      reason: tx.reason ?? "",
+      rulesVersion: tx.rulesVersion,
+      createdAt: tx.createdAt,
+    },
+    masteryVerification: result.masteryVerification ?? null,
+  };
 }

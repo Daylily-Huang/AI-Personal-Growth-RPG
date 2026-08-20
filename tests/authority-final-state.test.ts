@@ -122,6 +122,14 @@ describe.skipIf(!DATABASE_URL)("Round13 — final-state authority matrix (live D
     expect(await hasExec(client, "public", proc)).toBe(false);
   });
 
+  test("settle_activity: EXECUTE only for service_role, not authenticated/anon/public", async () => {
+    const proc = "public.settle_activity(uuid,jsonb)";
+    expect(await hasExec(client, "service_role", proc)).toBe(true);
+    expect(await hasExec(client, "authenticated", proc)).toBe(false);
+    expect(await hasExec(client, "anon", proc)).toBe(false);
+    expect(await hasExec(client, "public", proc)).toBe(false);
+  });
+
   test("authenticated direct INSERT of a confirmed Activity is denied", async () => {
     await client.query("set role authenticated");
     await client.query("select set_config('request.jwt.claim.sub', $1, false)", [USER_A]);

@@ -46,6 +46,7 @@ const EXPECTED_ORDER = [
   "0021_assessment_authority",
   "0022_activity_creation_authority",
   "0023_rules_version_authority",
+  "0024_settlement_authority",
 ];
 
 const PRIVATE_TABLES = [

@@ -14,7 +14,12 @@
   - [complete] 6.2：实现 SupabaseRepository 与基础 Auth wiring
   - [complete] 6.3：实现 Activity immutability 与基础映射测试
   - [complete] 6.4：运行完整验证并确认 migration 与本地数据库兼容
-- [pending] 阶段 7：实现 Stage2-B（settlement RPC/事务/幂等/repetition/mastery/concurrency/双用户测试）
+- [complete] 阶段 7：实现 Stage2-B（settle_activity 权威结算）
+  - [complete] 7.1：0024 settle_activity SECURITY DEFINER RPC（service_role only）：事务内锁定 assessment/activity、ownership 校验、一笔 activity 结算幂等、权威 repetition snapshot 复核、skill 按 normalized_name upsert、player/skill delta + 等级重算、mastery upgrade 事件、pending verification 去重、supersede 兄弟 revision、确认 assessment/activity
+  - [complete] 7.2：SQL 等级曲线（xp_threshold_for_level / player_level_from_xp）与 TS levelFromXp 对齐
+  - [complete] 7.3：SupabaseRepository.applySettlement 接线 settle_activity RPC + 结果映射；confirm 路由切换请求级 repository（fail-closed，401）
+  - [complete] 7.4：真实 PostgreSQL 结算测试（原子性/幂等/repetition 冲突与重试/mastery pending 去重/双用户隔离/并发单赢/等级曲线 parity）+ 权限断言 + EXPECTED_ORDER 至 0024
+  - [complete] 7.5：摘要、提交、推送、核验远程 main
 - [complete] 阶段 8：生成 Round11 摘要、提交并推送
 - [complete] 阶段 9：实施 Round12 Stage2-A.1 Authority Wiring Closure
   - [complete] 9.1：Assessment trusted persistence 与原子状态转移
