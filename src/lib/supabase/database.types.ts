@@ -837,6 +837,7 @@ export type Database = {
           repetition_penalty: number
           rules_version: string
           skill_id: string | null
+          skill_name_snapshot: string
           user_id: string
           xp_type: string
         }
@@ -856,6 +857,7 @@ export type Database = {
           repetition_penalty?: number
           rules_version: string
           skill_id?: string | null
+          skill_name_snapshot?: string
           user_id: string
           xp_type?: string
         }
@@ -875,6 +877,7 @@ export type Database = {
           repetition_penalty?: number
           rules_version?: string
           skill_id?: string | null
+          skill_name_snapshot?: string
           user_id?: string
           xp_type?: string
         }

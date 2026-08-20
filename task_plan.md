@@ -39,6 +39,19 @@
   - [complete] 11.3：两个 API 路由将 AuthRequiredError 映射为 401
   - [complete] 11.4：新增真实 PostgreSQL rules_version 断言（active 优先于 draft、无 active 失败关闭）+ getRequestRepository fail-closed 单元测试 + 扩展 EXPECTED_ORDER 至 0023
   - [complete] 11.5：摘要、提交、推送、核验远程 main
+- [complete] 阶段 12：实施 Round16 Stage2-B.1 Settlement Integrity Closure
+  - [complete] 12.1：0025_settlement_integrity.sql — settle_activity 全面重写：
+    - P1-1 Mastery 单调增长：Phase G 检查 proposed > current，stale proposal 降级为 none；mastery_events 只在真实 upgrade 时写入
+    - P1-2 Canonical XP delta：transaction.amount 为唯一权威值；reject xpDelta/primarySkill.xpDelta 不一致；强制 xpType='activity'；reject 负数 XP
+    - P1-3 Repetition 序列化：clock_timestamp() 在 SELECT FOR UPDATE 之后取值，消除 now() 事务开始时间 race
+    - P2-A repetition_conflict 零副作用：所有验证（repetition/mastery）在所有永久写入之前完成
+    - P2-B pending MasteryVerification 返回真实 DB row 值（select * into v_existing_pending）
+    - P2-C skill_name_snapshot 落表到 xp_transactions 并用于返回 JSON
+  - [complete] 12.2：0025 create_activity 重写 — P1-4 tenant composite integrity：p_quest_id 非空时验证 quest ownership（auth.uid() = quests.user_id）
+  - [complete] 12.3：database.types.ts 新增 skill_name_snapshot 字段 + supabase-mapping.test.ts 适配
+  - [complete] 12.4：settlement-rpc.test.ts 新增 9 个 Stage2-B.1 测试（共 16 个）：stale mastery / canonical XP mismatch / negative XP / xpType 强制 / cross-activity 并发 / quest ownership / repetition 零副作用 / verification 字段值 / skill_name_snapshot
+  - [complete] 12.5：supabase-schema.test.ts EXPECTED_ORDER 扩展至 0025
+  - [in_progress] 12.6：摘要、提交、推送、核验远程 main
 
 ## 当前设计边界
 - 首个切片只覆盖 Activity → Assessment → Confirm → XP Ledger/Player/Skill 的真实 Supabase 路径。

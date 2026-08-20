@@ -6,7 +6,7 @@ import { Client } from "pg";
 import { levelFromXp } from "@/lib/growth-engine/levels";
 
 /**
- * Stage2-B — settle_activity authoritative settlement (live PostgreSQL).
+ * Stage2-B + Stage2-B.1 — settle_activity authoritative settlement (live PostgreSQL).
  *
  * Runs only when XP_RPG_TEST_DB_URL is set (CI provisions via `supabase db
  * start`; locally via `supabase db reset`). Proves the RPC behaves as the
@@ -23,6 +23,19 @@ import { levelFromXp } from "@/lib/growth-engine/levels";
  *   - dual-user isolation: settle_activity refuses a foreign user's assessment;
  *   - concurrency: parallel settle of the same assessment — exactly one wins;
  *   - level-curve parity: SQL player_level_from_xp === TS levelFromXp.
+ *
+ * Stage2-B.1 additions (Round16 review):
+ *   - canonical XP: transaction.amount is the single source of truth; mismatch
+ *     between settlement.xpDelta / primarySkill.xpDelta / transaction.amount is
+ *     rejected; negative XP rejected; xpType forced to 'activity';
+ *   - mastery monotonic: stale upgrade proposal (proposed ≤ current) is silently
+ *     demoted to 'none'; no downgrade, no spurious mastery event;
+ *   - repetition serialization: clock_timestamp() after skill lock; cross-activity
+ *     same-skill concurrent settlement produces N and N+1 repetition counts;
+ *   - tenant composite integrity: create_activity rejects foreign quest;
+ *   - repetition_conflict has zero side effects (no skill XP / updated_at change);
+ *   - pending MasteryVerification returns actual persisted row values;
+ *   - skill_name_snapshot persisted on xp_transactions.
  */
 
 const DATABASE_URL = process.env.XP_RPG_TEST_DB_URL;
@@ -34,6 +47,8 @@ const USERS = {
   c: "cccccccc-cccc-4ccc-cccc-cccccccccccc",
   d: "dddddddd-dddd-4ddd-dddd-dddddddddddd",
   e: "eeeeeeee-eeee-4eee-eeee-eeeeeeeeeeee",
+  f: "ffffffff-ffff-4fff-ffff-ffffffffffff",
+  g: "11111111-1111-4111-8111-111111111111",
 };
 
 async function schemaExists(client: Client): Promise<boolean> {
@@ -89,11 +104,19 @@ function buildSettlement(input: {
   activityType?: string | null;
   repetitionCount?: number;
   xpDelta?: number;
+  /** Override transaction.amount independently (for mismatch tests). */
+  txAmount?: number;
+  /** Override primarySkill.xpDelta independently (for mismatch tests). */
+  skillXpDelta?: number;
+  /** Override transaction.xpType (for xpType enforcement tests). */
+  xpType?: string;
   masteryAction?: MasteryActionJson;
   masteryVerification?: Record<string, unknown> | null;
   relatedSkillLabels?: string[];
 }): Record<string, unknown> {
   const xpDelta = input.xpDelta ?? 50;
+  const txAmount = input.txAmount ?? xpDelta;
+  const skillXpDelta = input.skillXpDelta ?? xpDelta;
   const activityType = input.activityType ?? "study";
   const masteryAction = input.masteryAction ?? { action: "none" };
   return {
@@ -103,14 +126,14 @@ function buildSettlement(input: {
       id: crypto.randomUUID(),
       activityId: input.activityId,
       assessmentId: input.assessmentId,
-      xpType: "activity",
+      xpType: input.xpType ?? "activity",
       skillId: "",
       skillName: input.skillName ?? "Statistics",
       activityType,
       repetitionCount: input.repetitionCount ?? 0,
       repetitionPenalty: 1,
-      amount: xpDelta,
-      baseAmount: xpDelta,
+      amount: txAmount,
+      baseAmount: txAmount,
       modifierJson: {},
       reason: "settlement-rpc test",
       rulesVersion: "ignored-by-rpc",
@@ -118,7 +141,7 @@ function buildSettlement(input: {
     },
     primarySkill: {
       name: input.skillName ?? "Statistics",
-      xpDelta,
+      xpDelta: skillXpDelta,
       masteryAction,
     },
     relatedSkillLabels: input.relatedSkillLabels ?? [],
@@ -175,6 +198,7 @@ async function cleanupUsers(client: Client): Promise<void> {
     `delete from public.ai_assessments where user_id = $1`,
     `delete from public.skills where user_id = $1`,
     `delete from public.activities where user_id = $1`,
+    `delete from public.quests where user_id = $1`,
     `delete from auth.users where id = $1`,
   ];
   for (const id of Object.values(USERS)) {
@@ -211,6 +235,8 @@ describe.skipIf(!DATABASE_URL)("Stage2-B — settle_activity (live DB)", () => {
     await cleanupUsers(client);
     await client.end().catch(() => {});
   });
+
+  // ── Stage2-B original tests ───────────────────────────────────────
 
   test("atomic settlement: ledger + player + skill + assessment + activity", async () => {
     const { activityId, assessmentId, rulesVersion } = await createActivityAndAssessment(
@@ -345,6 +371,12 @@ describe.skipIf(!DATABASE_URL)("Stage2-B — settle_activity (live DB)", () => {
     expect(r2.ok).toBe(true);
     expect(r2.masteryVerification?.id).toBe(r1.masteryVerification?.id);
 
+    // Stage2-B.1 (P2-B): returned verification must match the ACTUAL persisted row,
+    // not the second request's proposed values.
+    expect(r2.masteryVerification?.fromLevel).toBe(1);
+    expect(r2.masteryVerification?.toLevel).toBe(5); // first's toLevel, not second's 6
+    expect(r2.masteryVerification?.evidenceLevel).toBe(4); // first's evidence, not second's 5
+
     const pendings = await client.query<{ n: number }>(
       `select count(*)::int as n from public.mastery_verifications
         where user_id = $1 and skill_id = $2 and status = 'pending'`,
@@ -426,5 +458,296 @@ describe.skipIf(!DATABASE_URL)("Stage2-B — settle_activity (live DB)", () => {
       const ts = levelFromXp(xp).level;
       expect(sql.rows[0].level, `XP ${xp}: SQL ${sql.rows[0].level} != TS ${ts}`).toBe(ts);
     }
+  });
+
+  // ── Stage2-B.1 integrity tests (Round16 review) ──────────────────
+
+  test("P1-1: stale mastery proposal cannot downgrade mastery", async () => {
+    // First: directly set skill mastery to M3 via a legitimate upgrade settlement.
+    const act1 = await createActivityAndAssessment(client, USERS.f, "mastery baseline");
+    const s1 = buildSettlement({
+      assessmentId: act1.assessmentId,
+      activityId: act1.activityId,
+      skillName: "Stale Mastery Skill",
+      masteryAction: { action: "upgrade", proposedLevel: 3, confidence: 0.9 },
+    });
+    const r1 = await settle(client, USERS.f, s1);
+    expect(r1.ok).toBe(true);
+
+    // Verify mastery is now 3.
+    const skillAfterUpgrade = await client.query<{ mastery_level: number }>(
+      `select mastery_level from public.skills where id = $1`,
+      [r1.skillId as string],
+    );
+    expect(skillAfterUpgrade.rows[0].mastery_level).toBe(3);
+
+    // Now try to settle another activity with a STALE proposal to upgrade to M2.
+    const act2 = await createActivityAndAssessment(client, USERS.f, "stale mastery attempt");
+    const s2 = buildSettlement({
+      assessmentId: act2.assessmentId,
+      activityId: act2.activityId,
+      skillName: "Stale Mastery Skill",
+      repetitionCount: 1,
+      masteryAction: { action: "upgrade", proposedLevel: 2, confidence: 0.7 },
+    });
+    const r2 = await settle(client, USERS.f, s2);
+    expect(r2.ok).toBe(true);
+
+    // Mastery must still be 3 — no downgrade.
+    const skillAfterStale = await client.query<{ mastery_level: number }>(
+      `select mastery_level from public.skills where id = $1`,
+      [r1.skillId as string],
+    );
+    expect(skillAfterStale.rows[0].mastery_level).toBe(3);
+
+    // No spurious "upgrade" event from M3 to M2.
+    const events = await client.query<{ from_level: number; to_level: number; event_type: string }>(
+      `select from_level, to_level, event_type from public.mastery_events
+        where user_id = $1 and skill_id = $2
+        order by created_at`,
+      [USERS.f, r1.skillId as string],
+    );
+    // Only the first legitimate upgrade event should exist.
+    expect(events.rows.length).toBe(1);
+    expect(events.rows[0].from_level).toBe(1);
+    expect(events.rows[0].to_level).toBe(3);
+    expect(events.rows[0].event_type).toBe("upgrade");
+  });
+
+  test("P1-2: canonical XP — mismatched settlement.xpDelta vs transaction.amount rejected", async () => {
+    const act = await createActivityAndAssessment(client, USERS.f, "xp mismatch test");
+    const settlement = buildSettlement({
+      assessmentId: act.assessmentId,
+      activityId: act.activityId,
+      skillName: "XP Mismatch Skill",
+      xpDelta: 100,
+      txAmount: 50, // mismatch!
+    });
+    const result = await settle(client, USERS.f, settlement);
+    expect(result.ok).toBe(false);
+    expect(result.reason).toBe("xp_delta_mismatch");
+
+    // Nothing written.
+    const ledger = await client.query<{ n: number }>(
+      `select count(*)::int as n from public.xp_transactions
+        where user_id = $1 and activity_id = $2`,
+      [USERS.f, act.activityId],
+    );
+    expect(ledger.rows[0].n).toBe(0);
+  });
+
+  test("P1-2: canonical XP — mismatched primarySkill.xpDelta rejected", async () => {
+    const act = await createActivityAndAssessment(client, USERS.f, "skill xp mismatch test");
+    const settlement = buildSettlement({
+      assessmentId: act.assessmentId,
+      activityId: act.activityId,
+      skillName: "Skill XP Mismatch Skill",
+      xpDelta: 50,
+      skillXpDelta: 200, // mismatch!
+    });
+    const result = await settle(client, USERS.f, settlement);
+    expect(result.ok).toBe(false);
+    expect(result.reason).toBe("skill_xp_delta_mismatch");
+  });
+
+  test("P1-2: negative XP rejected", async () => {
+    const act = await createActivityAndAssessment(client, USERS.f, "negative xp test");
+    const settlement = buildSettlement({
+      assessmentId: act.assessmentId,
+      activityId: act.activityId,
+      skillName: "Negative XP Skill",
+      xpDelta: -100,
+      txAmount: -100,
+    });
+    const result = await settle(client, USERS.f, settlement);
+    expect(result.ok).toBe(false);
+    expect(result.reason).toBe("negative_xp");
+  });
+
+  test("P1-2: xpType must be 'activity' — correction/adjustment rejected", async () => {
+    const act = await createActivityAndAssessment(client, USERS.f, "xpType test");
+    const settlement = buildSettlement({
+      assessmentId: act.assessmentId,
+      activityId: act.activityId,
+      skillName: "XpType Skill",
+      xpType: "correction",
+    });
+    const result = await settle(client, USERS.f, settlement);
+    expect(result.ok).toBe(false);
+    expect(result.reason).toBe("invalid_xp_type_for_settle");
+  });
+
+  test("P1-3: cross-activity same-skill concurrent settlement — repetition counts must be N and N+1", async () => {
+    // Two different activities targeting the same skill, settled concurrently.
+    // The first should get repetition_count=0, the second repetition_count=1.
+    const act1 = await createActivityAndAssessment(client, USERS.g, "cross-activity A");
+    const act2 = await createActivityAndAssessment(client, USERS.g, "cross-activity B");
+
+    const s1 = buildSettlement({
+      assessmentId: act1.assessmentId,
+      activityId: act1.activityId,
+      skillName: "Shared Skill",
+      activityType: "study",
+      repetitionCount: 0,
+    });
+    const s2 = buildSettlement({
+      assessmentId: act2.assessmentId,
+      activityId: act2.activityId,
+      skillName: "Shared Skill",
+      activityType: "study",
+      repetitionCount: 0, // also claims 0 — but one must be wrong
+    });
+
+    const c1 = new Client({ connectionString: DATABASE_URL });
+    const c2 = new Client({ connectionString: DATABASE_URL });
+    await c1.connect();
+    await c2.connect();
+
+    const [r1, r2] = await Promise.all([
+      c1.query<{ result: unknown }>(`select public.settle_activity($1, $2::jsonb) as result`, [
+        USERS.g,
+        JSON.stringify(s1),
+      ]),
+      c2.query<{ result: unknown }>(`select public.settle_activity($1, $2::jsonb) as result`, [
+        USERS.g,
+        JSON.stringify(s2),
+      ]),
+    ]);
+
+    await c1.end().catch(() => {});
+    await c2.end().catch(() => {});
+
+    const a = r1.rows[0].result as { ok: boolean; reason?: string };
+    const b = r2.rows[0].result as { ok: boolean; reason?: string };
+
+    // At least one must succeed. If one gets repetition_conflict, retry with count=1.
+    const results = [a, b];
+    const successes = results.filter((r) => r.ok);
+    const conflicts = results.filter((r) => !r.ok && r.reason === "repetition_conflict");
+
+    // Either both succeed (one got 0, other got 1 via serialization) or one conflicts.
+    expect(successes.length + conflicts.length).toBe(2);
+
+    if (conflicts.length > 0) {
+      // The conflicting one retries with count=1.
+      const conflictIdx = results.findIndex((r) => !r.ok);
+      const conflictAct = conflictIdx === 0 ? act2 : act1;
+      const retrySettlement = buildSettlement({
+        assessmentId: conflictAct.assessmentId,
+        activityId: conflictAct.activityId,
+        skillName: "Shared Skill",
+        activityType: "study",
+        repetitionCount: 1,
+      });
+      const retryResult = await settle(client, USERS.g, retrySettlement);
+      expect(retryResult.ok).toBe(true);
+    }
+
+    // Verify: one ledger row has repetition_count=0, the other has repetition_count=1.
+    const ledger = await client.query<{ repetition_count: number }>(
+      `select repetition_count from public.xp_transactions
+        where user_id = $1 and skill_id = (select id from public.skills where user_id = $1 and name = 'Shared Skill')
+        and xp_type = 'activity'
+        order by repetition_count`,
+      [USERS.g],
+    );
+    expect(ledger.rows.length).toBe(2);
+    expect(ledger.rows[0].repetition_count).toBe(0);
+    expect(ledger.rows[1].repetition_count).toBe(1);
+  });
+
+  test("P1-4: create_activity rejects foreign quest (tenant composite integrity)", async () => {
+    // Create a quest owned by user A.
+    await client.query("set role postgres");
+    const quest = await client.query<{ id: string }>(
+      `insert into public.quests (user_id, title, quest_type)
+        values ($1, 'A quest', 'learning') returning id`,
+      [USERS.a],
+    );
+    const questId = quest.rows[0].id;
+
+    // User B tries to create an activity referencing A's quest.
+    await client.query("set role authenticated");
+    await client.query("select set_config('request.jwt.claim.sub', $1, false)", [USERS.b]);
+
+    let error: Error | null = null;
+    try {
+      await client.query(`select public.create_activity($1, $2, null, $3)`, [
+        "B's activity",
+        "some input",
+        questId,
+      ]);
+    } catch (e) {
+      error = e as Error;
+    }
+
+    await client.query("reset role");
+    expect(error).not.toBeNull();
+    expect(error!.message).toContain("quest_not_owned");
+  });
+
+  test("P2-A: repetition_conflict has zero side effects on skill", async () => {
+    // Set up: one settlement creates the skill with known XP.
+    const act1 = await createActivityAndAssessment(client, USERS.c, "side-effect baseline");
+    const s1 = buildSettlement({
+      assessmentId: act1.assessmentId,
+      activityId: act1.activityId,
+      skillName: "SideEffect Skill",
+      repetitionCount: 0,
+    });
+    const r1 = await settle(client, USERS.c, s1);
+    expect(r1.ok).toBe(true);
+
+    // Record skill state before the conflicting settlement.
+    const skillBefore = await client.query<{ xp: string; updated_at: string }>(
+      `select xp, updated_at from public.skills where id = $1`,
+      [r1.skillId as string],
+    );
+
+    // Second settlement with wrong repetition count → conflict.
+    const act2 = await createActivityAndAssessment(client, USERS.c, "side-effect conflict");
+    const s2 = buildSettlement({
+      assessmentId: act2.assessmentId,
+      activityId: act2.activityId,
+      skillName: "SideEffect Skill",
+      repetitionCount: 0, // wrong — should be 1
+    });
+    const conflict = await settle(client, USERS.c, s2);
+    expect(conflict.ok).toBe(false);
+    expect(conflict.reason).toBe("repetition_conflict");
+
+    // Skill XP and updated_at must be unchanged.
+    const skillAfter = await client.query<{ xp: string; updated_at: string }>(
+      `select xp, updated_at from public.skills where id = $1`,
+      [r1.skillId as string],
+    );
+    expect(Number(skillAfter.rows[0].xp)).toBe(Number(skillBefore.rows[0].xp));
+    // updated_at should also be unchanged (no mutation occurred).
+    expect(new Date(skillAfter.rows[0].updated_at).getTime()).toBe(
+      new Date(skillBefore.rows[0].updated_at).getTime(),
+    );
+  });
+
+  test("P2-C: skill_name_snapshot persisted on xp_transactions", async () => {
+    const act = await createActivityAndAssessment(client, USERS.a, "snapshot test");
+    const settlement = buildSettlement({
+      assessmentId: act.assessmentId,
+      activityId: act.activityId,
+      skillName: "Snapshot Skill",
+    });
+    const result = await settle(client, USERS.a, settlement);
+    expect(result.ok).toBe(true);
+
+    // The ledger row must have skill_name_snapshot = 'Snapshot Skill'.
+    const tx = await client.query<{ skill_name_snapshot: string }>(
+      `select skill_name_snapshot from public.xp_transactions
+        where user_id = $1 and activity_id = $2`,
+      [USERS.a, act.activityId],
+    );
+    expect(tx.rows[0].skill_name_snapshot).toBe("Snapshot Skill");
+
+    // The returned transaction JSON also uses the snapshot.
+    const txJson = result.transaction as Record<string, unknown>;
+    expect(txJson.skillName).toBe("Snapshot Skill");
   });
 });
