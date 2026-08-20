@@ -67,7 +67,14 @@
   - [complete] 14.2：新增 2 个 DB 测试（共 21 个）：new Skill + upgrade M0 → 保持 M1 / new Skill + request_verification M1→M1 → 无 verification
   - [complete] 14.3：EXPECTED_ORDER 扩展至 0027
   - [complete] 14.4：真实 DB gate 全通过 — supabase db reset 0001→0027 + settlement-rpc 21/21 + authority-final-state 10/10 + migration smoke 1/1 + 全量 124/124 tests passed, 0 skipped
-  - [in_progress] 14.5：摘要、提交、推送、核验远程 main
+  - [complete] 14.5：摘要、提交、推送、核验远程 main
+- [complete] 阶段 15：实施 Stage 3（Auth Bootstrap + 全量 Supabase Read Path 与 UI 集成）
+  - [complete] 15.1：Next.js Supabase Auth SSR 中间件 (`src/lib/supabase/middleware.ts`, `src/middleware.ts`)
+  - [complete] 15.2：认证页面与会话控制 (`src/app/login/page.tsx`, `src/app/api/auth/logout/route.ts`, Dashboard/Skills 登出与状态栏)
+  - [complete] 15.3：全量读路径切换 (`GET /api/dashboard`, `GET /api/skills` 接入 `getRequestRepository()`)
+  - [complete] 15.4：0028_schema_grants.sql 补充 Data API 表权限
+  - [complete] 15.5：tests/read-path-integration.test.ts 验证初始读取、E2E 成长闭环、双用户隔离
+  - [complete] 15.6：全量套件 16 passed (127/127), harness 11/11 passed, eslint 0 errors / 0 warnings
 
 ## 当前设计边界
 - 首个切片只覆盖 Activity → Assessment → Confirm → XP Ledger/Player/Skill 的真实 Supabase 路径。

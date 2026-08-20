@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getRepository } from "@/lib/store/demo-db";
+import { getRequestRepository, AuthRequiredError } from "@/lib/store/request-repository";
 
 interface FlowNode {
   id: string;
@@ -24,7 +24,7 @@ interface FlowEdge {
 
 export async function GET() {
   try {
-    const repo = getRepository();
+    const repo = await getRequestRepository();
     const skills = await repo.listSkills();
     const edges = await repo.listSkillEdges();
 
@@ -82,6 +82,9 @@ export async function GET() {
 
     return NextResponse.json({ nodes, edges: flowEdges }, { status: 200 });
   } catch (error) {
+    if (error instanceof AuthRequiredError) {
+      return NextResponse.json({ error: error.message }, { status: 401 });
+    }
     console.error("Failed to load skill tree", error);
     return NextResponse.json({ error: "Failed to load skill tree" }, { status: 500 });
   }

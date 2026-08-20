@@ -50,6 +50,7 @@ const EXPECTED_ORDER = [
   "0025_settlement_integrity",
   "0026_stage2b2_final_closure",
   "0027_mastery_null_closure",
+  "0028_schema_grants",
 ];
 
 const PRIVATE_TABLES = [

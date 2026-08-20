@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   ReactFlow,
   Background,
@@ -16,7 +17,7 @@ import {
   type NodeProps,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { TreePine, Loader2, RefreshCw } from "lucide-react";
+import { TreePine, Loader2, RefreshCw, LogOut } from "lucide-react";
 
 interface SkillData {
   label: string;
@@ -67,6 +68,7 @@ function SkillNode({ data }: NodeProps<SkillFlowNode>) {
 const nodeTypes = { skillNode: SkillNode };
 
 export default function SkillsPage() {
+  const router = useRouter();
   const [nodes, setNodes, onNodesChange] = useNodesState<SkillFlowNode>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<SkillFlowEdge>([]);
   const [loading, setLoading] = useState(true);
@@ -77,6 +79,10 @@ export default function SkillsPage() {
     setError(null);
     try {
       const res = await fetch("/api/skills");
+      if (res.status === 401) {
+        router.push("/login");
+        return;
+      }
       if (!res.ok) throw new Error("Failed to load skill tree");
       const data = (await res.json()) as { nodes: SkillNodePayload[]; edges: SkillEdgePayload[] };
       setNodes(
@@ -107,13 +113,17 @@ export default function SkillsPage() {
     } finally {
       setLoading(false);
     }
-  }, [setNodes, setEdges]);
+  }, [router, setNodes, setEdges]);
 
   useEffect(() => {
     let ignore = false;
     async function fetchSkills() {
       try {
         const res = await fetch("/api/skills");
+        if (res.status === 401) {
+          router.push("/login");
+          return;
+        }
         if (!res.ok) throw new Error("Failed to load skill tree");
         const data = (await res.json()) as { nodes: SkillNodePayload[]; edges: SkillEdgePayload[] };
         if (ignore) return;
@@ -150,19 +160,38 @@ export default function SkillsPage() {
     return () => {
       ignore = true;
     };
-  }, [setNodes, setEdges]);
+  }, [router, setNodes, setEdges]);
+
+  async function handleLogout() {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } finally {
+      router.push("/login");
+      router.refresh();
+    }
+  }
 
   return (
     <div className="min-h-screen bg-[#0b0f17] text-zinc-100">
-      <header className="border-b border-white/5 bg-[#0d1320]/80 backdrop-blur">
+      <header className="border-b border-white/5 bg-[#0d1320]/80 backdrop-blur sticky top-0 z-50">
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
           <div className="flex items-center gap-2 font-semibold tracking-tight">
             <TreePine className="h-5 w-5 text-emerald-300" />
             Skill Tree
           </div>
-          <a href="/dashboard" className="text-xs text-zinc-400 hover:text-zinc-200">
-            ← 返回 Dashboard
-          </a>
+          <div className="flex items-center gap-4 text-xs">
+            <a href="/dashboard" className="text-zinc-400 hover:text-zinc-200">
+              ← 返回 Dashboard
+            </a>
+            <button
+              onClick={handleLogout}
+              className="inline-flex items-center gap-1 text-zinc-400 hover:text-red-300 transition-colors cursor-pointer"
+              title="退出登录"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">退出</span>
+            </button>
+          </div>
         </div>
       </header>
 
@@ -178,7 +207,7 @@ export default function SkillsPage() {
             <p className="max-w-md text-sm text-zinc-400">{error}</p>
             <button
               onClick={load}
-              className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-4 py-2 text-sm hover:bg-white/5"
+              className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-4 py-2 text-sm hover:bg-white/5 cursor-pointer"
             >
               <RefreshCw className="h-4 w-4" /> Retry
             </button>
@@ -192,7 +221,7 @@ export default function SkillsPage() {
             </p>
             <a
               href="/dashboard"
-              className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-4 py-2 text-sm hover:bg-white/5"
+              className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-4 py-2 text-sm hover:bg-white/5 cursor-pointer"
             >
               <RefreshCw className="h-4 w-4" /> 去记录成长
             </a>

@@ -1,16 +1,31 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import type {
   Activity,
   Assessment,
-  DashboardSnapshot,
   MasteryVerification,
   XpTransaction,
-} from "@/lib/store/demo-db";
-import { Sparkles, Zap, Check, RefreshCw, Loader2, TrendingUp, BookOpen, Plus, ShieldAlert } from "lucide-react";
+} from "@/lib/store/types";
+import type { DashboardSnapshot } from "@/lib/store/dashboard.service";
+import {
+  Sparkles,
+  Zap,
+  Check,
+  RefreshCw,
+  Loader2,
+  TrendingUp,
+  BookOpen,
+  Plus,
+  ShieldAlert,
+  LogOut,
+  Database as DatabaseIcon,
+} from "lucide-react";
+import { isSupabaseConfigured } from "@/lib/supabase/env";
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [dashboard, setDashboard] = useState<DashboardSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -18,10 +33,16 @@ export default function DashboardPage() {
   const [submitting, setSubmitting] = useState(false);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
+  const isConfigured = isSupabaseConfigured();
+
   const load = useCallback(async () => {
     setError(null);
     try {
       const res = await fetch("/api/dashboard");
+      if (res.status === 401) {
+        router.push("/login");
+        return;
+      }
       if (!res.ok) throw new Error("Failed to load dashboard");
       const data = await res.json();
       setDashboard(data.dashboard);
@@ -30,7 +51,7 @@ export default function DashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     let ignore = false;
@@ -38,6 +59,10 @@ export default function DashboardPage() {
     async function fetchDashboard() {
       try {
         const res = await fetch("/api/dashboard");
+        if (res.status === 401) {
+          router.push("/login");
+          return;
+        }
         if (!res.ok) throw new Error("Failed to load dashboard");
         const data = await res.json();
         if (!ignore) setDashboard(data.dashboard);
@@ -52,7 +77,16 @@ export default function DashboardPage() {
     return () => {
       ignore = true;
     };
-  }, []);
+  }, [router]);
+
+  async function handleLogout() {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } finally {
+      router.push("/login");
+      router.refresh();
+    }
+  }
 
   async function handleQuickLog(e: React.FormEvent) {
     e.preventDefault();
@@ -67,10 +101,18 @@ export default function DashboardPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ rawInput: text }),
       });
+      if (createRes.status === 401) {
+        router.push("/login");
+        return;
+      }
       if (!createRes.ok) throw new Error("Failed to save activity");
       const { activity } = (await createRes.json()) as { activity: Activity };
 
       const assessRes = await fetch(`/api/activities/${activity.id}/assess`, { method: "POST" });
+      if (assessRes.status === 401) {
+        router.push("/login");
+        return;
+      }
       if (!assessRes.ok) throw new Error("AI assessment failed, but your activity is saved");
       setRawInput("");
       setLoading(true);
@@ -87,6 +129,10 @@ export default function DashboardPage() {
     setError(null);
     try {
       const res = await fetch(`/api/assessments/${assessmentId}/confirm`, { method: "POST" });
+      if (res.status === 401) {
+        router.push("/login");
+        return;
+      }
       if (!res.ok) throw new Error("Failed to confirm assessment");
       setLoading(true);
       await load();
@@ -98,19 +144,19 @@ export default function DashboardPage() {
   }
 
   if (loading && !dashboard) {
-    return <Shell><LoadingState /></Shell>;
+    return <Shell onLogout={handleLogout} isConfigured={isConfigured}><LoadingState /></Shell>;
   }
 
   if (error && !dashboard) {
-    return <Shell><ErrorState message={error} onRetry={load} /></Shell>;
+    return <Shell onLogout={handleLogout} isConfigured={isConfigured}><ErrorState message={error} onRetry={load} /></Shell>;
   }
 
   if (!dashboard) {
-    return <Shell><EmptyState onRefresh={load} /></Shell>;
+    return <Shell onLogout={handleLogout} isConfigured={isConfigured}><EmptyState onRefresh={load} /></Shell>;
   }
 
   return (
-    <Shell>
+    <Shell onLogout={handleLogout} isConfigured={isConfigured}>
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-8 sm:px-6">
         <PlayerHeader dashboard={dashboard} />
 
@@ -147,23 +193,42 @@ export default function DashboardPage() {
   );
 }
 
-function Shell({ children }: { children: React.ReactNode }) {
+function Shell({
+  children,
+  onLogout,
+  isConfigured,
+}: {
+  children: React.ReactNode;
+  onLogout: () => void;
+  isConfigured: boolean;
+}) {
   return (
     <div className="min-h-screen bg-[#0b0f17] text-zinc-100">
-      <header className="border-b border-white/5 bg-[#0d1320]/80 backdrop-blur">
+      <header className="border-b border-white/5 bg-[#0d1320]/80 backdrop-blur sticky top-0 z-50">
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
           <div className="flex items-center gap-2 font-semibold tracking-tight">
             <Sparkles className="h-5 w-5 text-amber-300" />
             AI Personal Growth RPG
           </div>
           <nav className="flex items-center gap-4 text-xs">
-            <a href="/dashboard" className="text-zinc-400 hover:text-zinc-200">
+            <a href="/dashboard" className="font-medium text-amber-300">
               Dashboard
             </a>
             <a href="/skills" className="text-zinc-400 hover:text-zinc-200">
               Skill Tree
             </a>
-            <span className="text-zinc-500">Demo Mode · Local Ledger</span>
+            <span className="hidden sm:inline-flex items-center gap-1 rounded bg-white/5 border border-white/10 px-2 py-0.5 text-[11px] text-zinc-400">
+              <DatabaseIcon className="h-3 w-3 text-emerald-400" />
+              {isConfigured ? "Supabase Realtime Engine" : "Demo Mode · Local Ledger"}
+            </span>
+            <button
+              onClick={onLogout}
+              className="inline-flex items-center gap-1 text-zinc-400 hover:text-red-300 transition-colors cursor-pointer"
+              title="退出登录"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">退出</span>
+            </button>
           </nav>
         </div>
       </header>
@@ -257,7 +322,7 @@ function QuickLogForm({
         <button
           type="submit"
           disabled={!rawInput.trim() || submitting}
-          className="inline-flex items-center justify-center gap-2 rounded-lg bg-amber-400 px-5 py-3 text-sm font-semibold text-black transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex items-center justify-center gap-2 rounded-lg bg-amber-400 px-5 py-3 text-sm font-semibold text-black transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
         >
           {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
           {submitting ? "AI 评估中…" : "记录并评估"}
@@ -332,7 +397,7 @@ function PendingProposals({
             <button
               onClick={() => onConfirm(assessment.id)}
               disabled={confirmingId === assessment.id}
-              className="inline-flex items-center gap-2 rounded-lg bg-emerald-400 px-4 py-2 text-sm font-semibold text-black transition hover:bg-emerald-300 disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-lg bg-emerald-400 px-4 py-2 text-sm font-semibold text-black transition hover:bg-emerald-300 disabled:opacity-50 cursor-pointer"
             >
               {confirmingId === assessment.id ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -463,7 +528,7 @@ function ErrorState({ message, onRetry }: { message: string; onRetry: () => void
       <p className="max-w-md text-sm text-zinc-400">{message}</p>
       <button
         onClick={onRetry}
-        className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-4 py-2 text-sm hover:bg-white/5"
+        className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-4 py-2 text-sm hover:bg-white/5 cursor-pointer"
       >
         <RefreshCw className="h-4 w-4" /> Retry
       </button>
@@ -481,7 +546,7 @@ function EmptyState({ onRefresh }: { onRefresh: () => void }) {
       </p>
       <button
         onClick={onRefresh}
-        className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-4 py-2 text-sm hover:bg-white/5"
+        className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-4 py-2 text-sm hover:bg-white/5 cursor-pointer"
       >
         <RefreshCw className="h-4 w-4" /> Refresh
       </button>
