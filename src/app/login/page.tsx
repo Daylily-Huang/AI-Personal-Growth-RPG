@@ -16,6 +16,9 @@ export default function LoginPage() {
   const [message, setMessage] = useState<string | null>(null);
 
   const isConfigured = isSupabaseConfigured();
+  const isDevDemoEnabled =
+    process.env.NODE_ENV !== "production" ||
+    process.env.NEXT_PUBLIC_ENABLE_DEV_DEMO_ACCOUNT === "true";
 
   async function handleAuth(e: React.FormEvent) {
     e.preventDefault();
@@ -215,24 +218,28 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <div className="relative flex items-center justify-center py-2">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-white/10" />
-            </div>
-            <span className="relative bg-[#0d1320] px-3 text-[11px] uppercase tracking-wider text-zinc-500">
-              或者快速开始
-            </span>
-          </div>
+          {isDevDemoEnabled ? (
+            <>
+              <div className="relative flex items-center justify-center py-2">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-white/10" />
+                </div>
+                <span className="relative bg-[#0d1320] px-3 text-[11px] uppercase tracking-wider text-zinc-500">
+                  开发环境快速开始
+                </span>
+              </div>
 
-          <button
-            type="button"
-            onClick={handleQuickDemoLogin}
-            disabled={loading}
-            className="w-full flex items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-medium text-zinc-200 hover:bg-white/10 hover:text-white disabled:opacity-50 cursor-pointer transition-colors"
-          >
-            <UserCheck className="h-4 w-4 text-emerald-400" />
-            一键体验测试玩家账号
-          </button>
+              <button
+                type="button"
+                onClick={handleQuickDemoLogin}
+                disabled={loading}
+                className="w-full flex items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-medium text-zinc-200 hover:bg-white/10 hover:text-white disabled:opacity-50 cursor-pointer transition-colors"
+              >
+                <UserCheck className="h-4 w-4 text-emerald-400" />
+                一键体验测试玩家账号（本地开发）
+              </button>
+            </>
+          ) : null}
         </div>
 
         <div className="flex items-center justify-center gap-2 text-xs text-zinc-500 text-center">

@@ -75,6 +75,13 @@
   - [complete] 15.4：0028_schema_grants.sql 补充 Data API 表权限
   - [complete] 15.5：tests/read-path-integration.test.ts 验证初始读取、E2E 成长闭环、双用户隔离
   - [complete] 15.6：全量套件 16 passed (127/127), harness 11/11 passed, eslint 0 errors / 0 warnings
+- [complete] 阶段 16：实施 Stage 3.1（Auth & Read Integration Closure）
+  - [complete] 16.1：修复 TypeScript / Build Gate（DashboardSnapshot 导入、类型标注、测试 SettlementToApply 契约）
+  - [complete] 16.2：修复 Supabase SSR Middleware Token Refresh 与重定向 Cookie/Header 完整传播
+  - [complete] 16.3：/login 共享 Demo 账号非生产环境隔离
+  - [complete] 16.4：0029_default_privileges_tighten.sql 撤销 public 宽泛默认权限恢复 fail-closed
+  - [complete] 16.5：tests/http-auth-flow.test.ts 覆盖未登录 API 401、登出、中间件会话传播
+  - [complete] 16.6：全量套件 17 passed (136/136), tsc 0 errors, harness 11/11 passed, eslint 0 errors / 0 warnings
 
 ## 当前设计边界
 - 首个切片只覆盖 Activity → Assessment → Confirm → XP Ledger/Player/Skill 的真实 Supabase 路径。

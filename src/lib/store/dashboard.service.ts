@@ -2,6 +2,8 @@ import { levelFromXp } from "@/lib/growth-engine/levels";
 import type { Repository } from "./repository";
 import type { DashboardSnapshot } from "./types";
 
+export type { DashboardSnapshot };
+
 /** Read model for the dashboard, composed from the Repository port. */
 export async function buildDashboardSnapshot(repo: Repository): Promise<DashboardSnapshot> {
   const player = await repo.getPlayer();

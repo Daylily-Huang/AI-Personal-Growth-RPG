@@ -11,7 +11,7 @@ const DATABASE_URL = process.env.XP_RPG_TEST_DB_URL;
 
 // Local Supabase test configuration
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54321";
-const SUPABASE_PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || "sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH";
+const SUPABASE_PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || "test-publishable-key";
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SECRET_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU";
 
 process.env.NEXT_PUBLIC_SUPABASE_URL = SUPABASE_URL;
@@ -34,29 +34,48 @@ function makeProposal(skillName: string, xpAmount: number): AssessmentProposal {
   return {
     activity: {
       type: "learning",
-      confidence: 0.9,
-      explanation: "Studying advanced TypeScript types",
+      completion: 0.8,
+    },
+    difficulty: {
+      complexity: 0.5,
+      uncertainty: 0.4,
+      expertise_gap: 0.5,
+      resistance: 0.3,
+    },
+    growth: {
+      effort: 0.6,
+      learning: 0.7,
+      performance: 0.4,
+      outcome: 0.5,
+      artifact_value: 0.2,
+      character_evidence: 0.1,
     },
     evidence: {
       level: 1,
-      has_direct_proof: false,
       explanation: "Self-report",
     },
-    mastery_changes: [],
     affected_skills: [
       {
         name: skillName,
-        category: "engineering",
-        confidence: 0.9,
         reason: "TypeScript mastery",
       },
     ],
+    knowledge_updates: {
+      proposed_nodes: [],
+      proposed_edges: [],
+    },
+    mastery_changes: [],
     xp_semantics: {
       base_value: xpAmount,
       difficulty: 0.5,
+      mastery_gain: 0.5,
       novelty: 0.5,
+      goal_alignment: 0.6,
       repetition_risk: "low",
     },
+    artifacts: [],
+    next_quest: null,
+    confidence: 0.9,
     uncertainty_notes: [],
   };
 }
@@ -218,25 +237,30 @@ describe.skipIf(!DATABASE_URL)("Stage 3 — Full Supabase Read Path & E2E Integr
     // Step C: Confirm & Settle Activity (RPC)
     const settlement: SettlementToApply = {
       assessmentId: assessment.id,
-      activityId: activity.id,
       xpDelta: 60,
-      playerTotalXpDelta: 60,
+      player: { xpDelta: 60 },
       primarySkill: {
         name: "TypeScript",
         xpDelta: 60,
+        masteryAction: { action: "none" },
       },
-      secondarySkills: [],
-      masteryAction: { type: "none" },
+      relatedSkillLabels: [],
       transaction: {
-        amount: 60,
-        baseAmount: 60,
+        id: crypto.randomUUID(),
+        activityId: activity.id,
+        assessmentId: assessment.id,
+        xpType: "activity",
+        skillId: "",
+        skillName: "TypeScript",
         activityType: "learning",
         repetitionCount: 0,
         repetitionPenalty: 1,
+        amount: 60,
+        baseAmount: 60,
         modifierJson: {},
         reason: "Completed TypeScript deep dive",
         rulesVersion: "growth-engine-v0.1",
-        skillName: "TypeScript",
+        createdAt: new Date().toISOString(),
       },
     };
 

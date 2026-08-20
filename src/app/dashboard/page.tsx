@@ -5,10 +5,11 @@ import { useRouter } from "next/navigation";
 import type {
   Activity,
   Assessment,
+  DashboardSnapshot,
   MasteryVerification,
+  SkillState,
   XpTransaction,
 } from "@/lib/store/types";
-import type { DashboardSnapshot } from "@/lib/store/dashboard.service";
 import {
   Sparkles,
   Zap,
@@ -273,7 +274,7 @@ function PlayerHeader({ dashboard }: { dashboard: DashboardSnapshot }) {
       </div>
       {skills.length > 0 ? (
         <div className="mt-4 flex flex-wrap gap-2 border-t border-white/5 pt-4">
-          {skills.slice(0, 6).map((skill) => (
+          {skills.slice(0, 6).map((skill: SkillState) => (
             <div key={skill.name} className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs">
               <span className="text-zinc-300">{skill.name}</span>{" "}
               <span className="text-amber-300">XP Lv.{skill.level}</span>{" "}

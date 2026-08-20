@@ -17,7 +17,7 @@ export class AssessmentPersistenceService {
       p_assessment_json: input.proposal,
       p_model_name: input.modelName,
       p_prompt_version: input.promptVersion,
-      p_confidence: (input.proposal as { confidence?: number }).confidence ?? input.proposal.activity?.confidence ?? 0.85,
+      p_confidence: input.proposal.confidence ?? 0.85,
     });
     if (error) throw error;
     if (!data) throw new Error("record_ai_assessment returned no assessment");

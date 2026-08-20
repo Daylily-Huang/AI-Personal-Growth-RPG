@@ -51,6 +51,7 @@ const EXPECTED_ORDER = [
   "0026_stage2b2_final_closure",
   "0027_mastery_null_closure",
   "0028_schema_grants",
+  "0029_default_privileges_tighten",
 ];
 
 const PRIVATE_TABLES = [
