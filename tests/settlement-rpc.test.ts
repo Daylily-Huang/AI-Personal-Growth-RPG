@@ -617,11 +617,13 @@ describe.skipIf(!DATABASE_URL)("Stage2-B — settle_activity (live DB)", () => {
     await c1.end().catch(() => {});
     await c2.end().catch(() => {});
 
-    const a = r1.rows[0].result as { ok: boolean; reason?: string };
-    const b = r2.rows[0].result as { ok: boolean; reason?: string };
+    const a = r1.rows[0].result as { ok: boolean; reason?: string; actualRepetitionCount?: number };
+    const b = r2.rows[0].result as { ok: boolean; reason?: string; actualRepetitionCount?: number };
 
-    // At least one must succeed. If one gets repetition_conflict, retry with count=1.
+    // At least one must succeed. If one gets repetition_conflict, retry with the
+    // authoritative count returned by the DB.
     const results = [a, b];
+    const acts = [act1, act2];
     const successes = results.filter((r) => r.ok);
     const conflicts = results.filter((r) => !r.ok && r.reason === "repetition_conflict");
 
@@ -629,15 +631,17 @@ describe.skipIf(!DATABASE_URL)("Stage2-B — settle_activity (live DB)", () => {
     expect(successes.length + conflicts.length).toBe(2);
 
     if (conflicts.length > 0) {
-      // The conflicting one retries with count=1.
+      // P1-2 fix: retry the ACTUAL conflicting activity (not the other one),
+      // using the authoritative actualRepetitionCount from the DB response.
       const conflictIdx = results.findIndex((r) => !r.ok);
-      const conflictAct = conflictIdx === 0 ? act2 : act1;
+      const conflictAct = acts[conflictIdx];
+      const authoritativeCount = results[conflictIdx].actualRepetitionCount ?? 1;
       const retrySettlement = buildSettlement({
         assessmentId: conflictAct.assessmentId,
         activityId: conflictAct.activityId,
         skillName: "Shared Skill",
         activityType: "study",
-        repetitionCount: 1,
+        repetitionCount: authoritativeCount,
       });
       const retryResult = await settle(client, USERS.g, retrySettlement);
       expect(retryResult.ok).toBe(true);
@@ -749,5 +753,98 @@ describe.skipIf(!DATABASE_URL)("Stage2-B — settle_activity (live DB)", () => {
     // The returned transaction JSON also uses the snapshot.
     const txJson = result.transaction as Record<string, unknown>;
     expect(txJson.skillName).toBe("Snapshot Skill");
+  });
+
+  // ── Stage2-B.2 integrity tests (Round17 review) ──────────────────
+
+  test("P2-1: new Skill + repetition_conflict creates no orphan Skill row", async () => {
+    // Use a fresh user to ensure the skill does not exist yet.
+    const act1 = await createActivityAndAssessment(client, USERS.f, "orphan baseline");
+    const s1 = buildSettlement({
+      assessmentId: act1.assessmentId,
+      activityId: act1.activityId,
+      skillName: "Brand New Orphan Skill",
+      repetitionCount: 0,
+    });
+    expect((await settle(client, USERS.f, s1)).ok).toBe(true);
+
+    // Now try a second activity with a BRAND NEW skill name and wrong repetition count.
+    // Since the skill doesn't exist yet, authoritative count = 0, but client claims 5.
+    const act2 = await createActivityAndAssessment(client, USERS.f, "orphan conflict test");
+    const s2 = buildSettlement({
+      assessmentId: act2.assessmentId,
+      activityId: act2.activityId,
+      skillName: "Never Before Seen Skill",
+      repetitionCount: 5, // wrong — authoritative is 0 for a new skill
+    });
+    const conflict = await settle(client, USERS.f, s2);
+    expect(conflict.ok).toBe(false);
+    expect(conflict.reason).toBe("repetition_conflict");
+    expect(conflict.actualRepetitionCount).toBe(0);
+
+    // The brand new skill must NOT have been created (no orphan row).
+    const orphanCheck = await client.query<{ n: number }>(
+      `select count(*)::int as n from public.skills
+        where user_id = $1 and normalized_name = 'never before seen skill'`,
+      [USERS.f],
+    );
+    expect(orphanCheck.rows[0].n).toBe(0);
+  });
+
+  test("P2-3: skill_name mismatch between transaction and primarySkill rejected", async () => {
+    const act = await createActivityAndAssessment(client, USERS.a, "name mismatch test");
+    // Build a settlement where transaction.skillName ≠ primarySkill.name.
+    const settlement = {
+      ...buildSettlement({
+        assessmentId: act.assessmentId,
+        activityId: act.activityId,
+        skillName: "Statistics",
+      }),
+      // Override primarySkill.name to differ from transaction.skillName.
+      primarySkill: {
+        name: "Programming",
+        xpDelta: 50,
+        masteryAction: { action: "none" },
+      },
+    };
+    const result = await settle(client, USERS.a, settlement);
+    expect(result.ok).toBe(false);
+    expect(result.reason).toBe("skill_name_mismatch");
+  });
+
+  test("P2-4: stale request_verification (toLevel ≤ currentMastery) demoted to none", async () => {
+    // First: upgrade mastery to M3 via a legitimate upgrade settlement.
+    const act1 = await createActivityAndAssessment(client, USERS.f, "stale RV baseline");
+    const s1 = buildSettlement({
+      assessmentId: act1.assessmentId,
+      activityId: act1.activityId,
+      skillName: "Stale RV Skill",
+      masteryAction: { action: "upgrade", proposedLevel: 3, confidence: 0.9 },
+    });
+    const r1 = await settle(client, USERS.f, s1);
+    expect(r1.ok).toBe(true);
+
+    // Now try request_verification with toLevel=2 (stale — already at M3).
+    const act2 = await createActivityAndAssessment(client, USERS.f, "stale RV attempt");
+    const s2 = buildSettlement({
+      assessmentId: act2.assessmentId,
+      activityId: act2.activityId,
+      skillName: "Stale RV Skill",
+      repetitionCount: 1,
+      masteryAction: { action: "request_verification", fromLevel: 1, toLevel: 2, confidence: 0.8 },
+      masteryVerification: { evidenceLevel: 4 },
+    });
+    const r2 = await settle(client, USERS.f, s2);
+    expect(r2.ok).toBe(true);
+    // Verification should NOT have been created (toLevel ≤ currentMastery → none).
+    expect(r2.masteryVerification).toBeUndefined();
+
+    // No pending verification should exist for this skill.
+    const pendings = await client.query<{ n: number }>(
+      `select count(*)::int as n from public.mastery_verifications
+        where user_id = $1 and skill_id = $2 and status = 'pending'`,
+      [USERS.f, r1.skillId as string],
+    );
+    expect(pendings.rows[0].n).toBe(0);
   });
 });

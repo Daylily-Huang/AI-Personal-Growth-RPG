@@ -42,14 +42,13 @@ export class SupabaseRepository implements Repository {
   async listTransactions(): Promise<XpTransaction[]> {
     const { data, error } = await this.client
       .from("xp_transactions")
-      .select("*, skills!fk_xp_transactions_skill(name)")
+      .select("*")
       .eq("user_id", this.userId)
       .order("created_at", { ascending: false });
     if (error) throw error;
     return (data ?? []).map((row) => {
-      const skill = row.skills;
-      const skillName = Array.isArray(skill) ? skill[0]?.name : skill?.name;
-      return mapTransaction(row, skillName);
+      // P2-2: use the persisted snapshot (settlement-time name), not the current skill name.
+      return mapTransaction(row, row.skill_name_snapshot);
     });
   }
 

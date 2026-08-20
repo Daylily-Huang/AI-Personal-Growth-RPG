@@ -52,6 +52,16 @@
   - [complete] 12.4：settlement-rpc.test.ts 新增 9 个 Stage2-B.1 测试（共 16 个）：stale mastery / canonical XP mismatch / negative XP / xpType 强制 / cross-activity 并发 / quest ownership / repetition 零副作用 / verification 字段值 / skill_name_snapshot
   - [complete] 12.5：supabase-schema.test.ts EXPECTED_ORDER 扩展至 0025
   - [complete] 12.6：摘要、提交、推送、核验远程 main
+- [complete] 阶段 13：实施 Round17 Stage2-B.2 Final Settlement Freeze
+  - [complete] 13.1：0026_stage2b2_final_closure.sql — create_activity 恢复 0023 ACTIVE-only/fail-closed rules_version + 保留 0025 quest ownership（修 P1-1 regression）
+  - [complete] 13.2：settle_activity 重写 Phase C+D — 用 pg_advisory_xact_lock 替代 INSERT ON CONFLICT DO NOTHING，Skill 创建延迟到 Phase H（P2-1 零副作用真正成立）
+  - [complete] 13.3：settle_activity Phase A 新增 P2-3 — 校验 transaction.skillName == primarySkill.name
+  - [complete] 13.4：settle_activity Phase G 新增 P2-4 — request_verification 也做 stale mastery 校验（toLevel ≤ currentMastery → none）
+  - [complete] 13.5：修复 cross-activity 并发测试 P1-2 — act1/act2 反向 bug + 用 actualRepetitionCount retry
+  - [complete] 13.6：P2-2 listTransactions() 改用 skill_name_snapshot（不再 JOIN skills 表）
+  - [complete] 13.7：新增 3 个 DB 测试（共 19 个）：orphan Skill 零创建 / skill_name mismatch / stale request_verification
+  - [complete] 13.8：EXPECTED_ORDER 扩展至 0026
+  - [in_progress] 13.9：摘要、提交、推送、核验远程 main
 
 ## 当前设计边界
 - 首个切片只覆盖 Activity → Assessment → Confirm → XP Ledger/Player/Skill 的真实 Supabase 路径。

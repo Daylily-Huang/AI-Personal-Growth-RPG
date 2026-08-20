@@ -48,6 +48,7 @@ const EXPECTED_ORDER = [
   "0023_rules_version_authority",
   "0024_settlement_authority",
   "0025_settlement_integrity",
+  "0026_stage2b2_final_closure",
 ];
 
 const PRIVATE_TABLES = [
