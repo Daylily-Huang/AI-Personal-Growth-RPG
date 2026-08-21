@@ -1,0 +1,395 @@
+审查完成。这一轮已经非常接近冻结，但**还差 1 个真实 P1**。我不会因为报告写了“143/143”就直接签 Stage 3 Frozen。你提交的 Round22 报告明确声称 0031 和 CI 编排均已闭环。
+
+# Round23 审查结论
+
+| 项目 | 结论 |
+|---|---|
+| 评分 | **9.1 / 10** |
+| 状态 | **CONDITIONAL FAIL** |
+| P0 | 0 |
+| P1 | **1** |
+| P2 | 2 |
+| Stage2 Settlement Authority | **Frozen，不变** |
+| Stage3 Auth + Read Path | **功能与权限设计基本达标** |
+| 下一阶段 | **暂时 NO-GO，只需一个极小 CI Closure** |
+
+## 已确认：0031 这次真的修对了
+
+这次不再是错误的：
+
+```sql
+ALTER DEFAULT PRIVILEGES IN SCHEMA public ...
+```
+
+而是 global default privilege：
+
+```sql
+alter default privileges revoke execute on functions from public;
+
+alter default privileges for role postgres
+revoke execute on functions from public;
+
+alter default privileges for role postgres
+grant execute on functions to service_role;
+```
+
+
+
+更关键的是，这次没有只做 migration 文本 grep，而是真写了 live PostgreSQL probe：
+
+```sql
+create function public.__test_future_rpc_probe()
+returns int ...
+```
+
+随后实际检查：
+
+```text
+public         → false
+anon           → false
+authenticated  → false
+service_role   → true
+```
+
+最后删除 probe。
+
+这正是我上一轮要求的验证方式。
+
+所以：
+
+> **Round22 的函数默认权限 P1 已正式关闭。**
+
+这一项现在可以认为是 fail-closed。
+
+---
+
+# 已确认：CI 的 build ordering 也修了
+
+`supabase-integration` 现在确实变成：
+
+```text
+checkout
+↓
+install
+↓
+supabase db start
+↓
+pnpm build
+↓
+pnpm test
+```
+
+
+
+因此上一轮那个：
+
+> fresh checkout 没有 `.next`，却直接执行 `next({ dev:false })`
+
+的问题已经被修掉。
+
+同时也增加了：
+
+```json
+"test:e2e": "vitest run tests/e2e-http-browser.test.ts"
+```
+
+
+
+所以 **build-before-E2E 方向正确**。
+
+---
+
+# P1：CI 现在用了假的 Supabase API keys
+
+真正剩下的问题就在这里。
+
+当前 CI：
+
+```yaml
+NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:
+  sb_publishable_test_key
+
+SUPABASE_SECRET_KEY:
+  test_secret_key
+```
+
+
+
+这两个看起来是占位符，不是 `supabase db start` 实际启动出来的本地 key。
+
+而你的 production HTTP E2E 并不是只判断环境变量“存在”。
+
+它真的会拿：
+
+```ts
+const SUPABASE_PUBLISHABLE_KEY =
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || ...
+
+const SUPABASE_SERVICE_ROLE_KEY =
+  process.env.SUPABASE_SECRET_KEY || ...
+```
+
+去创建真实 Supabase clients，然后：
+
+```text
+signUp()
+signInWithPassword()
+refreshSession()
+```
+
+并访问本地 Supabase Auth。上一轮检查的真实 E2E 就是这么工作的。
+
+因此 CI 中显式设置：
+
+```text
+sb_publishable_test_key
+test_secret_key
+```
+
+反而会覆盖测试里可能存在的本地 fallback。
+
+也就是说 fresh CI 的真实行为很可能是：
+
+```text
+supabase db start
+↓
+真正的 local anon/publishable/service key = A/B
+↓
+CI env 强行设置 fake key = X/Y
+↓
+E2E createServerClient(..., X)
+↓
+调用 Auth
+↓
+Kong/Auth 拒绝无效 API key
+```
+
+这和：
+
+```text
+pnpm build
+```
+
+阶段不同。
+
+Build 阶段只需要这些 env “长得像存在”，假的值通常也能 build。
+
+但是 E2E 阶段是真网络调用，因此必须是真 key。
+
+---
+
+# 正确修法
+
+不要手写：
+
+```yaml
+sb_publishable_test_key
+test_secret_key
+```
+
+应该从正在运行的 local Supabase stack 获取实际值。
+
+例如在 CI 中从：
+
+```bash
+supabase status -o env
+```
+
+导出真实本地环境变量。
+
+大致模式：
+
+```yaml
+- name: Start local Supabase
+  run: supabase db start
+
+- name: Export local Supabase credentials
+  run: |
+    supabase status -o env >> "$GITHUB_ENV"
+```
+
+然后根据 CLI 实际输出的变量名映射到项目需要的：
+
+```text
+NEXT_PUBLIC_SUPABASE_URL
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+SUPABASE_SECRET_KEY
+```
+
+如果 CLI 输出的是 legacy：
+
+```text
+ANON_KEY
+SERVICE_ROLE_KEY
+API_URL
+```
+
+则明确映射。
+
+核心原则：
+
+> **E2E 必须使用刚刚启动的那个 Supabase instance 的真实 credentials。**
+
+---
+
+# 还应该加一个很小的 CI sanity check
+
+在跑 E2E 前直接验证：
+
+```text
+Auth admin/client 能正常访问 local Supabase
+```
+
+例如最简单：
+
+```text
+create Supabase client
+↓
+signUp temporary user
+↓
+成功
+```
+
+或者让当前 E2E 本身承担这个 Gate。
+
+但不要再使用“test_secret_key”这种看似满足环境变量、实际上无法鉴权的值。
+
+---
+
+# P2-1：`test:e2e` 加了，但 CI 实际没有做到测试层级解耦
+
+报告里说：
+
+> “CI 工作流编排解耦 E2E”
+
+但现在 CI 最后仍然：
+
+```yaml
+run: pnpm test
+```
+
+
+
+而：
+
+```json
+"test": "vitest run"
+```
+
+仍然会扫：
+
+```text
+tests/e2e-http-browser.test.ts
+```
+
+所以现在实际上仍然是：
+
+```text
+DB integration + E2E
+全部塞进 pnpm test
+```
+
+`test:e2e` 虽然存在，但没有在 CI 中单独调用。
+
+不影响 correctness，所以只是 **P2**。
+
+更干净的做法：
+
+```yaml
+pnpm test:unit-or-integration
+pnpm build
+pnpm test:e2e
+```
+
+或者通过 Vitest project/config 排除 E2E。
+
+但这个可以以后整理。
+
+---
+
+# P2-2：0031 有重复语句，可以简化
+
+现在既有：
+
+```sql
+alter default privileges revoke ...
+```
+
+又有：
+
+```sql
+alter default privileges for role postgres revoke ...
+```
+
+
+
+如果 migration 本来就是以 `postgres` 执行，则两组语句在效果上存在重复。
+
+这不是错误。
+
+而且 live probe 已证明当前 target environment 下最终权限正确，所以**绝对不需要为了洁癖再开一轮**。
+
+后续整理时再简化即可。
+
+---
+
+# GitHub CI 状态仍无法独立确认
+
+我查了最新 commit：
+
+```text
+07beec175381c9b5cf368f89e3e334553fab563a
+```
+
+当前 connector 仍然没有返回 commit check statuses。
+
+所以我不能声称：
+
+```text
+GitHub Actions 已失败
+```
+
+也不能声称：
+
+```text
+GitHub Actions 已绿
+```
+
+我能确认的是：
+
+> **workflow 文件本身存在真实 credential 配置风险。**
+
+因此即使本地报告是：
+
+```text
+143/143
+build green
+```
+
+也还不足以把 **fresh CI reproducibility** 签掉。
+
+---
+
+# 最终建议：只做 Round23 CI Credential Closure
+
+不要再碰数据库架构，不要再碰 Auth 设计，也不要再碰 Settlement。
+
+只做：
+
+1. CI 从本地 Supabase runtime 获取**真实** publishable/anon 与 service-role/secret key；
+2. `pnpm build` 使用相同 URL/config；
+3. `pnpm test:e2e` 使用真实 credentials；
+4. fresh checkout CI 全绿；
+5. 最好把 E2E 从普通 `pnpm test` 分开，但这不是 hard blocker。
+
+完成以后，我预期最终结论就是：
+
+> **9.4 / 10 — PASS**  
+> **P0=0 / P1=0**  
+> **Stage2 Settlement Authority = FROZEN**  
+> **Stage3 Auth + Supabase Read Path = FROZEN**  
+> **GO → 下一大阶段**
+
+现在已经没有必要再做 Stage3.2、Stage3.3 这种持续打磨。**只修这个 CI credentials 问题，然后 Stage 3 应该结束。**

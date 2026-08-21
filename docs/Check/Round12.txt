@@ -1,0 +1,1205 @@
+我已经核对了远程仓库。Stage2-A 的核心提交 `c882d914a20a171d5db702b37e29f418466e222c` 已经推到 `main`，随后还有 `aa0b82f` 专门提交 Round11 验证摘要，所以“已推送”这一点确认无误。你上传的 Round11 摘要与仓库里实际改动大体一致。
+
+但这一轮我不能直接给 Stage2-A PASS。
+
+# 结论
+
+## **Stage2-A：7.9 / 10 — CONDITIONAL FAIL**
+
+## **暂时不要直接进入大规模 Stage2-B settlement RPC**
+
+没有推倒重来的问题，但我发现了两个真正的跨层 P1，其中第一个是硬功能矛盾：
+
+> **`SupabaseRepository.addAssessment()` 在当前 RLS 下实际上执行不了。**
+
+另外，“generated DB types”目前也并不是真正 generated。
+
+---
+
+# 一、最重要的问题：Assessment 写入权限和 SupabaseRepository 自相矛盾
+
+这是这轮最关键的问题。
+
+当前 `SupabaseRepository.addAssessment()` 明确使用传入的用户 session client：
+
+```ts
+this.client
+  .from("ai_assessments")
+  .insert(...)
+```
+
+然后再：
+
+```ts
+this.client
+  .from("activities")
+  .update({ status: "assessed" })
+```
+
+而这个 client 来自：
+
+```text
+request cookie
+→ getSupabaseServerClient()
+→ auth.getUser()
+→ SupabaseRepository(client, user.id)
+```
+
+也就是**普通 authenticated 用户 JWT + RLS**。这部分 request-scoped Auth wiring 本身是正确的。
+
+问题是我们的 Round8 authority matrix 已经明确规定：
+
+```sql
+create policy ai_assessments_select
+...
+for select to authenticated
+```
+
+但**没有**
+
+```text
+ai_assessments_insert
+```
+
+policy。
+
+也就是说真实 Supabase 下：
+
+```text
+POST Assess
+↓
+AI Proposal 生成成功
+↓
+SupabaseRepository.addAssessment()
+↓
+INSERT ai_assessments
+↓
+RLS DENY
+```
+
+所以目前这部分：
+
+# **编译能通过，但真实数据库不会工作。**
+
+这说明 Stage2-A 的验证还主要停留在：
+
+```text
+mapping test
+migration test
+build
+```
+
+没有真正做：
+
+```text
+authenticated SupabaseRepository integration test
+```
+
+---
+
+# 二、而且这里不能简单“给 ai_assessments 开 INSERT”
+
+这是重点。
+
+最简单的修法看起来是：
+
+```sql
+create policy ai_assessments_insert ...
+```
+
+我**不建议这么做**。
+
+因为 `ai_assessments` 里面存的是：
+
+```text
+assessment_json
+xp_semantics
+difficulty
+novelty
+mastery_changes
+evidence
+```
+
+SettlementService 后续会直接使用 Assessment Proposal：
+
+```ts
+assessment.proposal.xp_semantics.base_value
+assessment.proposal.xp_semantics.difficulty
+assessment.proposal.evidence.level
+assessment.proposal.mastery_changes
+```
+
+来计算 XP 和 Mastery。
+
+如果 authenticated 用户能从浏览器直接：
+
+```text
+INSERT ai_assessments
+```
+
+就可以伪造：
+
+```text
+base_value = 100
+novelty = 1
+difficulty = 1
+mastery proposal = M10
+```
+
+然后调用 Confirm。
+
+虽然 Growth Engine 仍有限制，但这等于：
+
+> **允许用户冒充 AI Proposal source。**
+
+这破坏我们之前建立的权限边界。
+
+所以现在 Round8 的：
+
+```text
+ai_assessments = authenticated SELECT-only
+```
+
+其实是对的。
+
+错的是：
+
+```text
+SupabaseRepository.addAssessment()
+```
+
+试图用 user-scoped client 写它。
+
+---
+
+# 三、我建议把 Assessment 定义成“Server-authored state”
+
+正确链路应该是：
+
+```text
+Browser
+↓
+POST /assess
+↓
+Next.js Server
+↓
+验证当前 User
+↓
+读取该用户 Activity
+↓
+AI 生成 Proposal
+↓
+Trusted server persistence
+↓
+ai_assessments
+```
+
+浏览器只能：
+
+```text
+SELECT 自己的 Assessment
+```
+
+不能自己 INSERT。
+
+这里我建议有一个明确的：
+
+```text
+AssessmentPersistenceService
+```
+
+而不是把这项 privileged write 塞进普通 `SupabaseRepository`。
+
+---
+
+# 四、具体怎么实现，我推荐这一种
+
+可以新增一个很小的数据库函数，例如：
+
+```text
+record_ai_assessment
+```
+
+但它和之后的 `settle_activity` 有一个关键区别：
+
+### 不给 authenticated 直接调用。
+
+权限应该类似：
+
+```sql
+REVOKE EXECUTE
+ON FUNCTION record_ai_assessment(...)
+FROM PUBLIC;
+
+REVOKE EXECUTE
+ON FUNCTION record_ai_assessment(...)
+FROM authenticated;
+
+GRANT EXECUTE
+ON FUNCTION record_ai_assessment(...)
+TO service_role;
+```
+
+然后 Next.js 的 assess route：
+
+```text
+1. user-scoped client
+   → auth.getUser()
+
+2. user-scoped read
+   → Activity 必须属于当前 user
+
+3. AI 生成 Proposal
+
+4. server-only admin client
+   → record_ai_assessment(...)
+```
+
+RPC 内：
+
+```text
+验证 activity.user_id
+=
+传入的已认证 user ID
+
+验证 Activity != confirmed
+
+使用 Activity.rules_version
+而不是 client 提供的版本
+
+INSERT ai_assessment
+
+UPDATE Activity
+pending_assessment → assessed
+
+同一个数据库 transaction
+```
+
+这样：
+
+```text
+Browser
+```
+
+永远没能力自己伪造 Assessment。
+
+而：
+
+```text
+Next server
+```
+
+只有在它自己调用 AI 后才能完成这个写入。
+
+这属于真正合理使用：
+
+```text
+SUPABASE_SECRET_KEY
+```
+
+的场景——**可信 server-generated state**。
+
+不是“普通 CRUD 全用 secret”。
+
+---
+
+# 五、这还顺带解决了当前 addAssessment 的第二个问题：它不是原子的
+
+现在是两个网络请求：
+
+```text
+INSERT ai_assessment
+↓
+UPDATE activity.status
+```
+
+存在：
+
+```text
+Assessment 插入成功
+↓
+Activity update 失败
+```
+
+然后数据库变成：
+
+```text
+Assessment = pending
+Activity = pending_assessment
+```
+
+而不是：
+
+```text
+Activity = assessed
+```
+
+这是跨表状态漂移。
+
+如果改成：
+
+```text
+record_ai_assessment()
+```
+
+数据库函数：
+
+```text
+INSERT
++
+UPDATE
+```
+
+同一个 transaction，
+
+问题自然消失。
+
+---
+
+# 六、第二个 P1：Activity immutability 还没有真正保护“状态机”
+
+这次新增的 `0020_activity_immutability.sql` 做了两件正确的事：
+
+```text
+old.status == confirmed
+→ 禁止任何 update
+
+raw_input changed
+→ reject
+
+rules_version changed
+→ reject
+```
+
+所以：
+
+```text
+rules_version 冻结
+raw_input 保留原始事实
+confirmed 后不可修改
+```
+
+这些是正确的。
+
+但还有一个洞。
+
+---
+
+# 七、用户现在仍然可以自己把 Activity 改成 confirmed
+
+因为 Round8 仍然给 activities：
+
+```sql
+FOR UPDATE TO authenticated
+```
+
+只要求：
+
+```sql
+user_id = auth.uid()
+```
+
+而 0020 trigger 检查的是：
+
+```sql
+if old.status = 'confirmed'
+```
+
+不是：
+
+```text
+new.status 不能由客户端改成 confirmed
+```
+
+所以：
+
+```text
+OLD:
+status = assessed
+
+Browser:
+UPDATE activities
+SET status = 'confirmed'
+
+Trigger:
+old.status != confirmed
+raw_input 没变
+rules_version 没变
+→ PASS
+```
+
+于是客户端自己可以：
+
+```text
+assessed → confirmed
+```
+
+甚至：
+
+```text
+pending_assessment → assessed
+```
+
+也可以：
+
+```text
+assessed → pending_assessment
+```
+
+这虽然不能直接刷 XP，但破坏了：
+
+# **Activity lifecycle authority**
+
+---
+
+# 八、而且这会制造很难解释的数据
+
+例如用户恶意或误操作：
+
+```text
+Activity.status = confirmed
+```
+
+但：
+
+```text
+XP transaction = 不存在
+Assessment = 不存在
+```
+
+现在你的 API 又有逻辑：
+
+```text
+confirmed Activity
+→ 不再 Assess
+```
+
+所以会得到：
+
+```text
+Activity 显示已 confirmed
+↓
+没有 Assessment
+↓
+没有 XP
+↓
+以后也不能 Assess
+```
+
+这就是一个无效状态。
+
+所以：
+
+> **status 本身也应该是 server-owned 字段。**
+
+---
+
+# 九、我建议 Stage2 前把 activities 的权限再拆一次
+
+最简单 MVP 方案：
+
+authenticated 用户：
+
+```text
+SELECT ✅
+INSERT ✅
+
+UPDATE ❌
+DELETE pending 可选
+```
+
+暂时不要给整行 UPDATE。
+
+之后如果需要“编辑未完成 Activity”：
+
+```text
+update_activity_draft
+```
+
+用一个受控 API/RPC，只允许：
+
+```text
+title
+total_minutes
+effective_minutes
+```
+
+等用户可编辑字段。
+
+绝不能允许直接改：
+
+```text
+status
+rules_version
+completion
+```
+
+这些 server/state-machine 字段。
+
+这样之后：
+
+```text
+record_ai_assessment
+```
+
+负责：
+
+```text
+pending → assessed
+```
+
+而：
+
+```text
+settle_activity
+```
+
+负责：
+
+```text
+assessed → confirmed
+```
+
+权限模型会非常清楚。
+
+---
+
+# 十、第三个明显问题：“generated DB types”其实不是 generated
+
+你上传摘要写的是：
+
+> Supabase 数据类型与映射；新增 `database.types.ts`。
+
+但仓库里的：
+
+```text
+src/lib/supabase/database.types.ts
+```
+
+明显是手写的 mini schema。
+
+它最开头自己定义：
+
+```ts
+type Row<T> = T;
+type Insert<T> = Partial<T>;
+type Update<T> = Partial<T>;
+```
+
+然后只声明了 6 张表。
+
+这不是 Supabase CLI 真正生成的完整 Database types。
+
+---
+
+# 十一、而且已经发生了 Schema ↔ Type 漂移
+
+例如真实 `activities` 表还有：
+
+```text
+started_at
+ended_at
+completion
+```
+
+但当前 `database.types.ts` 的 Activity Row 里没有这些字段。
+
+真实 `skills` 表还有：
+
+```text
+domain_id
+description
+```
+
+当前手写 types 又没有。
+
+类似地：
+
+```text
+xp_transactions.quest_id
+xp_transactions.domain_id
+player_states.stress
+```
+
+也没有完整进入当前 mini type。
+
+所以现在的类型系统：
+
+> 并不能证明 TypeScript 与真实 Supabase schema 完全一致。
+
+这和我们前面花很多精力避免的：
+
+```text
+Spec
+≠
+Code
+≠
+DB
+```
+
+其实是同一类问题。
+
+---
+
+# 十二、既然你已经有本地 Supabase，就没必要手写类型
+
+现在已经有：
+
+```text
+supabase start
+```
+
+和完整本地 schema。
+
+直接：
+
+```bash
+supabase gen types typescript --local
+```
+
+生成真正类型。
+
+我建议增加 script，例如：
+
+```json
+"db:types":
+  "supabase gen types typescript --local > src/lib/supabase/database.types.ts"
+```
+
+然后：
+
+```text
+migration 改动
+↓
+重新 gen types
+↓
+TypeScript 自动暴露 schema drift
+```
+
+Stage2-B 以后新增：
+
+```text
+settle_activity RPC
+```
+
+时：
+
+```text
+Database["public"]["Functions"]
+```
+
+也会自然生成。
+
+这比现在手写：
+
+```ts
+Functions: Record<string, never>
+```
+
+强太多。
+
+所以我把这一项列为：
+
+# **Stage2-A P1**
+
+因为“generated DB types”本来就是这个阶段的验收目标之一。
+
+---
+
+# 十三、第四个问题：XP Transaction 的 skillName 被直接清空
+
+当前 mapper：
+
+```ts
+skillId: row.skill_id,
+skillName: "",
+```
+
+也就是说一旦以后 Dashboard 切到 Supabase：
+
+```text
+Recent Growth transaction
+```
+
+里的 `skillName` 会变成空字符串。
+
+Dashboard read model 又会直接把：
+
+```text
+repo.listTransactions()
+```
+
+结果作为：
+
+```text
+recentGrowth
+```
+
+返回。
+
+这属于一个明确的功能退化。
+
+现在网站还没切 Supabase，所以没有暴露。
+
+---
+
+# 十四、这个应该怎么解决？
+
+有两个方案。
+
+### 最低成本
+
+查询 transaction 时：
+
+```text
+xp_transactions
+JOIN skills
+```
+
+取：
+
+```text
+skills.name
+```
+
+然后 mapper：
+
+```ts
+skillName = joinedSkill.name
+```
+
+能立即保证 UI 不空。
+
+### 更符合“审计账本”的长期方案
+
+在 ledger 加：
+
+```text
+skill_name_snapshot
+```
+
+因为：
+
+```text
+Skill UUID 永远稳定
+```
+
+但 Skill display name 将来可能会：
+
+```text
+Statistics
+→ Statistical Analysis
+```
+
+如果你只 join 当前 skill.name，
+
+历史记录也会跟着改名。
+
+而 ledger 更理想的是保留：
+
+> 当时结算时这个 Skill 的显示名称。
+
+所以长期我偏向：
+
+```text
+skill_id
++
+skill_name_snapshot
+```
+
+一起记。
+
+但为了控制 Stage2-B scope，最低限度先 join 即可。
+
+---
+
+# 十五、第五个问题：getPlayer() 在数据库缺行时会静默伪造一个玩家
+
+当前：
+
+```ts
+maybeSingle()
+```
+
+拿不到 `player_states` 时，
+
+`mapPlayer(null)` 会返回：
+
+```text
+totalXp = 0
+playerLevel = 1
+energy = 70
+focus = 70
+momentum = 30
+```
+
+但 Stage1 已经有：
+
+```text
+handle_new_user
+→ 自动创建 player_states
+```
+
+所以正常 authenticated user 理论上就应该存在一行。
+
+如果不存在，它其实代表：
+
+```text
+Auth bootstrap / migration / data integrity
+出了问题
+```
+
+而不是：
+
+```text
+“这是一个正常新玩家”
+```
+
+我更建议 production SupabaseRepository：
+
+```text
+player state missing
+→ invariant error
+```
+
+而不是静默回退。
+
+否则你可能得到：
+
+```text
+真实 DB total XP 已丢
+↓
+Dashboard 看起来只是一个 Lv1 新用户
+```
+
+这种问题很难排查。
+
+这是 P2，不阻塞 Stage2-B。
+
+---
+
+# 十六、好的地方也不少
+
+这轮并不是做差了。
+
+`request-repository.ts` 是我比较满意的一块：
+
+```text
+每请求 fresh client
+↓
+auth.getUser()
+↓
+拿到真实 user id
+↓
+new SupabaseRepository(client, user.id)
+```
+
+没有 global cache，也没有把 Supabase client 跨用户复用。
+
+这部分：
+
+# **PASS**
+
+---
+
+SupabaseRepository 也没有把：
+
+```text
+calculateXp()
+Mastery rules
+repetition curve
+```
+
+复制进去。
+
+`applySettlement()` 反而明确：
+
+```ts
+throw new Error(
+  "... reserved for Stage2-B settle_activity RPC"
+);
+```
+
+这个 scope control 是对的。
+
+---
+
+Activity `raw_input` 和 `rules_version` 的 DB trigger 冻结也是正确方向。
+
+所以这次不是架构方向错，而是：
+
+# **边界设计正确，但跨层 wiring 没有完全闭合。**
+
+---
+
+# 十七、测试覆盖现在的最大问题
+
+你摘要记录：
+
+```text
+87 passed
+1 skipped
+migration smoke PASS
+build PASS
+```
+
+
+
+这些我不怀疑本地执行记录。
+
+但是本轮真正新增的 Stage2-A 测试主要是：
+
+```text
+mapping unit test
+Activity migration string test
+schema/migration smoke
+```
+
+例如 Activity immutability test 现在只是读 SQL 文件，然后检查里面存在：
+
+```text
+old.status = confirmed
+raw_input
+rules_version
+search_path
+trigger name
+```
+
+它并没有真正模拟：
+
+```text
+authenticated User
+→ UPDATE status='confirmed'
+```
+
+所以它当然发现不了我上面指出的状态机漏洞。
+
+---
+
+# 十八、下一阶段需要开始从“SQL 存在测试”升级到“行为测试”
+
+Stage2-B 以后测试要变成：
+
+```text
+User A authenticated session
+↓
+INSERT Activity          ✅
+
+UPDATE rules_version     ❌
+
+UPDATE status=confirmed  ❌
+
+INSERT ai_assessment
+直接从用户 client         ❌
+
+trusted server AI path
+写 Assessment             ✅
+
+UPDATE skill.xp          ❌
+
+INSERT xp_transaction    ❌
+```
+
+这才是真正验证权限模型。
+
+不是：
+
+```text
+SQL 文件里有没有某句话
+```
+
+---
+
+# 十九、我的详细评分
+
+| 模块                       |           分数 | 评价                               |
+| ------------------------ | -----------: | -------------------------------- |
+| Repository abstraction   |      **9.0** | 没复制业务规则                          |
+| Request-scoped Auth      |      **9.2** | 正确                               |
+| RLS-aware reads          |      **9.0** | 正确                               |
+| User Activity creation   |      **8.8** | 基本正确                             |
+| Assessment persistence   |      **4.5** | 当前 RLS 下不能工作                     |
+| Activity state authority |      **6.5** | frozen facts 有，但 status 可伪造      |
+| Database types           |      **6.0** | 手写 mini types，不是真 generated      |
+| Mapping                  |      **7.5** | 基础清楚，但 skillName 丢失              |
+| Migration discipline     |      **9.0** | 继续保持不错                           |
+| Integration tests        |      **6.5** | 缺真实 user-session repository test |
+| Scope control            |      **9.5** | 很好                               |
+| **总分**                   | **7.9 / 10** | **Conditional Fail**             |
+
+---
+
+# 二十、和 Round10 相比，这一轮为什么反而降分？
+
+不是因为代码“退步”。
+
+Round10 做的是：
+
+```text
+migration proof
+```
+
+范围非常窄，而且验证充分。
+
+这轮第一次真正跨进：
+
+```text
+Auth
++
+RLS
++
+Repository
++
+Domain
+```
+
+一旦跨层，问题复杂度立刻提高。
+
+这也暴露了 hy3 目前仍然比较典型的特点：
+
+> 单层设计很好，但跨层真正组合以后，有时没有主动做完整行为验证。
+
+例如：
+
+```text
+RLS 设计：对
+Repository addAssessment：单独看也合理
+```
+
+但两个放一起：
+
+```text
+SELECT-only table
++
+user JWT INSERT
+=
+根本执行不了
+```
+
+这是 reviewer 必须专门抓的 integration mismatch。
+
+---
+
+# 二十一、我建议现在不要直接写巨大 Stage2-B
+
+先做一个很小的：
+
+# **Stage2-A.1 — Authority Wiring Closure**
+
+只修 4 件核心事情：
+
+1. **Assessment persistence**
+
+   * 保持 `ai_assessments` authenticated SELECT-only；
+   * user-scoped `SupabaseRepository` 不再直接 `addAssessment()`；
+   * 建立 trusted server-only assessment persistence；
+   * Assessment insert + Activity → assessed 必须原子。
+
+2. **Activity state authority**
+
+   * authenticated client 不能直接修改 `status`；
+   * 不能自己设置 confirmed；
+   * confirmed delete 也应禁止；
+   * 状态变化只由 trusted AI persistence / settlement RPC 完成。
+
+3. **真正生成 Database types**
+
+   * `supabase gen types typescript --local`；
+   * 不再维护手写 mini schema；
+   * 加 `db:types` script。
+
+4. **Transaction display mapping**
+
+   * 至少解决 `skillName: ""`；
+   * 最低 join skills；
+   * 长期考虑 ledger `skill_name_snapshot`。
+
+这四项修完，不需要再让我审十个小阶段。
+
+然后直接进入：
+
+# **Stage2-B**
+
+---
+
+# Stage2-B 我会要求的核心不变量
+
+到时我会重点检查这一条完整链：
+
+```text
+Browser Confirm
+↓
+authenticated Next server
+↓
+SettlementService
+↓
+calculateXp() TypeScript
+↓
+SettlementCommand
+↓
+settle_activity SECURITY DEFINER
+↓
+auth.uid()
+↓
+lock rows
+↓
+validate ownership
+↓
+validate repetition snapshot
+↓
+idempotency
+↓
+ledger INSERT
+↓
+player += XP
+↓
+skill += XP
+↓
+mastery monotonic / pending verification
+↓
+assessment confirmed
+↓
+activity confirmed
+↓
+commit
+```
+
+而且：
+
+```text
+任何一步失败
+=
+整笔事务 0 永久副作用
+```
+
+---
+
+# 最终 Gate
+
+当前：
+
+```text
+P0：0
+P1：3
+P2：若干
+```
+
+三个 P1 是：
+
+```text
+Assessment write 与 RLS 冲突
+Activity status 可由客户端伪造
+Database types 不是真 generated
+```
+
+所以：
+
+# **Stage2-A：暂不通过**
+
+# **NO-GO → 直接开始完整 Stage2-B**
+
+# **GO → 先做一个很小的 Stage2-A.1 修复**
+
+但这是一个**很短的整改**，不是重构。
+
+现在整个项目仍然处于健康状态。真正重要的是这次发现的问题发生在**Supabase 尚未正式接管线上 Growth Loop 之前**，修复成本还很低。修完这四个点，下一步就该正式进入 transactional settlement，而不是继续打磨 Repository 表面。

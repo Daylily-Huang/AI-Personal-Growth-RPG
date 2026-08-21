@@ -1,0 +1,697 @@
+我已经继续按“审查者”视角核对了远程仓库 `main`。当前最新提交是 **`bbece0a` — `fix(round12): close authority wiring gaps`**。这次不是只看你上传的 `Round12_VERIFICATION_SUMMARY.md`；我对照了实际 migration、SupabaseRepository、Assessment persistence、generated types、route 和测试。你上传的总结声称 Round12 的 3 个 P1 已全部关闭。
+
+## Round13 审查结论
+
+**评分：8.0 / 10**
+
+**状态：CONDITIONAL FAIL**
+
+**P0：0**
+**P1：3**
+**P2：3**
+
+### 结论
+
+**暂时仍然 NO-GO → 完整 Stage2-B。**
+
+这轮确实修掉了不少东西，但 **Stage2-A.1 还不能叫 Authority Wiring Closure**。最重要的是，我发现了两个此前没真正封死的 authority 问题，其中一个是明确的客户端状态伪造通道。
+
+---
+
+# 一、这轮哪些东西是真的修好了
+
+### 1. Assessment 已经不再由 authenticated client 直接 INSERT
+
+这一点修复方向正确。
+
+现在：
+
+```ts
+SupabaseRepository.addAssessment()
+```
+
+已经不再 `.from("ai_assessments").insert(...)`，而是明确抛错，要求走 server-only persistence。
+
+并新增：
+
+```text
+AssessmentPersistenceService
+        ↓
+admin.rpc("record_ai_assessment")
+        ↓
+SECURITY DEFINER
+```
+
+RPC 内部：
+
+* 锁 Activity；
+* 检查 `activity_id + user_id`；
+* 从 Activity 继承 `rules_version`；
+* INSERT Assessment；
+* Activity → `assessed`；
+* 同一数据库事务完成。
+
+SQL 本身这部分设计基本成立。
+
+**原 Round12 P1-1：核心数据库问题基本解决。**
+
+---
+
+### 2. authenticated 已不能 UPDATE Activity
+
+0021 确实删除了：
+
+```sql
+drop policy if exists activities_update;
+```
+
+并把 DELETE 收紧到：
+
+```sql
+status = 'pending_assessment'
+```
+
+因此用户通过普通 UPDATE：
+
+```text
+pending_assessment → confirmed
+assessed → pending_assessment
+assessed → confirmed
+```
+
+这条路径已经封掉。
+
+---
+
+### 3. `skillName` 和 player invariant 修复是有效的
+
+`xp_transactions` 现在 JOIN `skills`：
+
+```ts
+.select("*, skills!fk_xp_transactions_skill(name)")
+```
+
+并且：
+
+* `skill_id == null` → error
+* skill 关联失败 → error
+* `player_states` 缺行 → invariant error
+
+不再悄悄伪造默认 Lv1 Player。
+
+这两个原 P2 可以认为已经关闭。
+
+---
+
+# 二、P1-1：Activity 状态仍然可以从 **INSERT** 伪造
+
+这是本轮最重要的新发现。
+
+你们只关闭了：
+
+> UPDATE status
+
+但没有关闭：
+
+> **INSERT 一个一开始就是 confirmed / assessed 的 Activity。**
+
+0018 仍然保留：
+
+```sql
+create policy activities_insert on public.activities
+  for insert to authenticated
+  with check (user_id = auth.uid());
+```
+
+除此以外**没有任何字段约束**。
+
+而 Activity 本身允许：
+
+```sql
+status in (
+  'pending_assessment',
+  'assessed',
+  'confirmed'
+)
+```
+
+所以恶意 authenticated client 目前理论上可以直接提交类似：
+
+```text
+user_id       = 自己
+status        = confirmed
+rules_version = 随便写
+created_at    = 随便写
+activity_type = 随便写
+```
+
+RLS 会认为：
+
+> user_id 是你自己的，允许 INSERT。
+
+更关键的是，0020 的 immutability trigger 是：
+
+```sql
+before update
+```
+
+**它根本不检查 INSERT。**
+
+因此 Round12 摘要中的：
+
+> “客户端不能伪造 assessed、confirmed”
+
+严格来说仍然不成立。
+
+### 为什么这是 P1
+
+它目前不能直接给自己铸造 XP，所以我不判 P0。
+
+但是它能制造：
+
+```text
+confirmed Activity
++
+没有 Assessment
++
+没有 XP ledger
+```
+
+这种系统状态。
+
+而且 `rules_version` 本来应该是 authority-controlled 的审计事实，现在客户端同样可以自行决定。
+
+这直接破坏：
+
+> Activity lifecycle authority invariant
+
+### 推荐修法
+
+不要继续往 `activities_insert` 上打补丁。
+
+更干净的方法是：
+
+```text
+authenticated client
+        ↓
+create_activity RPC
+        ↓
+数据库自己决定
+user_id       = auth.uid()
+status        = pending_assessment
+rules_version = authoritative current version
+created_at    = now()
+updated_at    = now()
+```
+
+然后：
+
+```sql
+DROP activities_insert
+```
+
+客户端只提交真正属于用户事实的数据，例如：
+
+```text
+raw_input
+total_minutes
+effective_minutes
+quest_id
+```
+
+**status / rules_version / audit timestamp 不让客户端提交。**
+
+这才符合这个项目此前一直强调的：
+
+> client is hostile / server owns permanent state.
+
+---
+
+# 三、P1-2：`database.types.ts` 仍然是“过期 generated types”
+
+这个问题很明确。
+
+Round12 摘要声称 generated types 已经覆盖：
+
+> RPC `record_ai_assessment`
+
+
+
+但我查看当前 `main` 的：
+
+```text
+src/lib/supabase/database.types.ts
+```
+
+实际是：
+
+```ts
+public: {
+  ...
+  Functions: {
+    [_ in never]: never
+  }
+}
+```
+
+也就是说：
+
+## `record_ai_assessment` 根本不存在于当前提交的 generated types 中。
+
+而 SQL 中它显然已经存在。
+
+因此现在形成了：
+
+```text
+Migration schema
+    ≠
+database.types.ts
+```
+
+这正是上一轮我们要消灭的 schema drift。
+
+### 为什么 TypeScript 还能通过？
+
+因为：
+
+```ts
+getSupabaseAdminClient()
+```
+
+创建客户端时写的是：
+
+```ts
+createClient(url, secretKey, ...)
+```
+
+没有：
+
+```ts
+createClient<Database>(...)
+```
+
+所以这一句：
+
+```ts
+admin.rpc("record_ai_assessment", ...)
+```
+
+没有真正受到 `Database` 类型系统约束。
+
+换句话说：
+
+> **TypeScript 通过反而暴露出了 generated types 没真正接进 admin RPC。**
+
+browser/server factory 同样没有把 `Database` generic 接进去。
+
+### 应该怎么修
+
+0021 migration 完成后重新：
+
+```bash
+pnpm db:types
+```
+
+然后必须看到：
+
+```ts
+Functions: {
+  record_ai_assessment: {
+    Args: {...}
+    Returns: ...
+  }
+}
+```
+
+随后三个 factory 全部改为 typed：
+
+```ts
+createClient<Database>(...)
+createServerClient<Database>(...)
+createBrowserClient<Database>(...)
+```
+
+这样如果以后：
+
+```sql
+record_ai_assessment(...)
+```
+
+改参数而忘了 regenerate types，`tsc` 就应该直接炸掉。
+
+这才叫 schema type safety。
+
+---
+
+# 四、P1-3：Assessment persistence 已经造出来了，但**没有真正 wiring**
+
+这是架构层的问题。
+
+现在 `Repository` interface 明确要求：
+
+```ts
+addAssessment(...)
+```
+
+但是 Supabase implementation 是：
+
+```ts
+async addAssessment(...) {
+  throw new Error(
+    "Use AssessmentPersistenceService..."
+  );
+}
+```
+
+与此同时，新建的：
+
+```text
+AssessmentPersistenceService
+```
+
+目前搜索整个仓库，**没有实际业务调用者**。
+
+现有 `/assess` route 还是：
+
+```ts
+const repo = getRepository();
+...
+const assessment = await repo.addAssessment(...)
+```
+
+而且用的还是 DemoRepository。
+
+`getAuthenticatedRepository()` 目前同样没有进入实际 route。
+
+所以当前真实情况是：
+
+```text
+Demo route
+    ↓
+Repository.addAssessment()
+    ↓
+正常
+
+SupabaseRepository
+    ↓
+Repository.addAssessment()
+    ↓
+直接 throw
+```
+
+因此如果现在单纯把：
+
+```ts
+getRepository()
+```
+
+换成：
+
+```ts
+getAuthenticatedRepository()
+```
+
+Assessment route 会直接 500。
+
+---
+
+## 这不是 Supabase “wiring closure”
+
+目前更准确的说法应该是：
+
+> **Supabase authority primitives prepared**
+
+而不是：
+
+> authority wiring closed.
+
+### 推荐架构
+
+现在正好应该拆 port。
+
+不要再让一个巨大的 `Repository` 同时承担：
+
+```text
+user reads
+user-authored writes
+AI trusted writes
+settlement trusted writes
+```
+
+可以逐渐拆成：
+
+```text
+ActivityRepository
+AssessmentReader
+AssessmentWriter        ← server only
+SettlementWriter        ← server only
+GrowthStateReader
+```
+
+然后 assess route：
+
+```text
+1. authenticate
+2. RLS ActivityRepository.getActivity()
+3. AI assess
+4. AssessmentWriter.record(...)
+5. return Assessment
+```
+
+这样 authority boundary 会非常清楚。
+
+---
+
+# 五、P2-1：现在的 authority test 仍然主要是“搜字符串”
+
+新测试：
+
+```text
+tests/assessment-authority.test.ts
+```
+
+实际主要是在做：
+
+```ts
+expect(migration).toContain(...)
+```
+
+比如：
+
+```ts
+expect(migration).toContain("security definer")
+expect(migration).toContain("set status = 'assessed'")
+```
+
+它证明：
+
+> SQL 文件里写了这些字符。
+
+但并不能证明最终 PostgreSQL 权限矩阵真的如此。
+
+---
+
+而 `empty-db-migration.smoke.test.ts` 虽然是真数据库测试，但：
+
+```ts
+describe.skipIf(!DATABASE_URL)
+```
+
+没有 DB URL 就直接 skip。
+
+当前 GitHub Actions 只是：
+
+```yaml
+pnpm install
+pnpm lint
+pnpm test
+pnpm build
+```
+
+没有启动本地 Supabase，也没有设置 `XP_RPG_TEST_DB_URL`。
+
+所以 CI 中：
+
+> **数据库 migration/runtime authority 测试并不会运行。**
+
+这也正好解释了总结里的：
+
+```text
+89 passed / 1 skipped
+```
+
+这个“1 skipped”并不是一个可以长期接受的 Stage2 security gate。
+
+---
+
+# 六、P2-2：旧的 static policy test 已经出现语义漂移
+
+`supabase-schema.test.ts` 仍然按 0018 检查：
+
+> activities 是 full CRUD
+
+并期待：
+
+```text
+activities_update = true
+activities_delete = true
+```
+
+可是 0021 已经明确撤销这两套能力。
+
+也就是说：
+
+> 一个测试在证明历史 migration 0018 正确，另一个 migration 0021 又把它推翻。
+
+单独看都 pass，但没有测试：
+
+> **执行完 0001→0021 后数据库的最终 authority matrix 到底是什么。**
+
+Stage2 开始后应该减少这种“对 migration 文件逐个 grep”的方式，转向：
+
+```text
+apply full migration chain
+        ↓
+query pg_policies
+        ↓
+query function privileges
+        ↓
+actual authenticated request
+```
+
+最终状态才是系统事实。
+
+---
+
+# 七、P2-3：`skillName` 当前不是你们定义的“结算时快照”
+
+Domain type 中已经明确：
+
+```ts
+/** Display-name snapshot at settle time. */
+skillName: string;
+```
+
+但 Supabase 当前没有 `skill_name_snapshot` 字段。
+
+现在采用：
+
+```text
+xp_transactions.skill_id
+        ↓ JOIN
+skills.name
+```
+
+而 `xp_transactions` schema 也确实没有 skill name snapshot。
+
+所以如果以后 Skill：
+
+```text
+Statistics
+→
+Applied Statistics
+```
+
+历史 XP transaction 也会显示新的名字。
+
+这不是：
+
+> settle-time snapshot
+
+而是：
+
+> current skill display name
+
+目前不影响 XP 数值，我判 **P2**。
+
+Stage2-B 建议直接加：
+
+```text
+skill_name_snapshot
+```
+
+到 immutable ledger。
+
+---
+
+# 八、测试结果我怎么判
+
+你上传的总结记录：
+
+```text
+89 passed / 1 skipped
+11 deterministic harness passed
+tsc passed
+lint passed
+Windows build passed
+```
+
+
+
+这些结果和仓库当前代码**没有明显矛盾**。
+
+但我要区分：
+
+### 已验证
+
+我能够从远程仓库确认：
+
+* 修改已经进入 `main`
+* 0021 migration 存在
+* server-only assessment RPC 存在
+* UPDATE policy 确实删除
+* mapping 修复存在
+* generated file 确实变成完整 schema 风格
+* test 文件存在
+
+### 我不能从仓库独立验证
+
+我不能把以下本地运行记录当成自己重新执行过：
+
+```text
+supabase db reset
+真实 PostgreSQL role behavior
+89 tests
+Windows build
+```
+
+而当前 GitHub CI 又没有运行 Supabase DB integration，因此这部分目前仍属于：
+
+> **提交者的本地验证记录，而不是可重复的远程 gate。**
+
+---
+
+# 最终 Gate
+
+我会这样给当前阶段定性：
+
+| 项目                                      | 状态                         |
+| --------------------------------------- | -------------------------- |
+| Assessment direct INSERT/RLS 冲突         | ✅ 基本关闭                     |
+| Activity UPDATE status bypass           | ✅ 关闭                       |
+| Activity INSERT status bypass           | ❌ **P1**                   |
+| Generated DB types                      | ⚠️ 真 generated，但已过期，RPC 缺失 |
+| Typed Supabase clients                  | ❌ **P1**                   |
+| Assessment server persistence primitive | ✅                          |
+| Assessment end-to-end Supabase wiring   | ❌ **P1**                   |
+| `skillName` 空值                          | ✅                          |
+| Player 默认值伪装                            | ✅                          |
+| Migration replay                        | 本地声称通过                     |
+| Runtime authority CI                    | ❌                          |
+| Stage2-B settlement                     | 尚未开始，符合计划                  |
+
+## 我的判定
+
+> **Round13：8.0 / 10 — CONDITIONAL FAIL**
+> **P0 = 0，P1 = 3**
+> **暂不进入完整 Stage2-B。**
+
+这次不需要再大改架构。先做一个很窄的 **Stage2-A.2 Final Authority Closure**：
+
+1. **封死 Activity INSERT 的 `status/rules_version/audit fields` 伪造。**
+2. **重新生成 0021 后的 Database types，并把所有 Supabase clients 泛型化。**
+3. **真正 wire 一条 authenticated Activity → AI → trusted Assessment RPC 的 Supabase integration path。**
+4. **增加真实 PostgreSQL final-state authority test，并让 CI 跑起来。**
+5. 然后再进入 `settle_activity`。
+
+把这几个点关掉之后，我预计就可以真正 **GO → Stage2-B**。

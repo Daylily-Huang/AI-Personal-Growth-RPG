@@ -181,7 +181,13 @@ export default function SkillsPage() {
           </div>
           <div className="flex items-center gap-4 text-xs">
             <a href="/dashboard" className="text-zinc-400 hover:text-zinc-200">
-              ← 返回 Dashboard
+              Dashboard
+            </a>
+            <a href="/quests" className="text-zinc-400 hover:text-zinc-200">
+              Quests
+            </a>
+            <a href="/skills" className="font-medium text-amber-300">
+              Skill Tree
             </a>
             <button
               onClick={handleLogout}

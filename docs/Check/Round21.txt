@@ -1,0 +1,498 @@
+继续审完了。这轮比上一轮明显更接近闭环，但我仍然不会把 **Stage 3.1** 判成最终 PASS。
+
+# Round21 / Stage 3.1 审查结论
+
+| 项目 | 结论 |
+|---|---|
+| 评分 | **8.8 / 10** |
+| 状态 | **CONDITIONAL FAIL** |
+| P0 | **0** |
+| P1 | **2** |
+| P2 | **4** |
+| Stage2 Settlement Authority | **继续保持 Frozen** |
+| Stage3 Auth / Read Path | **代码主体成立，验收仍差最后两道 Gate** |
+| 下一大功能阶段 | **暂时 NO-GO** |
+
+你提交的摘要称 `136/136`、`tsc --noEmit`、lint 全绿，并把 Stage3.1 定义为“生产级闭环”。 我核对远程 `2f2f8acc` 后，绝大多数 Round20 修复确实已经落地；问题主要已经从“代码明显错误”缩小成了“生产级验证还不够”。
+
+---
+
+## 已确认真正修好的部分
+
+**TypeScript contract 已修。** `read-path-integration.test.ts` 现在的 `SettlementToApply` 已经恢复为当前领域接口：`player`、`relatedSkillLabels`、`primarySkill.masteryAction`、完整 transaction 都存在。
+
+Dashboard 的类型问题也已修正，同时 `dashboard.service.ts` 显式导出了 `DashboardSnapshot`。
+
+**0029 的 table/sequence default privilege 修复是真实有效的。** 新 migration 撤销了未来 table/sequence 对 `anon` 和 `authenticated` 的默认权限，所以以后新建表不会再继承 0028 的公网 CRUD。
+
+**SSR middleware 方向也修对了。** 现在 `setAll(cookiesToSet, headers)` 会接收 `@supabase/ssr` 0.12.x 的刷新 headers，并在 redirect 时传播 session cookie 和 cache headers。当前 Supabase SSR 实现确实支持这个第二参数模式。
+
+路由保护也从“除 login 外全部保护”收敛为了：
+
+```ts
+PROTECTED_PREFIXES = ["/dashboard", "/skills"]
+```
+
+这项可以关闭。
+
+---
+
+# P1-1：上一轮要求的 `pnpm build` Gate 仍没有完成证据
+
+这是一个很明确的遗漏。
+
+本轮摘要报告的是：
+
+```text
+pnpm exec tsc --noEmit → 0 errors
+vitest → 136/136
+harness → 11/11
+lint → 0 errors
+```
+
+但没有：
+
+```text
+pnpm build
+```
+
+
+
+而仓库自己的 CI 明确把 `pnpm build` 作为独立 Gate。
+
+这很重要，因为：
+
+```text
+tsc green
+≠
+Next.js production build green
+```
+
+`next build` 还会检查 App Router、Server/Client boundary、route compilation、proxy/middleware、prerender 等 Next-specific 行为。
+
+我目前通过 GitHub connector 仍然没有取得 `2f2f8acc` 对应 push 的 CI status，因此不能替它假设 build 已经通过。
+
+### 关闭条件
+
+必须给出：
+
+```text
+pnpm build
+→ success
+```
+
+最好同时给：
+
+```text
+CI check job
+→ green
+```
+
+这一项不需要再改架构，只缺执行与证明。
+
+---
+
+# P1-2：所谓“HTTP E2E”实际上仍不是 HTTP / Browser E2E
+
+这是当前最重要的剩余问题。
+
+新文件名称是：
+
+```text
+tests/http-auth-flow.test.ts
+```
+
+但里面实际上是：
+
+```ts
+import { GET as getDashboard } from ".../route";
+import { POST as postActivity } from ".../route";
+```
+
+然后直接：
+
+```ts
+await getDashboard()
+await postActivity(req)
+```
+
+并且：
+
+```ts
+vi.mock("@/lib/supabase/server")
+```
+
+
+
+所以它验证的是：
+
+> **Route Handler unit/integration wiring**
+
+不是：
+
+> **真实 HTTP / Next.js / Browser Auth E2E**
+
+它没有启动：
+
+```text
+next start
+```
+
+没有真实浏览器，也没有真正验证：
+
+```text
+Browser
+↓
+/login
+↓
+Supabase Auth
+↓
+Set-Cookie
+↓
+Next proxy/middleware
+↓
+GET /dashboard
+↓
+POST /api/activities
+↓
+POST /assess
+↓
+POST /confirm
+↓
+页面 reload
+↓
+数据仍存在
+↓
+logout
+↓
+cookie 被删除
+```
+
+更关键的是，当前最敏感的 **token refresh** 路径也没有被真实触发。
+
+测试 7 是手工构造：
+
+```ts
+const sourceResponse = NextResponse.next();
+
+sourceResponse.cookies.set(...)
+sourceResponse.headers.set(...)
+```
+
+然后再测试：
+
+```ts
+createRedirectWithSession(...)
+```
+
+
+
+它证明 helper 会复制你手工塞进去的值，但没有证明：
+
+> `@supabase/ssr → setAll → NextResponse → browser redirect`
+
+这条真实链路能工作。
+
+所以摘要里的：
+
+> “完整的 HTTP 路由与中间件自动化回归测试”
+
+表述过头了。
+
+更准确应该叫：
+
+> **HTTP Route Handler + Middleware Unit/Integration Tests**
+
+---
+
+# 真正需要补的 E2E 很小
+
+不用搞很大的测试平台。
+
+用 Playwright 最合适：
+
+```text
+启动本地 Supabase
+↓
+pnpm build
+↓
+pnpm start
+↓
+Browser Context A
+  注册/登录
+  创建 Activity
+  AI Assessment
+  Confirm
+  Dashboard reload
+  XP + Skill 仍存在
+
+Browser Context B
+  登录另一个用户
+  看不到 A 数据
+
+A logout
+↓
+再次访问 /dashboard
+↓
+redirect /login
+
+/api/dashboard
+↓
+401
+```
+
+再额外做一个 session refresh case。
+
+只要这个真 E2E 绿，我就愿意把 Stage3 签成 Frozen。
+
+---
+
+# P2-1：共享 Demo 账号并没有真正“从 production security boundary 中移除”
+
+这次比上轮安全很多，但还没有完全干净。
+
+现在：
+
+```ts
+const isDevDemoEnabled =
+  process.env.NODE_ENV !== "production" ||
+  process.env.NEXT_PUBLIC_ENABLE_DEV_DEMO_ACCOUNT === "true";
+```
+
+
+
+也就是说：
+
+```text
+production
++
+NEXT_PUBLIC_ENABLE_DEV_DEMO_ACCOUNT=true
+```
+
+仍然会公开共享可写账号。
+
+而且用户名密码仍然直接存在 client source：
+
+```ts
+demo_player@growth.rpg
+Password123!
+```
+
+
+
+所以这不是严格意义上的：
+
+> production 永远禁止
+
+而是：
+
+> production 默认禁止，但可以通过公开 env flag 重新开启。
+
+我把它从 P1 降为 **P2**，因为默认 production 已经安全很多。
+
+建议最终改成：
+
+```ts
+const isDevDemoEnabled =
+  process.env.NODE_ENV !== "production" &&
+  process.env.NEXT_PUBLIC_ENABLE_DEV_DEMO_ACCOUNT === "true";
+```
+
+即两个条件都必须成立。
+
+更好的是根本不要在 production client bundle 中保留固定 credential。
+
+---
+
+# P2-2：0029 只收紧了 Tables / Sequences，没有收紧 Future Functions
+
+这是一个容易遗漏但值得现在补掉的 DB hardening。
+
+0029 目前：
+
+```sql
+REVOKE ALL ON TABLES
+REVOKE ALL ON SEQUENCES
+```
+
+
+
+但是 PostgreSQL 对**新建 function / procedure** 默认会给：
+
+```text
+PUBLIC EXECUTE
+```
+
+官方文档明确如此。
+
+而你的系统后面一定还会继续加：
+
+```text
+SECURITY DEFINER RPC
+```
+
+例如：
+
+```text
+resolve_mastery_verification()
+apply_correction()
+merge_skills()
+...
+```
+
+如果未来某次 migration 忘记：
+
+```sql
+REVOKE ALL ... FROM PUBLIC;
+```
+
+就可能临时或永久暴露 trusted RPC。
+
+所以真正的 fail-closed default authority 最好再补：
+
+```sql
+ALTER DEFAULT PRIVILEGES
+REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
+```
+
+注意 PostgreSQL 官方文档特别说明：这个 revoke 不能只写成 schema-local 版本，要针对创建者角色的 global default privileges 做。
+
+不是当前 blocker，但在下一个 SECURITY DEFINER RPC 出现前应该解决。
+
+---
+
+# P2-3：`middleware.ts` 仍然没有迁移到 Next 16 的 `proxy.ts`
+
+项目还是 Next 16.x，但仍然使用：
+
+```text
+src/middleware.ts
+export function middleware()
+```
+
+Next.js 16 官方已经将该 convention 标记为 deprecated，并推荐：
+
+```text
+src/proxy.ts
+export function proxy()
+``` 
+
+
+现在一般还能工作，所以不是 P1。
+
+但既然现在正处在 Auth foundation 冻结阶段，最好别把一个已经 deprecated 的入口永久冻结下来。
+
+---
+
+# P2-4：redirect helper 复制“全部 NextResponse headers”过于宽
+
+现在：
+
+```ts
+sourceResponse.headers.forEach((value, key) => {
+  redirectResponse.headers.set(key, value);
+});
+```
+
+
+
+但 `sourceResponse` 是：
+
+```ts
+NextResponse.next({
+  request: {
+    headers: request.headers
+  }
+})
+```
+
+NextResponse 在这种模式下内部会携带：
+
+```text
+x-middleware-override-headers
+x-middleware-request-*
+x-middleware-next
+```
+
+这类 Next 内部控制 headers。Next 本身确实用这些 header 实现 request header override。
+
+当前实现大概率仍能工作，因为 Next server 会处理/移除这些内部字段，但设计不够干净。
+
+更稳的模式是分别保存：
+
+```text
+pendingCookies
+pendingSupabaseHeaders
+```
+
+redirect 时只复制：
+
+```text
+Supabase 提供的 cache headers
++
+refresh cookies
+```
+
+而不是复制整个 `NextResponse.next().headers`。
+
+当前测试也只有一个 cookie，没有测 Supabase 常见的多 chunk auth cookies。
+
+这是 robustness P2，不阻塞 Stage3。
+
+---
+
+# Stage2 有没有被新改动破坏？
+
+目前没有。
+
+我没有发现：
+
+```text
+settle_activity
+create_activity
+rules_version
+XP authority
+Mastery monotonic
+repetition serialization
+```
+
+被 Stage3.1 改坏。
+
+0029 只影响**未来对象默认权限**，不会修改现有 0001–0028 表的 ACL。
+
+所以：
+
+> **Stage2 Settlement Authority 继续保持 Frozen。**
+
+---
+
+# 现在最合理的下一步
+
+不要再做 Stage3.2 大功能。
+
+只做一个非常小的：
+
+> **Stage3 Final Acceptance**
+
+真正只剩两项硬 Gate：
+
+| Gate | 必须结果 |
+|---|---|
+| Production Build | `pnpm build` PASS |
+| Browser E2E | login → activity → assess → confirm → reload → isolation → logout PASS |
+
+然后顺手处理三个不阻塞 hardening：
+
+```text
+Demo account = dev AND flag
+Function default EXECUTE fail-closed
+middleware.ts → proxy.ts
+```
+
+做到这里，我预期会给：
+
+> **9.2–9.4 / 10 — PASS — Stage3 Auth & Read Integration Frozen**
+
+所以这轮不是“修得不好”。
+
+相反，**Round20 的代码问题基本已经解决了，现在真正剩下的是验收层级不够真实**。目前最大的问题不是逻辑，而是把“直接调用 route function 的 Vitest”叫成了“HTTP/browser E2E”。这最后一层补上，就可以结束 Auth/Read Path 阶段。

@@ -1,0 +1,715 @@
+这轮可以正式改判了。
+
+# Round19 / Final Freeze 审查结论
+
+| 项目 | 结论 |
+|---|---|
+| 评分 | **9.2 / 10** |
+| 状态 | **PASS** |
+| P0 | **0** |
+| P1 | **0** |
+| P2 | **4–5 个后续边界，不阻塞** |
+| Stage2 Settlement Authority | **FROZEN** |
+| 是否可进入下一大阶段 | **GO** |
+| 下一阶段 | **Auth + 全量 Supabase Read Path / UI Integration** |
+
+这一次，上一轮最后两个硬 Gate 都已经关闭。
+
+你提供的 verification summary 明确记录了 `0001→0027` 完整迁移成功，DB-gated 三组测试共 **32/32**，全套 **124/124、0 skipped**。
+
+我没有只看摘要，也核了远程代码。结论是：**代码实现与这份验证摘要现在基本一致。**
+
+---
+
+## 1. new-Skill Mastery NULL 漏洞：正式关闭
+
+0027 现在明确引入：
+
+```sql
+v_current_mastery integer;
+```
+
+在 Skill lookup 后：
+
+```sql
+v_current_mastery :=
+  coalesce(v_skill_row.mastery_level, 1);
+```
+
+因此：
+
+```text
+已有 Skill → 使用数据库真实 mastery
+新 Skill   → authoritative mastery = M1
+```
+
+这与 `skills.mastery_level default 1` 以及 TS 的 `DEFAULT_SKILL_MASTERY = 1` 一致。
+
+更关键的是，Phase G 已经不再直接依赖可能为空的：
+
+```sql
+v_skill_row.mastery_level
+```
+
+而统一使用：
+
+```sql
+v_current_mastery
+```
+
+所以：
+
+```text
+新 Skill
+proposed M0
+```
+
+现在会命中：
+
+```sql
+0 <= 1
+```
+
+然后：
+
+```text
+masteryAction → none
+```
+
+不会出现 M1 → M0。
+
+这已经满足项目 ADR 要求的：
+
+> 普通 growth settlement 的 Mastery 单调增长。
+
+---
+
+## 2. Verification 的 fromLevel 也真正 authority 化了
+
+上一轮我特别要求：
+
+> `fromLevel` 不应该使用 client 值，应该直接来自数据库当前 Mastery。
+
+现在 0027 已经改成：
+
+```sql
+v_from_level := v_current_mastery;
+```
+
+而不是：
+
+```text
+greatest(client_fromLevel, currentMastery)
+```
+
+这是更干净的语义。
+
+因为：
+
+```text
+fromLevel = “当前数据库状态”
+```
+
+不是客户端建议值。
+
+同时：
+
+```sql
+if v_to_level <= v_current_mastery then
+    v_mastery_action := 'none';
+end if;
+```
+
+因此新 Skill M1 请求：
+
+```text
+M1 → M1 verification
+```
+
+也不会产生无意义 pending。
+
+---
+
+## 3. 两个新 DB 测试写得正确
+
+新增测试不是形式测试，而是准确攻击了上一轮漏洞。
+
+第一个：
+
+```text
+new Skill
+upgrade proposedLevel=0
+        ↓
+settle success
+        ↓
+skill.mastery_level = 1
+        ↓
+mastery_events = 0
+```
+
+第二个：
+
+```text
+new Skill
+request verification M1→M1
+        ↓
+settle success
+        ↓
+masteryVerification = null
+        ↓
+DB pending rows = 0
+```
+
+
+
+这两条正好补上之前只有 existing Skill、没有 new Skill branch 的测试缺口。
+
+因此 P1-1 可以正式关闭。
+
+---
+
+# 4. 之前几轮的核心 Authority 现在已经形成闭环
+
+现在把 Stage2 的核心不变量重新串一遍，已经比较完整。
+
+### Activity
+
+```text
+authenticated user
+        ↓
+create_activity
+        ↓
+auth.uid() ownership
+        ↓
+Quest ownership
+        ↓
+唯一 ACTIVE rules_version
+        ↓
+Activity.rules_version frozen
+```
+
+没有 active rules version：
+
+```text
+fail closed
+```
+
+而不是 fallback。
+
+### Assessment
+
+```text
+AI proposes
+        ↓
+pending assessment
+        ↓
+不能直接改永久成长状态
+```
+
+### Settlement
+
+```text
+Assessment pending
+        ↓
+settle_activity(service_role only)
+        ↓
+lock assessment/activity
+        ↓
+skill advisory lock
+        ↓
+authoritative repetition
+        ↓
+canonical XP validation
+        ↓
+mastery stale validation
+        ↓
+永久写入
+```
+
+这与最初设计的：
+
+> **AI proposes; deterministic Growth Engine decides; trusted server/DB owns permanent state**
+
+现在已经真正对齐了。
+
+---
+
+# 5. XP Authority 也可以冻结
+
+现在 activity settlement 只能接受：
+
+```text
+xpType = activity
+amount >= 0
+```
+
+并且：
+
+```text
+transaction.amount
+settlement.xpDelta
+primarySkill.xpDelta
+```
+
+必须一致。
+
+数据库最终真正用于：
+
+```text
+XP Ledger
+Player total XP
+Primary Skill XP
+```
+
+的是 canonical XP。
+
+所以不会再出现：
+
+```text
+Ledger +50
+Player +100
+Skill +200
+```
+
+这种永久状态分裂。
+
+同时 correction/adjustment 已被排除在 activity RPC 外。
+
+这是正确的架构边界：
+
+```text
+settle_activity
+≠
+correction pipeline
+```
+
+后续 correction 应独立设计，而不是污染当前 settlement。
+
+---
+
+# 6. Repetition 并发 Authority 现在也够扎实了
+
+当前已经是：
+
+```text
+(user + normalized skill)
+        ↓
+pg_advisory_xact_lock
+        ↓
+重新查询 Skill
+        ↓
+clock_timestamp()
+        ↓
+查询 committed ledger
+        ↓
+authoritative repetitionCount
+```
+
+对于两个不同 Activity 同时结算：
+
+```text
+T1: repetition = N
+T2: 等待
+T1 commit
+T2 获锁
+T2重新读取
+→ repetition = N+1
+```
+
+客户端 stale 时：
+
+```text
+repetition_conflict
++
+actualRepetitionCount
+```
+
+然后 SettlementService retry。
+
+上一轮测试中 retry Activity 写反的问题也已经修掉。
+
+因此这一块我不再保留 P1。
+
+---
+
+# 7. repetition_conflict 的“零永久副作用”也可以关闭
+
+现在新 Skill 不会在 repetition validation 之前 INSERT。
+
+顺序已经变成：
+
+```text
+advisory lock
+↓
+SELECT skill
+↓
+repetition validation
+↓
+mastery validation
+↓
+只有全部通过
+↓
+INSERT skill if necessary
+```
+
+所以：
+
+```text
+新 Skill + wrong repetitionCount
+```
+
+返回 conflict 时：
+
+```text
+skills row = 0
+ledger = 0
+player XP unchanged
+activity not confirmed
+assessment not confirmed
+```
+
+这是上一轮要求的真正 atomic preflight 语义。
+
+---
+
+# 8. skill_name_snapshot 也形成了完整读写闭环
+
+现在不只是数据库保存 snapshot。
+
+读取端也已经切换。
+
+之前是：
+
+```text
+xp_transactions
+JOIN skills.name
+```
+
+所以 Skill 改名后历史账本会变。
+
+现在变成：
+
+```ts
+.select("*")
+```
+
+然后：
+
+```ts
+mapTransaction(
+  row,
+  row.skill_name_snapshot
+)
+```
+
+因此：
+
+```text
+2026 settlement:
+skill = Statistics
+
+2027 rename:
+skill = Quantitative Analysis
+```
+
+历史 XP Ledger 仍显示：
+
+```text
+Statistics
+```
+
+这才是真正的 ledger snapshot。
+
+这项可以正式关闭。
+
+---
+
+# 9. DB Gate：我接受这轮验收证据，但注明证据边界
+
+你提供的本轮验证记录是：
+
+```text
+supabase db reset
+0001 → 0027 success
+
+settlement-rpc
+21/21
+
+authority-final-state
+10/10
+
+empty-db-migration smoke
+1/1
+
+full suite
+124/124
+0 skipped
+```
+
+
+
+远程 `e7e3f84` 的 commit message 也记录了同一组 DB gate 结果。
+
+我通过当前 GitHub connector 仍然没有取得对应 push 的 Actions status——combined status 返回空，因此我**不能说“我独立看到了 GitHub Actions 绿色运行”**。
+
+但这次与前两轮不同：
+
+- 提供了明确的真实 PostgreSQL 执行结果；
+- migration/test 文件与宣称的测试数量匹配；
+- 我静态检查了关键 SQL 和攻击测试；
+- 没发现与验证结果明显矛盾的代码。
+
+所以这轮我接受 DB gate 证据。
+
+注意最新远程 `main` 实际是：
+
+```text
+4006713
+```
+
+不是 `e7e3f84`。
+
+不过 `4006713` 相比 `e7e3f84` **只新增 Round18 verification summary 文档，没有功能代码变化**，因此不影响冻结结论。
+
+---
+
+# 10. 还有哪些 P2？
+
+现在这些都不应该继续阻塞 Stage2。
+
+### P2-A：stale pending MasteryVerification 生命周期
+
+这里我新保留一个后续问题。
+
+例如：
+
+```text
+Skill M1
+↓
+pending verification M1→M5
+
+后来另一项高质量证据
+↓
+直接 upgrade 到 M5
+```
+
+当前 H.5 immediate upgrade 会：
+
+```text
+skills.mastery_level → M5
+mastery_events +1
+```
+
+但没有同步把旧：
+
+```text
+pending M1→M5
+```
+
+标成：
+
+```text
+verified / rejected / superseded
+```
+
+因此 Mastery queue 可能残留已经失效的 pending。
+
+这不是永久成长状态损坏，因为 Skill 已经正确升级；所以不升 P1。
+
+但在你下一阶段真正把：
+
+```text
+Mastery queue
+```
+
+切到 Supabase 时，建议顺手解决。
+
+---
+
+### P2-B：Composite FK
+
+仍然建议最终形成：
+
+```text
+(user_id, activity_id)
+(user_id, assessment_id)
+(user_id, skill_id)
+```
+
+数据库关系级 tenant integrity。
+
+当前主 settlement RPC 已验证 ownership，所以 Auth/UI 阶段不是 blocker。
+
+但是：
+
+```text
+correction
+admin tools
+imports
+reconciliation
+```
+
+出现前最好补。
+
+---
+
+### P2-C：Skill alias identity
+
+现在 TS：
+
+```text
+normalized name OR aliases
+```
+
+SQL settlement：
+
+```text
+normalized_name only
+```
+
+因此未来真正启用 alias 后必须统一。
+
+但目前 Skill Ontology 尚未进入生产语义，所以可以留到对应阶段。
+
+---
+
+### P2-D：Secondary Skill lock ordering
+
+Primary 使用 advisory lock。
+
+Secondary 仍逐个：
+
+```sql
+insert ... on conflict do nothing
+```
+
+理论上多事务交叉 secondary/primary 可以制造 lock-order inversion。
+
+Postgres 会 deadlock detect + rollback，不会腐化 permanent state，因此不是 Authority blocker。
+
+Skill graph 阶段再统一：
+
+```text
+所有 skill labels
+→ normalized
+→ sort
+→ fixed-order advisory locks
+```
+
+即可。
+
+---
+
+# 11. rules_version dispatcher 是“未来硬 Gate”，不是现在的 Gate
+
+这个边界继续保留：
+
+目前只有：
+
+```text
+growth-engine-v0.1
+```
+
+因此：
+
+```text
+calculateXp(current engine)
++
+Activity.rulesVersion = v0.1
+```
+
+仍是一致的。
+
+但**第一次准备发布 `growth-engine-v0.2` 之前**必须停下来实现：
+
+```text
+Activity.rulesVersion
+        ↓
+Engine registry / dispatcher
+        ↓
+v0.1 → calculateXpV01()
+v0.2 → calculateXpV02()
+```
+
+否则：
+
+```text
+旧 Activity frozen v0.1
+↓
+新代码用 v0.2 算 XP
+↓
+Ledger 却写 v0.1
+```
+
+会破坏可重算性。
+
+因此把它记为：
+
+> **Pre-v0.2 P1 Gate**
+
+而不是现在阻止 Auth/UI。
+
+---
+
+# 最终 Gate
+
+这轮我正式给：
+
+> ## **PASS — Stage2 Settlement Authority Frozen**
+
+可以结束这几轮围绕 settlement RPC 的反复打磨了。
+
+不要再继续做：
+
+```text
+Stage2-B.3
+Stage2-B.4
+Stage2-B.5
+```
+
+边际收益已经明显下降。
+
+## 下一步 GO
+
+进入：
+
+> **Stage3 — Auth + Supabase Read Path Integration**
+
+建议顺序：
+
+```text
+1. Auth bootstrap / session
+        ↓
+2. Dashboard → request-scoped SupabaseRepository
+        ↓
+3. Activities
+        ↓
+4. Skills
+        ↓
+5. XP Ledger
+        ↓
+6. Mastery Verification Queue
+        ↓
+7. DemoRepository 仅保留 demo/test
+        ↓
+8. 真用户 E2E：
+   login
+   → create Activity
+   → AI Assessment
+   → confirm
+   → settle
+   → refresh
+   → permanent state remains
+```
+
+**这一阶段的首要不变量变了。**
+
+前面我们在保护：
+
+> “数据库算得对、写得对。”
+
+下一阶段要保护的是：
+
+> **“UI 看到的一定就是刚刚权威写入 Supabase 的数据，不能再发生 Demo/Supabase 双世界。”**
+
+这才是现在最值得继续审的方向。

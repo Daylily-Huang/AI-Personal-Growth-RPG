@@ -1,0 +1,681 @@
+继续审完了。这轮距离最终冻结只剩很小一步，但我又抓到一个**真正的数据库权限漏洞**，所以还不能签字。
+
+# Round22 / Stage 3 Final Acceptance 审查结论
+
+| 项目 | 结论 |
+|---|---|
+| 评分 | **8.9 / 10** |
+| 状态 | **CONDITIONAL FAIL** |
+| P0 | 0 |
+| P1 | **2** |
+| P2 | 2–3 |
+| Stage2 Settlement Authority | **继续 Frozen** |
+| Stage3 Auth / Read Path | **功能链路基本成立，但 Final Acceptance 尚不能 Frozen** |
+| 下一大阶段 | **NO-GO，先做一个极小 Final-Final Patch** |
+
+你上传的摘要声称生产 build、真实 HTTP E2E、0030 函数默认权限、`proxy.ts`、header 精准过滤全部通过。
+
+其中大部分是真修了，但 **0030 实际没有达到它声称的安全效果**。
+
+---
+
+# 已确认真正修好的部分
+
+## 1. 这次 E2E 确实比上一轮真实很多
+
+`tests/e2e-http-browser.test.ts` 不是再直接 import route handler 了。
+
+它实际：
+
+```ts
+app = next({
+  dev: false,
+  ...
+});
+
+await app.prepare();
+
+server = http.createServer(
+  (req, res) => handle(req, res)
+);
+```
+
+然后通过真实：
+
+```ts
+fetch("http://127.0.0.1:3095/...")
+```
+
+访问 Next 应用。
+
+因此这一轮确实覆盖了：
+
+```text
+真实 TCP HTTP
+↓
+Next production runtime
+↓
+proxy.ts
+↓
+Supabase Cookie
+↓
+API Route
+↓
+RLS / Repository
+↓
+Settlement RPC
+↓
+再读 Dashboard
+```
+
+这已经不是上一轮的 route-function unit test。
+
+我接受它作为 **HTTP production-server E2E**。
+
+---
+
+## 2. User A 的完整真实成长链路确实有覆盖
+
+测试实际执行：
+
+```text
+Supabase Auth signUp/signIn
+↓
+真实 Cookie
+↓
+GET /api/dashboard
+↓
+POST /api/activities
+↓
+POST /api/activities/:id/assess
+↓
+POST /api/assessments/:id/confirm
+↓
+GET /api/dashboard
+↓
+XP / activities / recentGrowth / skills 验证
+↓
+GET /dashboard = 200
+```
+
+
+
+而 assess route 也确实走正式应用路径：
+
+```ts
+assessActivity(...)
+repo.addAssessment(...)
+```
+
+
+
+没有 AI Key 时，则走 deterministic fallback，不会因为 CI 没有真实模型凭证导致测试随机失败。
+
+这一项可以关闭。
+
+---
+
+## 3. 双用户 HTTP 隔离有真实验证
+
+User B 是另一个真实 Supabase Auth identity，然后通过另一个 cookie 请求 `/api/dashboard`，断言：
+
+```text
+totalXp = 0
+activities = 0
+recentGrowth = 0
+```
+
+
+
+结合之前 DB 层 RLS 测试，现在 isolation coverage 已经从：
+
+```text
+SQL/RLS
++
+Repository
+```
+
+扩到了：
+
+```text
+HTTP/session
+```
+
+这部分现在足够扎实。
+
+---
+
+## 4. Logout HTTP 流程也确实落地
+
+测试：
+
+```text
+登录
+↓
+POST /api/auth/logout
+↓
+解析 Set-Cookie 删除 session
+↓
+再次 GET /api/dashboard
+↓
+401
+```
+
+
+
+这一点我接受。
+
+---
+
+## 5. `proxy.ts` 迁移正确
+
+现在已经是：
+
+```ts
+src/proxy.ts
+
+export async function proxy(request: NextRequest)
+```
+
+
+
+旧的 Next 16 middleware convention 已经被替换。
+
+这项关闭。
+
+---
+
+## 6. Redirect header 也按上一轮要求收敛了
+
+现在不再：
+
+```ts
+sourceResponse.headers.forEach(...)
+```
+
+复制所有 Next internal headers。
+
+而只传：
+
+```text
+cache-control
+pragma
+expires
+```
+
+同时保留 refreshed cookies。
+
+这一项也关闭。
+
+---
+
+# P1-1：0030 的函数默认权限修复实际上是无效的
+
+这是本轮最重要的发现。
+
+0030 写的是：
+
+```sql
+alter default privileges
+in schema public
+revoke execute on functions
+from public, anon, authenticated;
+```
+
+
+
+看起来合理，但 PostgreSQL 的语义不是这样。
+
+PostgreSQL 官方文档明确说明：
+
+> **per-schema default privileges 只能在 global default 上“增加”权限，不能撤销 global 已经授予的权限。**
+
+而 PostgreSQL 对新建 function 默认就有：
+
+```text
+PUBLIC EXECUTE
+```
+
+官方甚至专门拿你现在这条 SQL 当反例：
+
+```sql
+ALTER DEFAULT PRIVILEGES
+IN SCHEMA public
+REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
+```
+
+官方说明这种写法**没有效果**，除非它只是撤销之前同样的 per-schema GRANT。要真正去掉新函数默认的 `PUBLIC EXECUTE`，必须改 **global default privileges**。
+
+所以当前：
+
+```sql
+0030_function_default_privileges_tighten.sql
+```
+
+并没有实现摘要所声称的：
+
+> “未来新增任何 RPC 默认对公网不可执行。”
+
+
+
+---
+
+## 正确写法
+
+应该类似：
+
+```sql
+alter default privileges
+revoke execute on functions
+from public;
+```
+
+注意：
+
+```text
+不要加 IN SCHEMA public
+```
+
+然后按实际 function-owner 角色处理。
+
+例如如果 migrations 通常由 `postgres` 创建对象：
+
+```sql
+alter default privileges
+for role postgres
+revoke execute on functions
+from public;
+```
+
+然后 service role 是否需要自动 EXECUTE，可以单独：
+
+```sql
+alter default privileges
+for role postgres
+grant execute on functions
+to service_role;
+```
+
+关键是：
+
+> **global REVOKE PUBLIC EXECUTE**
+
+而不是 schema-local revoke。
+
+---
+
+## 更重要：必须写真实 DB 测试，不要只 grep migration
+
+这次 0030 为什么能“测试通过”却仍然错？
+
+因为 `supabase-schema.test.ts` 很可能只检查：
+
+```text
+文件存在
+字符串存在
+migration order
+```
+
+而没有实际创建一个新函数再检查权限。
+
+真正应该增加：
+
+```sql
+create function public.__future_rpc_probe()
+returns int
+language sql
+as $$ select 1 $$;
+```
+
+然后：
+
+```sql
+select has_function_privilege(
+  'public',
+  'public.__future_rpc_probe()',
+  'EXECUTE'
+);
+```
+
+必须：
+
+```text
+false
+```
+
+同时：
+
+```text
+authenticated = false
+anon = false
+service_role = true
+```
+
+最后 drop probe。
+
+这才叫真正验证 **future function fail-closed**。
+
+### 这一项是 P1
+
+原因很直接：
+
+未来你一定会继续创建：
+
+```text
+resolve_verification()
+apply_correction()
+merge_skills()
+...
+```
+
+如果开发者漏写 REVOKE，那函数会默认被 PUBLIC 执行。
+
+而这些很可能都是：
+
+```text
+SECURITY DEFINER
+```
+
+所以这不能降成普通 hardening。
+
+---
+
+# P1-2：新增真实 E2E 会让当前 CI 的 Supabase Integration Job 很可能直接失败
+
+这是另一个很具体的问题。
+
+E2E 用：
+
+```ts
+next({
+  dev: false
+})
+```
+
+
+
+也就是要求已经存在 production `.next` build。
+
+但是当前 CI 的 `supabase-integration` job 顺序仍然是：
+
+```text
+checkout
+pnpm install
+supabase db start
+pnpm test
+```
+
+没有：
+
+```text
+pnpm build
+```
+
+
+
+而现在：
+
+```text
+XP_RPG_TEST_DB_URL
+```
+
+在这个 job 中被设置，所以：
+
+```ts
+describe.skipIf(!DATABASE_URL)
+```
+
+不会 skip E2E。
+
+因此 fresh CI checkout 中：
+
+```text
+没有 .next production build
+↓
+Vitest 执行 e2e-http-browser.test.ts
+↓
+next({ dev:false }).prepare()
+↓
+依赖 production build
+```
+
+这条链路有明显失败风险。
+
+你本地能跑 `142/142` 很可能是因为前面刚执行过：
+
+```text
+pnpm build
+```
+
+所以工作目录已经存在 `.next`。
+
+但是 CI 是 fresh checkout。
+
+---
+
+## 正确修法
+
+最简单：
+
+```yaml
+- name: Build production app
+  env:
+    NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ...
+    SUPABASE_SECRET_KEY: ...
+  run: pnpm build
+
+- name: Run database-backed tests
+  env:
+    XP_RPG_TEST_DB_URL: ...
+  run: pnpm test
+```
+
+也可以把 E2E 从普通 Vitest suite 拆出去：
+
+```text
+pnpm test
+pnpm build
+pnpm test:e2e
+```
+
+我更推荐第二种。
+
+因为测试层级应该明确：
+
+```text
+Unit
+Integration
+DB Integration
+Production HTTP E2E
+```
+
+不要让 `pnpm test` 隐式依赖“刚好有人之前 build 过”。
+
+---
+
+# 关于摘要里的 `pnpm build PASS`
+
+摘要现在确实写了：
+
+```text
+pnpm build
+0 errors
+0 warnings
+```
+
+
+
+我接受这是一次本地 build 证据。
+
+但我不能独立看到 GitHub push 的 Actions green status；GitHub combined status 对 `8fa85ad` 仍返回空。
+
+所以当前不能把：
+
+```text
+本地 build green
+```
+
+等同于：
+
+```text
+fresh checkout CI green
+```
+
+特别是因为上面的 CI 顺序问题是代码里真实存在的。
+
+---
+
+# Token Refresh：这次比之前好，但摘要仍略微说过头
+
+测试 6 做的是：
+
+```ts
+jarA.client.auth.refreshSession()
+```
+
+然后拿 refreshed cookies 再发：
+
+```text
+GET /api/dashboard
+```
+
+
+
+这验证的是：
+
+> **Supabase Auth 刷新后的 cookie 可以继续访问 Next API。**
+
+但没有真正模拟：
+
+```text
+浏览器拿过期 access token
+↓
+Next proxy 收到旧 cookie
+↓
+proxy 内 supabase.auth.getUser()
+↓
+服务器触发 refresh
+↓
+setAll()
+↓
+响应 Set-Cookie
+↓
+浏览器保存
+↓
+下一次请求继续登录
+```
+
+所以：
+
+> “Token Refresh 保持会话”
+
+基本成立，但更严格地说，**middleware-triggered refresh propagation** 仍主要由前面的 unit test + helper test支撑，而不是一个真正 expired-token E2E。
+
+我把它留在 **P2**，不再阻止 Stage3。
+
+---
+
+# 还有一个术语问题：它仍然不是 Browser E2E
+
+文件名：
+
+```text
+e2e-http-browser.test.ts
+```
+
+但实际上没有：
+
+```text
+Playwright
+Chromium
+Firefox
+WebKit
+```
+
+而是 Node `fetch` + 手写 cookie jar。
+
+因此更准确叫：
+
+> **Production HTTP E2E**
+
+而不是 Browser E2E。
+
+不过这一次它已经覆盖了 Stage3 最关键的 server/session/data path，因此我**不再要求必须 Playwright 才能冻结**。
+
+未来做 UI 行为验证时再补 Playwright 即可。
+
+---
+
+# Stage2 是否被破坏？
+
+没有。
+
+本轮改动集中于：
+
+```text
+Auth
+Proxy
+Default privileges
+E2E
+```
+
+没有碰：
+
+```text
+settle_activity
+canonical XP
+mastery monotonicity
+repetition authority
+rules_version
+```
+
+因此：
+
+> **Stage2 Settlement Authority 继续 Frozen。**
+
+---
+
+# 最终只需要一个非常小的 Final-Final Patch
+
+不要做新功能。
+
+只修两项 P1：
+
+1. **0031 / 修正 Function Default Privilege**
+   - global revoke `PUBLIC EXECUTE`
+   - 明确 function owner role
+   - service_role 显式 grant
+   - 加 live DB probe test：
+     - 新建函数
+     - `public/anon/authenticated EXECUTE = false`
+     - `service_role = true`
+
+2. **修 CI E2E build ordering**
+   - fresh checkout 下先 `pnpm build`
+   - 再跑 production HTTP E2E
+   - 最好拆成 `test:e2e`
+
+然后真实跑：
+
+```text
+supabase db reset
+tsc
+lint
+unit/integration
+DB integration
+build
+production HTTP E2E
+```
+
+全部 green。
+
+做到这两项，我预期：
+
+> **9.3–9.5 / 10 — PASS — Stage3 Auth + Supabase Read Path officially Frozen**
+
+这一轮最关键的结论是：
+
+> **Stage3 的功能本身现在基本已经过关；当前剩余问题已经不是业务逻辑，而是 0030 对 PostgreSQL default privilege 的理解错误，以及 CI 没把新增 production E2E 当成真正 production test 来编排。**
+
+所以先不要继续 Skill Graph / Mastery Resolution。把这两个非常具体的 Gate 封死，再向下一阶段走。

@@ -1,0 +1,372 @@
+继续审完了。这次我不只对照你上传的 `Round13_VERIFICATION_SUMMARY`，也核了远程 `main` 中对应的 0022 migration、generated types、Supabase clients、两个 Activity API route、final-state DB test 和 CI。你这份总结中声称关闭 Round13 三个 P1 的主要代码确实已经落地。
+
+## Round14 审查结论
+
+**评分：8.6 / 10**
+
+**状态：CONDITIONAL FAIL**
+
+| 等级 | 数量 |
+|---|---:|
+| P0 | 0 |
+| P1 | **2** |
+| P2 | **3** |
+
+**Gate：暂时 NO-GO → 完整 Stage2-B。**
+
+这轮比上轮进步明显。上一轮的三个 P1 基本都关闭了，但在新实现里暴露出两个新的 authority 问题。其中第一个必须在 `settle_activity` 之前修，否则 Stage2-B 会把错误的治理版本写进永久账本。
+
+### 已确认关闭的旧问题
+
+**Activity 直写状态旁路已经真正封住。** 0022 删除了 `activities_insert`，创建改走 `SECURITY DEFINER create_activity()`；RPC 固定 `user_id=auth.uid()` 和 `status='pending_assessment'`。
+
+**generated types 这次是真的闭环了。** 当前类型文件已经同时包含 `create_activity` 和 `record_ai_assessment`，不再是上一轮的 `Functions: never`。 Admin、server、browser client 也确实都接入了 `<Database>`。  
+
+**Supabase Assessment 写入路径也确实接起来了。** `SupabaseRepository.addActivity()` → `create_activity`，`addAssessment()` → `AssessmentPersistenceService` → service-role-only `record_ai_assessment`。两个 API route 也已经切到 `getRequestRepository()`。  
+
+数据库 final-state 测试也从“搜 SQL 字符串”升级成了真实 PostgreSQL 权限行为测试，这一方向是正确的。 CI 也确实新增了 Supabase integration job。 当前 Supabase CLI 官方文档也确认 `supabase db start` 是有效命令，所以我**不再把这个 CI 命令本身视作问题**。
+
+---
+
+# P1-1：`rules_version` authority 目前是错误的
+
+这是本轮最重要的问题。
+
+0022 当前这样选择规则版本：
+
+```sql
+select version into v_rules_version
+from public.rules_versions
+order by version desc
+limit 1;
+
+v_rules_version := coalesce(v_rules_version, 'v1');
+```
+
+
+
+但 `rules_versions` 本身明明有：
+
+```text
+status = draft | active | archived
+activated_at
+```
+
+
+
+现在却完全没有：
+
+```sql
+where status = 'active'
+```
+
+这会产生三个问题。
+
+第一，**draft 版本可以被选中**。例如数据库同时存在：
+
+```text
+growth-engine-v0.1   active
+growth-engine-v0.2   draft
+```
+
+当前 RPC 很可能直接冻结 `v0.2`。
+
+第二，`version` 是 `text`，所以：
+
+```sql
+order by version desc
+```
+
+本质是字符串排序，不是版本顺序。以后 `v9 / v10` 一类命名就会出问题。
+
+第三，也是目前已经存在的实际漂移：数据库 registry 为空时 RPC 写：
+
+```text
+v1
+```
+
+但当前 Growth Engine 自己声明的是：
+
+```ts
+export const RULES_VERSION = "growth-engine-v0.1";
+```
+
+
+
+所以现在真实 Supabase 路径可能出现：
+
+```text
+Activity.rules_version = "v1"
+
+实际执行的 Growth Engine = "growth-engine-v0.1"
+```
+
+而你们数据库设计文档明确规定：
+
+> `rules_version` 在 Activity 创建时冻结，Confirm ledger 必须记录这个版本。
+
+
+
+这意味着最重要的审计字段之一已经不可信。
+
+而现有测试只验证：
+
+```ts
+expect(rules_version).toBeTruthy();
+expect(rules_version).not.toBe("evil-v9");
+```
+
+它完全捕捉不到上述问题。
+
+### 必须怎么修
+
+建议再加一个很小的 `0023_rules_version_authority.sql`：
+
+```sql
+-- 数据库必须存在且只能存在一个 active version
+create unique index ...
+where status = 'active';
+
+select version
+into v_rules_version
+from public.rules_versions
+where status = 'active'
+order by activated_at desc
+limit 1;
+
+if v_rules_version is null then
+  raise exception 'no_active_rules_version';
+end if;
+```
+
+**不要 fallback `'v1'`。**
+
+另外 migration/seed 必须明确注册：
+
+```text
+growth-engine-v0.1 = active
+```
+
+并增加测试：
+
+```text
+active = growth-engine-v0.1
+draft  = growth-engine-v999
+→ create_activity 必须仍得到 growth-engine-v0.1
+```
+
+以及：
+
+```text
+没有 active version
+→ create_activity 必须 fail closed
+```
+
+这个问题我判 **P1**，而且在 Stage2-B 前必须解决。
+
+---
+
+# P1-2：`getRequestRepository()` 是 fail-open，而不是 fail-closed
+
+当前：
+
+```ts
+if (!isSupabaseConfigured()) return new DemoRepository();
+
+try {
+  ...
+  if (error || !data.user) return new DemoRepository();
+  return new SupabaseRepository(...);
+} catch {
+  return new DemoRepository();
+}
+```
+
+
+
+这意味着当 Supabase 已配置时：
+
+```text
+正常登录
+→ Supabase
+
+session 过期
+→ Demo
+
+auth 服务暂时失败
+→ Demo
+
+getUser() 出错
+→ Demo
+
+其他异常
+→ Demo
+```
+
+然后 `/api/activities` 根本不知道发生了降级，依然：
+
+```text
+201 Created
+```
+
+并真的调用 DemoRepository 写数据。
+
+这属于典型的 **fail-open persistence**。
+
+对于一个正在建立：
+
+> authoritative permanent growth state
+
+的系统，这是危险的。
+
+最直观的情况是：
+
+```text
+Request 1
+登录正常
+Activity A → Supabase
+
+Request 2
+session/auth 短暂失败
+Activity B → demo.json
+
+Request 3
+登录恢复
+→ 又回 Supabase
+```
+
+用户看起来一直“保存成功”，实际上已经出现两个 source of truth。
+
+而 `/assess` 同样使用这个 resolver。
+
+### 正确逻辑
+
+应该明确区分：
+
+```text
+没有配置 Supabase
+→ Demo mode
+
+已经配置 Supabase
+→ Supabase mode
+```
+
+而不是：
+
+```text
+Supabase 出任何问题
+→ Demo mode
+```
+
+建议：
+
+```ts
+export async function getRequestRepository(): Promise<Repository> {
+  if (!isSupabaseConfigured()) {
+    return new DemoRepository();
+  }
+
+  return getAuthenticatedRepository();
+}
+```
+
+于是：
+
+```text
+Supabase configured + 未登录
+→ 401
+
+Supabase configured + auth infrastructure error
+→ 500/503
+
+Supabase 未配置
+→ Demo
+```
+
+并且**不要 catch all 后 fallback Demo**。
+
+如果以后真的需要“可配置 Demo 模式”，加一个明确环境变量，例如：
+
+```text
+STORE_MODE=demo
+STORE_MODE=supabase
+```
+
+不要根据请求时的认证状态动态切换数据库。
+
+这个我也判 **P1**。
+
+---
+
+# 三个 P2
+
+**P2-1：`create_activity` RPC 暴露的参数面仍然偏宽。** authenticated 用户可以直接调用 RPC，而 RPC 接受 `p_activity_type`、`p_quest_id`、`p_started_at`、`p_ended_at`、`p_completion` 等参数。 其中尤其是 `p_quest_id`：函数是 `SECURITY DEFINER`，所以不能指望 Quest 的 RLS 替你验证 tenant ownership。你们已经把 composite tenant FK 留到 Stage2-B，这一点可以在那里一起关闭。`p_activity_type` 如果是 AI-derived field，则应直接从 creation RPC 参数中删除。
+
+**P2-2：目前仍缺真正的 HTTP wiring integration test。** 新测试很不错，但它验证的是 PostgreSQL/RPC 权限本身。 它没有覆盖：
+
+```text
+HTTP request
+→ session
+→ getRequestRepository
+→ SupabaseRepository
+→ AI mock
+→ AssessmentPersistenceService
+→ DB
+```
+
+也正因为如此，`getRequestRepository()` 的 fail-open 没被发现。建议新增一组 route test，尤其测试“Supabase configured + no session 必须 401”。
+
+**P2-3：`skillName` snapshot 继续保留上一轮结论。** 目前 ledger 只有 `skill_id`，显示名称来自 JOIN 当前 `skills.name`，所以 Skill rename 会改写历史展示语义。这个可以按计划在 Stage2-B 添加 `skill_name_snapshot`，不用为了它再阻塞 Stage2-A。
+
+---
+
+## CI / 测试方面的判定
+
+这轮 CI 设计比上一轮强很多。`supabase-integration` job 的存在以及 live authority test 都值得保留。
+
+但我会区分两个事实：
+
+**仓库中已经有 CI 配置** —— 已验证。
+
+**本次 `4fc2d46` 的 GitHub Actions push run 已实际 green** —— 我目前不能从可用 GitHub connector 独立验证；该 connector 返回的 commit workflow 查询只覆盖 PR-triggered runs，本提交没有返回相应 run。因此我不会把“远程 CI 已绿”当成我自己验证过的事实。
+
+你本地报告的：
+
+```text
+97 passed
+11 harness
+tsc/lint/build passed
+```
+
+我没有发现与代码结构冲突，但仍属于你提交的验证记录，而不是我重新运行得到的结果。
+
+---
+
+# 最终 Gate
+
+所以这次不是再做一次“大修”。
+
+我建议把下一轮定义成：
+
+**Stage2-A.3 — Authority Final-Final Closure**
+
+只修两个 P1：
+
+```text
+1. Rules registry：
+   active-only + one-active invariant + no fallback + current version seed
+
+2. Repository mode：
+   Supabase configured 后 fail-closed
+   未认证 401
+   基础设施异常 5xx
+   禁止 silent Demo fallback
+```
+
+顺手补对应测试即可。
+
+完成以后，我认为就可以真正：
+
+> **GO → Stage2-B / `settle_activity`**
+
+现在直接开始 Stage2-B，我仍然建议 **NO-GO**，主要不是因为代码量，而是因为 `rules_version` 正是 Stage2-B 永久 XP ledger 即将依赖的治理字段；必须先让它可信。

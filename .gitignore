@@ -18,12 +18,16 @@
 /.cache/
 /.config/
 /.pnpm-home/
+/.pnpm-store-win/
+/.supabase-home/
 /.gh-sync/
 /.npmrc
 
 # secrets / keys (never commit)
 /docs/Supabase-information.txt
 /docs/*/Supabase-information.txt
+/docs/Github PAT.txt
+/docs/*/Github PAT.txt
 
 # next.js
 /.next/

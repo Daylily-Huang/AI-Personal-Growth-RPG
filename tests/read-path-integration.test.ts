@@ -9,10 +9,13 @@ import type { SettlementToApply } from "@/lib/store/types";
 
 const DATABASE_URL = process.env.XP_RPG_TEST_DB_URL;
 
+const DEFAULT_LOCAL_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0";
+const DEFAULT_LOCAL_SERVICE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU";
+
 // Local Supabase test configuration
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54321";
-const SUPABASE_PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || "test-publishable-key";
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SECRET_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU";
+const SUPABASE_PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || DEFAULT_LOCAL_ANON_KEY;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SECRET_KEY || DEFAULT_LOCAL_SERVICE_KEY;
 
 process.env.NEXT_PUBLIC_SUPABASE_URL = SUPABASE_URL;
 process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = SUPABASE_PUBLISHABLE_KEY;
@@ -309,4 +312,164 @@ describe.skipIf(!DATABASE_URL)("Stage 3 — Full Supabase Read Path & E2E Integr
     expect(dashB.skills).toEqual([]);
     expect(dashB.recentGrowth).toEqual([]);
   });
+
+  test("4. Stage 4 Live DB: Quest CRUD, tree building, and RLS isolation", async () => {
+    // User A creates a main quest
+    const mainQuest = await repoA.addQuest({
+      title: "Complete Stage 4 Milestone",
+      description: "Implement quest system end-to-end",
+      questType: "production",
+      questSize: "main",
+      isMainQuest: true,
+      status: "active",
+      difficulty: 0.8,
+      goalAlignment: 1.0,
+    });
+    expect(mainQuest.id).toBeDefined();
+    expect(mainQuest.title).toBe("Complete Stage 4 Milestone");
+    expect(mainQuest.isMainQuest).toBe(true);
+
+    // User A creates a sub quest
+    const subQuest = await repoA.addQuest({
+      title: "Write Quest Unit Tests",
+      parentQuestId: mainQuest.id,
+      questType: "skill",
+      questSize: "standard",
+      status: "active",
+      progress: 50,
+    });
+    expect(subQuest.parentQuestId).toBe(mainQuest.id);
+
+    // User A lists quests and checks dashboard integration
+    const userAQuests = await repoA.listQuests();
+    expect(userAQuests.length).toBe(2);
+
+    const dashA = await buildDashboardSnapshot(repoA);
+    expect(dashA.mainQuest?.id).toBe(mainQuest.id);
+    expect(dashA.activeQuests?.length).toBe(2);
+
+    // User B tries to read quests -> should see 0 due to RLS
+    const userBQuests = await repoB.listQuests();
+    expect(userBQuests).toEqual([]);
+
+    const userBQuest = await repoB.getQuest(mainQuest.id);
+    expect(userBQuest).toBeNull();
+
+    // User A updates subquest to completed
+    const updatedSub = await repoA.updateQuest(subQuest.id, {
+      status: "completed",
+      progress: 100,
+    });
+    expect(updatedSub.status).toBe("completed");
+    expect(updatedSub.completedAt).not.toBeNull();
+
+    // User A deletes subquest
+    await repoA.deleteQuest(subQuest.id);
+    const afterDelete = await repoA.getQuest(subQuest.id);
+    expect(afterDelete).toBeNull();
+  });
+
+  test("5. Stage 4.1 Live DB: Constraints, Anti-cycle Triggers, Cross-tenant FK rejection, and Settle rollup", async () => {
+    // 1. Cross-tenant FK rejection: User B cannot reference User A's quest as parent
+    const questA = await repoA.addQuest({
+      title: "User A Parent Quest",
+      questType: "production",
+    });
+
+    await expect(
+      repoB.addQuest({
+        title: "User B Illegally refering User A",
+        parentQuestId: questA.id,
+        questType: "skill",
+      }),
+    ).rejects.toThrow();
+
+    // 2. Numeric Range Constraints
+    await expect(
+      repoA.addQuest({
+        title: "Invalid Difficulty",
+        questType: "skill",
+        difficulty: 1.5,
+      }),
+    ).rejects.toThrow();
+
+    // 3. PostgreSQL Anti-cycle Trigger (Self-parenting)
+    await expect(
+      repoA.updateQuest(questA.id, { parentQuestId: questA.id }),
+    ).rejects.toThrow();
+
+    // 4. PostgreSQL Anti-cycle Trigger (A -> B -> A)
+    const questB = await repoA.addQuest({
+      title: "Quest B under A",
+      parentQuestId: questA.id,
+      questType: "skill",
+    });
+
+    await expect(
+      repoA.updateQuest(questA.id, { parentQuestId: questB.id }),
+    ).rejects.toThrow();
+
+    // 5. Live DB Settle Activity -> Advances Quest & Rolls up to Parent in PostgreSQL
+    const activity = await repoA.addActivity({
+      rawInput: "Live DB test activity for quest advancement",
+      questId: questB.id,
+      totalMinutes: 60,
+      effectiveMinutes: 40,
+    });
+
+    const assessRes = await adminClient
+      .from("ai_assessments")
+      .insert({
+        user_id: USER_READ_A,
+        activity_id: activity.id,
+        model_name: "test-model",
+        prompt_version: "v1",
+        rules_version: "v1",
+        confidence: 0.9,
+        assessment_json: makeProposal("LiveQuestSkill", 50),
+      })
+      .select()
+      .single();
+    expect(assessRes.error).toBeNull();
+
+    const settlement = {
+      assessmentId: assessRes.data!.id,
+      xpDelta: 50,
+      transaction: {
+        id: crypto.randomUUID(),
+        activityId: activity.id,
+        assessmentId: assessRes.data!.id,
+        xpType: "activity" as const,
+        skillId: "",
+        skillName: "LiveQuestSkill",
+        activityType: "coding",
+        repetitionCount: 0,
+        repetitionPenalty: 1.0,
+        amount: 50,
+        baseAmount: 50,
+        modifierJson: {},
+        reason: "Test live quest settlement",
+        rulesVersion: "v1",
+        createdAt: new Date().toISOString(),
+      },
+      primarySkill: {
+        name: "LiveQuestSkill",
+        xpDelta: 50,
+        masteryAction: { action: "none" as const },
+      },
+      relatedSkillLabels: [],
+      player: { xpDelta: 50 },
+    };
+
+    const settleResult = await repoA.applySettlement(settlement);
+    expect(settleResult.ok).toBe(true);
+
+    // Verify Child and Parent progress in Live DB
+    const updatedQuestB = await repoA.getQuest(questB.id);
+    expect(updatedQuestB?.progress).toBeGreaterThan(0);
+
+    const updatedQuestA = await repoA.getQuest(questA.id);
+    expect(updatedQuestA?.progress).toBe(updatedQuestB?.progress);
+  });
 });
+

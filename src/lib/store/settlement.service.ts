@@ -72,6 +72,15 @@ export class SettlementService {
       windowDays: SIMILARITY_WINDOW_DAYS,
     });
 
+    // Milestone 4.1: Fetch authoritative bound Quest if linked to use actual questSize cap
+    let effectiveQuestSize: QuestSize = DEFAULT_QUEST_SIZE;
+    if (activity.questId) {
+      const boundQuest = await this.repo.getQuest(activity.questId);
+      if (boundQuest) {
+        effectiveQuestSize = boundQuest.questSize;
+      }
+    }
+
     const xpInput: XpInput = {
       baseValue: assessment.proposal.xp_semantics.base_value,
       difficulty: assessment.proposal.xp_semantics.difficulty,
@@ -81,7 +90,7 @@ export class SettlementService {
       goalAlignment: assessment.proposal.xp_semantics.goal_alignment,
       repetitionCount: recentSimilarCount,
       effectiveMinutes: activity.effectiveMinutes ?? undefined,
-      questSize: DEFAULT_QUEST_SIZE,
+      questSize: effectiveQuestSize,
     };
     const xpResult = calculateXp(xpInput);
     const xpDelta = xpResult.finalXp;

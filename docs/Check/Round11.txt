@@ -1,0 +1,983 @@
+我继续审了，而且这次能看到 GitHub 上的新 commit：
+
+`d532e1bac6edefb267e2243b89582d320d442a45`
+`feat(M3): implement Round10 Stage1 verification baseline`
+
+所以这一次不只是你本地说“跑通了”，验证结果、依赖、Supabase local config、测试修改都已经进入仓库。GitHub commit 内容与这份 Round10 Verification Summary 基本一致。 
+
+# 最终结论
+
+# **Stage1：PASS**
+# **Gate：GO → Stage2 ✅**
+
+我认为可以停止继续打磨 Stage1，正式开始：
+
+```text
+SupabaseRepository
++
+settle_activity SECURITY DEFINER RPC
++
+Auth/RLS runtime integration
+```
+
+当前 Stage1 我给：
+
+# **9.2 / 10**
+
+这是到目前为止我给这个项目底层架构最高的一次阶段评分。
+
+---
+
+# 一、上一轮最后一个真正 blocker：已经解决
+
+上一轮真正卡住项目的是：
+
+> 我们设计了一堆 migration，但没有证明它们真能在 PostgreSQL/Supabase 上跑。
+
+现在 Round10 的验证摘要明确记录：
+
+```text
+supabase start            PASS
+0001 → 0019              PASS
+empty DB smoke           PASS
+pnpm test                PASS
+deterministic harness    PASS
+lint                     PASS
+Next production build    PASS
+```
+
+而且不是在已经被污染的默认数据库反复执行，而是专门建立了：
+
+```text
+rpg_smoke_round10
+```
+
+作为 disposable fresh database。
+
+这个区别非常重要。
+
+从工程意义上：
+
+```text
+之前：
+“SQL 看起来对”
+
+现在：
+“SQL 实际被 PostgreSQL 接受并成功构建完整 schema”
+```
+
+所以：
+
+# **Migration Proof Gate 正式关闭。**
+
+---
+
+# 二、`@types/pg` 也真的进仓库了
+
+上一轮我特别指出：
+
+```ts
+typeof import("pg").Client
+```
+
+配合：
+
+```json
+"strict": true
+```
+
+但项目只有 `pg`、没有 `@types/pg`，存在 TS build 风险。
+
+现在实际 `package.json`：
+
+```json
+"@types/pg": "^8.15.5",
+"pg": "^8.13.0"
+```
+
+都已进入 `devDependencies`。
+
+而 committed verification 又记录：
+
+```text
+@types/pg@8.23.1
+TypeScript build completed
+```
+
+
+
+这个问题也可以关闭。
+
+---
+
+# 三、smoke test 现在终于是真的 Gate，而不是形式主义测试
+
+当前：
+
+```ts
+describe.skipIf(!DATABASE_URL)
+```
+
+意味着：
+
+### 情况 A：普通单元测试环境
+
+```text
+没有 XP_RPG_TEST_DB_URL
+→ skip
+```
+
+合理。
+
+### 情况 B：明确要求跑 DB integration
+
+如果：
+
+```text
+有 DB URL
+但 pg 不存在
+```
+
+现在直接：
+
+```ts
+throw new Error(...)
+```
+
+不会再：
+
+```text
+warn
+→ return
+→ 假装 PASS
+```
+
+
+
+数据库连接失败、migration query 失败同样会抛错。
+
+这已经是正常 CI Gate 应有的行为。
+
+---
+
+# 四、而且 Round10 修掉了一个很好的“测试本身错误”
+
+这个细节我比较满意。
+
+原测试期待数据库约束文本是：
+
+```text
+BETWEEN 0 AND 6
+```
+
+但 PostgreSQL 内部 normalize 后可能变成：
+
+```text
+evidence_level >= 0
+AND
+evidence_level <= 6
+```
+
+Round10 没有为了“让测试绿”去改数据库。
+
+而是改测试接受：
+
+```ts
+between 0 and 6
+```
+
+或：
+
+```ts
+>= 0 ... <= 6
+```
+
+两种等价的 PostgreSQL representation。
+
+这是正确做法。
+
+属于：
+
+> 测试验证语义，而不是死磕字符串序列化格式。
+
+这比很多 AI 写测试时“为了绿把业务代码改歪”要好得多。
+
+---
+
+# 五、Supabase 本地环境现在也具有可重复性了
+
+仓库正式增加：
+
+```text
+supabase/config.toml
+```
+
+而不是继续依赖：
+
+```text
+“我机器上刚好有一个 Supabase”
+```
+
+配置现在明确：
+
+```text
+API       54321
+DB        54322
+Studio    54323
+Postgres  17
+Auth      enabled
+Migrations enabled
+```
+
+
+
+所以未来换一台机器：
+
+```text
+git clone
+↓
+pnpm install
+↓
+supabase start
+```
+
+已经有比较明确的 reproducible local backend。
+
+这是从：
+
+```text
+个人开发环境
+```
+
+进入：
+
+```text
+项目开发环境
+```
+
+的必要一步。
+
+---
+
+# 六、RLS static test 也比最开始成熟很多了
+
+现在测试不再只是：
+
+```text
+有没有 RLS
+有没有 auth.uid()
+```
+
+还真正对 authority matrix 做断言：
+
+例如 permanent-state：
+
+```text
+xp_transactions
+player_states
+skills
+ai_assessments
+evidence_records
+mastery_verifications
+mastery_events
+
+SELECT ✅
+INSERT ❌
+UPDATE ❌
+DELETE ❌
+```
+
+而：
+
+```text
+profiles
+```
+
+是：
+
+```text
+SELECT ✅
+UPDATE ✅
+INSERT ❌
+DELETE ❌
+```
+
+用户自己维护的：
+
+```text
+domains
+quests
+activities
+knowledge_nodes
+knowledge_edges
+artifacts
+artifact_links
+reviews
+```
+
+目前允许 full CRUD。
+
+这意味着之前那个最危险的问题：
+
+```text
+客户端自己 UPDATE total_xp
+```
+
+已经同时受到：
+
+```text
+Migration
++
+Static policy test
++
+DB smoke
+```
+
+三层保护。
+
+这才开始像真正的 invariant。
+
+---
+
+# 七、这意味着 Stage1 到底完成了什么？
+
+现在整个底座已经形成：
+
+```text
+Growth Constitution
+        ↓
+Deterministic Engine
+        ↓
+Repository Port
+        ↓
+Settlement semantics
+        ↓
+Stable Skill identity
+        ↓
+XP Ledger invariants
+        ↓
+Mastery verification
+        ↓
+Supabase schema
+        ↓
+Auth model
+        ↓
+RLS authority matrix
+        ↓
+Real migration proof
+```
+
+前面很多轮我们是在不断消灭这种问题：
+
+```text
+看起来有
+≠
+实际上成立
+```
+
+现在到了 Round10，Stage1 基本已经把：
+
+```text
+设计
+代码
+数据库
+测试
+真实执行
+```
+
+第一次闭合起来。
+
+所以继续在 Stage1 里找边角料已经不划算了。
+
+---
+
+# 八、但 Stage2 有一个非常重要的原则：**不要把 Growth Engine 复制进 SQL**
+
+这是我现在最想提前强调的。
+
+你已有的核心业务规则目前在 TypeScript：
+
+```text
+calculateXp()
+checkMasteryProposal()
+countRecentSimilar()
+SettlementService
+```
+
+我不希望 hy3 下一步直接写一个：
+
+```sql
+settle_activity(...)
+```
+
+里面重新实现：
+
+```text
+difficulty formula
+novelty formula
+evidence formula
+repetition curve
+time factor
+quest cap
+```
+
+这样会出现：
+
+```text
+TypeScript Engine 一份
+SQL Engine 一份
+```
+
+这是未来最大的维护灾难。
+
+## Stage2 应该明确区分
+
+### TypeScript：决定“应该结算什么”
+
+例如产生：
+
+```text
+SettlementCommand
+```
+
+包含：
+
+```text
+activityId
+assessmentId
+
+xpDelta
+baseXp
+modifiers
+
+repetitionCountExpected
+
+primarySkill candidate
+
+masteryAction
+verification request
+
+rulesVersion
+```
+
+### PostgreSQL RPC：决定“这笔 settlement 能不能原子、安全地落下去”
+
+负责：
+
+```text
+ownership
+idempotency
+repetition snapshot validation
+skill resolve/create
+ledger insert
+player += xp
+skill += xp
+mastery monotonic
+verification
+assessment confirmed
+activity confirmed
+```
+
+而不是重新算业务公式。
+
+这是我对 Stage2 最重要的架构要求之一。
+
+---
+
+# 九、Stage2 的 RPC 必须把数据库当“裁判”，不是普通 CRUD 包装
+
+我建议最终的流程是：
+
+```text
+Browser
+↓
+POST confirm
+
+Next.js server
+↓
+User-scoped Supabase client
+↓
+load Activity + Assessment
+
+SettlementService
+↓
+calculateXp()
+checkMasteryProposal()
+↓
+产生 command
+
+settle_activity(command)
+↓
+PostgreSQL transaction
+```
+
+然后 RPC 内部：
+
+```text
+1. v_user_id := auth.uid()
+
+2. assessment 必须：
+   owner = v_user_id
+   status = pending
+
+3. activity 必须：
+   owner = v_user_id
+   未结算
+
+4. resolve/create Skill
+
+5. 事务内重新计算 authoritative repetitionCount
+
+6. 如果和 command 不同：
+   返回 repetition_conflict
+
+7. UNIQUE / idempotency guard
+
+8. insert XP ledger
+
+9. player.total_xp += xp
+
+10. skill.xp += xp
+
+11. mastery：
+    只能单调 increase
+    或 pending verification
+
+12. siblings → superseded
+
+13. assessment → confirmed
+
+14. activity → confirmed
+
+15. return authoritative persisted result
+```
+
+这就是 Stage2 的核心。
+
+---
+
+# 十、`SECURITY DEFINER` 是下一轮最危险的位置
+
+后面如果这里写错，前面的 RLS 可以全部被绕过去。
+
+Stage2 RPC 必须遵守几条硬规则：
+
+### 1. 不允许 client 传可信 `user_id`
+
+不要：
+
+```sql
+settle_activity(
+  p_user_id uuid,
+  ...
+)
+```
+
+然后：
+
+```sql
+where user_id = p_user_id
+```
+
+必须：
+
+```sql
+v_user_id := auth.uid();
+```
+
+---
+
+### 2. RPC 自己验证 Assessment / Activity ownership
+
+例如：
+
+```sql
+select ...
+from ai_assessments
+where id = p_assessment_id
+and user_id = auth.uid()
+for update;
+```
+
+不是信任前端。
+
+---
+
+### 3. 固定 `search_path`
+
+不要裸：
+
+```sql
+security definer
+```
+
+至少：
+
+```sql
+security definer
+set search_path = public, pg_temp
+```
+
+更严格的话函数里 schema 全部显式：
+
+```sql
+public.skills
+public.activities
+...
+```
+
+---
+
+### 4. 控制 EXECUTE 权限
+
+不要默认整个世界都能调用。
+
+明确：
+
+```sql
+revoke execute ...
+from public;
+
+grant execute ...
+to authenticated;
+```
+
+这类细节下一轮我会专门查。
+
+---
+
+# 十一、Activity immutability 现在正式进入 Stage2 P1
+
+这个债不能再拖。
+
+目前 `activities` 仍属于 authenticated full CRUD。
+
+所以 Stage2 要形成状态规则：
+
+## Draft / assessed
+
+用户可以编辑合理字段：
+
+```text
+title
+raw_input
+total_minutes
+effective_minutes
+```
+
+但：
+
+```text
+rules_version
+```
+
+不能随便改。
+
+## confirmed
+
+应该变成事实快照：
+
+```text
+raw_input          immutable
+rules_version      immutable
+effective_minutes  immutable
+status             immutable by client
+```
+
+以后如果有修正：
+
+```text
+Correction
+```
+
+而不是偷偷 UPDATE 历史。
+
+这与：
+
+```text
+XP ledger append-only
+```
+
+是同一个审计哲学。
+
+---
+
+# 十二、Composite Tenant FK 可以 Stage2 顺手做，但我不要求一次覆盖所有表
+
+不要又进入“大修 17 张表”。
+
+核心 Growth Loop 优先：
+
+```text
+ai_assessment
+↔ activity
+
+xp_transaction
+↔ activity
+↔ assessment
+↔ skill
+
+mastery_verification
+↔ skill
+```
+
+优先建立：
+
+```text
+(user_id, id)
+```
+
+composite identity。
+
+例如：
+
+```sql
+unique (user_id, id)
+```
+
+以及：
+
+```sql
+foreign key (
+  user_id,
+  activity_id
+)
+references activities (
+  user_id,
+  id
+)
+```
+
+这样数据库能保证：
+
+```text
+User A 的 transaction
+永远不能指向 User B 的 activity
+```
+
+后面 knowledge/artifact 可以下一 milestone 再收。
+
+---
+
+# 十三、我对 Round10 代码质量的评分
+
+如果单独评 Round10：
+
+| 维度 | 分数 |
+|---|---:|
+| Scope discipline | 9.7 |
+| 修复准确性 | 9.5 |
+| Test semantics | 9.4 |
+| Real execution discipline | **9.7** |
+| Dependency hygiene | 9.2 |
+| Reproducibility | 9.2 |
+| 新债务控制 | 9.4 |
+| 总体 | **9.4/10** |
+
+这一轮比 hy3 的 Round8 和 Round9 都更好。
+
+尤其改善最大的地方是：
+
+```text
+Round8：
+架构很好，但没跑
+
+Round9：
+代码更稳，但仍没跑
+
+Round10：
+真的跑
+真的失败过
+真的修
+真的再跑
+```
+
+这正是我之前一直说的：
+
+> hy3 的强项是架构，但一定要用 Harness/DB/CI 把它压进现实。
+
+Round10 已经开始体现这一点。
+
+---
+
+# 十四、顺便更新一下我对 hy3 vs DeepSeek Flash 的评分
+
+有了 Round10 之后，我会微调上一次的判断。
+
+### DeepSeek Flash 前面几轮
+
+仍然：
+
+# **8.5/10**
+
+优势：
+
+- 执行快；
+- 普通功能实现稳定；
+- 修 review issue 很有效率；
+- 较少搞大抽象；
+- 很适合批量开发。
+
+---
+
+### hy3 Round8–10
+
+我现在从之前的：
+
+```text
+8.8
+```
+
+提高到：
+
+# **9.0/10**
+
+主要因为 Round10 把 hy3 最大的问题：
+
+```text
+“想得很好，但没真的执行”
+```
+
+明显补上了。
+
+如果只看：
+
+```text
+数据库
+RLS
+权限
+事务
+架构
+```
+
+我现在会给：
+
+```text
+hy3          9.3
+DeepSeek     8.1
+```
+
+这里差距已经比较明显。
+
+如果看：
+
+```text
+React 页面
+CRUD
+普通功能
+小 bug
+```
+
+我还是觉得：
+
+```text
+DeepSeek Flash 性价比高
+```
+
+---
+
+# 十五、是否可以正式进入下一步？
+
+我的答案现在非常明确：
+
+# **可以。**
+
+而且我不建议再出现：
+
+```text
+Round11 Stage1.3
+Round12 Stage1.4
+```
+
+这样的继续打磨。
+
+Stage1 到这里应该：
+
+# **正式冻结。**
+
+下一 commit 就应该明确叫类似：
+
+```text
+feat(M3): Stage2 SupabaseRepository + transactional settlement RPC
+```
+
+但我建议 Stage2 仍然拆成两个 commit。
+
+### Stage2-A
+
+只做：
+
+```text
+SupabaseRepository
+Auth request wiring
+generated DB types
+Activity immutability
+基本 read/write mapping
+```
+
+先别写巨大 RPC。
+
+### Stage2-B
+
+再做：
+
+```text
+settle_activity RPC
+transaction
+idempotency
+repetition
+mastery
+concurrency
+2-user tests
+```
+
+这样下一轮 review 容易很多。
+
+如果一次把：
+
+```text
+Repository
+Auth
+RPC
+RLS
+transaction
+integration tests
+```
+
+全部塞一个 3000 行 commit，我审查难度会突然暴涨，也更容易漏问题。
+
+---
+
+# 最终 Gate
+
+## Stage1 总评
+
+```text
+P0 = 0
+Stage1 blocker = 0
+```
+
+保留到 Stage2 的明确事项：
+
+```text
+Activity immutable/frozen state
+SECURITY DEFINER safety
+auth.uid ownership
+Mastery monotonicity
+composite tenant integrity
+transactional repetition snapshot
+idempotent settlement
+User A / User B live RLS isolation
+multi-request concurrency
+```
+
+# **Stage1：9.2/10 — PASS**
+# **Decision：GO TO STAGE2 ✅**
+
+到这里我建议不再讨论“Supabase 是否准备好了”。
+
+**已经准备好了。**
+
+下一轮我们开始审真正决定这个系统可信度的核心：
+
+> **用户点击 Confirm 的那一瞬间，数据库究竟能不能在任何并发、重试、恶意请求下，都只产生一笔正确、可审计、不可伪造的成长结算。**

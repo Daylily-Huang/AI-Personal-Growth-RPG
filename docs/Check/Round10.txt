@@ -1,0 +1,1079 @@
+我把 Round9 的上传摘要、GitHub 最新 commit `e7f1bc0a`、`0019_schema_integrity.sql`、migration smoke test、`package.json` 都重新核了一遍。先给结论：
+
+# 当前结论：Round9 本身修得不错，但 **Stage2 仍暂缓**
+
+和上一轮不同，这次我没有再发现类似 `ADD CONSTRAINT IF NOT EXISTS` 那种确定性的 SQL 致命错误。Round9 对上一轮 blocker 的修复是成立的。
+
+但现在还有两个“证明层”问题：
+
+**第一，0001→0019 仍没有在真实 PostgreSQL/Supabase 空库上执行成功。**
+
+**第二，我发现 `pg` 虽然加入了 devDependency，但很可能还缺 `@types/pg`，这可能让严格 TypeScript / build gate 失败。**
+
+所以我的判断是：
+
+> **代码审查层面已经接近 GO；执行验证层面还没拿到 GO。**
+
+当前我给 **8.8/10，CONDITIONAL NO-GO**。只差真正跑通 migration + 完整 CI，不需要再设计一轮数据库架构。
+
+---
+
+# 一、Round9 对上一轮 P0 的修复：✅ 正确
+
+上一轮我指出 PostgreSQL 不支持：
+
+```sql
+ADD CONSTRAINT IF NOT EXISTS
+```
+
+Round9 已经全部改成：
+
+```sql
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = '...'
+  ) then
+
+    alter table ...
+      add constraint ...;
+
+  end if;
+end $$;
+```
+
+实际 `0019_schema_integrity.sql` 中 Evidence CHECK、三个 XP FK、Skill normalized unique 都已经按这种方式修改。
+
+这次修法没有绕问题。
+
+从 PostgreSQL 语法层面看，这比上一版是实质性修复，而不是：
+
+```text
+换一种看起来像 SQL 的写法
+```
+
+所以：
+
+### Round8 的 SQL P0：**正式关闭。**
+
+---
+
+# 二、migration smoke test 的“假绿”也修了
+
+上一版是：
+
+```ts
+try {
+  import("pg")
+} catch {
+  console.warn(...)
+  return
+}
+```
+
+也就是说：
+
+```text
+DB URL 已提供
+pg 没安装
+→ 测试竟然 PASS
+```
+
+这个设计是不合格的。
+
+Round9 现在改成：
+
+```ts
+try {
+  ({ Client } = await import("pg"));
+} catch {
+  throw new Error(...)
+}
+```
+
+所以现在逻辑变成：
+
+```text
+没有 DB URL
+→ SKIP
+
+有 DB URL
++ pg 缺失
+→ FAIL
+
+DB 连接失败
+→ FAIL
+
+migration 任一 SQL 报错
+→ FAIL
+
+全部执行成功
+→ PASS
+```
+
+
+
+这是我想要的 Gate 行为。
+
+测试本身也确实在 migration 完成后检查：
+
+```text
+private tables 存在
+RLS enabled
+
+xp_transactions:
+SELECT ✅
+INSERT ❌
+UPDATE ❌
+DELETE ❌
+
+Evidence = E0..E6
+
+XP foreign keys 存在
+
+skills normalized unique 存在
+```
+
+
+
+这已经不再是简单字符串测试，而是一个真正有价值的 DB bootstrap test。
+
+---
+
+# 三、但它现在仍然没有真正跑过
+
+这件事情必须分清楚：
+
+### “测试写好了”
+
+和：
+
+### “测试已经证明数据库可运行”
+
+不是同一件事。
+
+Round9 自己对此写得很坦白：
+
+> migration chain 仍未在当前环境真正执行。
+
+GitHub commit message 同样明确标注：
+
+```text
+migration chain NOT executed
+```
+
+
+
+所以我现在不能把：
+
+```text
+0001 → 0019
+```
+
+称作：
+
+# “已验证可迁移”
+
+最多只能叫：
+
+# “经过静态审查后，看起来已经具备可执行条件”
+
+这也是为什么我现在仍不直接给 Stage2 GO。
+
+---
+
+# 四、新发现：`pg` 很可能还缺 `@types/pg`
+
+这个是 Round9 里我认为最值得补的一点。
+
+现在 `package.json` 已经有：
+
+```json
+"pg": "^8.13.0"
+```
+
+
+
+但仓库里没有：
+
+```text
+@types/pg
+```
+
+而 smoke test 又写了：
+
+```ts
+let Client: typeof import("pg").Client;
+```
+
+
+
+你的 `tsconfig.json`：
+
+```json
+"strict": true
+```
+
+而且 include 是：
+
+```text
+**/*.ts
+**/*.tsx
+```
+
+所以测试代码也包含在 TypeScript 工程范围内。
+
+这里有一个现实风险：
+
+> `pg` 8.x 本身目前不是一个内置完整 TypeScript declarations 的包。
+
+node-postgres 官方当前 package manifest 没有暴露 bundled `types`，而维护者在 2026 年讨论 pg 9 时还专门把“bundle TS type definitions”列为未来工作。
+
+所以我高度建议直接补：
+
+```bash
+pnpm add -D @types/pg
+```
+
+也就是：
+
+```json
+"devDependencies": {
+  "pg": "^8.13.0",
+  "@types/pg": "..."
+}
+```
+
+否则真实执行：
+
+```text
+pnpm build
+```
+
+或单独：
+
+```text
+tsc --noEmit
+```
+
+时，很可能遇到：
+
+```text
+Could not find a declaration file for module 'pg'
+```
+
+我把它定为：
+
+## **P1，但很好修。**
+
+---
+
+# 五、Round9 的 scope control 做得很好
+
+这一点我比较认可。
+
+上一轮我明确要求：
+
+```text
+不要加 UI
+不要做 Quest
+不要写 SupabaseRepository
+不要扩业务
+```
+
+Round9 没趁机“顺便优化一堆东西”。
+
+实际只改：
+
+```text
+0019 SQL
+migration smoke
+pg dependency
+注释
+lockfile
+```
+
+而且明确把：
+
+```text
+Activity immutable
+composite tenant FK
+settle_activity RPC
+```
+
+推迟到 Stage2。
+
+
+
+这种纪律很重要。
+
+AI Coding Agent 最常见的问题之一就是：
+
+> 你让它修一个 SQL，它顺便重构 17 个文件。
+
+这一轮没有出现。
+
+---
+
+# 六、`0019` 当前设计还有两个小问题，但不再阻塞 Stage2
+
+一个是 constraint existence 检查现在主要按：
+
+```sql
+where conname = 'xxx'
+```
+
+判断。
+
+长期更严谨可以加：
+
+```text
+connamespace
+conrelid
+```
+
+避免别的 schema/table 恰好有同名 constraint。
+
+例如：
+
+```sql
+where conname = 'fk_xp_transactions_skill'
+and conrelid = 'public.xp_transactions'::regclass
+```
+
+但对于你当前这个单项目 migration，这属于 **P2**。
+
+另一个是 smoke test 要求：
+
+```text
+FRESH database
+```
+
+但测试本身不会自动：
+
+```text
+drop schema
+reset project
+```
+
+所以 CI 最终应该给它一个专用 disposable database，或者使用本地 Supabase `db reset`，而不是对长期开发库反复跑完整 migration。
+
+同样不阻塞当前代码。
+
+---
+
+# 七、Activity 的权限洞仍然留在 Stage2，不能忘
+
+Round8 之后：
+
+```text
+xp_transactions
+player_states
+skills
+mastery_events
+...
+```
+
+已经客户端只读了，这是很大的进步。
+
+但：
+
+```text
+activities
+```
+
+目前 authenticated 用户仍然 full CRUD。
+
+因此：
+
+```text
+rules_version
+status
+raw_input
+effective_minutes
+```
+
+理论上仍可以直接 UPDATE。
+
+这个问题 Round9 没碰，因为我们明确要求不要扩大 scope，这个决定本身没问题。
+
+但 Stage2 必须解决：
+
+```text
+未确认 Activity
+→ 允许合理编辑
+
+confirmed Activity
+→ factual snapshot 基本不可变
+
+rules_version
+→ 创建之后用户不可直接修改
+```
+
+这是正式接 SupabaseRepository 时的 Gate。
+
+---
+
+# 八、我现在真正关心的是 Stage2 的 `SECURITY DEFINER`
+
+你们已经选定：
+
+```text
+普通 authenticated client
+→ 永久成长态只读
+
+settle_activity()
+→ SECURITY DEFINER
+→ 权威写入
+```
+
+这个架构方向是正确的。
+
+但 Stage2 写 RPC 时，安全要求要非常严格。
+
+PostgreSQL 官方明确说明：`SECURITY DEFINER` 函数以函数 owner 的权限执行，因此必须特别防止被滥用，并建议把 `search_path` 限制到可信 schema，避免可写 schema/临时对象劫持。
+
+所以 Stage2 的 RPC 不能只是：
+
+```sql
+security definer
+```
+
+然后结束。
+
+至少应该类似：
+
+```sql
+security definer
+set search_path = public, pg_temp
+```
+
+并且：
+
+```text
+不要接受 user_id 作为可信参数
+```
+
+而应该：
+
+```sql
+v_user_id := auth.uid();
+```
+
+然后从：
+
+```text
+assessment
+→ activity
+→ current user
+```
+
+内部推导 Skill、repetition、transaction ownership。
+
+---
+
+# 九、RLS 的理解现在比 Round7 正确很多
+
+这是 hy3 两轮里我认为最明显的质量提升。
+
+Round7 的方案，本质上理解 RLS 为：
+
+```text
+User A 只能操作 User A 的 row
+```
+
+所以所有表都：
+
+```text
+SELECT
+INSERT
+UPDATE
+DELETE
+```
+
+只要：
+
+```sql
+user_id = auth.uid()
+```
+
+即可。
+
+而 Round8 改成：
+
+```text
+第一层：
+这是不是你的数据？
+
+第二层：
+即使是你的数据，
+你有没有权限直接修改这种状态？
+```
+
+这才是正确的 authority model。
+
+PostgreSQL RLS 本身确实支持针对 SELECT / INSERT / UPDATE / DELETE 分别建立不同 policy；没有允许某项操作的 policy 时，会落到默认拒绝。
+
+对于 Personal Growth RPG：
+
+```text
+我的 Activity
+```
+
+和：
+
+```text
+我的 XP Ledger
+```
+
+虽然都是“我的”，权限语义根本不一样。
+
+这一点 hy3 这两轮处理得比最早版本成熟很多。
+
+---
+
+# 十、现在回答你最关心的问题：hy3 和 DeepSeek Flash 谁做得更好？
+
+我的结论不是：
+
+> hy3 全面碾压 DeepSeek Flash。
+
+而是：
+
+# **hy3 在“系统架构、安全边界、数据库一致性”上明显更强；DeepSeek Flash 在“快速渐进实现、可运行性、连续修补”上表现更稳定。**
+
+这两个模型呈现出来的“工程性格”不太一样。
+
+我根据实际这些 commit，而不是根据模型名来评价。
+
+| 维度 | DeepSeek Flash 前几轮 | hy3 Round8–9 | 我的判断 |
+|---|---:|---:|---|
+| 理解产品核心规则 | 8.5 | **9.2** | hy3 更好 |
+| 架构抽象 | 8.4 | **9.2** | hy3 更好 |
+| 数据库 / RLS 安全意识 | 7.3 | **9.3** | hy3 明显更好 |
+| 并发 / invariant 思维 | 8.4 | **9.0** | hy3 略优 |
+| 首次代码正确性 | **8.6** | 7.8 | DeepSeek 更稳定 |
+| 自动测试意识 | 8.8 | **9.0** | 接近 |
+| 真正执行验证 | **8.8** | 7.6 | 当前 DeepSeek 更好 |
+| Scope discipline | 8.7 | **9.5** | hy3 更好 |
+| 修改说明 / 风险披露 | 8.8 | **9.5** | hy3 更好 |
+| 长期维护性 | 8.5 | **9.1** | hy3 更好 |
+
+---
+
+# 为什么我说 hy3 架构能力更强？
+
+最明显就是 Round8。
+
+它没有只做：
+
+```text
+把几个 RLS policy 改名
+```
+
+而是把问题抽象成：
+
+# **Authority Matrix**
+
+也就是：
+
+```text
+User ownership
+≠
+User mutation authority
+```
+
+然后把：
+
+```text
+Ledger / Permanent State
+```
+
+与：
+
+```text
+User-authored Content
+```
+
+分开。
+
+这已经是接近真正 SaaS / domain security 的思路。
+
+还有：
+
+```text
+Evidence 三层一致性
+AI schema
+Growth Engine
+DB
+```
+
+以及：
+
+```text
+normalized skill identity
+database unique
+```
+
+这些也是在“系统不变量”层思考，而不是只在函数层 patch。
+
+---
+
+# 但为什么我不说 hy3 绝对更强？
+
+因为 Round8 犯了一个很典型、也很严重的问题：
+
+```sql
+ADD CONSTRAINT IF NOT EXISTS
+```
+
+看起来：
+
+```text
+很专业
+很完整
+很 idempotent
+```
+
+但 PostgreSQL 根本不支持。
+
+也就是说：
+
+> **架构思路很好，但代码没有真正跑过。**
+
+这是工程里面很危险的一类错误。
+
+我宁愿一个 Agent 写：
+
+```sql
+ALTER TABLE ...
+ADD CONSTRAINT ...
+```
+
+非常朴素，
+
+然后真实：
+
+```text
+db reset ✅
+```
+
+也不愿它写一个漂亮的 migration architecture，却：
+
+```text
+第一运行就 syntax error
+```
+
+所以 Round8 单独我只会给：
+
+# **8.1–8.3 / 10**
+
+不是因为设计差，而是：
+
+```text
+设计 9+
+执行 7
+```
+
+平均下来只能八分多。
+
+---
+
+# Round9 的 hy3 明显比 Round8 更成熟
+
+Round9 最大的优点是：
+
+```text
+没有继续发挥
+```
+
+而是老老实实：
+
+```text
+找到 blocker
+→ 精确修
+→ 增加失败 gate
+→ 同步依赖
+→ 修正过度描述
+→ 不碰其他东西
+```
+
+这是一种很好的工程纪律。
+
+Round9 我目前单独给：
+
+# **9.0 / 10（代码审查分）**
+
+但是有一个括号：
+
+> **未实际跑 migration，所以“验证完成分”只有大约 8.3。**
+
+两者应该区分。
+
+---
+
+# DeepSeek Flash 前面的优点其实非常明显
+
+DeepSeek Flash 不是做得差。
+
+恰恰相反，从 Round1 到 Round7，它把一个很粗的 MVP 一步步推进到了：
+
+```text
+deterministic Growth Engine
+Repository abstraction
+delta settlement
+concurrency retry
+Mastery Verification
+stable Skill ID
+CI
+Supabase schema bootstrap
+```
+
+这是一大段真正的工程工作。
+
+它对于我每轮指出的问题，通常都能快速：
+
+```text
+定位
+→ 修改
+→ 写测试
+→ commit
+```
+
+这方面执行效率很好。
+
+而且前期很多 commit 都有：
+
+```text
+lint ✅
+test ✅
+build ✅
+GitHub Actions ✅
+```
+
+不是只靠“代码看起来应该能跑”。
+
+所以 DeepSeek Flash 给我的感觉是：
+
+# **比较强的执行型程序员**
+
+---
+
+# DeepSeek Flash 最大的问题是什么？
+
+它经常是：
+
+```text
+把我指出的局部问题修好
+```
+
+但没有总是继续追问：
+
+```text
+这个修复背后的更高一级 invariant 是什么？
+```
+
+举例：
+
+最初：
+
+```text
+repetitionCount = 全部 transactions
+```
+
+被我们发现以后，它修成 similarity。
+
+后来：
+
+```text
+Repository
+```
+
+有了，但 transaction boundary 又需要进一步修。
+
+再后来：
+
+```text
+Stable Skill ID
+```
+
+有了，但第一次实现还是 name/slug 派生。
+
+再后来：
+
+```text
+RLS
+```
+
+有了，但所有表 blanket CRUD。
+
+它经常是：
+
+```text
+功能正确性
+先到 80%
+
+下一轮审查
+再补系统 invariant
+```
+
+这不是坏事，这是很多真实工程师的工作方式。
+
+但需要 reviewer 很强。
+
+---
+
+# hy3 最大的问题又是什么？
+
+刚好相反。
+
+hy3 更容易：
+
+```text
+先构造一个很完整的系统模型
+```
+
+例如：
+
+```text
+Authority Matrix
+Schema Integrity
+Migration Proof
+Normalized identity
+```
+
+抽象层级比较高。
+
+但风险是：
+
+# **“想得比跑得快。”**
+
+Round8 的无效 PostgreSQL syntax 就是典型案例。
+
+还有：
+
+```text
+写了 empty DB smoke
+```
+
+但环境没跑。
+
+于是代码在概念上：
+
+```text
+已经有 proof
+```
+
+但现实里：
+
+```text
+proof 还没有发生
+```
+
+这种模型特别需要：
+
+```text
+Harness
+CI
+real DB
+E2E
+```
+
+把它约束住。
+
+---
+
+# 如果让我现在给两个模型一个总体工程分
+
+注意这是：
+
+> **仅基于这个项目里实际表现**
+
+不是我在评价模型本身的通用能力。
+
+### DeepSeek Flash
+
+我给：
+
+# **8.5 / 10**
+
+特点：
+
+```text
+执行快
+改动可靠
+测试意识好
+适合连续迭代
+
+但系统级 invariant
+经常需要 reviewer 继续往下挖
+```
+
+### hy3
+
+目前两轮综合：
+
+# **8.8 / 10**
+
+特点：
+
+```text
+架构理解更深
+安全边界更强
+scope discipline 更好
+风险说明更完整
+
+但必须防“没运行就认为正确”
+```
+
+所以目前：
+
+# **hy3 略胜，但不是碾压。**
+
+我大概会说：
+
+```text
+hy3          8.8
+DeepSeek     8.5
+```
+
+差距只有：
+
+```text
+0.3
+```
+
+而不是：
+
+```text
+9.5 vs 7
+```
+
+---
+
+# 如果只比较“后端 / Supabase / 数据库安全”
+
+差距会更明显：
+
+```text
+hy3           9.1
+DeepSeek      8.0
+```
+
+这里我更愿意用 hy3。
+
+如果是：
+
+```text
+普通 React 页面
+API CRUD
+组件
+Activity List
+Playwright
+小范围 bug fix
+```
+
+我反而觉得 DeepSeek Flash 完全够用，而且：
+
+```text
+速度 / 成本
+```
+
+可能更划算。
+
+---
+
+# 所以我建议你之后不要固定只用一个模型
+
+按照任务类型分：
+
+| 工作 | 我更倾向 |
+|---|---|
+| DB schema | **hy3** |
+| RLS/Auth | **hy3** |
+| transaction/RPC | **hy3** |
+| 核心 Growth Engine 修改 | **hy3 + 严格 reviewer** |
+| 架构重构 | **hy3** |
+| 普通 CRUD | DeepSeek Flash |
+| 页面开发 | DeepSeek Flash |
+| UI polish | DeepSeek Flash |
+| 补普通 tests | DeepSeek Flash |
+| 简单 bugfix | DeepSeek Flash |
+
+最好的组合不是：
+
+```text
+hy3 替代 DeepSeek
+```
+
+而是：
+
+```text
+hy3
+负责关键架构 / 安全 / 数据层
+
+DeepSeek Flash
+负责大量明确、低风险实现
+```
+
+然后我继续做：
+
+```text
+Spec
+→ Architecture
+→ Code
+→ Test
+→ Gate Review
+```
+
+这套组合我认为比单纯换一个“大模型全包”更稳。
+
+---
+
+# 当前 Round9 最终 Gate
+
+当前我不会要求 hy3 再改一大轮。
+
+只需要把最后的 proof 做掉：
+
+1. 加 `@types/pg`，或者实际 build 证明当前 typing 没问题；
+2. 在 WSL / CI 安装依赖；
+3. 真正准备一个干净 Supabase/Postgres 测试库；
+4. 跑 `0001 → 0019`；
+5. migration smoke PASS；
+6. `pnpm test`、`harness:deterministic`、`lint`、`build` 全绿；
+7. 把真实执行结果提交/记录到 Round9 verification summary。
+
+只要这七项是真的绿，我下一轮**不会再让它继续打磨 Stage1**。
+
+我会直接给：
+
+# **GO → Stage2**
+
+然后我们审的重点切换成：
+
+```text
+SupabaseRepository
+↓
+settle_activity SECURITY DEFINER RPC
+↓
+auth.uid() ownership
+↓
+atomic settlement
+↓
+repetition snapshot
+↓
+Mastery monotonic
+↓
+idempotency
+↓
+Activity immutability
+↓
+User A / User B real isolation
+```
+
+并且 Stage2 的 `SECURITY DEFINER` 我会专门做安全审查，因为 PostgreSQL 官方也明确要求这类函数谨慎控制权限和 `search_path`。
+
+**所以现在项目不是“代码还不成熟”，而是“架构基本成熟，缺最后一次真实数据库证明”。** 一旦 migration 真跑通，我认为就应该停止继续做 Stage1 修修补补，进入真正的 Supabase 后端实现。

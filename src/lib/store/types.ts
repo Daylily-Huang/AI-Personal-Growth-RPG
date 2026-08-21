@@ -4,6 +4,7 @@ export type ActivityStatus = "pending_assessment" | "assessed" | "confirmed";
 
 export interface Activity {
   id: string;
+  questId?: string | null;
   rawInput: string;
   title: string;
   activityType: string | null;
@@ -125,6 +126,7 @@ export interface Db {
   skills: Record<string, SkillState>;
   skillEdges: SkillEdge[];
   masteryVerifications: MasteryVerification[];
+  quests: Quest[];
   player: PlayerState;
 }
 
@@ -178,6 +180,7 @@ export interface SettlementToApply {
 
 export interface NewActivityInput {
   rawInput: string;
+  questId?: string | null;
   totalMinutes?: number | null;
   effectiveMinutes?: number | null;
 }
@@ -199,6 +202,79 @@ export interface ConfirmResult {
   actualRepetitionCount?: number;
 }
 
+export type QuestType =
+  | "learning"
+  | "skill"
+  | "production"
+  | "physical"
+  | "maintenance"
+  | "reflection";
+
+export type QuestSize = "micro" | "minor" | "standard" | "major" | "epic" | "main";
+
+export type QuestStatus =
+  | "locked"
+  | "available"
+  | "active"
+  | "paused"
+  | "completed"
+  | "failed"
+  | "archived";
+
+export interface Quest {
+  id: string;
+  userId?: string;
+  parentQuestId: string | null;
+  title: string;
+  description: string | null;
+  questType: QuestType;
+  questSize: QuestSize;
+  status: QuestStatus;
+  difficulty: number;
+  goalAlignment: number;
+  progress: number;
+  deadline: string | null;
+  isMainQuest: boolean;
+  isBoss: boolean;
+  completedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface NewQuestInput {
+  parentQuestId?: string | null;
+  title: string;
+  description?: string | null;
+  questType: QuestType;
+  questSize?: QuestSize;
+  status?: QuestStatus;
+  difficulty?: number;
+  goalAlignment?: number;
+  progress?: number;
+  deadline?: string | null;
+  isMainQuest?: boolean;
+  isBoss?: boolean;
+}
+
+export interface UpdateQuestInput {
+  parentQuestId?: string | null;
+  title?: string;
+  description?: string | null;
+  questType?: QuestType;
+  questSize?: QuestSize;
+  status?: QuestStatus;
+  difficulty?: number;
+  goalAlignment?: number;
+  progress?: number;
+  deadline?: string | null;
+  isMainQuest?: boolean;
+  isBoss?: boolean;
+}
+
+export interface QuestTreeNode extends Quest {
+  children: QuestTreeNode[];
+}
+
 export interface DashboardSnapshot {
   player: PlayerState;
   levelProgress: {
@@ -211,4 +287,8 @@ export interface DashboardSnapshot {
   activities: Activity[];
   skills: SkillState[];
   pendingMasteryVerifications: MasteryVerification[];
+  quests?: Quest[];
+  mainQuest?: Quest | null;
+  activeQuests?: Quest[];
 }
+

@@ -4,10 +4,14 @@ import type {
   MasteryVerification,
   NewActivityInput,
   NewAssessmentInput,
+  NewQuestInput,
   PlayerState,
+  Quest,
+  QuestStatus,
   SettlementToApply,
   SkillEdge,
   SkillState,
+  UpdateQuestInput,
   XpTransaction,
 } from "./types";
 
@@ -69,9 +73,17 @@ export interface Repository {
   getPlayer(): Promise<PlayerState>;
   listMasteryVerifications(): Promise<MasteryVerification[]>;
 
+  // ---- quests ----
+  getQuest(id: string): Promise<Quest | null>;
+  listQuests(filter?: { status?: QuestStatus; isMain?: boolean; parentQuestId?: string | null }): Promise<Quest[]>;
+
   // ---- writes ----
   addActivity(input: NewActivityInput): Promise<Activity>;
   addAssessment(input: NewAssessmentInput): Promise<Assessment>;
+  addQuest(input: NewQuestInput): Promise<Quest>;
+  updateQuest(id: string, updates: UpdateQuestInput): Promise<Quest>;
+  deleteQuest(id: string): Promise<void>;
+
   /**
    * READ-ONLY lookup of a stable skill id by label (normalized name/alias match).
    * Returns null when unknown. MUST NOT create or write anything — skill creation
@@ -88,3 +100,4 @@ export interface Repository {
   /** Wipe the store (demo/testing only). */
   reset(): Promise<void>;
 }
+

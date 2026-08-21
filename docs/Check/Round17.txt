@@ -1,0 +1,772 @@
+继续审完了。这轮我不接受 `Stage2-B.1 Verification Summary` 里的“全部 P1 已关闭”作为结论，因为摘要本身已经明确写着：**16 个 settlement DB 测试、10 个 authority DB 测试和 migration smoke 在当前环境全部 skipped，关键行为仍是“待 DB 验证”**。
+
+另外，远程 `main` 现在实际已经到 `ab99548`，比摘要写的 `0e21175` 又多了一个 verification-summary 文档提交；功能代码仍然是 `79bf1ff`，所以不影响下面的代码审查结论。
+
+# Round17 审查结论
+
+| 项目 | 结论 |
+|---|---|
+| 评分 | **8.4 / 10** |
+| 状态 | **CONDITIONAL FAIL** |
+| P0 | 0 |
+| P1 | **2** |
+| P2 | **5** |
+| Stage2-B.1 架构方向 | 正确 |
+| Settlement 是否可冻结 | **暂时不可以** |
+| 是否进入 Auth/UI / 全量读路径 | **NO-GO** |
+
+这次不是“大修”。`0025` 大部分修复思路确实是对的，但出现了一个非常典型、也非常关键的 **migration regression**，再加上 DB 验证测试本身有一个错误，所以现在不能签字进入下一大阶段。
+
+---
+
+# P1-1：0025 把 Round14 已修好的 `rules_version` authority 又改坏了
+
+这是本轮最严重的问题。
+
+0023 已经正确实现了：
+
+```sql
+select version
+from public.rules_versions
+where status = 'active'
+order by activated_at desc nulls last
+limit 1;
+
+if v_rules_version is null then
+  raise exception 'no_active_rules_version';
+end if;
+```
+
+也就是：
+
+**只允许 ACTIVE → 不按字符串 version 排序 → 没有 active 就 fail-closed。** 
+
+但 0025 为了增加：
+
+```sql
+quest_not_owned
+```
+
+重新 `CREATE OR REPLACE create_activity()` 时，把规则版本部分复制回了老代码：
+
+```sql
+select version into v_rules_version
+from public.rules_versions
+order by version desc
+limit 1;
+
+v_rules_version := coalesce(v_rules_version, 'v1');
+```
+
+
+
+所以最终迁移顺序现在是：
+
+```text
+0023
+正确修复 create_activity
+        ↓
+0024
+        ↓
+0025
+重新覆盖 create_activity
+        ↓
+Round14 bug 复活
+```
+
+这意味着：
+
+```text
+growth-engine-v0.1  active
+growth-engine-v999  draft
+```
+
+创建 Activity 时又可能冻结：
+
+```text
+growth-engine-v999
+```
+
+如果没有任何规则版本，又会重新写：
+
+```text
+v1
+```
+
+而不是 fail-closed。
+
+### 更关键的是：你们已经有测试能抓住这个 bug
+
+`authority-final-state.test.ts` 明确测试：
+
+```text
+ACTIVE = growth-engine-v0.1
+DRAFT  = growth-engine-v999
+→ 必须得到 growth-engine-v0.1
+```
+
+还测试：
+
+```text
+没有 active
+→ 必须 no_active_rules_version
+```
+
+
+
+所以如果 DB integration 真正运行，**这两个测试理论上应该直接红**。
+
+这反过来也证明了这份 Summary 为什么不能写：
+
+> Stage2-B.1 完成。
+
+因为关键 DB tests 根本没有实际运行。
+
+### 修复非常简单
+
+不要再复制旧版。
+
+新增：
+
+```text
+0026_stage2b1_final_closure.sql
+```
+
+然后把：
+
+> 0023 正确的 rules-version 逻辑  
+> ＋  
+> 0025 新增的 quest ownership 检查
+
+合并成最终唯一版本。
+
+这是 **P1，硬 Gate**。
+
+---
+
+# P1-2：新的核心并发 DB 测试本身写错了
+
+新测试的目标非常正确：
+
+> 两个不同 Activity，同一 Skill，同时 Settlement。
+
+这正是上一轮要求补的最重要并发测试。
+
+但它的 conflict retry 对象写反了。
+
+当前代码：
+
+```ts
+const conflictIdx = results.findIndex((r) => !r.ok);
+
+const conflictAct =
+  conflictIdx === 0 ? act2 : act1;
+```
+
+
+
+这是反的。
+
+如果：
+
+```text
+r1 / act1 = repetition_conflict
+```
+
+那么：
+
+```text
+conflictIdx = 0
+```
+
+应该 retry：
+
+```text
+act1
+```
+
+现在却 retry：
+
+```text
+act2
+```
+
+而 act2 恰好是刚刚成功结算的那个 Activity。
+
+因此 retry 很可能得到：
+
+```text
+already_confirmed
+```
+
+而不是：
+
+```text
+ok=true
+```
+
+正确代码应该是：
+
+```ts
+const conflictAct =
+  conflictIdx === 0 ? act1 : act2;
+```
+
+而且更好的是不要硬编码：
+
+```ts
+repetitionCount: 1
+```
+
+应该读取：
+
+```text
+actualRepetitionCount
+```
+
+然后用数据库返回的 authoritative value retry。
+
+### 为什么这个 bug 很关键
+
+当前两个 settlement 一开始都提交：
+
+```text
+repetitionCount = 0
+```
+
+如果数据库的同 Skill serialization 正常：
+
+```text
+第一个 → success, count=0
+第二个 → repetition_conflict, actual=1
+```
+
+所以这个 conflict branch **本来就应该被走到**。
+
+也就是说它不是一个“偶尔触发”的测试 bug。
+
+它基本正好位于这个测试正常执行的主路径上。
+
+因此目前 Summary 写的：
+
+> cross-activity same-skill 并发已覆盖
+
+更准确应该写：
+
+> **测试已经编写，但尚未通过真实 DB 执行，而且当前静态审查发现 retry target bug。**
+
+这也是 **P1 verification gate**。
+
+---
+
+# 这轮真正已经修对的东西
+
+这部分也需要肯定，因为 0025 的主体结构比 0024 扎实很多。
+
+Mastery immediate upgrade 现在确实是在取得 Skill lock 后判断：
+
+```sql
+if v_proposed_level <= v_skill_row.mastery_level then
+  v_mastery_action := 'none';
+end if;
+```
+
+然后只有真实 `proposed > current` 才写 mastery event。这个基本关闭了上一轮的 M4 → M3 stale downgrade 问题。
+
+XP 也已经真正统一到：
+
+```text
+transaction.amount
+```
+
+并拒绝：
+
+```text
+xpDelta mismatch
+primarySkill.xpDelta mismatch
+negative XP
+xpType != activity
+```
+
+然后 Player 和 Skill 都使用 canonical `v_xp_delta`。
+
+同 Skill repetition 的时间点也正确移动到了：
+
+```text
+SELECT ... FOR UPDATE Skill
+        ↓
+clock_timestamp()
+        ↓
+repetition count
+```
+
+这正是上一轮要求解决的 `now()` transaction timestamp race。
+
+Quest ownership 检查本身也是正确的：
+
+```sql
+where id = p_quest_id
+and user_id = auth.uid()
+```
+
+只是它所在的 `create_activity` 函数顺手把另一部分 authority 改坏了。
+
+所以这轮不是设计方向错，而是**最终 migration 合并不干净**。
+
+---
+
+# P2-1：所谓“repetition conflict 零副作用”仍然不完全成立
+
+Summary 写：
+
+> 所有验证先于所有永久写入。
+
+这句话严格来说仍然不成立。
+
+因为 Phase C 已经执行：
+
+```sql
+insert into public.skills (...)
+on conflict (...) do nothing
+returning id ...
+```
+
+而 repetition check 是 Phase F。
+
+对于**已经存在的 Skill**，`DO NOTHING` 确实不会再修改它。
+
+因此现有 P2-A test：
+
+```text
+已有 SideEffect Skill
+→ 记录 xp/updated_at
+→ repetition_conflict
+→ 检查 xp/updated_at 不变
+```
+
+是可以通过的。
+
+但是如果 Skill **原来不存在**：
+
+```text
+Skill 不存在
+↓
+Phase C INSERT Skill
+↓
+Phase F repetition_conflict
+↓
+RETURN {ok:false}
+```
+
+由于这是正常 `RETURN`，不是 exception rollback：
+
+```text
+新建 Skill 仍然会提交
+```
+
+于是：
+
+```text
+Confirm 失败
+但数据库多出一个 Skill
+```
+
+所以“零副作用”只对 existing Skill 成立。
+
+### 推荐修法
+
+最干净的是对：
+
+```text
+user_id + normalized skill name
+```
+
+先做 transaction-level advisory lock。
+
+然后：
+
+```text
+lock normalized skill key
+↓
+SELECT existing skill
+↓
+如果不存在：
+authoritative repetition = 0
+↓
+先验证 repetition
+↓
+全部验证通过
+↓
+才 INSERT Skill
+```
+
+这样才是真的：
+
+> no permanent write before validation.
+
+我暂时仍判 **P2**，因为它不会错误加 XP，但语义没有完全达到声明。
+
+---
+
+# P2-2：`skill_name_snapshot` 已经落表，但读取端还没真正使用它
+
+这次 DB 层确实新增了：
+
+```text
+xp_transactions.skill_name_snapshot
+```
+
+并且 settlement 写入：
+
+```sql
+skill_name_snapshot = v_skill_name
+```
+
+RPC response 也使用：
+
+```text
+v_tx_row.skill_name_snapshot
+```
+
+所以“snapshot 数据持久化”这一半已经做好。
+
+但 `SupabaseRepository.listTransactions()` 目前还是：
+
+```ts
+.select("*, skills!fk_xp_transactions_skill(name)")
+```
+
+然后读取：
+
+```ts
+skill?.name
+```
+
+
+
+mapper 也仍然：
+
+```ts
+mapTransaction(row, skillName)
+```
+
+然后：
+
+```ts
+skillName
+```
+
+来自传入的当前 Skill name，而不是：
+
+```ts
+row.skill_name_snapshot
+```
+
+
+
+所以：
+
+```text
+结算时：
+Statistics
+
+后来 Skill 改名：
+Quantitative Analysis
+```
+
+数据库 ledger 中已经正确保存：
+
+```text
+skill_name_snapshot = Statistics
+```
+
+但是：
+
+```text
+listTransactions()
+```
+
+仍然可能展示：
+
+```text
+Quantitative Analysis
+```
+
+所以 P2-C 应判：
+
+> **数据库层关闭，应用读取层未关闭。**
+
+修完后甚至可以不 JOIN Skills：
+
+```ts
+.from("xp_transactions")
+.select("*")
+```
+
+mapper：
+
+```ts
+skillName: row.skill_name_snapshot
+```
+
+Skill ID 继续作为稳定 identity 即可。
+
+---
+
+# P2-3：Primary Skill identity 仍然有两个来源
+
+`SettlementToApply` 自己定义：
+
+```ts
+transaction.skillName
+```
+
+同时又有：
+
+```ts
+primarySkill.name
+```
+
+
+
+但 SQL 实际 Skill identity 取的是：
+
+```text
+transaction.skillName
+```
+
+而 mastery/xp 的部分 payload 又来自：
+
+```text
+primarySkill
+```
+
+现在没有验证：
+
+```text
+transaction.skillName
+==
+primarySkill.name
+```
+
+正常 SettlementService 会生成一致值，所以正常路径没问题。
+
+但数据库 authority 层既然已经开始检查：
+
+```text
+xpDelta
+primarySkill.xpDelta
+transaction.amount
+```
+
+同样应该检查名称一致。
+
+否则 malformed payload 可以：
+
+```text
+transaction.skillName = Statistics
+
+primarySkill.name = Programming
+primarySkill.masteryAction = upgrade...
+```
+
+最终 mastery action 实际会被应用到：
+
+```text
+Statistics
+```
+
+而不是 payload 自己声称的 primary `Programming`。
+
+建议统一成一个 canonical primary skill name。
+
+---
+
+# P2-4：`request_verification` 仍没有做 stale mastery 校验
+
+目前 Phase G 只处理：
+
+```text
+masteryAction = upgrade
+```
+
+
+
+没有处理：
+
+```text
+request_verification
+```
+
+所以理论上：
+
+```text
+SettlementService 读 M1
+→ 决定 request M1→M5
+
+等待期间
+另一 settlement 已把 skill 升到 M5
+
+旧 settlement 获得锁
+→ 仍创建 pending M1→M5
+```
+
+于是数据库出现一个实际上已经没有意义的 verification。
+
+更合理的是锁后：
+
+```text
+if toLevel <= currentMastery:
+    verification = none
+```
+
+如果：
+
+```text
+currentMastery > fromLevel
+但 < toLevel
+```
+
+则至少应把 authoritative：
+
+```text
+fromLevel = currentMastery
+```
+
+而不是保留 stale `fromLevel`。
+
+这不会马上导致 Mastery 降级，所以我判 P2。
+
+---
+
+# P2-5：tenant integrity 现在只是函数级，不是 schema 级
+
+Quest 的直接漏洞修掉了。
+
+但 Summary 自己也承认：
+
+```text
+xp_transactions composite FK
+仍未实现
+```
+
+
+
+目前数据库关系仍主要是：
+
+```text
+activity_id → activities.id
+assessment_id → assessments.id
+skill_id → skills.id
+```
+
+没有：
+
+```text
+(user_id, activity_id)
+→ activities(user_id, id)
+
+(user_id, assessment_id)
+→ ai_assessments(user_id, id)
+
+(user_id, skill_id)
+→ skills(user_id, id)
+```
+
+现在 `settle_activity` 本身做了 ownership 校验，因此主路径安全。
+
+所以我不会再把它列 P1。
+
+但在未来加入：
+
+```text
+correction RPC
+admin reconciliation
+import
+migration scripts
+```
+
+以前，最好补上 composite FK，让关系一致性真正进入数据库 schema，而不是只依赖某一个函数写对。
+
+---
+
+# 还有一个非常重要的验证结论
+
+目前 CI 文件实际上已经配置：
+
+```text
+push main
+→ supabase-integration
+→ supabase db start
+→ XP_RPG_TEST_DB_URL=...
+→ pnpm test
+```
+
+
+
+所以 Summary 中：
+
+> “CI 接入后自动运行”
+
+这个说法有点奇怪——**CI 已经接入了**。
+
+现在真正缺的是：
+
+> **确认 79bf1ff / ab99548 对应的 database integration job 真实 green。**
+
+而不是“以后 CI 再跑”。
+
+我当前可用 GitHub 状态接口没有返回这个 push commit 的 Actions status，所以我不把远程 CI green/failed 当成我已经核验过的事实。
+
+但从静态代码可以确定：
+
+### 如果当前 DB tests 真运行：
+
+至少存在两个明显失败点：
+
+```text
+authority-final-state:
+0025 rules_version regression
+→ 应失败
+```
+
+以及：
+
+```text
+cross-activity concurrency test:
+conflictAct 选择反了
+→ conflict retry 应失败
+```
+
+所以 **现在绝对不能把 27 个 skipped DB tests 当成 harmless skip**。
+
+在这个阶段，它们就是 release gate。
+
+---
+
+# 下一步应该怎么做
+
+不要进入 Auth/UI，也不要继续做 Skill Tree。
+
+下一轮直接叫：
+
+## **Stage2-B.2 — Final Settlement Freeze**
+
+只做下面 6 件事：
+
+1. `0026` 恢复 0023 的 ACTIVE-only / fail-closed rules-version 逻辑，同时保留 quest ownership。
+2. 修 cross-activity concurrency test 的 `act1/act2` 反向 bug，并用 `actualRepetitionCount` retry。
+3. 真正解决“new Skill + repetition_conflict”仍会留下 Skill row 的副作用，并增加对应测试。
+4. `listTransactions()/mapTransaction()` 真正使用 `skill_name_snapshot`。
+5. 校验 canonical `primarySkill.name`，并处理 stale `request_verification`。
+6. **必须真实跑一次完整 DB gate**：`0001→0026 migration + authority-final-state + settlement-rpc 全部通过`；只有这次不能用 “skipped” 代替。
+
+完成以后，我认为就很接近真正的：
+
+> **9.0+/10 — Settlement Authority Frozen — GO → Auth + 全量 Supabase Read Path**
+
+所以这一轮结论很明确：
+
+> **Stage2-B.1 做了大量正确修复，但不能通过验收。最关键原因不是“大方向错误”，而是 0025 重新引入了旧的 rules_version authority bug，并且真实 DB 验证尚未完成。**
+
+目前继续 **NO-GO → 下一大阶段**。

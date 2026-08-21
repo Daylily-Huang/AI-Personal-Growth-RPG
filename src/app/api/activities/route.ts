@@ -13,6 +13,7 @@ export async function POST(request: Request) {
     const repo = await getRequestRepository();
     const activity = await repo.addActivity({
       rawInput,
+      questId: typeof body?.questId === "string" && body.questId.trim() ? body.questId.trim() : null,
       totalMinutes: typeof body?.totalMinutes === "number" ? body.totalMinutes : null,
       effectiveMinutes: typeof body?.effectiveMinutes === "number" ? body.effectiveMinutes : null,
     });

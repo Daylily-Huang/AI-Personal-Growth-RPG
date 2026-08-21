@@ -1,0 +1,900 @@
+继续审完了。这次我按最新远程 `main` 的 **`8d8c5e2` Stage2-B commit** 实际代码审查，不把 `Stage2B_VERIFICATION_SUMMARY.md` 的自述当成事实。你上传的摘要所说的核心实现——`settle_activity`、Supabase confirm wiring、live PostgreSQL tests——确实存在，但其中有几处结论说得过头。
+
+## Round15 / Stage2-B 审查结论
+
+| 项目 | 结论 |
+|---|---|
+| 评分 | **8.2 / 10** |
+| 状态 | **CONDITIONAL FAIL** |
+| P0 | **0** |
+| P1 | **4** |
+| P2 | **4+** |
+| Stage2-B 核心架构 | **方向正确，已不是 demo 级实现** |
+| 是否进入下一大阶段 | **暂时 NO-GO** |
+| 建议 | 先做一个很窄的 **Stage2-B.1 Settlement Integrity Closure** |
+
+这次和前几轮不一样：不是架构没做，而是 **settlement RPC 已经成为永久成长数据的核心权威入口，因此现在要用更严格的数据库事务标准审它**。
+
+---
+
+## 1. P1：Mastery“单调增长”实际上没有被数据库保证
+
+这是本轮最明确的核心问题。
+
+项目自己的 ADR 明确规定：
+
+> 普通 growth settlement 必须满足 `new_mastery = greatest(current, proposed)`，Mastery 永不倒退；降低只能通过 correction pipeline。
+
+但现在 SQL 是直接：
+
+```sql
+update public.skills
+set mastery_level = v_proposed_level,
+    mastery_confidence = v_confidence
+where id = v_skill_id;
+```
+
+
+
+也就是说数据库没有：
+
+```sql
+greatest(current_mastery, proposed_mastery)
+```
+
+也没有：
+
+```text
+proposed > current
+```
+
+校验。
+
+这不是单纯理论问题，因为 `SettlementService` 是**先读 Skill，再计算 masteryAction，再进 RPC**。
+
+因此有可能发生：
+
+```text
+T1 读取 M2
+↓
+T1 暂时被延迟
+
+T2 把 Skill 升到 M3
+T3 再把 Skill 升到 M4
+
+T1 恢复
+↓
+旧 Settlement proposal = M3
+↓
+数据库直接：
+mastery_level = 3
+
+结果：
+M4 → M3
+```
+
+永久能力发生倒退。
+
+更糟的是，`mastery_events` 还会记录：
+
+```text
+from_level = 当前 M4
+to_level   = M3
+event_type = upgrade
+```
+
+于是审计历史甚至会出现：
+
+> “upgrade: 4 → 3”
+
+当前 Stage2-B 测试只验证了 `request_verification` 不自动升级，没有验证 immediate upgrade 的并发/陈旧 proposal。
+
+### 正确修法
+
+数据库必须最终决定：
+
+```sql
+if v_proposed_level > v_skill_row.mastery_level then
+    -- 真正 upgrade
+else
+    -- no-op / mastery_conflict
+end if;
+```
+
+至少：
+
+```sql
+mastery_level = greatest(mastery_level, v_proposed_level)
+```
+
+但我更推荐显式返回：
+
+```text
+mastery_conflict
+actualMasteryLevel
+```
+
+然后像 repetition 一样让 `SettlementService` 重算。
+
+同时增加两个真实 PG 测试：
+
+```text
+M3 + stale proposal M2
+→ 最终仍 M3
+→ 不新增 downgrade "upgrade" event
+```
+
+以及：
+
+```text
+两个不同 Activity 并发升级同一 Skill
+→ mastery 最终只单调上升
+```
+
+**这个必须在下一阶段前修。**
+
+---
+
+## 2. P1：Ledger、Player XP、Skill XP 可以被同一个 Settlement 写成三个不同数字
+
+这是第二个比较严重的 authority 问题。
+
+领域契约其实已经写得非常清楚：
+
+```ts
+xpDelta
+/** = transaction.amount */
+
+player: { xpDelta }
+
+primarySkill: {
+    xpDelta
+}
+```
+
+当前正常 `SettlementService` 也确实给它们相同的值。 
+
+但 RPC 不是取一个 canonical delta。
+
+它分别读取：
+
+```text
+p_settlement.xpDelta
+transaction.amount
+primarySkill.xpDelta
+```
+
+然后分别写：
+
+```text
+Ledger.amount       = transaction.amount
+Player.total_xp    += xpDelta
+Skill.xp           += primarySkill.xpDelta
+```
+
+
+
+所以一个 malformed settlement：
+
+```json
+{
+  "xpDelta": 100,
+  "transaction": {
+    "amount": 20
+  },
+  "primarySkill": {
+    "xpDelta": -500
+  },
+  "player": {
+    "xpDelta": 999
+  }
+}
+```
+
+当前数据库完全可能得到：
+
+```text
+Ledger      +20 XP
+Player     +100 XP
+Skill      -500 XP
+```
+
+`player.xpDelta` 甚至完全没被使用。
+
+但你们自己的 ADR 又规定：
+
+> `xp_transactions` 是最终依据，`total_xp / skill.xp` 只是缓存，缓存必须能从账本重建。
+
+现在这个不变量没有由数据库保证。
+
+### 更简单的设计
+
+`settle_activity` 应只认一个 canonical 值，例如：
+
+```sql
+v_xp_delta := transaction.amount
+```
+
+然后：
+
+```text
+ledger.amount = v_xp_delta
+player += v_xp_delta
+primary_skill += v_xp_delta
+```
+
+甚至不要再从 JSON 接收三份 XP。
+
+如果保留现有 DTO，就必须 reject：
+
+```text
+transaction.amount != xpDelta
+primarySkill.xpDelta != xpDelta
+player.xpDelta != xpDelta
+```
+
+另外这个 RPC 是**原始 Activity settlement RPC**，因此：
+
+```text
+xpType 必须强制 = activity
+```
+
+但现在它允许：
+
+```sql
+activity
+adjustment
+correction
+```
+
+
+
+这是不应该的。
+
+`adjustment/correction` 应走以后单独的 correction RPC。
+
+否则一个错误的 service payload 可以：
+
+```text
+settle_activity
+xpType = correction
+```
+
+Activity 被标记 `confirmed`，但数据库没有真正的：
+
+```text
+xp_type='activity'
+```
+
+原始结算账本。
+
+**这个也判 P1。**
+
+---
+
+## 3. P1：repetition 的并发测试还没有覆盖真正危险的并发
+
+Stage2-B Summary 说：
+
+> 并发安全、权威 repetition snapshot。
+
+只完成了一半。
+
+当前测试的并发场景是：
+
+```text
+同一个 Assessment
+→ 两个客户端同时 settle
+→ 一个成功，一个失败
+```
+
+这个测试确实通过，而且 Assessment/Activity row lock 能正确保护它。
+
+但真正危险的是：
+
+```text
+Activity A ─┐
+            ├─ 同一个 Skill
+Activity B ─┘
+同一个 activity_type
+同时 settle
+```
+
+当前没有这个测试。
+
+而 SQL 中还有一个非常微妙的问题：
+
+```sql
+v_now timestamptz := now();
+```
+
+然后 Skill upsert/锁等待之后才查询：
+
+```sql
+created_at >= v_now - interval '30 days'
+and created_at <= v_now
+```
+
+
+
+PostgreSQL 的 `now()` 是 **transaction timestamp**，即当前事务开始时的固定时间，并不是等待锁以后重新获取的墙钟时间。
+
+于是存在这样的 race：
+
+```text
+T2 transaction 开始
+v_now = 10:00:00.000
+
+T2 暂时被调度延迟
+
+T1 transaction 10:00:00.010 开始
+T1 抢到 Skill lock
+T1 settlement 成功
+ledger.created_at = 10:00:00.010
+T1 commit
+
+T2 继续
+T2 等到/取得 Skill lock
+
+T2 repetition SELECT
+条件：
+created_at <= 10:00:00.000
+
+T1 的 row:
+10:00:00.010
+
+→ 被排除
+```
+
+于是两个不同 Activity 都可能认为：
+
+```text
+repetitionCount = N
+```
+
+而不是：
+
+```text
+第一个 = N
+第二个 = N+1
+```
+
+这正是重复刷 XP 防护最不应该出现的 race。
+
+### 建议修法
+
+在真正取得 Skill serialization lock **以后**：
+
+```sql
+v_now := clock_timestamp();
+```
+
+再计算 repetition，并用这个时间作为 ledger 的 authoritative `created_at`。
+
+更彻底一点，可以：
+
+```text
+user_id + normalized_skill
+```
+
+做 transaction advisory lock，然后：
+
+```text
+lock
+→ resolve skill
+→ clock_timestamp()
+→ authoritative repetition count
+→ insert ledger
+```
+
+必须增加真实测试：
+
+```text
+两个不同 assessment
+两个不同 activity
+同一 user
+同一 skill
+同一 activity_type
+并发 settle
+
+要求：
+最终两个都能通过 retry 完成；
+repetition_count 必须分别为 N 和 N+1；
+不能两条都是 N。
+```
+
+目前所谓“并发安全”还不能完全成立。
+
+**P1。**
+
+---
+
+## 4. P1：Stage2-B 承诺的 composite tenant integrity 还没实现
+
+这一点其实上一轮已经明确留给 Stage2-B。
+
+现在：
+
+```sql
+activities.quest_id
+references quests(id)
+```
+
+只有：
+
+```text
+quest_id → quests.id
+```
+
+没有：
+
+```text
+(user_id, quest_id)
+→ quests(user_id, id)
+```
+
+
+
+而 `create_activity` 是：
+
+```sql
+SECURITY DEFINER
+```
+
+并且：
+
+```text
+authenticated 可以 EXECUTE
+```
+
+同时接受：
+
+```text
+p_quest_id
+```
+
+然后直接插入。
+
+所以 authenticated 用户如果知道另一个用户的 Quest UUID：
+
+```text
+User A
+p_quest_id = User B 的 quest UUID
+```
+
+数据库并不会验证：
+
+```text
+Quest.user_id == auth.uid()
+```
+
+由于函数是 `SECURITY DEFINER`，也不能依靠 Quest RLS 来兜底。
+
+结果可以形成：
+
+```text
+Activity.user_id = A
+Activity.quest_id = B's Quest
+```
+
+这已经是实际的 tenant integrity violation。
+
+虽然不等于 A 能直接读取 B Quest 的全部数据，但**跨租户关系已经被写进数据库**。
+
+而你上传的 Summary 把：
+
+> composite tenant 隔离
+
+列为 Stage2-B 目标。
+
+所以这一项不能算完成。
+
+### 修复
+
+至少：
+
+```sql
+if p_quest_id is not null and not exists (
+    select 1
+    from quests
+    where id = p_quest_id
+      and user_id = auth.uid()
+) then
+    raise exception 'quest_not_owned';
+end if;
+```
+
+更强的是直接建立 composite FK。
+
+相同原则最终还应覆盖：
+
+```text
+xp_transactions:
+(user_id, activity_id)
+(user_id, assessment_id)
+(user_id, skill_id)
+```
+
+目前 FK 只是单独 ID。
+
+RPC 当前能保证正常路径一致，但数据库 schema 本身还没有形成真正 tenant-safe relational model。
+
+**这个现在我提升为 P1。**
+
+---
+
+# 其余 P2
+
+这里还有几个不阻挡架构方向，但最好在 Stage2-B.1 一起处理的问题。
+
+**P2-A：`repetition_conflict` 不是严格“零副作用”。**
+
+RPC 顺序现在是：
+
+```text
+先 upsert Skill
+↓
+再算 repetition
+↓
+如果 conflict:
+RETURN { ok:false }
+```
+
+
+
+注意：
+
+```sql
+RETURN
+```
+
+是函数正常结束，不是异常回滚。
+
+所以失败前的：
+
+```text
+INSERT Skill
+或
+UPDATE Skill.updated_at
+```
+
+会随事务正常提交。
+
+DemoRepository 不存在这个问题，因为冲突发生后根本不会 `writeDb()`。
+
+因此数据库版与 Repository 的“atomic settlement”语义并不完全一致。
+
+这也是为什么我建议重新排列成：
+
+```text
+serialize skill identity
+→ read/resolve without permanent mutation
+→ validate repetition
+→ 所有验证通过
+→ 才开始永久写入
+```
+
+---
+
+**P2-B：pending MasteryVerification 去重后的返回内容不是数据库真实内容。**
+
+现在如果已有 pending：
+
+```sql
+select id into v_existing_pending
+```
+
+只取 ID。
+
+然后返回 JSON 时却使用**这次新请求**的：
+
+```text
+fromLevel
+toLevel
+evidenceLevel
+```
+
+
+
+例如数据库原记录是：
+
+```text
+id = X
+M1 → M5
+E4
+```
+
+第二次 settlement 请求：
+
+```text
+M1 → M6
+E5
+```
+
+函数不会更新 DB，因为 pending 已存在。
+
+但返回：
+
+```text
+id = X
+M1 → M6
+E5
+```
+
+调用者得到的是一个**数据库里根本不存在的 verification**。
+
+当前测试只检查：
+
+```ts
+r2.masteryVerification.id === r1.masteryVerification.id
+```
+
+没有核对字段。
+
+应该：
+
+```sql
+select * into v_existing_verification
+```
+
+然后返回持久化 row 的真实值。
+
+---
+
+**P2-C：`skill_name_snapshot` 实际没有实现。**
+
+你上传的 Summary 里写：
+
+> `xp_transactions` 已有 `skill_name` 列承担结算时快照语义。
+
+
+
+但是最新 generated types 中 `xp_transactions` 实际字段只有：
+
+```text
+activity_id
+activity_type
+amount
+assessment_id
+...
+skill_id
+...
+```
+
+**没有 `skill_name`。** 
+
+0009 建表也没有。
+
+而当前 SupabaseRepository 仍然：
+
+```ts
+.select("*, skills!fk_xp_transactions_skill(name)")
+```
+
+也就是 JOIN 当前 Skill 名。
+
+所以：
+
+```text
+结算时：Statistics
+后来改名：Quantitative Analysis
+```
+
+历史 ledger 页面会显示：
+
+```text
+Quantitative Analysis
+```
+
+而不是结算时的：
+
+```text
+Statistics
+```
+
+这个 Round14 P2 **实际上没有关闭**。
+
+0024 返回 JSON 里的 `skillName` 只是当前 HTTP response，不是 ledger snapshot。
+
+建议正式加：
+
+```sql
+skill_name_snapshot text not null
+```
+
+---
+
+**P2-D：真正的 rules-version dispatcher 仍没实现。**
+
+现在 Activity 正确冻结了：
+
+```text
+growth-engine-v0.1
+```
+
+但 `SettlementService` 永远直接调用：
+
+```ts
+calculateXp(xpInput)
+```
+
+也就是当前部署代码里的 Growth Engine。
+
+然后只是把：
+
+```ts
+activity.rulesVersion
+```
+
+写到 ledger label。
+
+因此未来假设：
+
+```text
+Activity 创建于 v0.1
+
+后来部署 v0.2
+
+用户此时才 Confirm 老 Activity
+```
+
+当前逻辑会：
+
+```text
+用 v0.2 数学算 XP
+但 ledger 写：
+rulesVersion = v0.1
+```
+
+那就比“不记录版本”还危险——它会制造错误的审计标签。
+
+不过这一点项目自己已经留了 Gate：
+
+> engine registry 必须在第一次 `rules_version bump` 前实现，settlement 根据 registry 选取引擎。
+
+所以我暂时不升级为当前 P1。
+
+但明确：
+
+> **在 `growth-engine-v0.2` 出现前，这是硬 Gate。**
+
+---
+
+# 测试质量评价
+
+这轮测试比前面几轮明显强很多。
+
+尤其这些不是字符串 grep，而是真数据库：
+
+```text
+atomic settlement
+idempotency
+repetition conflict
+mastery verification
+cross-user
+same-assessment concurrency
+SQL/TS level parity
+```
+
+ 
+
+因此我认可 Summary 中“Stage2-B 已有真实数据库实现”这一大结论。
+
+但测试存在一个典型盲点：
+
+> 大量测试在证明“happy path + 同一对象并发”，还没有覆盖“多个合法对象竞争同一派生状态”。
+
+下一轮最重要的并发测试不是：
+
+```text
+Assessment A × Assessment A
+```
+
+而是：
+
+```text
+Assessment A × Assessment B
+        ↓
+    same Skill
+```
+
+因为：
+
+```text
+repetition
+skill XP
+mastery
+pending verification
+```
+
+真正的共享竞争点全部在 **Skill**。
+
+---
+
+# 读取路径问题怎么判
+
+当前：
+
+```text
+Create / Assess / Confirm
+→ Supabase
+
+Dashboard
+→ DemoRepository
+```
+
+Dashboard route 现在仍直接调用 Demo `getRepository()`。
+
+这个我**不计 Stage2-B P1**，因为 Summary 已经明确把它列为下一阶段边界。
+
+但是要注意：
+
+> “Stage2-B 后端 settlement 做完”  
+> ≠  
+> “现在就能给真实用户使用”。
+
+一旦 Auth UI 接上，必须同步切：
+
+```text
+Dashboard
+Activities
+Skills
+Ledger
+Mastery queue
+```
+
+否则用户会：
+
+```text
+写入 Supabase 成功
+→ 刷 Dashboard
+→ 看到 Demo 数据
+```
+
+---
+
+# 我建议下一轮不要做 UI
+
+现在最合理的动作不是继续铺 Skill Tree/Auth UI。
+
+直接做：
+
+## **Stage2-B.1 — Settlement Integrity Closure**
+
+只修这几个核心问题：
+
+1. **Mastery DB monotonic**
+   - stale upgrade 不得降低 mastery；
+   - event 必须 `to > from` 才能叫 upgrade；
+   - 增加 same-Skill mastery concurrency test。
+
+2. **Canonical XP delta**
+   - `settle_activity` 强制 `xpType='activity'`；
+   - 一个 canonical XP；
+   - ledger/player/primary-skill 三者永远相等；
+   - reject negative/mismatched settlement。
+
+3. **Repetition serialization**
+   - Skill serialization 后用 `clock_timestamp()`；
+   - 两个不同 Activity、同 Skill 的并发测试；
+   - conflict 必须无持久副作用。
+
+4. **Tenant composite integrity**
+   - 修 `create_activity(p_quest_id)` ownership；
+   - 最好补 composite FK。
+
+5. 顺手修：
+   - existing MasteryVerification 返回真实 row；
+   - `skill_name_snapshot` 真正落表。
+
+修完这些，我预计可以到：
+
+> **9.0+ / 10，GO → Auth + 全量 Supabase read-path / UI integration**
+
+所以这轮我的结论不是“Stage2-B 做失败了”。
+
+更准确是：
+
+> **Stage2-B 主体已经成功建立，但还不应该宣布 settlement authority 完全冻结。现在缺的是最后一轮数据库一致性与同 Skill 并发硬化。**
+
+我建议目前 **不要进入下一大阶段，先做 Stage2-B.1**。

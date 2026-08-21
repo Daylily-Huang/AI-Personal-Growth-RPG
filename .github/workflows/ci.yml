@@ -70,17 +70,19 @@ jobs:
       - name: Start local Supabase stack
         run: supabase db start
 
+      - name: Export local Supabase credentials
+        run: |
+          eval $(supabase status -o env)
+          echo "NEXT_PUBLIC_SUPABASE_URL=${API_URL}" >> "$GITHUB_ENV"
+          echo "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=${PUBLISHABLE_KEY:-$ANON_KEY}" >> "$GITHUB_ENV"
+          echo "SUPABASE_SECRET_KEY=${SECRET_KEY:-$SERVICE_ROLE_KEY}" >> "$GITHUB_ENV"
+          echo "XP_RPG_TEST_DB_URL=${DB_URL}" >> "$GITHUB_ENV"
+
       - name: Build production app
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
-          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_test_key
-          SUPABASE_SECRET_KEY: test_secret_key
         run: pnpm build
 
       - name: Run database-backed tests
-        env:
-          XP_RPG_TEST_DB_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
-          NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
-          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_test_key
-          SUPABASE_SECRET_KEY: test_secret_key
         run: pnpm test
+
+      - name: Run E2E tests
+        run: pnpm test:e2e

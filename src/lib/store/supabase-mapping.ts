@@ -1,6 +1,6 @@
 import type { AssessmentProposal } from "@/lib/ai/schemas";
 import type { Database } from "@/lib/supabase/database.types";
-import type { Activity, Assessment, MasteryVerification, PlayerState, SkillState, XpTransaction } from "./types";
+import type { Activity, Assessment, MasteryVerification, PlayerState, Quest, SkillState, XpTransaction } from "./types";
 
 type ActivityRow = Database["public"]["Tables"]["activities"]["Row"];
 type AssessmentRow = Database["public"]["Tables"]["ai_assessments"]["Row"];
@@ -8,10 +8,12 @@ type SkillRow = Database["public"]["Tables"]["skills"]["Row"];
 type TransactionRow = Database["public"]["Tables"]["xp_transactions"]["Row"];
 type PlayerRow = Database["public"]["Tables"]["player_states"]["Row"];
 type VerificationRow = Database["public"]["Tables"]["mastery_verifications"]["Row"];
+type QuestRow = Database["public"]["Tables"]["quests"]["Row"];
 
 export function mapActivity(row: ActivityRow): Activity {
   return {
     id: row.id,
+    questId: row.quest_id,
     rawInput: row.raw_input,
     title: row.title,
     activityType: row.activity_type,
@@ -98,3 +100,26 @@ export function mapMasteryVerification(row: VerificationRow): MasteryVerificatio
     resolvedAt: row.resolved_at,
   };
 }
+
+export function mapQuest(row: QuestRow): Quest {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    parentQuestId: row.parent_quest_id,
+    title: row.title,
+    description: row.description,
+    questType: row.quest_type as Quest["questType"],
+    questSize: (row.quest_size ?? "standard") as Quest["questSize"],
+    status: row.status as Quest["status"],
+    difficulty: Number(row.difficulty),
+    goalAlignment: Number(row.goal_alignment),
+    progress: Number(row.progress),
+    deadline: row.deadline,
+    isMainQuest: Boolean(row.is_main_quest),
+    isBoss: Boolean(row.is_boss),
+    completedAt: row.completed_at,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+

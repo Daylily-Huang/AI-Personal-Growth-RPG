@@ -1,0 +1,662 @@
+审完了。这轮不能按摘要里的“**PASSED / 100% End-to-End Complete**”签字。
+
+# Round24 审查结论
+
+| 项目 | 结论 |
+|---|---|
+| 评分 | **6.4 / 10** |
+| 状态 | **CONDITIONAL FAIL** |
+| P0 | 0 |
+| P1 | **6** |
+| P2 | 3 |
+| Stage2 Settlement Authority | **继续 Frozen** |
+| Stage3 Auth / Read Path | **远程仍有上轮 CI credential P1 未关闭** |
+| Stage4 Quest System | **UI/CRUD 方向成立，但核心 Growth Loop 尚未证明闭环** |
+| 是否进入 Stage5 | **NO-GO** |
+
+这轮问题不是 Quest 页面做得不够，而是**Quest 现在看起来像一个独立 CRUD 子系统，还没有真正成为 Growth Engine 的一部分**。
+
+---
+
+# P1-1：最先要解决——Stage4 根本还没推到远程
+
+我直接查了 GitHub `main`。
+
+最新提交仍然是：
+
+```text
+07beec175381c9b5cf368f89e3e334553fab563a
+fix(stage3): Global function default privileges & CI build ordering
+```
+
+没有任何 Stage4 / Quest System commit。
+
+甚至远程：
+
+```text
+src/lib/store/quest.service.ts
+```
+
+直接是 **404 Not Found**。
+
+当前远程 `Repository` 接口里也根本还没有：
+
+```ts
+getQuest()
+listQuests()
+addQuest()
+updateQuest()
+deleteQuest()
+```
+
+
+
+因此这份 Round24 报告目前只能证明：
+
+> coding AI 的**本地工作树声称**已经完成 Stage4。
+
+不能证明：
+
+> GitHub main 上已经存在并可复现。
+
+所以：
+
+**Stage4 目前绝对不能 Frozen。**
+
+先把代码形成一个明确 commit 推上去，我下一轮才能逐文件真正审。
+
+---
+
+# P1-2：Quest 尚未真正接入 Growth Loop
+
+这是这轮最重要的架构问题。
+
+当前远程正式 `SettlementService` 依然写着：
+
+```ts
+export const DEFAULT_QUEST_SIZE: QuestSize = "standard";
+```
+
+而且注释非常明确：
+
+> every ordinary Activity settles as `standard` until a Quest is bound.
+
+实际结算输入也是：
+
+```ts
+questSize: DEFAULT_QUEST_SIZE
+```
+
+
+
+也就是说：
+
+```text
+Quest = main / epic / major / micro
+```
+
+目前对真正 XP 结算：
+
+```text
+完全没影响
+```
+
+更严重的是，`confirmAssessment()` 完整结束后也**没有更新 quest progress**。
+
+但你自己的权威路线图明确规定：
+
+### M2-04
+
+Growth Engine 必须包含：
+
+```text
+quest size cap
+```
+
+### M2-05 Confirm Transaction
+
+第 7 步明确是：
+
+```text
+更新 quest progress
+```
+
+
+
+所以现在如果 Stage4 只是：
+
+```text
+Quest 页面
++
+Quest CRUD
++
+手工 PATCH progress
++
+父级 roll-up
+```
+
+它还不是完整 Quest System。
+
+真正链路应该是：
+
+```text
+Activity
+  ↓ quest_id
+Assessment
+  ↓
+Confirm
+  ↓
+authoritative Settlement
+  ├─ XP
+  ├─ Skill XP
+  ├─ Ledger
+  └─ Quest Progress
+        ↓
+      Parent
+        ↓
+      Main Quest / Boss
+```
+
+而不是：
+
+```text
+Growth Loop       Quest UI
+    │                 │
+    └──── 两套并行系统 ────┘
+```
+
+### 修复要求
+
+Activity 已经有 `quest_id` 基础的话，Settlement 必须读取并验证绑定 Quest，然后：
+
+1. 获取 authoritative Quest；
+2. Quest 必须属于当前 user；
+3. XP Engine 使用 Quest 实际 `quest_size`；
+4. Settlement 成功时同时推进 Quest；
+5. parent roll-up 与 XP settlement 在一致的权威事务边界内。
+
+至少不能出现：
+
+```text
+XP 已结算
+但 Quest progress 更新失败
+```
+
+或者反过来。
+
+---
+
+# P1-3：`parent_quest_id` 存在跨租户引用漏洞
+
+当前数据库：
+
+```sql
+parent_quest_id uuid references public.quests(id)
+```
+
+只有普通 FK。
+
+但是 RLS 对 Quest 是：
+
+```sql
+INSERT own
+UPDATE own
+DELETE own
+SELECT own
+```
+
+也就是 authenticated 用户对自己的 Quest 行拥有完整 CRUD。
+
+于是理论上 User A 可以创建：
+
+```text
+child.user_id = User A
+child.parent_quest_id = User B 的 Quest UUID
+```
+
+RLS 只检查：
+
+```text
+child.user_id = auth.uid()
+```
+
+不会证明：
+
+```text
+parent.user_id = auth.uid()
+```
+
+你们在 Stage2 已经遇到过完全相同的问题：
+
+> Activity 的 `quest_id` 必须额外检查 Quest ownership。
+
+Quest 自己的 parent-child 现在也需要同样的 tenant integrity。
+
+API 里写：
+
+> “validate parent relations”
+
+不够。
+
+因为 authenticated client 可以绕过 Next API，直接调用 Supabase Data API。
+
+### 正确方案
+
+建议加 DB 级 composite integrity：
+
+```sql
+unique (user_id, id)
+```
+
+然后父级关系本质上约束：
+
+```text
+(child.user_id, child.parent_quest_id)
+        ↓
+(parent.user_id, parent.id)
+```
+
+或者用强制 trigger 验证。
+
+总原则：
+
+> **跨租户父子 Quest 必须在 DB 层成为“不可能状态”。**
+
+---
+
+# P1-4：Quest Tree 可以形成环
+
+当前 schema 没有防：
+
+```text
+A.parent = A
+```
+
+也没有防：
+
+```text
+A → B
+B → A
+```
+
+更没有防：
+
+```text
+A → B → C → A
+```
+
+
+
+而你的摘要声称存在：
+
+```ts
+syncParentQuestProgress(...)
+```
+
+并且是：
+
+> recursively recalculates parent progress
+
+
+
+如果数据库里存在 cycle，最直接的结果就是：
+
+```text
+sync A
+→ parent B
+→ parent A
+→ parent B
+→ ...
+```
+
+最终：
+
+```text
+stack overflow
+无限递归
+事务失败
+```
+
+即使 API 创建时做 cycle validation，也仍然不够——因为 Quest 当前是 client-writable。
+
+### 必须增加
+
+至少：
+
+- self-parent reject；
+- descendant-parent reject；
+- recursion visited-set 防御；
+- 测试：
+  - A → A
+  - A → B → A
+  - A → B → C → A。
+
+更稳的是 DB trigger / recursive CTE constraint logic。
+
+---
+
+# P1-5：所谓“自动聚合 progress”目前不是 authoritative derived state
+
+这是一个更深的设计问题。
+
+当前 Quest RLS 允许 authenticated：
+
+```sql
+UPDATE quests
+```
+
+
+
+而 `progress` 就是普通列：
+
+```sql
+progress numeric not null default 0
+```
+
+
+
+所以即使：
+
+```ts
+syncParentQuestProgress()
+```
+
+每次都会正确算：
+
+```text
+Parent = children aggregation
+```
+
+用户仍然可以绕开 Next API：
+
+```text
+PATCH Supabase Data API
+
+progress = 1
+status = completed
+```
+
+直接把 Main Quest 打成 100%。
+
+于是你现在同时声明了两个相互冲突的模型：
+
+### 模型 A
+
+```text
+parent.progress 是 children 推导值
+```
+
+### 模型 B
+
+```text
+parent.progress 是用户可直接编辑字段
+```
+
+两者必须选一个。
+
+我的建议：
+
+### Leaf Quest
+
+允许用户修改：
+
+```text
+progress
+status
+```
+
+### 有 children 的 Parent / Main / Boss
+
+`progress` 应是：
+
+```text
+derived state
+```
+
+客户端不可任意写。
+
+可以：
+
+- DB trigger 自动 roll-up；
+- SECURITY DEFINER RPC；
+- 或干脆不持久化 parent progress，读取时 compute。
+
+否则“automatic progress roll-up”只是 UI 约定，不是系统 invariant。
+
+---
+
+# P1-6：Round24 根本没有覆盖 Milestone 4 的两个关键验收项
+
+报告的 acceptance checklist 写成全部 PASS。
+
+但原路线图 Milestone 4 的验收实际上是：
+
+```text
+1. 子任务推进可以正确聚合上级任务
+2. 无关任务不能降低 Boss HP
+3. Failed 可保留 Learning XP
+```
+
+
+
+Round24 报告真正提供证据的只有：
+
+```text
+1. child → parent → grandparent roll-up
+```
+
+没有看到：
+
+```text
+无关 Activity → Boss HP 不变
+```
+
+也没有看到：
+
+```text
+Quest failed
+但已获得的 Learning XP / Ledger 不回滚
+```
+
+所以不能写：
+
+> Milestone 4 acceptance 100% passed.
+
+尤其第一条和 Boss 机制实际上又回到了前面的核心问题：
+
+> **Activity / Settlement 根本还没有真正接 Quest。**
+
+---
+
+# 另一个明确 DB integrity 问题
+
+当前 schema：
+
+```sql
+difficulty numeric
+goal_alignment numeric
+progress numeric
+```
+
+没有 CHECK。
+
+因此数据库允许：
+
+```text
+difficulty = -50
+goal_alignment = 999
+progress = 12.7
+```
+
+报告说 POST API 会 validation。
+
+但还是那个问题：
+
+> Quest 表目前允许 authenticated 直接 Data API CRUD。
+
+所以 API validation 不是 authority boundary。
+
+至少应该：
+
+```sql
+check (difficulty between 0 and 1)
+check (goal_alignment between 0 and 1)
+check (progress between 0 and 1)
+```
+
+如果 progress 定义是 0–100，就按 0–100。
+
+这是 **P2→P1 边缘**，建议跟 Quest integrity migration 一次修掉。
+
+---
+
+# Stage3 还有一个历史 P1 没关闭
+
+这也不能忽略。
+
+远程最新 CI 仍然写的是：
+
+```yaml
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_test_key
+SUPABASE_SECRET_KEY: test_secret_key
+```
+
+
+
+也就是我上一轮指出的：
+
+> production HTTP E2E 在 fresh CI 中使用假的 Supabase credential。
+
+而 Round24 报告没有提到修复它。
+
+由于远程也没有 Stage4 commit，所以目前真实 repo 状态仍然是：
+
+```text
+Stage3 CI Credential Closure
+= 未完成
+```
+
+因此严格按你自己的开发规则：
+
+> “每个阶段只有满足验收条件后才能进入下一阶段。”
+
+
+
+理论上 Stage4 本来就不该先宣布完成。
+
+---
+
+# 测试方面还有一个明显夸大
+
+Round24 写：
+
+```text
+tests/e2e-http-browser.test.ts: 6/6 passed
+```
+
+
+
+但是 6 个用例数量和上一阶段完全一样。
+
+报告没有说新增：
+
+```text
+HTTP POST /api/quests
+HTTP PATCH child
+HTTP GET tree
+HTTP parent roll-up
+HTTP User B manipulate User A quest → denied
+```
+
+所以目前 Quest 的 E2E 证据实际上主要是：
+
+```text
+quest-system.test
+quest-api.test
+read-path-integration
+```
+
+而不是：
+
+```text
+Production HTTP Quest E2E
+```
+
+这不是致命架构问题，但“100% End-to-End”这个措辞不成立。
+
+---
+
+# 我建议现在不要继续 Stage5
+
+这次应该做一个：
+
+## Stage4.1 Quest Authority Closure
+
+只处理这几个问题，不加新 UI：
+
+1. **先提交并 push 当前 Stage4**
+   - 我要能看到真实 diff。
+
+2. **补 Quest DB integrity migration**
+   - parent same-user constraint；
+   - 防 self/cycle；
+   - difficulty / goalAlignment / progress range；
+   - 如果 domain 要求 `quest_size` 必填，backfill 后 `NOT NULL`。
+
+3. **Quest 接入 Settlement**
+   - Activity.questId → authoritative Quest；
+   - 实际 QuestSize → Growth Engine；
+   - settlement → Quest progress；
+   - parent/main roll-up；
+   - 保证 atomic / idempotent。
+
+4. **收紧 derived progress authority**
+   - parent/main progress 禁止 client 任意写。
+
+5. **补三组真正验收测试**
+   - linked child activity → child/parent/main progress；
+   - unrelated activity → Boss 不变化；
+   - failed Quest → 已结算 Learning XP 不回滚。
+
+6. **补 Quest production HTTP E2E**
+   - create parent + child；
+   - update child；
+   - reload；
+   - parent aggregation；
+   - User B 不可读取/修改 User A；
+   - cycle / cross-user parent reject。
+
+7. **顺手关闭 Stage3 CI credential P1**
+   - CI 获取真实 local Supabase credentials。
+
+---
+
+## 最终判断
+
+当前 Round24 更准确的描述是：
+
+> **Quest CRUD + Tree UI + Application-level roll-up prototype 基本完成。**
+
+而不是：
+
+> **Milestone 4 Quest System 100% complete and verified.**
+
+因为真正的 RPG 语义应该是：
+
+```text
+现实 Activity
+→ Confirm
+→ Growth Engine
+→ XP
+→ Quest
+→ Parent milestone
+→ Main Quest / Boss
+```
+
+现在证据只能证明后半段的 Quest 自己能 CRUD/聚合，**前半段和 Quest 还没有被证明是同一个权威闭环**。
+
+所以本轮结论：
+
+> **6.4/10 — CONDITIONAL FAIL — P0=0 / P1=6 — NO-GO Stage5。**
+
+下一轮 coding AI 把 **Stage4 commit 真正 push 到 GitHub** 后，你直接发我新的验证摘要，我会开始逐文件审 `quest.service.ts`、Quest API、SupabaseRepository、migration 和 settlement diff。

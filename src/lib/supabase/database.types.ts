@@ -687,11 +687,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "quests_parent_quest_id_fkey"
-            columns: ["parent_quest_id"]
+            foreignKeyName: "quests_parent_same_user_fkey"
+            columns: ["user_id", "parent_quest_id"]
             isOneToOne: false
             referencedRelation: "quests"
-            referencedColumns: ["id"]
+            referencedColumns: ["user_id", "id"]
           },
         ]
       }

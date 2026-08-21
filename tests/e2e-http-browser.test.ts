@@ -8,9 +8,12 @@ const DATABASE_URL = process.env.XP_RPG_TEST_DB_URL;
 const TEST_PORT = 3095;
 const BASE_URL = `http://127.0.0.1:${TEST_PORT}`;
 
+const DEFAULT_LOCAL_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0";
+const DEFAULT_LOCAL_SERVICE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU";
+
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54321";
-const SUPABASE_PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || "test-publishable-key";
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SECRET_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU";
+const SUPABASE_PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || DEFAULT_LOCAL_ANON_KEY;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SECRET_KEY || DEFAULT_LOCAL_SERVICE_KEY;
 
 process.env.NEXT_PUBLIC_SUPABASE_URL = SUPABASE_URL;
 process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = SUPABASE_PUBLISHABLE_KEY;
@@ -270,5 +273,84 @@ describe.skipIf(!DATABASE_URL)("Stage 3.1 — Full Real HTTP / Browser Auth E2E 
     expect(dashRes.status).toBe(200);
     const { dashboard } = await dashRes.json();
     expect(dashboard.player.totalXp).toBeGreaterThan(0);
+  });
+
+  test("7. Full Production HTTP Quest E2E: Create hierarchy, patch child, aggregate tree, cycle & cross-tenant reject", async () => {
+    const jarA = createCookieJar();
+    await jarA.client.auth.signInWithPassword({
+      email: userAEmail,
+      password: testPassword,
+    });
+    const cookieHeaderA = jarA.getCookieHeader();
+
+    const jarB = createCookieJar();
+    await jarB.client.auth.signInWithPassword({
+      email: userBEmail,
+      password: testPassword,
+    });
+    const cookieHeaderB = jarB.getCookieHeader();
+
+    // 1. User A creates Parent Quest via HTTP POST /api/quests
+    const parentRes = await fetch(`${BASE_URL}/api/quests`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Cookie: cookieHeaderA },
+      body: JSON.stringify({
+        title: "HTTP Parent Quest",
+        questType: "production",
+        isMainQuest: true,
+      }),
+    });
+    expect(parentRes.status).toBe(201);
+    const { quest: parentQuest } = await parentRes.json();
+    expect(parentQuest.id).toBeDefined();
+
+    // 2. User A creates Child Quest via HTTP POST /api/quests
+    const childRes = await fetch(`${BASE_URL}/api/quests`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Cookie: cookieHeaderA },
+      body: JSON.stringify({
+        title: "HTTP Child Quest",
+        parentQuestId: parentQuest.id,
+        questType: "skill",
+        progress: 0,
+      }),
+    });
+    expect(childRes.status).toBe(201);
+    const { quest: childQuest } = await childRes.json();
+    expect(childQuest.parentQuestId).toBe(parentQuest.id);
+
+    // 3. User A updates Child Quest progress via HTTP PATCH /api/quests/[id]
+    const patchRes = await fetch(`${BASE_URL}/api/quests/${childQuest.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: cookieHeaderA },
+      body: JSON.stringify({ progress: 100, status: "completed" }),
+    });
+    expect(patchRes.status).toBe(200);
+
+    // 4. User A queries tree via HTTP GET /api/quests?tree=true
+    const treeRes = await fetch(`${BASE_URL}/api/quests?tree=true`, {
+      headers: { Cookie: cookieHeaderA },
+    });
+    expect(treeRes.status).toBe(200);
+    const { tree } = await treeRes.json();
+    const parentInTree = tree.find((t: { id: string }) => t.id === parentQuest.id);
+    expect(parentInTree).toBeDefined();
+    expect(parentInTree.progress).toBe(100);
+
+    // 5. Anti-cycle over HTTP: Parent -> Child -> Parent (cycle attempt)
+    const cycleRes = await fetch(`${BASE_URL}/api/quests/${parentQuest.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: cookieHeaderA },
+      body: JSON.stringify({ parentQuestId: childQuest.id }),
+    });
+    expect(cycleRes.status).toBe(400);
+
+    // 6. Cross-tenant isolation over HTTP: User B tries to PATCH User A's quest -> 404
+    const userBPatchRes = await fetch(`${BASE_URL}/api/quests/${childQuest.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: cookieHeaderB },
+      body: JSON.stringify({ progress: 0 }),
+    });
+    expect(userBPatchRes.status).toBe(404);
   });
 });

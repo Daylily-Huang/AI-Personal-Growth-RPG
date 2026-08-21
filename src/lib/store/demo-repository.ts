@@ -11,10 +11,14 @@ import type {
   MasteryVerification,
   NewActivityInput,
   NewAssessmentInput,
+  NewQuestInput,
   PlayerState,
+  Quest,
+  QuestStatus,
   SettlementToApply,
   SkillEdge,
   SkillState,
+  UpdateQuestInput,
   XpTransaction,
 } from "./types";
 import type { Repository, SettlementResult } from "./repository";
@@ -33,6 +37,7 @@ function emptyDb(): Db {
     skills: {},
     skillEdges: [],
     masteryVerifications: [],
+    quests: [],
     player: {
       totalXp: 0,
       playerLevel: 1,
@@ -189,13 +194,169 @@ export class DemoRepository implements Repository {
     return this.readDb().masteryVerifications;
   }
 
+  // ---- quests ----
+
+  async getQuest(id: string): Promise<Quest | null> {
+    return (this.readDb().quests ?? []).find((q) => q.id === id) ?? null;
+  }
+
+  async listQuests(filter?: { status?: QuestStatus; isMain?: boolean; parentQuestId?: string | null }): Promise<Quest[]> {
+    let list = this.readDb().quests ?? [];
+    if (filter?.status) {
+      list = list.filter((q) => q.status === filter.status);
+    }
+    if (typeof filter?.isMain === "boolean") {
+      list = list.filter((q) => q.isMainQuest === filter.isMain);
+    }
+    if (filter?.parentQuestId !== undefined) {
+      list = list.filter((q) => q.parentQuestId === filter.parentQuestId);
+    }
+    return list;
+  }
+
   // ---- writes ----
+
+  async addQuest(input: NewQuestInput): Promise<Quest> {
+    const db = this.readDb();
+    const now = new Date().toISOString();
+    const quest: Quest = {
+      id: crypto.randomUUID(),
+      parentQuestId: input.parentQuestId ?? null,
+      title: input.title.trim(),
+      description: input.description?.trim() ?? null,
+      questType: input.questType,
+      questSize: input.questSize ?? "standard",
+      status: input.status ?? "available",
+      difficulty: input.difficulty ?? 0.5,
+      goalAlignment: input.goalAlignment ?? 0.5,
+      progress: input.progress ?? 0,
+      deadline: input.deadline ?? null,
+      isMainQuest: Boolean(input.isMainQuest),
+      isBoss: Boolean(input.isBoss),
+      completedAt: input.status === "completed" ? now : null,
+      createdAt: now,
+      updatedAt: now,
+    };
+    db.quests = db.quests ?? [];
+    db.quests.push(quest);
+    this.writeDb(db);
+    return quest;
+  }
+
+  async updateQuest(id: string, updates: UpdateQuestInput): Promise<Quest> {
+    const db = this.readDb();
+    db.quests = db.quests ?? [];
+    const index = db.quests.findIndex((q) => q.id === id);
+    if (index === -1) {
+      throw new Error(`Quest not found: ${id}`);
+    }
+    const current = db.quests[index]!;
+
+    // Anti-cycle check: parent cannot be self or descendant
+    if (updates.parentQuestId !== undefined && updates.parentQuestId !== null) {
+      if (updates.parentQuestId === id) {
+        throw new Error("Self-parenting is forbidden: quest cannot be its own parent");
+      }
+      // Check if `id` is an ancestor of `updates.parentQuestId`
+      let checkParentId: string | null = updates.parentQuestId;
+      const visited = new Set<string>();
+      while (checkParentId && !visited.has(checkParentId)) {
+        visited.add(checkParentId);
+        if (checkParentId === id) {
+          throw new Error("Cycle detected: cannot set parent_quest_id to a descendant quest");
+        }
+        const p = db.quests.find((q) => q.id === checkParentId);
+        checkParentId = p?.parentQuestId ?? null;
+      }
+    }
+
+    const hasChildren = db.quests.some((q) => q.parentQuestId === id);
+    const now = new Date().toISOString();
+    const updatedStatus = updates.status ?? current.status;
+    const completedAt =
+      updatedStatus === "completed"
+        ? current.completedAt ?? now
+        : updatedStatus !== current.status
+          ? null
+          : current.completedAt;
+
+    // Derived progress guard: if node has children, its progress is derived from children
+    let derivedProgress = updates.progress !== undefined ? updates.progress : current.progress;
+    if (hasChildren) {
+      const children = db.quests.filter((q) => q.parentQuestId === id);
+      derivedProgress = Math.round(children.reduce((s, c) => s + c.progress, 0) / children.length);
+    }
+
+    const updated: Quest = {
+      ...current,
+      parentQuestId: updates.parentQuestId !== undefined ? updates.parentQuestId : current.parentQuestId,
+      title: updates.title !== undefined ? updates.title.trim() : current.title,
+      description: updates.description !== undefined ? updates.description?.trim() ?? null : current.description,
+      questType: updates.questType ?? current.questType,
+      questSize: updates.questSize ?? current.questSize,
+      status: updatedStatus,
+      difficulty: updates.difficulty !== undefined ? Math.max(0, Math.min(1, updates.difficulty)) : current.difficulty,
+      goalAlignment: updates.goalAlignment !== undefined ? Math.max(0, Math.min(1, updates.goalAlignment)) : current.goalAlignment,
+      progress: Math.max(0, Math.min(100, derivedProgress)),
+      deadline: updates.deadline !== undefined ? updates.deadline : current.deadline,
+      isMainQuest: updates.isMainQuest !== undefined ? Boolean(updates.isMainQuest) : current.isMainQuest,
+      isBoss: updates.isBoss !== undefined ? Boolean(updates.isBoss) : current.isBoss,
+      completedAt,
+      updatedAt: now,
+    };
+    db.quests[index] = updated;
+
+    // Trigger parent roll-up
+    this.rollUpParentProgress(db, updated.parentQuestId, now);
+
+    this.writeDb(db);
+    return updated;
+  }
+
+  private rollUpParentProgress(db: Db, parentId: string | null, now: string): void {
+    const visited = new Set<string>();
+    let currentId: string | null = parentId;
+
+    while (currentId && !visited.has(currentId)) {
+      visited.add(currentId);
+      const parent = db.quests.find((q) => q.id === currentId);
+      if (!parent) break;
+
+      const children = db.quests.filter((q) => q.parentQuestId === currentId);
+      if (children.length > 0) {
+        const totalProgress = children.reduce((sum, c) => sum + c.progress, 0);
+        parent.progress = Math.round(totalProgress / children.length);
+        const allCompleted = children.every((c) => c.status === "completed");
+        if (allCompleted) {
+          parent.status = "completed";
+          parent.completedAt = parent.completedAt ?? now;
+        } else if (parent.progress > 0 && parent.status === "available") {
+          parent.status = "active";
+        }
+        parent.updatedAt = now;
+      }
+      currentId = parent.parentQuestId;
+    }
+  }
+
+  async deleteQuest(id: string): Promise<void> {
+    const db = this.readDb();
+    const existing = db.quests.find((q) => q.id === id);
+    const parentId = existing?.parentQuestId ?? null;
+    db.quests = (db.quests ?? []).filter((q) => q.id !== id);
+    const now = new Date().toISOString();
+    if (parentId) {
+      this.rollUpParentProgress(db, parentId, now);
+    }
+    this.writeDb(db);
+  }
 
   async addActivity(input: NewActivityInput): Promise<Activity> {
     const db = this.readDb();
     const now = new Date().toISOString();
     const activity: Activity = {
       id: crypto.randomUUID(),
+      questId: input.questId ?? null,
       rawInput: input.rawInput.trim(),
       title: input.rawInput.trim().slice(0, 80) || "未命名 Activity",
       activityType: null,
@@ -358,6 +519,25 @@ export class DemoRepository implements Repository {
     assessment.confirmedAt = now;
     activity.status = "confirmed";
 
+    // 8) Milestone 4.1: Advance linked Quest progress (atomic within settlement)
+    if (activity.questId) {
+      const boundQuest = db.quests.find((q) => q.id === activity.questId);
+      if (boundQuest) {
+        const progressAdvance = activity.effectiveMinutes
+          ? Math.min(100, Math.max(10, Math.round(activity.effectiveMinutes / 2)))
+          : 20;
+        boundQuest.progress = Math.min(100, boundQuest.progress + progressAdvance);
+        if (boundQuest.progress >= 100) {
+          boundQuest.status = "completed";
+          boundQuest.completedAt = now;
+        } else if (boundQuest.status === "available") {
+          boundQuest.status = "active";
+        }
+        boundQuest.updatedAt = now;
+        this.rollUpParentProgress(db, boundQuest.parentQuestId, now);
+      }
+    }
+
     this.writeDb(db);
     return {
       ok: true,
@@ -416,6 +596,7 @@ function normalizeDb(parsed: Db): Db {
     rulesVersion: a.rulesVersion ?? RULES_VERSION,
   }));
   out.assessments = parsed.assessments ?? [];
+  out.quests = parsed.quests ?? [];
 
   // --- rebuild skills with stable UUIDs keyed by normalized label ---
   const legacySkills = (parsed.skills ?? {}) as Record<string, Omit<SkillState, "id"> & { id?: string }>;

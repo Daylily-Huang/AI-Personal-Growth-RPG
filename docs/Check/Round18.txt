@@ -1,0 +1,436 @@
+继续审完了。这个版本已经非常接近真正冻结，但我仍然**不建议现在直接进入 Auth/UI 大阶段**。
+
+## Round18 / Stage2-B.2 审查结论
+
+| 项目 | 结论 |
+|---|---|
+| 评分 | **8.8 / 10** |
+| P0 | 0 |
+| P1 | **2（其中 1 个代码不变量 + 1 个验证 Gate）** |
+| P2 | 4 |
+| Stage2-B.2 主体 | **基本正确** |
+| Settlement Authority | **尚不能正式 Frozen** |
+| 下一大阶段 | **暂时 NO-GO** |
+| 距离 GO | 很近，只需要一个极小 freeze patch + 真 DB green |
+
+你这次摘要列出的主要修复，我逐项对远程代码核过了。摘要本身同时承认当前本地测试仍然是 **92 passed + 30 DB tests skipped**，包括 19 个 settlement RPC、10 个 authority 和 1 个 migration smoke，所以“Final Settlement Freeze”目前仍缺实际数据库运行证据。
+
+### 已经真正修好的部分
+
+**0025 的 rules-version regression 已关闭。** 0026 的 `create_activity` 重新恢复了 `WHERE status='active'`、按 `activated_at` 选版本、无 active 时 `no_active_rules_version` fail-closed，同时保留了 foreign quest ownership 校验。这个实现现在是对的。
+
+**同 Skill 并发策略明显改善。** 现在不是提前 INSERT Skill，而是先对 `user_id + normalized_skill_name` 获取 transaction advisory lock，锁后再查询 Skill、取 `clock_timestamp()`、重算 repetition，所有检查通过后才创建新 Skill。
+
+我还专门核了 PostgreSQL 的 snapshot 语义：未声明 volatility 的数据库函数默认为 `VOLATILE`；PostgreSQL 官方文档说明 VOLATILE 函数内部执行的查询会获取新的 snapshot，因此在默认 READ COMMITTED 下，等待 advisory lock 后执行的新查询能够看到刚刚提交的并发事务。也就是说，0026 这一版“锁后重新查 Skill/repetition”的思路本身是成立的。
+
+**上轮并发测试 act1/act2 写反的问题也修正了。** 现在使用 `acts[conflictIdx]` 找真正冲突的 Activity，并读取数据库返回的 `actualRepetitionCount` 重试。
+
+**skill_name_snapshot 现在读写闭环了。** `listTransactions()` 已不再 JOIN 当前 `skills.name`，而是直接使用持久化的 `row.skill_name_snapshot`。这一项可以正式关闭。
+
+---
+
+# P1-1：新 Skill 的 Mastery DB 不变量仍有一个 NULL 漏洞
+
+这是本轮唯一新发现的核心代码问题。
+
+Skills 表明确规定新 Skill：
+
+```sql
+mastery_level integer not null default 1
+```
+
+
+
+`SettlementService` 同样明确：
+
+```ts
+const DEFAULT_SKILL_MASTERY = 1;
+```
+
+也就是说，系统定义很清楚：
+
+> **新 Skill 当前 Mastery = M1。**
+
+
+
+但 0026 的执行顺序现在是：
+
+```text
+Phase C
+查 Skill
+
+不存在：
+v_skill_is_new = true
+v_skill_row 没有真实 row
+        ↓
+Phase G
+检查 Mastery
+        ↓
+Phase H
+才真正 INSERT Skill（默认 M1）
+```
+
+
+
+于是 Phase G 写的是：
+
+```sql
+if v_proposed_level <= v_skill_row.mastery_level then
+    v_mastery_action := 'none';
+end if;
+```
+
+对于新 Skill：
+
+```text
+v_skill_row.mastery_level = NULL
+```
+
+SQL：
+
+```text
+0 <= NULL
+```
+
+不是 true，而是 `NULL/unknown`。
+
+所以如果 malformed trusted payload 是：
+
+```text
+新 Skill
+current authoritative mastery = M1
+
+masteryAction:
+upgrade → proposedLevel = 0
+```
+
+Phase G 不会挡住。
+
+然后 Phase H：
+
+```text
+INSERT Skill
+→ DB 默认 M1
+
+UPDATE skills
+SET mastery_level = 0
+```
+
+结果：
+
+> **普通 growth settlement 把新 Skill 从默认 M1 降到了 M0。**
+
+但项目 ADR 明确规定：
+
+> Mastery 是数据库级 P1 不变量；普通 settlement 必须 `new_mastery = greatest(current, proposed)`，永远不能倒退。
+
+因此严格按你们自己设定的 authority 标准，这仍然是 P1。
+
+正常的 `SettlementService` 当前确实不会生成这种 payload，因为它在 TS 层也使用 M1 默认值。
+
+但问题就在于：
+
+> **你们已经把“Mastery 单调”定义成数据库不变量，而不是“只要 TS 正常就行”。**
+
+所以 Final Settlement Freeze 前应该补掉。
+
+### 修法很简单
+
+0027 不需要再重写大量逻辑。
+
+增加一个 authoritative current mastery：
+
+```sql
+v_current_mastery integer;
+```
+
+Skill lookup 后：
+
+```sql
+v_current_mastery :=
+  coalesce(v_skill_row.mastery_level, 1);
+```
+
+然后 Phase G 全部改成基于：
+
+```text
+v_current_mastery
+```
+
+而不是直接：
+
+```text
+v_skill_row.mastery_level
+```
+
+对于 verification 更推荐直接：
+
+```text
+fromLevel = authoritative current mastery
+```
+
+而不是：
+
+```sql
+greatest(client_from_level, current_mastery)
+```
+
+因为 `fromLevel` 本来描述的就是**数据库当前状态**，根本没必要信 client。
+
+同时增加两个 DB test：
+
+```text
+new Skill + upgrade proposed M0
+→ Skill 最终 M1
+→ 不产生 mastery upgrade event
+```
+
+以及：
+
+```text
+new Skill + request_verification M1→M1
+→ 不创建 verification
+```
+
+---
+
+# P1-2：真实 DB Gate 仍然没有跑通证据
+
+这是现在比增加功能更重要的事情。
+
+你这份摘要自己写得很清楚：
+
+```text
+92 passed | 30 skipped
+```
+
+然后：
+
+```text
+create_activity ACTIVE-only        → 待 DB 验证
+cross-activity concurrency         → 待 DB 验证
+orphan Skill                       → 待 DB 验证
+skill_name_mismatch                → 待 DB 验证
+stale verification                 → 待 DB 验证
+```
+
+
+
+因此目前只能证明：
+
+> **代码看起来应该工作。**
+
+还不能证明：
+
+> **数据库实际迁移到 0026 后确实工作。**
+
+尤其前一轮已经发生过一次非常典型的：
+
+```text
+0023 修好
+↓
+0025 CREATE OR REPLACE
+↓
+旧 bug 被重新覆盖
+```
+
+这种问题恰好就是**只有 final-state DB tests 才真正有价值**的地方。
+
+所以现在不能再接受：
+
+> “测试已经注册，之后 CI 会跑”
+
+作为 Freeze 证明。
+
+这次 Gate 必须得到实际结果，例如：
+
+```text
+supabase db reset
+0001 → 0027 全部应用成功
+
+authority-final-state.test.ts
+10/10 passed
+
+settlement-rpc.test.ts
+21/21 passed
+
+empty-db-migration.smoke.test.ts
+1/1 passed
+```
+
+以及整套 Vitest green。
+
+我通过当前 GitHub connector 没能独立取得这个 push commit 的 Actions green 状态，所以我不会替它假定“CI 应该通过”。
+
+---
+
+# P2：显式 Alias 的 Supabase contract 仍然不一致
+
+这个问题暂时不拦下一阶段，但以后做 Skill Ontology 前必须处理。
+
+Repository contract 明确说：
+
+```text
+lookupSkillId(label)
+= normalized name / alias match
+```
+
+
+
+`SupabaseRepository.getSkill()` 现在也确实会匹配：
+
+```text
+skill.name
+或
+skill.aliases
+```
+
+
+
+`SettlementService` 更明确写着：
+
+> aliases count as one and the same skill。
+
+但 0026 RPC 查 Skill 只检查：
+
+```sql
+where user_id = p_user_id
+and normalized_name = v_normalized_skill_name
+```
+
+
+
+不检查：
+
+```text
+aliases
+```
+
+所以未来若存在：
+
+```text
+Skill:
+name = Statistics
+aliases = ["统计学"]
+```
+
+AI 返回：
+
+```text
+统计学
+```
+
+TS 可能认为：
+
+```text
+这是 Statistics 的同一个 skillId
+```
+
+DB 却认为：
+
+```text
+这是一个新 Skill
+```
+
+可能导致重复 Skill，甚至 repetition optimistic retry 一直冲突。
+
+目前 aliases 基本还没真正进入产品工作流，所以我仍判 **P2 / Skill Ontology Gate**，不阻止下一阶段。
+
+---
+
+# P2：Secondary Skill 存在一个潜在并发 deadlock 模式
+
+0026 只对 **primary Skill** 获取 advisory lock。
+
+Secondary Skill 仍然直接：
+
+```sql
+insert into skills(...)
+on conflict do nothing
+```
+
+
+
+理论上：
+
+```text
+Settlement A
+primary = A
+secondary = B
+
+Settlement B
+primary = B
+secondary = A
+```
+
+同时执行，且 A/B 都是新 Skill 时，可能出现：
+
+```text
+T1 创建 A
+T2 创建 B
+
+T1 尝试插 B → 等 T2
+T2 尝试插 A → 等 T1
+```
+
+PostgreSQL 最终会检测 deadlock 并中止一个事务，因此**不会破坏永久数据一致性**，所以不是 P1。
+
+但会出现偶发 500。
+
+以后做 Skill Tree 时最好：
+
+> 收集 primary + secondary 全部 normalized labels → 排序 → 按固定顺序获取 advisory locks。
+
+这样彻底消除 lock-order inversion。
+
+---
+
+# 另外两个已知 Gate 不变
+
+**Composite FK** 仍未建立。主 `settle_activity` 已有 ownership checks，所以当前可以作为 P2 留后，但 correction/admin/import pipeline 出现前最好补：
+
+```text
+(user_id, activity_id)
+(user_id, assessment_id)
+(user_id, skill_id)
+```
+
+复合关系。
+
+**rules_version dispatcher** 仍是未来硬 Gate。现在所有 Activity 都是 `growth-engine-v0.1`，所以当前没问题；但第一版 `v0.2` 出现前，必须实现：
+
+```text
+activity.rulesVersion
+        ↓
+选择对应 engine
+        ↓
+calculateXp_v0_1 / v0_2
+```
+
+否则会发生“用 v0.2 算 XP，却在 ledger 上写 v0.1”的错误审计。
+
+---
+
+# 现在建议你让 AI 做什么
+
+不要再开一个大的 Stage2-B.3。
+
+这次只做一个 **Final Freeze Patch**：
+
+1. 新增 `0027`，修 new-Skill Mastery authoritative current=`1`，同时让 verification `fromLevel` 直接取 DB current mastery。
+2. 增加两个 new-Skill mastery DB tests。
+3. 不再增加功能；**真实运行完整 Supabase DB test gate**。
+4. 把 CI/本地结果明确贴出来：migration、authority、settlement、smoke 均不得 skipped。
+5. 若全部 green，**Stage2 Settlement Authority 正式 Frozen**。
+
+到那时我会给的结论很可能就是：
+
+> **9.1–9.3 / 10，PASS，GO → Auth + Supabase 全量 Read Path。**
+
+所以这轮已经不是“系统还有很多大问题”。
+
+现在的状态是：
+
+> **主体已经够好了，只差一个 new-Skill Mastery NULL 边界 + 真数据库验收。**
+
+这两个没完成前，我仍然给 **NO-GO → 下一大阶段**。

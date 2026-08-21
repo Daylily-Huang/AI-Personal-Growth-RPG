@@ -1,0 +1,803 @@
+继续审完了。这轮不能接受摘要里的“Stage 3 成功闭环”结论。方向基本正确，但 **Auth/UI 层出现了几个新的 Gate 问题**。你上传的摘要确实声称 `127/127`、0 skipped，并称注册/登录→记录→评估→结算→刷新已经闭环。 但代码审查显示，这组测试还不足以证明这个结论。
+
+# Round20 / Stage 3 审查结论
+
+| 项目 | 结论 |
+|---|---|
+| 评分 | **7.9 / 10** |
+| 状态 | **CONDITIONAL FAIL** |
+| P0 | 0 |
+| P1 | **4** |
+| P2 | 4+ |
+| Stage2 Settlement Authority | **仍然 Frozen，没有被本轮破坏** |
+| Stage3 Auth + Read Path | **主体接通，但尚未闭环** |
+| 下一大阶段 | **NO-GO** |
+| 建议 | 只做一个窄范围 **Stage3.1 Auth/Read Integration Closure** |
+
+这轮和前面最大的区别是：**数据库 authority 已经不是主要矛盾，真正需要盯的是“项目能不能构建、会话是否安全可靠、真实浏览器路径是否确实走通”。**
+
+---
+
+# P1-1：当前代码存在明确的 TypeScript / Build Gate
+
+这是最直接的问题。
+
+Stage3 摘要这次只列了：
+
+```text
+vitest 127/127
+harness 11/11
+eslint 0 errors
+```
+
+但没有上一阶段一直执行的：
+
+```text
+tsc --noEmit
+pnpm build
+```
+
+
+
+静态检查已经能确认至少两处类型问题。
+
+## 第一处：Dashboard import 错了
+
+Dashboard 页面现在写：
+
+```ts
+import type { DashboardSnapshot }
+from "@/lib/store/dashboard.service";
+```
+
+
+
+但 `dashboard.service.ts` 只是：
+
+```ts
+import type { DashboardSnapshot } from "./types";
+```
+
+并没有：
+
+```ts
+export type { DashboardSnapshot }
+```
+
+
+
+所以这个模块实际上没有导出 `DashboardSnapshot`。
+
+应该直接：
+
+```ts
+import type { DashboardSnapshot }
+from "@/lib/store/types";
+```
+
+或者在 service 显式 re-export。
+
+---
+
+## 第二处：新增 DB 集成测试使用了已经过期的 Settlement contract
+
+测试声明：
+
+```ts
+const settlement: SettlementToApply = {
+  assessmentId,
+  activityId,
+  xpDelta: 60,
+  playerTotalXpDelta: 60,
+  primarySkill: {
+    name: "TypeScript",
+    xpDelta: 60,
+  },
+  secondarySkills: [],
+  masteryAction: { type: "none" },
+  ...
+}
+```
+
+
+
+但真实接口要求的是：
+
+```ts
+interface SettlementToApply {
+  assessmentId;
+  transaction;
+  xpDelta;
+
+  primarySkill: {
+    name;
+    xpDelta;
+    masteryAction;
+  };
+
+  relatedSkillLabels;
+  player: { xpDelta };
+  masteryVerification?;
+}
+```
+
+
+
+两边明显不是一个结构。
+
+而项目 `tsconfig.json`：
+
+```json
+"include": [
+  "**/*.ts",
+  "**/*.tsx"
+]
+```
+
+测试文件没有排除。
+
+所以这不是“测试代码无所谓”。
+
+### 为什么 Vitest 还能 127/127？
+
+因为 Vitest 能转译 TypeScript 并运行 JavaScript，并不意味着完整 TypeScript project typecheck 一定通过。
+
+而这个 malformed settlement 在运行时碰巧还能被当前 SQL 接受，因为 SQL 根本不使用其中部分旧字段。
+
+因此：
+
+> **127/127 PASS ≠ TypeScript build PASS。**
+
+这轮必须恢复：
+
+```text
+pnpm exec tsc --noEmit
+pnpm build
+```
+
+作为硬 Gate。
+
+---
+
+# P1-2：Supabase SSR Middleware 没有正确传播 refresh cookies / cache headers
+
+这个问题比普通 UI bug严重，因为涉及 Auth session。
+
+当前 middleware：
+
+```ts
+setAll(cookiesToSet) {
+  ...
+  response.cookies.set(...)
+}
+```
+
+然后如果发生 redirect：
+
+```ts
+return NextResponse.redirect(redirectUrl);
+```
+
+
+
+存在两个问题。
+
+## 问题 A：redirect 丢掉刷新后的 cookies
+
+`supabase.auth.getUser()` 期间可能刷新 token。
+
+这些新 cookies 被写入变量：
+
+```text
+response
+```
+
+但登录页/未认证 redirect 时返回的是一个**全新的**：
+
+```ts
+NextResponse.redirect(...)
+```
+
+没有把：
+
+```text
+response.cookies
+```
+
+复制过去。
+
+Supabase 官方文档当前明确要求：如果创建新的 Response，必须复制 Supabase response 的 cookies，否则浏览器与服务器 session 可能失去同步并导致 session 提前失效。
+
+典型表现可能是：
+
+```text
+旧 token 即将过期
+↓
+middleware 刷新 token
+↓
+判断用户已登录
+↓
+/login → /dashboard redirect
+↓
+redirect 没带 refreshed cookies
+↓
+dashboard 再次收到旧 cookie
+↓
+登录状态异常 / redirect loop
+```
+
+---
+
+## 问题 B：完全丢弃了 `@supabase/ssr` 的 cache headers
+
+更关键的是，你们自己的 `server.ts` 注释已经写明：
+
+> middleware 必须 merge `headers`，其中包括 `Cache-Control: private, no-store`。
+
+但是实际 middleware 根本没接：
+
+```ts
+setAll(cookiesToSet, headers)
+```
+
+只接了：
+
+```ts
+setAll(cookiesToSet)
+```
+
+
+
+而项目使用的是：
+
+```text
+@supabase/ssr ^0.12.4
+```
+
+
+
+Supabase 当前官方高级 SSR 文档专门说明，从较新的 SSR 版本开始，token refresh 时会把防缓存 headers 传给 `setAll`；如果不应用这些 headers，在 CDN / reverse proxy 场景下可能发生非常危险的缓存 session 问题。
+
+这是 **P1 Auth security/reliability Gate**。
+
+### 应该怎么改
+
+抽一个统一的：
+
+```text
+copySupabaseResponse()
+```
+
+确保：
+
+```text
+cookies
++
+Cache-Control / Expires / Pragma 等 refresh headers
+```
+
+全部复制到 redirect / next response。
+
+然后专门写 token refresh + redirect 测试。
+
+---
+
+# P1-3：所谓“一键体验测试玩家”实际上是所有人共用同一个真实账号
+
+登录页面直接把下面内容打进浏览器 bundle：
+
+```ts
+const demoEmail = "demo_player@growth.rpg";
+const demoPassword = "Password123!";
+```
+
+然后：
+
+```text
+signIn
+失败 → signUp
+→ signIn
+```
+
+
+
+这意味着所有点击：
+
+> 一键体验测试玩家账号
+
+的人实际上登录的是：
+
+```text
+同一个 Supabase auth.users.id
+```
+
+而 RLS 的隔离模型是：
+
+```text
+user_id = auth.uid()
+```
+
+所以 RLS 在这里完全帮不了你。
+
+假设：
+
+```text
+用户 A 点击 demo
+→ 写入：
+“今天和导师冲突了……”
+```
+
+然后用户 B 点击同一个按钮：
+
+```text
+auth.uid() 完全相同
+```
+
+那么 B 会直接看到 A 在这个 Demo 用户下写的：
+
+```text
+Activities
+Skills
+XP Ledger
+Mastery
+```
+
+而且 Dashboard 还是可写的：
+
+```text
+create Activity
+assess
+confirm
+settle
+```
+
+
+
+所以用户之间甚至可以互相污染 Demo progression。
+
+### 推荐方案
+
+如果只是开发方便：
+
+```text
+NODE_ENV !== production
+```
+
+或：
+
+```text
+NEXT_PUBLIC_ENABLE_DEV_DEMO_ACCOUNT=true
+```
+
+才显示这个按钮。
+
+生产环境不要出现固定共享 credential。
+
+如果你确实想做公网 Demo：
+
+```text
+每个体验 session
+→ 创建独立 ephemeral/anonymous user
+→ 独立 user_id
+→ 定时清理
+```
+
+或者只提供一个**只读、预制的 Demo profile**。
+
+不要共享一个可写 Supabase 用户。
+
+---
+
+# P1-4：你现在的“E2E”实际上没有测试 Stage3 最重要的那一层
+
+新增测试名称叫：
+
+> `Full Supabase Read Path & E2E Integration`
+
+但实际内容是：
+
+```text
+create Supabase JWT
+↓
+new SupabaseRepository(clientA, userA)
+↓
+repoA.addActivity()
+↓
+repoA.addAssessment()
+↓
+repoA.applySettlement()
+↓
+buildDashboardSnapshot(repoA)
+```
+
+
+
+它的价值是有的。
+
+它真实验证了：
+
+> **Supabase Data API + JWT + RLS + Repository read path**
+
+而且 User A / User B 隔离是实打实测试的。
+
+这一部分我认可。
+
+但是它没有测试：
+
+```text
+src/middleware.ts
+/login
+浏览器 Cookie
+/api/dashboard
+/api/skills
+/api/auth/logout
+/api/activities HTTP route
+/api/.../assess HTTP route
+/api/.../confirm HTTP route
+Dashboard React 页面刷新
+401 → /login
+```
+
+甚至 settlement 都绕过了正常的：
+
+```text
+SettlementService.confirmAssessment()
+```
+
+直接调用：
+
+```ts
+repoA.applySettlement(...)
+```
+
+所以摘要中这句话：
+
+> 注册/登录 → 记录活动 → AI评估 → 权威结算 → 页面刷新实时呈现
+
+目前**没有测试证据支撑完整链路**。
+
+准确说法应该是：
+
+> Repository + PostgreSQL/RLS read integration 已闭环；Next Auth/UI HTTP E2E 尚未验证。
+
+这对 Stage3 来说是 P1 verification gap，因为 Stage3 的核心恰恰就是 Auth/UI。
+
+---
+
+# 好消息：Stage2 的 Authority 没有被 0028 直接打穿
+
+看到：
+
+```sql
+grant select, insert, update, delete
+on all tables
+to anon, authenticated, service_role;
+```
+
+第一反应确实很危险。
+
+但我继续追了 final migration 状态。
+
+早期 0018 曾经允许：
+
+```sql
+activities_insert
+activities_update
+activities_delete
+```
+
+
+
+后来 0021 删除 UPDATE/Delete broad policy。
+
+0022 又明确删除：
+
+```sql
+drop policy if exists activities_insert;
+```
+
+并把创建全部收回：
+
+```text
+create_activity RPC
+```
+
+
+
+所以当前状态是：
+
+```text
+authenticated
+有 table INSERT privilege
++
+没有 RLS INSERT policy
+=
+仍然无法直接 INSERT Activity
+```
+
+因此：
+
+> **Stage2 的 Activity authority 当前没有因 0028 立即回归。**
+
+这一点可以放心。
+
+---
+
+# P2-1：但 0028 的 default privileges 是一个危险的“未来 fail-open”
+
+虽然当前表没被打穿，但下面这句我不建议保留：
+
+```sql
+alter default privileges in schema public
+grant select, insert, update, delete
+on tables
+to anon, authenticated, service_role;
+```
+
+
+
+这意味着未来如果新增：
+
+```text
+0029_skill_edges.sql
+```
+
+而开发者忘记同一个 migration 写：
+
+```sql
+alter table skill_edges enable row level security;
+```
+
+那么新表会自动获得：
+
+```text
+anon CRUD
+authenticated CRUD
+```
+
+RLS 又默认是关闭的。
+
+于是一个“忘记写 RLS”的错误会直接变成：
+
+> **公网客户端可读写整表。**
+
+这与你一直建立的 fail-closed authority 模型相反。
+
+### 应该改成
+
+默认：
+
+```text
+anon/authenticated = 无权限
+```
+
+每个新表显式：
+
+```text
+CREATE TABLE
+↓
+ENABLE RLS
+↓
+CREATE POLICY
+↓
+最后才 GRANT 所需最小权限
+```
+
+`service_role` 再单独处理。
+
+考虑到下一阶段很可能就会出现 Skill graph / `skill_edges`，建议在创建任何 0029 新表之前解决。
+
+---
+
+# P2-2：Next.js 16.3 已经应该使用 `proxy.ts`
+
+项目现在：
+
+```text
+next 16.3.1
+```
+
+
+
+但是实现的是：
+
+```text
+src/middleware.ts
+export function middleware()
+```
+
+
+
+Next.js 16 官方已经把 Middleware convention 标为 deprecated，并重命名为：
+
+```text
+proxy.ts
+export function proxy()
+```
+
+官方还提供 `middleware-to-proxy` codemod。
+
+这暂时不是 correctness blocker，但既然现在刚刚搭 Auth foundation，就不要一上来建立在已经 deprecated 的 convention 上。
+
+Stage3.1 一并迁掉。
+
+---
+
+# P2-3：路由保护实现和摘要描述不完全一致
+
+摘要说保护：
+
+```text
+/dashboard
+/skills
+```
+
+但实际：
+
+```ts
+if (!isApiRoute && !isStatic) {
+  if (!user && !isAuthPage) redirect("/login")
+}
+```
+
+
+
+也就是：
+
+> 除 `/login` 外，所有非 API 页面默认都是 protected。
+
+当前 `/` 本来就 redirect dashboard，所以暂时没问题。
+
+但以后增加：
+
+```text
+/about
+/privacy
+landing page
+docs
+```
+
+会全部自动变成登录后才能访问。
+
+建议明确：
+
+```ts
+const protectedPrefixes = ["/dashboard", "/skills"];
+```
+
+不要用“除了 login 之外全保护”的隐式规则。
+
+---
+
+# P2-4：Skills “全量读路径”目前没有真正的 graph edges
+
+`SupabaseRepository.listSkillEdges()` 仍然是：
+
+```ts
+return [];
+```
+
+理由也写得很清楚：
+
+> relational `skill_edges` table 尚不存在。
+
+所以 Skills page 现在实际上是：
+
+```text
+真实 Supabase Skill nodes
++
+永远为空的 edges
+```
+
+这不是 Demo/Supabase 双世界问题，因此不阻止 Stage3。
+
+但“全量技能拓扑”这个措辞要收敛。
+
+目前更准确是：
+
+> **Skill node read path 已迁移，Skill graph relationship 尚未建模。**
+
+---
+
+# 关于测试结果，我现在怎么评价
+
+这一轮的：
+
+```text
+127/127 Vitest
+```
+
+我相信它可以是真的，因为当前 runtime SQL 对测试里部分旧字段并不敏感。
+
+但：
+
+> **这并不代表整个 Next.js 项目能 build。**
+
+而当前 CI 配置本身其实已经有：
+
+```text
+Lint
+Test
+Build
+```
+
+
+
+我通过当前 GitHub 接口没有取得 `7590b6a` 的远程 check status，所以不能声称：
+
+```text
+GitHub Actions failed
+```
+
+也不能声称：
+
+```text
+GitHub Actions green
+```
+
+但基于代码本身：
+
+> **`tsc/build` 必须重新成为本轮验收项。**
+
+尤其 Dashboard 的错误是 production source，不只是 test。
+
+---
+
+# 下一步：不要继续新功能
+
+这一轮最合理的是：
+
+## Stage3.1 — Auth & Read Integration Closure
+
+只修这 5 组：
+
+1. **恢复 compile/build Gate**
+   - 修 `DashboardSnapshot` import；
+   - 修 `read-path-integration.test.ts` 的 Settlement contract；
+   - 必须 `tsc --noEmit` + `pnpm build` green。
+
+2. **修 Supabase SSR response propagation**
+   - `setAll(cookiesToSet, headers)`；
+   - 合并 refresh cache headers；
+   - redirect 复制 refreshed cookies + headers；
+   - 加 refresh/redirect regression test。
+
+3. **处理共享 Demo account**
+   - 最低要求：production 禁用；
+   - 更好：每个体验用户独立 ephemeral identity。
+
+4. **改 0028 default privilege**
+   - anon/authenticated 不要拥有未来所有表的默认 CRUD；
+   - 新表采用显式 least-privilege grants。
+
+5. **做一次真正 HTTP/browser E2E**
+   - 未登录 `/dashboard` → `/login`
+   - 注册/登录
+   - Activity POST
+   - assess
+   - confirm
+   - dashboard reload
+   - XP/Skill 持久存在
+   - 第二 browser context 无法看到
+   - logout 后 `/api/dashboard` → 401
+   - session refresh 后仍保持登录。
+
+完成这轮以后，我预期可以回到：
+
+> **9.1+ / 10，PASS — Stage3 Auth + Read Path Frozen**
+
+然后才值得继续：
+
+```text
+Mastery Verification resolution
+Skill Ontology / skill_edges
+Quest system
+Knowledge graph
+更完整 RPG UI
+```
+
+现在的核心判断是：
+
+> **Stage3 的 Supabase Repository 读取迁移本身做对了；问题集中在“Auth 外壳与生产级验证”还没有达到前面 Stage2 同样严格的标准。**
+
+所以本轮仍给 **NO-GO → 下一大功能阶段**。

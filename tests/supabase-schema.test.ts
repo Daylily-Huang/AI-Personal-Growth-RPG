@@ -54,6 +54,7 @@ const EXPECTED_ORDER = [
   "0029_default_privileges_tighten",
   "0030_function_default_privileges_tighten",
   "0031_global_function_default_privileges",
+  "0032_quest_integrity_and_authority",
 ];
 
 const PRIVATE_TABLES = [

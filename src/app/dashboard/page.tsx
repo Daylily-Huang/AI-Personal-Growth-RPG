@@ -7,6 +7,7 @@ import type {
   Assessment,
   DashboardSnapshot,
   MasteryVerification,
+  Quest,
   SkillState,
   XpTransaction,
 } from "@/lib/store/types";
@@ -22,6 +23,9 @@ import {
   ShieldAlert,
   LogOut,
   Database as DatabaseIcon,
+  Target,
+  Crown,
+  ChevronRight,
 } from "lucide-react";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 
@@ -167,6 +171,11 @@ export default function DashboardPage() {
           </div>
         ) : null}
 
+        <QuestsOverview
+          mainQuest={dashboard.mainQuest}
+          activeQuests={dashboard.activeQuests}
+        />
+
         <QuickLogForm
           rawInput={rawInput}
           setRawInput={setRawInput}
@@ -214,6 +223,9 @@ function Shell({
           <nav className="flex items-center gap-4 text-xs">
             <a href="/dashboard" className="font-medium text-amber-300">
               Dashboard
+            </a>
+            <a href="/quests" className="text-zinc-400 hover:text-zinc-200">
+              Quests
             </a>
             <a href="/skills" className="text-zinc-400 hover:text-zinc-200">
               Skill Tree
@@ -554,3 +566,79 @@ function EmptyState({ onRefresh }: { onRefresh: () => void }) {
     </div>
   );
 }
+
+function QuestsOverview({
+  mainQuest,
+  activeQuests,
+}: {
+  mainQuest?: Quest | null;
+  activeQuests?: Quest[];
+}) {
+  const quests = activeQuests ?? [];
+
+  return (
+    <section className="rounded-xl border border-white/10 bg-slate-900/60 p-5 shadow-lg space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 font-semibold text-white">
+          <Target className="h-5 w-5 text-amber-400" />
+          任务目标概览 (Active Quests)
+        </div>
+        <a
+          href="/quests"
+          className="inline-flex items-center gap-1 text-xs text-amber-400 hover:text-amber-300 transition-colors"
+        >
+          查看全部任务大厅 <ChevronRight className="h-3.5 w-3.5" />
+        </a>
+      </div>
+
+      {mainQuest ? (
+        <div className="rounded-lg border border-amber-500/30 bg-gradient-to-r from-amber-950/30 via-slate-900 to-slate-900 p-4">
+          <div className="flex items-center justify-between text-xs text-amber-300 font-medium mb-1.5">
+            <span className="inline-flex items-center gap-1.5">
+              <Crown className="h-4 w-4 text-amber-400" />
+              当前主线任务 (Main Quest)
+            </span>
+            <span>{Math.round(mainQuest.progress)}%</span>
+          </div>
+          <div className="text-sm font-semibold text-white">{mainQuest.title}</div>
+          <div className="mt-2.5 h-2 w-full rounded-full bg-slate-950 overflow-hidden">
+            <div
+              className="h-full bg-amber-400 transition-all duration-300"
+              style={{ width: `${Math.min(100, Math.max(0, mainQuest.progress))}%` }}
+            />
+          </div>
+        </div>
+      ) : null}
+
+      {quests.length > 0 ? (
+        <div className="grid gap-2.5 sm:grid-cols-2">
+          {quests
+            .filter((q) => !mainQuest || q.id !== mainQuest.id)
+            .slice(0, 4)
+            .map((q) => (
+              <div
+                key={q.id}
+                className="rounded-lg border border-white/5 bg-slate-950/60 p-3 flex flex-col justify-between gap-2"
+              >
+                <div className="flex items-center justify-between text-xs">
+                  <span className="truncate font-medium text-zinc-200">{q.title}</span>
+                  <span className="text-[11px] text-zinc-400 ml-2">{Math.round(q.progress)}%</span>
+                </div>
+                <div className="h-1.5 w-full rounded-full bg-white/10 overflow-hidden">
+                  <div
+                    className="h-full bg-sky-400 transition-all duration-300"
+                    style={{ width: `${Math.min(100, Math.max(0, q.progress))}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+        </div>
+      ) : !mainQuest ? (
+        <div className="rounded-lg border border-dashed border-white/10 p-4 text-center text-xs text-zinc-500">
+          暂无进行中的任务，点击右上角进入任务大厅创建新目标。
+        </div>
+      ) : null}
+    </section>
+  );
+}
+

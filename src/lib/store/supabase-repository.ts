@@ -3,8 +3,8 @@ import type { Database, Json } from "@/lib/supabase/database.types";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { AssessmentPersistenceService } from "./assessment-persistence.service";
 import type { Repository, SettlementResult } from "./repository";
-import type { Activity, Assessment, MasteryVerification, NewActivityInput, NewAssessmentInput, PlayerState, SettlementToApply, SkillEdge, SkillState, XpTransaction } from "./types";
-import { mapActivity, mapAssessment, mapMasteryVerification, mapPlayer, mapSkill, mapTransaction } from "./supabase-mapping";
+import type { Activity, Assessment, MasteryVerification, NewActivityInput, NewAssessmentInput, NewQuestInput, PlayerState, Quest, QuestStatus, SettlementToApply, SkillEdge, SkillState, UpdateQuestInput, XpTransaction } from "./types";
+import { mapActivity, mapAssessment, mapMasteryVerification, mapPlayer, mapQuest, mapSkill, mapTransaction } from "./supabase-mapping";
 
 const normalize = (value: string) => value.trim().toLowerCase().replace(/\s+/g, " ");
 type Client = SupabaseClient<Database>;
@@ -82,6 +82,108 @@ export class SupabaseRepository implements Repository {
     return (data ?? []).map(mapMasteryVerification);
   }
 
+  // ---- quests ----
+
+  async getQuest(id: string): Promise<Quest | null> {
+    const { data, error } = await this.client
+      .from("quests")
+      .select("*")
+      .eq("id", id)
+      .eq("user_id", this.userId)
+      .maybeSingle();
+    if (error) throw error;
+    return data ? mapQuest(data) : null;
+  }
+
+  async listQuests(filter?: { status?: QuestStatus; isMain?: boolean; parentQuestId?: string | null }): Promise<Quest[]> {
+    let query = this.client.from("quests").select("*").eq("user_id", this.userId);
+    if (filter?.status) {
+      query = query.eq("status", filter.status);
+    }
+    if (typeof filter?.isMain === "boolean") {
+      query = query.eq("is_main_quest", filter.isMain);
+    }
+    if (filter?.parentQuestId !== undefined) {
+      if (filter.parentQuestId === null) {
+        query = query.is("parent_quest_id", null);
+      } else {
+        query = query.eq("parent_quest_id", filter.parentQuestId);
+      }
+    }
+    const { data, error } = await query.order("created_at", { ascending: false });
+    if (error) throw error;
+    return (data ?? []).map(mapQuest);
+  }
+
+  async addQuest(input: NewQuestInput): Promise<Quest> {
+    const { data, error } = await this.client
+      .from("quests")
+      .insert({
+        user_id: this.userId,
+        parent_quest_id: input.parentQuestId ?? null,
+        title: input.title.trim(),
+        description: input.description?.trim() ?? null,
+        quest_type: input.questType,
+        quest_size: input.questSize ?? "standard",
+        status: input.status ?? "available",
+        difficulty: input.difficulty ?? 0.5,
+        goal_alignment: input.goalAlignment ?? 0.5,
+        progress: input.progress ?? 0,
+        deadline: input.deadline ?? null,
+        is_main_quest: Boolean(input.isMainQuest),
+        is_boss: Boolean(input.isBoss),
+        completed_at: input.status === "completed" ? new Date().toISOString() : null,
+      })
+      .select()
+      .single();
+    if (error) throw error;
+    return mapQuest(data);
+  }
+
+  async updateQuest(id: string, updates: UpdateQuestInput): Promise<Quest> {
+    const payload: Partial<Database["public"]["Tables"]["quests"]["Update"]> = {};
+    if (updates.parentQuestId !== undefined) payload.parent_quest_id = updates.parentQuestId;
+    if (updates.title !== undefined) payload.title = updates.title.trim();
+    if (updates.description !== undefined) payload.description = updates.description?.trim() ?? null;
+    if (updates.questType !== undefined) payload.quest_type = updates.questType;
+    if (updates.questSize !== undefined) payload.quest_size = updates.questSize;
+    if (updates.status !== undefined) {
+      payload.status = updates.status;
+      if (updates.status === "completed") {
+        payload.completed_at = new Date().toISOString();
+      } else {
+        payload.completed_at = null;
+      }
+    }
+    if (updates.difficulty !== undefined) payload.difficulty = updates.difficulty;
+    if (updates.goalAlignment !== undefined) payload.goal_alignment = updates.goalAlignment;
+    if (updates.progress !== undefined) payload.progress = updates.progress;
+    if (updates.deadline !== undefined) payload.deadline = updates.deadline;
+    if (updates.isMainQuest !== undefined) payload.is_main_quest = updates.isMainQuest;
+    if (updates.isBoss !== undefined) payload.is_boss = updates.isBoss;
+    payload.updated_at = new Date().toISOString();
+
+    const { data, error } = await this.client
+      .from("quests")
+      .update(payload)
+      .eq("id", id)
+      .eq("user_id", this.userId)
+      .select()
+      .single();
+    if (error) throw error;
+    return mapQuest(data);
+  }
+
+  async deleteQuest(id: string): Promise<void> {
+    const { error } = await this.client
+      .from("quests")
+      .delete()
+      .eq("id", id)
+      .eq("user_id", this.userId);
+    if (error) throw error;
+  }
+
+
   async addActivity(input: NewActivityInput): Promise<Activity> {
     const rawInput = input.rawInput.trim();
     const title = rawInput.slice(0, 80) || "未命名 Activity";
@@ -91,6 +193,7 @@ export class SupabaseRepository implements Repository {
     const { data, error } = await this.client.rpc("create_activity", {
       p_title: title,
       p_raw_input: rawInput,
+      p_quest_id: input.questId ?? undefined,
       p_total_minutes: input.totalMinutes ?? undefined,
       p_effective_minutes: input.effectiveMinutes ?? undefined,
     });
