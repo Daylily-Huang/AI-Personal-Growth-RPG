@@ -411,6 +411,8 @@ export class DemoRepository implements Repository {
       id: crypto.randomUUID(),
       questId: input.questId ?? null,
       questSizeSnapshot: boundQuest?.questSize ?? null,
+      questIdSnapshot: boundQuest?.id ?? null,
+      questTitleSnapshot: boundQuest?.title ?? null,
       rawInput: input.rawInput.trim(),
       title: input.rawInput.trim().slice(0, 80) || "未命名 Activity",
       activityType: null,

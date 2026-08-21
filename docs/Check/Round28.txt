@@ -1,0 +1,712 @@
+继续审完了。先给结论：**Round27 的核心安全 P1 已经真正关闭，但 Stage4 还不能冻结。0034 又引入了一个新的 Activity authority / migration 级 P1。**
+
+你上传的总结声称 Stage4.3 已达到 PASS/FROZEN，并特别声明“任务身份快照全链路审计”已经完成。 这一点与远程实际代码不符。
+
+# Round28 审查结论
+
+| 项目 | 结论 |
+|---|---|
+| 评分 | **8.9 / 10** |
+| 状态 | **CONDITIONAL FAIL** |
+| P0 | 0 |
+| P1 | **1** |
+| P2 | 2–3 |
+| Stage2 Settlement Authority | **FROZEN** |
+| Stage3 Auth / Read Path | **FROZEN** |
+| Stage4 Quest System | **差最后一个 migration 修复** |
+| Stage5 | **暂时 NO-GO** |
+
+远程最新主线已经确认到：
+
+```text
+c3f6d3e312df82972e791836788676a36588cea4
+```
+
+其中真正功能提交是：
+
+```text
+b1a34b8f
+feat(quest): Stage 4.3 final security closure and integrity
+```
+
+随后只是清 scratch 文件和补总结文档。
+
+---
+
+# 已确认：上一轮真正的 P1 安全漏洞关闭了
+
+0034 重新创建：
+
+```sql
+public.recompute_quest_chain(uuid, uuid)
+```
+
+然后明确：
+
+```sql
+REVOKE ALL
+ON FUNCTION public.recompute_quest_chain(uuid, uuid)
+FROM public, anon, authenticated;
+
+GRANT EXECUTE
+ON FUNCTION public.recompute_quest_chain(uuid, uuid)
+TO service_role;
+```
+
+
+
+所以现在：
+
+```text
+authenticated User A
+→ recompute_quest_chain(User B, ...)
+→ 不再允许
+```
+
+对应的 live DB test 也真实存在：
+
+```ts
+set role authenticated
+JWT sub = USER_A
+
+select public.recompute_quest_chain(USER_B, targetQuest)
+
+→ rejects / permission denied
+```
+
+
+
+因此：
+
+> **上一轮 SECURITY DEFINER cross-tenant P1 正式 CLOSED。**
+
+这一点可以签。
+
+---
+
+# failed / archived Parent 防复活也修了
+
+新的 `recompute_quest_chain()` 现在先看当前状态：
+
+```sql
+IF v_current_status IN ('failed', 'archived') THEN
+  v_new_status := v_current_status;
+ELSE
+  ...
+END IF;
+```
+
+
+
+所以子任务全部完成后：
+
+```text
+failed → failed
+archived → archived
+```
+
+而不会再自动：
+
+```text
+failed → completed
+```
+
+这项 P2 可以关闭。
+
+---
+
+# 真并发测试也修对了
+
+上一轮是：
+
+```ts
+Promise.all([
+  client.query(...),
+  client.query(...),
+])
+```
+
+只有一个 connection。
+
+现在改成：
+
+```ts
+const pool = new Pool({
+  connectionString: DATABASE_URL,
+  max: 4
+});
+
+const p1 = pool.query(...)
+const p2 = pool.query(...)
+const p3 = pool.query(...)
+const p4 = pool.query(...)
+```
+
+
+
+这已经能够产生多个实际 PostgreSQL connections，对：
+
+```sql
+SELECT ... FOR UPDATE
+```
+
+形成真实竞争。
+
+所以 concurrency test 这一项也可以关闭。
+
+---
+
+# 唯一 Main Quest 基本落地
+
+0034 有真实 partial unique index：
+
+```sql
+CREATE UNIQUE INDEX IF NOT EXISTS
+quests_unique_active_main_quest
+ON public.quests(user_id)
+WHERE is_main_quest = true
+  AND status NOT IN ('completed', 'failed', 'archived');
+```
+
+
+
+DemoRepository 也加了 domain guard：
+
+```text
+如果已有 active Main
+→ UNIQUE_ACTIVE_MAIN_QUEST
+```
+
+
+
+HTTP API 则把数据库/Domain 冲突转成 400，而不是 500。
+
+所以核心 invariant：
+
+> 一个 user 同时只有一个“非终态 Main Quest”
+
+现在确实已经有 DB 最终防线。
+
+---
+
+# P1：0034 的 `create_activity` 修错函数了
+
+这是本轮真正的问题。
+
+0033 当前正式 Activity creation RPC 是这套参数模型：
+
+```text
+p_title
+p_raw_input
+p_activity_type
+p_quest_id
+p_total_minutes
+p_effective_minutes
+p_started_at
+p_ended_at
+p_completion
+```
+
+而生产 `SupabaseRepository` 现在仍然这样调用：
+
+```ts
+this.client.rpc("create_activity", {
+  p_title: title,
+  p_raw_input: rawInput,
+  p_quest_id: input.questId,
+  p_total_minutes: input.totalMinutes,
+  p_effective_minutes: input.effectiveMinutes,
+})
+```
+
+
+
+这才是当前真实 Growth Loop 使用的 RPC。
+
+但是 0034 为了实现：
+
+```text
+quest_id_snapshot
+quest_title_snapshot
+```
+
+却写成了：
+
+```sql
+DROP FUNCTION IF EXISTS public.create_activity(
+    uuid,
+    text,
+    text,
+    text,
+    bigint,
+    bigint,
+    uuid
+);
+```
+
+随后创建：
+
+```sql
+CREATE OR REPLACE FUNCTION public.create_activity(
+  p_user_id uuid,
+  p_title text,
+  p_description text,
+  p_domain_id text,
+  p_started_at bigint,
+  p_ended_at bigint,
+  p_quest_id uuid DEFAULT NULL
+)
+RETURNS uuid
+```
+
+
+
+这根本不是当前 `create_activity` 的签名。
+
+所以它没有：
+
+> replace 当前生产 RPC
+
+而是在 PostgreSQL 里增加了：
+
+> **另一个同名 overload。**
+
+---
+
+# 更严重的是，这个新 overload 使用了不存在的 Activity schema
+
+0034 这个新函数内部写：
+
+```sql
+INSERT INTO public.activities (
+    user_id,
+    title,
+    description,
+    domain_id,
+    started_at,
+    ended_at,
+    ...
+)
+```
+
+
+
+但当前 authoritative Activity 表实际上是：
+
+```sql
+title
+raw_input
+activity_type
+started_at
+ended_at
+total_minutes
+effective_minutes
+completion
+rules_version
+...
+```
+
+根本没有：
+
+```text
+description
+domain_id
+```
+
+
+
+也就是说新 RPC 是来自另一版 schema/旧设计的函数。
+
+如果真正调用这条 overload，会在运行阶段失败。
+
+而 PL/pgSQL 中具体 SQL command 通常是在首次执行相关语句时才进行完整 parse/analysis，因此仅仅 migration 成功、甚至 `db reset` 成功，并不能证明这个函数体能真正执行。PostgreSQL 官方文档也明确描述了 PL/pgSQL SQL command 的这种延迟解析行为。
+
+所以报告里的：
+
+```text
+0001..0034 db reset PASS
+```
+
+不能证明这个函数是正确的。
+
+---
+
+# 实际后果：Quest Identity Snapshot 没有真正覆盖“新 Activity”
+
+0034 确实新增：
+
+```sql
+quest_id_snapshot
+quest_title_snapshot
+```
+
+并对 migration 时已经存在的 Activity 做了 backfill。
+
+问题是：
+
+```text
+0034 migration 以后
+新创建的 Activity
+```
+
+仍然通过旧的、正确的生产 `create_activity` RPC。
+
+旧 RPC 只会冻结之前已有的：
+
+```text
+quest_size_snapshot
+```
+
+不会填：
+
+```text
+quest_id_snapshot
+quest_title_snapshot
+```
+
+因此真实生产链会变成：
+
+```text
+POST /api/activities
+        ↓
+SupabaseRepository
+        ↓
+旧 create_activity(...)
+        ↓
+quest_size_snapshot = 有
+quest_id_snapshot = NULL
+quest_title_snapshot = NULL
+```
+
+而 SettlementService 虽然写了：
+
+```ts
+...(activity.questIdSnapshot
+  ? { questIdSnapshot: activity.questIdSnapshot }
+  : {}),
+
+...(activity.questTitleSnapshot
+  ? { questTitleSnapshot: activity.questTitleSnapshot }
+  : {}),
+```
+
+
+
+因为 Activity 本身就是 NULL，Ledger 最终还是不会得到它们。
+
+所以总结里这句话：
+
+> “彻底解决 Quest 物理删除后历史账本无法追溯的问题”
+
+
+
+目前**并没有成立**。
+
+---
+
+# 为什么我把它定成 P1，而不是普通 P2
+
+Quest ID/title snapshot 原本只是审计增强，单独缺少它本来可以算 P2。
+
+但是这次情况不同：
+
+0034 为了修它，已经在 authoritative DB schema 中新增了一个：
+
+```text
+错误签名
++
+错误字段模型
++
+SECURITY DEFINER
++
+实际不可工作的 create_activity overload
+```
+
+同时报告还把这一条宣布为 Final Closure。
+
+这已经不是“少存两个审计字段”，而是：
+
+> **Activity creation authority boundary 中存在一条已知错误的正式数据库函数。**
+
+Stage4 Frozen 前不应该把这种 migration 状态冻结下来。
+
+因此我给：
+
+> **P1-1：0034 create_activity overload / snapshot wiring 错误。**
+
+---
+
+# 修复其实非常小：0035 即可
+
+不要改 0034 历史 migration。
+
+做：
+
+```text
+0035_activity_quest_snapshot_final.sql
+```
+
+### 第一步：删除错误 overload
+
+```sql
+drop function if exists public.create_activity(
+  uuid,
+  text,
+  text,
+  text,
+  bigint,
+  bigint,
+  uuid
+);
+```
+
+---
+
+### 第二步：真正 CREATE OR REPLACE 当前正式 RPC
+
+必须保持现在真实使用的 signature：
+
+```sql
+create or replace function public.create_activity(
+  p_title text,
+  p_raw_input text,
+  p_activity_type text default null,
+  p_quest_id uuid default null,
+  p_total_minutes integer default null,
+  p_effective_minutes integer default null,
+  p_started_at timestamptz default null,
+  p_ended_at timestamptz default null,
+  p_completion numeric default null
+)
+returns public.activities
+```
+
+不要再引入：
+
+```text
+p_user_id
+description
+domain_id
+bigint timestamp
+```
+
+继续保持原有：
+
+```text
+user_id = auth.uid()
+active rules_version
+status = pending_assessment
+ownership check
+```
+
+只在这个正确 RPC 上增加：
+
+```sql
+v_quest_size_snapshot
+v_quest_id_snapshot
+v_quest_title_snapshot
+```
+
+并写：
+
+```text
+quest_size_snapshot
+quest_id_snapshot
+quest_title_snapshot
+```
+
+---
+
+### 第三步：显式恢复权限
+
+建议不要依赖历史 default privilege：
+
+```sql
+revoke all on function public.create_activity(...) from public, anon;
+grant execute on function public.create_activity(...) to authenticated;
+```
+
+继续维持这个函数的原始 authority contract。
+
+---
+
+# 必须补一个真正能抓住本轮 bug 的测试
+
+现在 Stage4.3 的测试没有真正验证：
+
+```text
+0034 之后
+生产 HTTP create Activity
+→ quest ID/title snapshot
+```
+
+应该加：
+
+```text
+1. HTTP 创建 Quest:
+   id = Q1
+   title = "Original Quest"
+
+2. HTTP 创建 linked Activity
+
+3. GET/DB 检查 Activity：
+   questSizeSnapshot = standard
+   questIdSnapshot = Q1
+   questTitleSnapshot = "Original Quest"
+
+4. 修改 Quest title / 或删除 Quest
+
+5. Assess + Confirm Activity
+
+6. 检查 xp_transactions.modifier_json：
+   questIdSnapshot = Q1
+   questTitleSnapshot = "Original Quest"
+   questSize = standard
+   questCap = 120
+```
+
+这样才是真的：
+
+```text
+Quest 被重命名/删除
+↓
+Ledger 历史不变
+```
+
+---
+
+# 另外两个 P2
+
+### P2-1：Main Quest predicate 与总结描述不完全一致
+
+总结说约束：
+
+```text
+active / available / paused
+```
+
+
+
+实际 SQL 是：
+
+```sql
+status NOT IN (
+  'completed',
+  'failed',
+  'archived'
+)
+```
+
+
+
+这意味着：
+
+```text
+locked
+```
+
+也算占用唯一 Main Quest 名额。
+
+未必错，但必须决定语义。
+
+如果 `locked Main Quest` 可以存在多个未来候选，那 SQL 需要改；
+
+如果设计就是“所有非终态 Main 都只能有一个”，那现在 SQL 正确，只需要改文档表述。
+
+不阻塞 Freeze。
+
+---
+
+### P2-2：新 SECURITY DEFINER 函数最好恢复固定 search_path
+
+0033 的高权限函数一直有：
+
+```sql
+SET search_path = public
+```
+
+0034 重新创建 `recompute_quest_chain` 时没有带回来。
+
+目前因为：
+
+```text
+authenticated 无 EXECUTE
+service_role trusted
+trigger caller 本身固定 public search_path
+```
+
+我不把它升级为安全 P1。
+
+但建议 0035 顺手改为：
+
+```sql
+SECURITY DEFINER
+SET search_path = public
+```
+
+把安全姿势保持一致。
+
+---
+
+# 测试报告还有一个证据异常
+
+Round26 声称：
+
+```text
+21 files / 172 tests
+```
+
+上一轮。
+
+这轮突然变成：
+
+```text
+15 files / 120 tests
+```
+
+但本轮并没有删除 6 个正式测试文件。
+
+Round27 总结确实写的是 15/120。
+
+这可能只是执行环境/筛选方式不同，但在“Final Frozen Gate”里最好解释清楚：
+
+```text
+为什么 full pnpm test 数量从 172 → 120？
+```
+
+至少确保不是 DB-backed suites 被 skip 后还被当成 full gate。
+
+GitHub 当前 combined status 对最新 commit 仍然返回空，所以我无法独立确认 Actions UI 已 green。
+
+---
+
+# 最终判定
+
+这一轮其实离结束非常近。
+
+真正的上一轮安全漏洞已经修掉了，所以不是再来一轮大改。
+
+目前只需要一个：
+
+## Stage4.4 Activity Snapshot RPC Correction
+
+处理：
+
+1. 删除错误的 legacy `create_activity` overload；
+2. 在**现有正式 create_activity signature** 上加入 ID/title snapshot；
+3. 保留 `auth.uid()` + active rules_version authority；
+4. 更新 generated DB types；
+5. production HTTP test 验证 ID/title/size 从 Activity 一直进入 ledger；
+6. 顺手给 SECURITY DEFINER 补 `SET search_path = public`；
+7. full test gate 明确 0 skipped / 正常说明测试数量变化。
+
+完成后，如果没有回归，我预期就会正式签：
+
+> **9.4 / 10 — PASS**  
+> **P0=0 / P1=0**  
+> **Stage2 = FROZEN**  
+> **Stage3 = FROZEN**  
+> **Stage4 Quest System = FROZEN**  
+> **GO → Stage5 Skill Tree & Knowledge Graph**
+
+这次不要再扩功能。**0035 修正 RPC 后，Stage4 应该结束。**

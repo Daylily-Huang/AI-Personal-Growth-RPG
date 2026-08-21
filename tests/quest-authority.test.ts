@@ -176,7 +176,7 @@ describe.skipIf(!DATABASE_URL)("Stage 4.2 — Quest Authority, Derived State & A
     await client.query("set role authenticated");
     await client.query("select set_config('request.jwt.claim.sub', $1, false)", [USER_A]);
 
-    const actRes = await client.query<{ id: string; quest_size_snapshot: string }>(`
+    const actRes = await client.query<{ id: string; quest_size_snapshot: string; quest_id_snapshot: string; quest_title_snapshot: string }>(`
       select * from public.create_activity(
         'Refactored DB Constraints',
         'Rewrote composite foreign keys and triggers',
@@ -185,12 +185,16 @@ describe.skipIf(!DATABASE_URL)("Stage 4.2 — Quest Authority, Derived State & A
       );
     `);
     expect(actRes.rows[0].quest_size_snapshot).toBe("epic");
+    expect(actRes.rows[0].quest_id_snapshot).toBe(questId);
+    expect(actRes.rows[0].quest_title_snapshot).toBe("Epic Architectural Overhaul");
     const activityId = actRes.rows[0].id;
     await client.query("reset role");
 
-    // 3. User later modifies the quest size to 'micro'
+    // 3. User later modifies the quest size to 'micro' and renames the quest
     await client.query(`
-      update public.quests set quest_size = 'micro' where id = '${questId}';
+      update public.quests 
+      set quest_size = 'micro', title = 'Renamed Small Task' 
+      where id = '${questId}';
     `);
 
     // 4. Settle activity with assessment
@@ -224,6 +228,8 @@ describe.skipIf(!DATABASE_URL)("Stage 4.2 — Quest Authority, Derived State & A
           goalAlignment: 1.16,
           questSize: "epic",
           questCap: 800,
+          questIdSnapshot: questId,
+          questTitleSnapshot: "Epic Architectural Overhaul",
         },
         reason: "Refactored DB Constraints",
       },
@@ -241,11 +247,12 @@ describe.skipIf(!DATABASE_URL)("Stage 4.2 — Quest Authority, Derived State & A
       select public.settle_activity('${USER_A}'::uuid, $1::jsonb) as settle_activity;
     `, [JSON.stringify(settlePayload)]);
 
-    console.log("TEST 4 SETTLE RESULT:", settleRes.rows[0].settle_activity);
     expect(settleRes.rows[0].settle_activity).toMatchObject({ ok: true });
     const tx = settleRes.rows[0].settle_activity.transaction;
     expect(tx.modifierJson.questSize).toBe("epic");
     expect(tx.modifierJson.questCap).toBe(800);
+    expect(tx.modifierJson.questIdSnapshot).toBe(questId);
+    expect(tx.modifierJson.questTitleSnapshot).toBe("Epic Architectural Overhaul");
 
     // Verify quest progress advanced by exact deterministic delta (0 -> 40)
     const questCheck = await client.query<{ progress: number }>(`

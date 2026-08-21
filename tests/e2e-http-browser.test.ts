@@ -406,8 +406,21 @@ describe.skipIf(!DATABASE_URL)("Stage 3.1 — Full Real HTTP / Browser Auth E2E 
     const { activity } = await actRes.json();
     expect(activity.questId).toBe(childQuest.id);
     expect(activity.questSizeSnapshot).toBe("standard");
+    expect(activity.questIdSnapshot).toBe(childQuest.id);
+    expect(activity.questTitleSnapshot).toBe("E2E Child Subtask");
 
-    // 4. Request AI Assessment over HTTP
+    // 4. User renames and changes size of Child Quest (to verify audit snapshot immunity)
+    const patchQuestRes = await fetch(`${BASE_URL}/api/quests/${childQuest.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: cookieHeaderA },
+      body: JSON.stringify({
+        title: "Renamed Subtask Title",
+        questSize: "micro",
+      }),
+    });
+    expect(patchQuestRes.status).toBe(200);
+
+    // 5. Request AI Assessment over HTTP
     const assessRes = await fetch(`${BASE_URL}/api/activities/${activity.id}/assess`, {
       method: "POST",
       headers: { Cookie: cookieHeaderA },
@@ -415,7 +428,7 @@ describe.skipIf(!DATABASE_URL)("Stage 3.1 — Full Real HTTP / Browser Auth E2E 
     expect(assessRes.status).toBe(200);
     const { assessment } = await assessRes.json();
 
-    // 5. Confirm and Settle Assessment over HTTP
+    // 6. Confirm and Settle Assessment over HTTP
     const confirmRes = await fetch(`${BASE_URL}/api/assessments/${assessment.id}/confirm`, {
       method: "POST",
       headers: { Cookie: cookieHeaderA },
@@ -424,8 +437,11 @@ describe.skipIf(!DATABASE_URL)("Stage 3.1 — Full Real HTTP / Browser Auth E2E 
     const { transaction } = await confirmRes.json();
     expect(transaction.amount).toBeGreaterThan(0);
     expect(transaction.modifierJson.questSize).toBe("standard");
+    expect(transaction.modifierJson.questCap).toBe(120);
+    expect(transaction.modifierJson.questIdSnapshot).toBe(childQuest.id);
+    expect(transaction.modifierJson.questTitleSnapshot).toBe("E2E Child Subtask");
 
-    // 6. Verify Child Quest progress advanced over HTTP GET /api/quests/[id]
+    // 7. Verify Child Quest progress advanced over HTTP GET /api/quests/[id]
     const checkChild = await fetch(`${BASE_URL}/api/quests/${childQuest.id}`, {
       headers: { Cookie: cookieHeaderA },
     });

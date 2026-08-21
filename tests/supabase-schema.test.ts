@@ -57,6 +57,7 @@ const EXPECTED_ORDER = [
   "0032_quest_integrity_and_authority",
   "0033_quest_authority_closure",
   "0034_security_closure",
+  "0035_activity_quest_snapshot_final",
 ];
 
 const PRIVATE_TABLES = [
