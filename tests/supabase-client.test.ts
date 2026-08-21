@@ -26,6 +26,11 @@ describe("Supabase client architecture — env config", () => {
     expect(() => getProjectConfig()).toThrow(/NEXT_PUBLIC_SUPABASE_URL/);
   });
 
+  test("getProjectConfig throws a helpful error when publishable key is missing", () => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "");
+    expect(() => getProjectConfig()).toThrow(/NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY/);
+  });
+
   test("getSecretKey returns '' when unset (never throws)", () => {
     vi.stubEnv("SUPABASE_SECRET_KEY", "");
     expect(getSecretKey()).toBe("");

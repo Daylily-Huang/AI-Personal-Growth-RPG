@@ -24,14 +24,12 @@ export function getProjectConfig(): SupabaseProjectConfig {
 
   if (!url) {
     throw new Error(
-      `Supabase env missing: NEXT_PUBLIC_SUPABASE_URL. Add it to .env.local (see .env.example). ` +
-        `If you only need the code path without a live project, provide the value explicitly.`,
+      `Supabase env missing: NEXT_PUBLIC_SUPABASE_URL. Add it to .env.local (see .env.example).`,
     );
   }
   if (!publishableKey) {
     throw new Error(
-      `Supabase env missing: NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY. Add it to .env.local (see .env.example). ` +
-        `If you only need the code path without a live project, provide the value explicitly.`,
+      `Supabase env missing: NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY. Add it to .env.local (see .env.example).`,
     );
   }
 
