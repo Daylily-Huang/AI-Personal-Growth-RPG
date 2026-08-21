@@ -47,4 +47,19 @@ SERVICE_ROLE_KEY='legacy-service-key'
     expect(vars.SERVICE_ROLE_KEY).toBe("legacy-service-key");
     expect(vars.DB_URL).toBe("postgresql://postgres:postgres@127.0.0.1:54322/postgres");
   });
+
+  test("3. Strips ANSI color escape sequences cleanly", () => {
+    const rawOutput = `
+\u001b[32mAPI_URL\u001b[0m="http://127.0.0.1:54321"
+\u001b[33mANON_KEY\u001b[0m="color-anon-key"
+\u001b[34mSERVICE_ROLE_KEY\u001b[0m="color-service-key"
+\u001b[35mDB_URL\u001b[0m="postgresql://postgres:postgres@127.0.0.1:54322/postgres"
+`;
+    const vars = parseSupabaseStatusOutput(rawOutput);
+
+    expect(vars.API_URL).toBe("http://127.0.0.1:54321");
+    expect(vars.ANON_KEY).toBe("color-anon-key");
+    expect(vars.SERVICE_ROLE_KEY).toBe("color-service-key");
+    expect(vars.DB_URL).toBe("postgresql://postgres:postgres@127.0.0.1:54322/postgres");
+  });
 });

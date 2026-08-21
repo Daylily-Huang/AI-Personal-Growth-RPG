@@ -71,7 +71,7 @@ jobs:
         run: supabase db start
 
       - name: Export local Supabase credentials
-        run: node scripts/export-supabase-ci-env.cjs
+        run: supabase status -o env | node scripts/export-supabase-ci-env.cjs
 
       - name: Build production app
         run: pnpm build
