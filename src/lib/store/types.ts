@@ -5,6 +5,7 @@ export type ActivityStatus = "pending_assessment" | "assessed" | "confirmed";
 export interface Activity {
   id: string;
   questId?: string | null;
+  questSizeSnapshot?: QuestSize | null;
   rawInput: string;
   title: string;
   activityType: string | null;
@@ -176,6 +177,8 @@ export interface SettlementToApply {
   player: { xpDelta: number };
   /** Created when the mastery upgrade requires verification. */
   masteryVerification?: MasteryVerification;
+  /** Deterministic quest progression delta computed by the domain Growth Engine. */
+  questProgressDelta?: number;
 }
 
 export interface NewActivityInput {

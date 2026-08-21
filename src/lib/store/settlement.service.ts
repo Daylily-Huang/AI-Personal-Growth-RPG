@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { checkMasteryProposal } from "@/lib/growth-engine/mastery";
 import { calculateXp, type QuestSize, type XpInput } from "@/lib/growth-engine/xp";
+import { calculateQuestProgressDelta } from "@/lib/growth-engine/quest-progression";
 import { countRecentSimilar } from "@/lib/store/similarity";
 import type { AssessmentProposal } from "@/lib/ai/schemas";
 import type { Repository } from "./repository";
@@ -72,9 +73,9 @@ export class SettlementService {
       windowDays: SIMILARITY_WINDOW_DAYS,
     });
 
-    // Milestone 4.1: Fetch authoritative bound Quest if linked to use actual questSize cap
-    let effectiveQuestSize: QuestSize = DEFAULT_QUEST_SIZE;
-    if (activity.questId) {
+    // Milestone 4.2 / Round26 (P1-5): Use frozen quest size snapshot on Activity first
+    let effectiveQuestSize: QuestSize = activity.questSizeSnapshot ?? DEFAULT_QUEST_SIZE;
+    if (!activity.questSizeSnapshot && activity.questId) {
       const boundQuest = await this.repo.getQuest(activity.questId);
       if (boundQuest) {
         effectiveQuestSize = boundQuest.questSize;
@@ -94,6 +95,14 @@ export class SettlementService {
     };
     const xpResult = calculateXp(xpInput);
     const xpDelta = xpResult.finalXp;
+
+    // Milestone 4.2 / Round26 (P1-4): Shared deterministic quest progression delta
+    const questProgressDelta = activity.questId
+      ? calculateQuestProgressDelta({
+          effectiveMinutes: activity.effectiveMinutes,
+          completion: assessment.proposal.activity.completion,
+        })
+      : undefined;
 
     const currentSkill = await this.repo.getSkill(skillLabel);
     const currentMastery = currentSkill?.masteryLevel ?? DEFAULT_SKILL_MASTERY;
@@ -158,6 +167,7 @@ export class SettlementService {
       relatedSkillLabels,
       player: { xpDelta },
       masteryVerification,
+      questProgressDelta,
     };
 
     const result = await this.repo.applySettlement(settlement);

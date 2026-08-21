@@ -239,6 +239,9 @@ export class DemoRepository implements Repository {
     };
     db.quests = db.quests ?? [];
     db.quests.push(quest);
+    if (quest.parentQuestId) {
+      this.rollUpParentProgress(db, quest.parentQuestId, now);
+    }
     this.writeDb(db);
     return quest;
   }
@@ -273,41 +276,52 @@ export class DemoRepository implements Repository {
     const hasChildren = db.quests.some((q) => q.parentQuestId === id);
     const now = new Date().toISOString();
     const updatedStatus = updates.status ?? current.status;
-    const completedAt =
-      updatedStatus === "completed"
-        ? current.completedAt ?? now
-        : updatedStatus !== current.status
-          ? null
-          : current.completedAt;
 
     // Derived progress guard: if node has children, its progress is derived from children
     let derivedProgress = updates.progress !== undefined ? updates.progress : current.progress;
+    let finalStatus = updatedStatus;
     if (hasChildren) {
-      const children = db.quests.filter((q) => q.parentQuestId === id);
-      derivedProgress = Math.round(children.reduce((s, c) => s + c.progress, 0) / children.length);
+      const children = db.quests.filter((q) => q.parentQuestId === id && q.status !== "archived");
+      if (children.length > 0) {
+        derivedProgress = Math.round(children.reduce((s, c) => s + c.progress, 0) / children.length);
+        const allCompleted = children.every((c) => c.status === "completed") && derivedProgress === 100;
+        if (allCompleted) {
+          finalStatus = "completed";
+        } else if (derivedProgress < 100) {
+          finalStatus = current.status === "completed" ? "active" : updatedStatus === "completed" ? (current.status === "available" ? "available" : "active") : updatedStatus;
+        }
+      }
     }
+
+    const oldParentId = current.parentQuestId;
+    const newParentId = updates.parentQuestId !== undefined ? updates.parentQuestId : current.parentQuestId;
 
     const updated: Quest = {
       ...current,
-      parentQuestId: updates.parentQuestId !== undefined ? updates.parentQuestId : current.parentQuestId,
+      parentQuestId: newParentId,
       title: updates.title !== undefined ? updates.title.trim() : current.title,
       description: updates.description !== undefined ? updates.description?.trim() ?? null : current.description,
       questType: updates.questType ?? current.questType,
       questSize: updates.questSize ?? current.questSize,
-      status: updatedStatus,
+      status: finalStatus,
       difficulty: updates.difficulty !== undefined ? Math.max(0, Math.min(1, updates.difficulty)) : current.difficulty,
       goalAlignment: updates.goalAlignment !== undefined ? Math.max(0, Math.min(1, updates.goalAlignment)) : current.goalAlignment,
       progress: Math.max(0, Math.min(100, derivedProgress)),
       deadline: updates.deadline !== undefined ? updates.deadline : current.deadline,
       isMainQuest: updates.isMainQuest !== undefined ? Boolean(updates.isMainQuest) : current.isMainQuest,
       isBoss: updates.isBoss !== undefined ? Boolean(updates.isBoss) : current.isBoss,
-      completedAt,
+      completedAt: finalStatus === "completed" ? (current.completedAt ?? now) : null,
       updatedAt: now,
     };
     db.quests[index] = updated;
 
-    // Trigger parent roll-up
-    this.rollUpParentProgress(db, updated.parentQuestId, now);
+    // Trigger parent roll-up on both old and new parent (Round26 P1-3)
+    if (oldParentId && oldParentId !== newParentId) {
+      this.rollUpParentProgress(db, oldParentId, now);
+    }
+    if (newParentId) {
+      this.rollUpParentProgress(db, newParentId, now);
+    }
 
     this.writeDb(db);
     return updated;
@@ -322,16 +336,19 @@ export class DemoRepository implements Repository {
       const parent = db.quests.find((q) => q.id === currentId);
       if (!parent) break;
 
-      const children = db.quests.filter((q) => q.parentQuestId === currentId);
+      const children = db.quests.filter((q) => q.parentQuestId === currentId && q.status !== "archived");
       if (children.length > 0) {
         const totalProgress = children.reduce((sum, c) => sum + c.progress, 0);
         parent.progress = Math.round(totalProgress / children.length);
-        const allCompleted = children.every((c) => c.status === "completed");
+        const allCompleted = children.every((c) => c.status === "completed") && parent.progress === 100;
         if (allCompleted) {
           parent.status = "completed";
           parent.completedAt = parent.completedAt ?? now;
         } else if (parent.progress > 0 && parent.status === "available") {
           parent.status = "active";
+        } else if (parent.status === "completed" && parent.progress < 100) {
+          parent.status = "active";
+          parent.completedAt = null;
         }
         parent.updatedAt = now;
       }
@@ -343,6 +360,14 @@ export class DemoRepository implements Repository {
     const db = this.readDb();
     const existing = db.quests.find((q) => q.id === id);
     const parentId = existing?.parentQuestId ?? null;
+
+    // Set parentQuestId = null on all children (ON DELETE SET NULL)
+    for (const child of db.quests) {
+      if (child.parentQuestId === id) {
+        child.parentQuestId = null;
+      }
+    }
+
     db.quests = (db.quests ?? []).filter((q) => q.id !== id);
     const now = new Date().toISOString();
     if (parentId) {
@@ -354,9 +379,11 @@ export class DemoRepository implements Repository {
   async addActivity(input: NewActivityInput): Promise<Activity> {
     const db = this.readDb();
     const now = new Date().toISOString();
+    const boundQuest = input.questId ? db.quests.find((q) => q.id === input.questId) : null;
     const activity: Activity = {
       id: crypto.randomUUID(),
       questId: input.questId ?? null,
+      questSizeSnapshot: boundQuest?.questSize ?? null,
       rawInput: input.rawInput.trim(),
       title: input.rawInput.trim().slice(0, 80) || "未命名 Activity",
       activityType: null,
@@ -519,13 +546,15 @@ export class DemoRepository implements Repository {
     assessment.confirmedAt = now;
     activity.status = "confirmed";
 
-    // 8) Milestone 4.1: Advance linked Quest progress (atomic within settlement)
+    // 8) Milestone 4.2: Advance linked Quest progress (using shared deterministic delta)
     if (activity.questId) {
       const boundQuest = db.quests.find((q) => q.id === activity.questId);
-      if (boundQuest) {
-        const progressAdvance = activity.effectiveMinutes
-          ? Math.min(100, Math.max(10, Math.round(activity.effectiveMinutes / 2)))
-          : 20;
+      if (boundQuest && boundQuest.status !== "archived" && boundQuest.status !== "failed") {
+        const progressAdvance = settlement.questProgressDelta ?? (
+          activity.effectiveMinutes
+            ? Math.min(100, Math.max(5, Math.round(activity.effectiveMinutes / 2)))
+            : 20
+        );
         boundQuest.progress = Math.min(100, boundQuest.progress + progressAdvance);
         if (boundQuest.progress >= 100) {
           boundQuest.status = "completed";

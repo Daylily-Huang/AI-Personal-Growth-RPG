@@ -404,4 +404,137 @@ describe("Stage 4 — Quest System Unit & Service Tests", () => {
     expect(txAfterFail.length).toBe(1);
     expect(txAfterFail[0].amount).toBe(txBeforeFail[0].amount);
   });
+
+  test("9. P1-1: Parent progress anti-spoofing in DemoRepository", async () => {
+    const parent = await repo.addQuest({
+      title: "Parent Quest",
+      questType: "production",
+      status: "active",
+      progress: 0,
+    });
+    await repo.addQuest({
+      title: "Child 1",
+      parentQuestId: parent.id,
+      questType: "skill",
+      progress: 20,
+    });
+    await repo.addQuest({
+      title: "Child 2",
+      parentQuestId: parent.id,
+      questType: "skill",
+      progress: 40,
+    });
+
+    const parentBefore = await repo.getQuest(parent.id);
+    expect(parentBefore?.progress).toBe(30);
+
+    // Client attempts to spoof progress = 100 on parent
+    const spoofed = await repo.updateQuest(parent.id, { progress: 100, status: "completed" });
+    expect(spoofed.progress).toBe(30);
+    expect(spoofed.status).toBe("active");
+  });
+
+  test("10. P1-2: Deleting parent unlinks children (ON DELETE SET NULL)", async () => {
+    const parent = await repo.addQuest({
+      title: "Parent to Delete",
+      questType: "learning",
+    });
+    const child = await repo.addQuest({
+      title: "Child Quest",
+      parentQuestId: parent.id,
+      questType: "skill",
+    });
+
+    await repo.deleteQuest(parent.id);
+    const orphan = await repo.getQuest(child.id);
+    expect(orphan).toBeDefined();
+    expect(orphan?.parentQuestId).toBeNull();
+  });
+
+  test("11. P1-3: Reparenting recomputes progress on OLD and NEW parents in DemoRepository", async () => {
+    const pA = await repo.addQuest({ title: "Parent A", questType: "production" });
+    const pB = await repo.addQuest({ title: "Parent B", questType: "production" });
+
+    await repo.addQuest({ parentQuestId: pA.id, title: "Child 1", questType: "skill", progress: 60 });
+    const c2 = await repo.addQuest({ parentQuestId: pA.id, title: "Child 2", questType: "skill", progress: 100 });
+
+    const pABefore = await repo.getQuest(pA.id);
+    expect(pABefore?.progress).toBe(80);
+
+    // Move c2 to pB
+    await repo.updateQuest(c2.id, { parentQuestId: pB.id });
+
+    const pAAfter = await repo.getQuest(pA.id);
+    expect(pAAfter?.progress).toBe(60);
+
+    const pBAfter = await repo.getQuest(pB.id);
+    expect(pBAfter?.progress).toBe(100);
+  });
+
+  test("12. P1-5: Activity freezes questSizeSnapshot and Settlement records questSize and questCap in modifierJson", async () => {
+    const epicQuest = await repo.addQuest({
+      title: "Epic Migration",
+      questType: "production",
+      questSize: "epic",
+    });
+
+    const activity = await repo.addActivity({
+      rawInput: "Migrated whole auth cluster",
+      questId: epicQuest.id,
+      totalMinutes: 120,
+      effectiveMinutes: 90,
+    });
+    expect(activity.questSizeSnapshot).toBe("epic");
+
+    // Later the user downgrades the quest to micro
+    await repo.updateQuest(epicQuest.id, { questSize: "micro" });
+
+    const assessment = await repo.addAssessment({
+      activityId: activity.id,
+      modelName: "test-model",
+      promptVersion: "v1",
+      proposal: makeProposal("System Architecture", 80),
+    });
+
+    const { SettlementService } = await import("@/lib/store/settlement.service");
+    const service = new SettlementService(repo);
+    const settleResult = await service.confirmAssessment(assessment.id);
+    expect(settleResult.ok).toBe(true);
+
+    const txs = await repo.listTransactions();
+    expect(txs.length).toBe(1);
+    expect(txs[0].modifierJson.questSize).toBe("epic");
+    expect(txs[0].modifierJson.questCap).toBe(800);
+  });
+
+  test("13. P2-2: Archived or Failed Quest does NOT advance progress during settlement", async () => {
+    const failedQuest = await repo.addQuest({
+      title: "Failing quest",
+      questType: "learning",
+      status: "failed",
+      progress: 10,
+    });
+
+    const activity = await repo.addActivity({
+      rawInput: "Reflected on reasons for failure",
+      questId: failedQuest.id,
+      totalMinutes: 30,
+      effectiveMinutes: 30,
+    });
+
+    const assessment = await repo.addAssessment({
+      activityId: activity.id,
+      modelName: "test-model",
+      promptVersion: "v1",
+      proposal: makeProposal("Reflection", 30),
+    });
+
+    const { SettlementService } = await import("@/lib/store/settlement.service");
+    const service = new SettlementService(repo);
+    await service.confirmAssessment(assessment.id);
+
+    const afterQuest = await repo.getQuest(failedQuest.id);
+    expect(afterQuest?.status).toBe("failed");
+    expect(afterQuest?.progress).toBe(10);
+  });
 });

@@ -1,0 +1,585 @@
+继续审完了。这次 **Stage4/4.1 的远程代码确实已经推上 GitHub**，不再是上一轮只有本地摘要的问题。最新实现位于 `81fd2931…`，而且你上传的 Round25 报告里声称的多数修复——0032、Quest CRUD、Settlement 接线、真实 DB 测试、HTTP Quest E2E——都能在远程代码中找到。
+
+但“**100% VERIFIED / ALL P1 & P2 RESOLVED**”仍然不能成立。
+
+# Round26 审查结论
+
+| 项目 | 结论 |
+|---|---|
+| 评分 | **7.8 / 10** |
+| 状态 | **CONDITIONAL FAIL** |
+| P0 | **0** |
+| P1 | **5** |
+| P2 | **4** |
+| Stage2 Settlement Authority | **继续 Frozen** |
+| Stage3 Auth / Read Path | **代码层面可正式关闭/Frozen** |
+| Stage4 Quest System | **主体成立，但 Quest Authority 尚未闭环** |
+| 是否进入 Stage5 Skill Tree | **NO-GO** |
+
+这轮不是推倒重做。Quest CRUD、树、RLS 隔离、Settlement 接线已经成立。剩下的问题集中在一个主题：
+
+> **Quest 已经开始影响永久 XP，因此 Quest 不能再只按“普通用户可编辑内容”来管理。**
+
+---
+
+## 已确认关闭的上一轮问题
+
+跨租户父子关系这次是真修了。0032 创建 `(user_id,id)` 唯一约束，并把 parent FK 改成 `(user_id,parent_quest_id) → (user_id,id)`；因此 A 用户的 child 无法引用 B 用户的 parent。Cycle trigger、self-parent check、difficulty/goal_alignment/progress 范围约束也确实存在。
+
+`SettlementService` 也终于不再永远使用 `standard`，而是读取 Activity 绑定 Quest 的实际 `questSize` 后传给 `calculateXp()`。 Growth Engine 中 `questSize` 确实是 XP hard cap，例如 micro=25、standard=120、main=2000。
+
+生产 DB 的 `settle_activity` 也确实在同一 PostgreSQL transaction 中更新 Ledger、Player、Skill、Mastery、Quest，再确认 Assessment/Activity；所以“XP 成功但 Quest update 单独失败”的最明显原子性漏洞已经关闭。
+
+Stage3 上一轮 CI credential 问题也真正修了。现在 workflow 从 `supabase status -o env` 导出实际 local Supabase URL/key，再 build、DB tests、E2E，不再写死 `test_secret_key`。 **因此 Stage3 的代码级 Gate 我可以正式关闭。**
+
+---
+
+# P1-1：Parent/Main/Boss progress 仍然可以被客户端直接伪造
+
+这是当前最严重的 Quest authority 问题。
+
+现有 RLS 仍然给 authenticated 用户自己的 `quests`：
+
+```sql
+SELECT
+INSERT
+UPDATE
+DELETE
+```
+
+完整权限。
+
+而 `SupabaseRepository.updateQuest()` 直接允许：
+
+```ts
+status
+questSize
+progress
+isMainQuest
+isBoss
+...
+```
+
+全部写数据库。
+
+HTTP PATCH 也直接接收：
+
+```ts
+body.status
+body.questSize
+body.progress
+```
+
+然后 `repo.updateQuest()`。
+
+问题在于 0032 的 DB trigger 只做：
+
+> 当一个 child 改变时，重新计算它的 **parent / ancestors**。
+
+它没有做到：
+
+> 当用户直接改 parent 自己的 progress 时，强制用 children 重算 parent 自己。
+
+所以一个有 10 个 child、真实进度 20% 的 Main Quest，authenticated 用户仍然可以绕开 Next API，直接：
+
+```text
+UPDATE quests
+SET progress = 100,
+    status = 'completed'
+WHERE id = main_quest_id;
+```
+
+RLS 会允许。
+
+更糟的是，如果 Main 还有 grandparent，这个伪造的 `100%` 还会被 trigger 当真，继续 roll-up。
+
+这意味着报告里所说的：
+
+> “Authoritative Derived Progress Roll-Up”
+
+目前只完成了 **automatic roll-up**，没有完成 **authoritative derived state**。
+
+### 正确方向
+
+用户可编辑：
+
+```text
+title / description / deadline / metadata
+```
+
+系统推导：
+
+```text
+parent progress
+parent completion
+Boss/Main aggregate progress
+```
+
+这两类字段必须分开 authority。
+
+我建议不要再让 authenticated 对整行拥有 unrestricted UPDATE。至少把 parent-derived `progress/status` 移到 server-owned RPC，或者让 DB 对“有 children 的 Quest”拒绝客户端直接修改这些字段。
+
+---
+
+# P1-2：新的 composite FK 把“删除父 Quest”搞坏了
+
+0032 写的是：
+
+```sql
+foreign key (user_id, parent_quest_id)
+references public.quests(user_id, id)
+on delete set null;
+```
+
+
+
+这里有一个很隐蔽的 PostgreSQL 语义问题。
+
+对于 composite FK：
+
+```text
+(user_id, parent_quest_id)
+```
+
+不指定 column list 的：
+
+```sql
+ON DELETE SET NULL
+```
+
+默认会把 **两个 referencing columns 全部置 NULL**。
+
+也就是：
+
+```text
+user_id = NULL
+parent_quest_id = NULL
+```
+
+但 `quests.user_id` 是：
+
+```sql
+NOT NULL
+```
+
+因此：
+
+> **删除一个仍有 child 的 parent Quest 会失败。**
+
+PostgreSQL 官方文档明确说明 composite FK 的 `SET NULL` 默认处理全部 referencing columns；如果 tenant ID 不能置 NULL，应明确只指定可空列。
+
+正确写法应类似：
+
+```sql
+ON DELETE SET NULL (parent_quest_id)
+```
+
+你们现有测试没有发现，是因为测试删除的是 leaf/subquest，并没有：
+
+```text
+Parent
+ └─ Child
+
+DELETE Parent
+```
+
+这种 case。 
+
+这是确定性的 P1，不是理论问题。
+
+---
+
+# P1-3：Reparent 会留下旧 Parent 的脏进度，而且并发 roll-up 不安全
+
+0032 现在：
+
+```sql
+v_parent_id :=
+  coalesce(NEW.parent_quest_id, OLD.parent_quest_id);
+```
+
+
+
+假设：
+
+```text
+Parent A
+  └─ Child X
+
+Parent B
+```
+
+把 X 从 A 移到 B：
+
+```text
+OLD.parent = A
+NEW.parent = B
+```
+
+`coalesce(B,A)` 得到：
+
+```text
+B
+```
+
+于是只重新计算 B。
+
+**A 永远不会被重新计算。**
+
+API 层也同样：
+
+```ts
+const updated = await repo.updateQuest(...)
+if (updated.parentQuestId) {
+  await syncParentQuestProgress(repo, updated.parentQuestId)
+}
+```
+
+只同步 new parent。
+
+因此：
+
+```text
+A 原来 progress = 50
+Child X 被移走
+A 应该变化
+实际仍然 = 50
+```
+
+这是直接破坏 derived-state invariant。
+
+此外 SQL trigger 在计算 children average 前：
+
+```sql
+select * into v_current_parent
+from quests ...
+```
+
+没有：
+
+```sql
+FOR UPDATE
+```
+
+两个 sibling 并发更新时，可以分别用各自看见的旧 sibling snapshot 算 progress，再互相覆盖 parent。当前没有 Quest concurrency test。
+
+### 修复
+
+最好做一个 DB helper：
+
+```text
+recompute_quest_chain(user_id, parent_id)
+```
+
+reparent 时同时：
+
+```text
+recompute OLD parent chain
+recompute NEW parent chain
+```
+
+并且在计算 children aggregate 前锁定 parent row。
+
+---
+
+# P1-4：Demo 与 Production 已经出现两套 Quest Growth Rule
+
+这一项尤其违反你们之前坚持的：
+
+> Repository 不应该保存 business rules。
+
+Demo settlement：
+
+```text
+progressAdvance
+= effectiveMinutes / 2
+= minimum 10
+= maximum 100
+```
+
+例如有效学习 50 分钟：
+
+```text
++25%
+```
+
+
+
+但 PostgreSQL settlement：
+
+```sql
+coalesce(round(activity.completion * 100), 20)
+```
+
+
+
+而正常 HTTP 创建 Activity 根本没有传：
+
+```text
+completion
+```
+
+只传：
+
+```text
+rawInput
+questId
+totalMinutes
+effectiveMinutes
+```
+
+
+
+AI Assessment persistence 也只保存 Assessment、把 Activity 变成 assessed，没有把 AI 的 `proposal.activity.completion` 写回 Activity。
+
+所以生产实际行为基本变成：
+
+```text
+每次 linked Activity settlement
+= Quest 固定 +20%
+```
+
+而 Demo：
+
+```text
+40 effective min → +20
+50 effective min → +25
+120 effective min → +60
+```
+
+这意味着完全相同的 Growth Loop：
+
+```text
+Demo ≠ Supabase production
+```
+
+现有测试故意只写：
+
+```ts
+expect(progress).toBeGreaterThan(0)
+```
+
+因此没有发现这个 divergence。
+
+### 正确架构
+
+Quest progress delta 应该只有**一份 deterministic business rule**。
+
+比如：
+
+```ts
+calculateQuestProgressDelta(...)
+```
+
+放到 domain/Growth Engine。
+
+SettlementService 算好：
+
+```text
+questProgressDelta
+```
+
+然后：
+
+```text
+DemoRepository → apply exact delta
+Supabase RPC   → apply exact delta
+```
+
+DB 负责：
+
+```text
+ownership
+idempotency
+atomicity
+bounds
+roll-up
+```
+
+不要让 DB 和 Demo 各自发明一套 progression algorithm。
+
+---
+
+# P1-5：QuestSize 已影响永久 XP，但没有被冻结/写入 Ledger
+
+这是 Stage4 接入 Growth Engine 后出现的新 authority 问题。
+
+现在流程：
+
+```text
+SettlementService
+↓
+repo.getQuest(activity.questId)
+↓
+读取当前 quest.questSize
+↓
+calculateXp()
+↓
+稍后调用 settle_activity()
+```
+
+
+
+但 Quest 本身还是 authenticated 可 UPDATE 的。
+
+所以存在窗口：
+
+```text
+SettlementService 读到 questSize = main
+↓
+算 XP
+↓
+另一个请求把 Quest 改成 micro
+↓
+settle_activity 写入刚才算出的 XP
+```
+
+数据库根本没有验证：
+
+```text
+用于计算 XP 的 QuestSize
+==
+settlement 时 authoritative QuestSize
+```
+
+这和你们 Stage2 当年修掉的 repetition stale snapshot 是同一类问题。
+
+而且 Ledger 里目前记录：
+
+```text
+rulesVersion
+modifiers
+amount
+...
+```
+
+但 `XpModifiers` 本身没有 `questSize` / `questCap`。
+
+因此半年以后用户把 Quest size 从：
+
+```text
+standard → main
+```
+
+你甚至无法从 Ledger 精确还原：
+
+> 为什么这笔 XP 当时被 cap 到这个数？
+
+更糟的是 Quest 可以硬删除，而 Activity FK 是：
+
+```sql
+quest_id references quests(id) on delete set null
+```
+
+
+
+一旦删掉 Quest，Activity 的 quest relationship 也消失。
+
+这已经影响到 **永久 XP 的历史可审计性**。
+
+### 推荐做法
+
+最干净的是 Activity 创建时冻结：
+
+```text
+quest_id
+quest_size_snapshot
+```
+
+类似：
+
+```text
+rules_version
+```
+
+Settlement 永远使用 Activity 冻结的 snapshot。
+
+Ledger 再保存：
+
+```text
+quest_id_snapshot
+quest_size_snapshot
+quest_cap
+```
+
+至少 modifier JSON 也必须包含这些。
+
+对于已经参与 confirmed settlement 的 Quest，建议不要物理 DELETE，改成：
+
+```text
+archived
+```
+
+---
+
+# P2：还有几个明显但不必阻止本轮修复的点
+
+| 问题 | 现状 |
+|---|---|
+| PATCH runtime validation | POST 验证 enum/range，但 PATCH 基本直接信 `body`；非法数据最终靠 DB constraint，容易返回 500 而不是 400。 |
+| Failed/Archived Quest settlement | `settle_activity` 没有阻止对 failed/archived Quest 继续推进；甚至 failed progress 到 100 时会被改成 `completed`。 |
+| Main Quest 唯一性 | 没有约束“一个用户只能有一个非 archived Main Quest”；Dashboard 只是 `.find(...)` 拿第一条。 |
+| HTTP E2E 覆盖层级 | 新 HTTP E2E 确实覆盖 Quest CRUD/tree/cycle/cross-user，但 **没有通过 HTTP 跑 Activity→Assess→Confirm→Quest roll-up**；Settlement→Quest 目前是 live DB repository test。 |
+
+这些不是当前最大的 blocker，但 Freeze 前最好一起整理一部分。
+
+---
+
+# Stage3 现在可以正式关闭
+
+上一轮唯一剩余的 Stage3 P1 是：
+
+> CI 使用假 Supabase credentials。
+
+现在 workflow 已变成：
+
+```bash
+supabase status -o env
+```
+
+再导出真实：
+
+```text
+API_URL
+PUBLISHABLE_KEY / ANON_KEY
+SECRET_KEY / SERVICE_ROLE_KEY
+DB_URL
+```
+
+然后：
+
+```text
+pnpm build
+pnpm test
+pnpm test:e2e
+```
+
+
+
+因此我的状态更新为：
+
+> **Stage3 Auth + Supabase Read Path = FROZEN**
+
+GitHub connector 对 `81fd2931` 仍没有返回可见 commit check statuses，所以我不能独立声称 GitHub Actions UI 已经 green；上传报告声称本地 159/159、build/lint green。 但之前阻塞 Stage3 的代码问题本身已经解决。
+
+---
+
+# 下一步不要做 Stage5，做一个窄的 Stage4.2
+
+只需要处理下面 5 项，然后重新验收：
+
+1. **Quest derived-state authority**：有 children 的 parent/Main/Boss 禁止 authenticated 任意写 `progress/status`，DB/RPC 成为唯一 roll-up authority。
+2. **修 composite FK**：`ON DELETE SET NULL (parent_quest_id)`；补 parent-with-child deletion live DB test。
+3. **修 roll-up correctness**：reparent 同时重算 OLD+NEW parent；parent row lock 后再聚合；补 concurrent sibling update test。
+4. **统一 Quest progression rule**：删除 Demo/SQL 两套算法，用同一个 deterministic `questProgressDelta` 输入。
+5. **冻结 Quest settlement context**：至少冻结 `questSize` 并写入 ledger/snapshot；对参与永久结算的 Quest 优先 archive 而不是物理删除。
+
+做到这里后，我预期 Stage4 会从现在的：
+
+> **7.8 / 10 — CONDITIONAL FAIL**
+
+直接上到：
+
+> **9.2+ / 10 — PASS / FROZEN**
+
+这次 Stage4 已经不是“Quest 原型”了，主体确实接进 Growth Loop 了；现在需要处理的是**接进去以后产生的 authority、并发和历史可审计性问题**。这些恰好是最值得在进入 Skill Tree 前封死的部分。

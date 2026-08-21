@@ -140,4 +140,87 @@ describe("Stage 4 — Quest API Routes", () => {
     const body = await patchRes.json();
     expect(body.error).toContain("Self-parenting is forbidden");
   });
+
+  test("6. P2-1: Authenticated PATCH with invalid types/ranges returns 400 Bad Request", async () => {
+    const mockClient = {
+      auth: {
+        getUser: vi.fn().mockResolvedValue({ data: { user: { id: "test-user-123" } }, error: null }),
+      },
+      from: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              maybeSingle: vi.fn().mockResolvedValue({
+                data: {
+                  id: "quest-123",
+                  user_id: "test-user-123",
+                  title: "Quest 123",
+                  quest_type: "learning",
+                  status: "active",
+                  difficulty: 0.5,
+                  goal_alignment: 0.5,
+                  progress: 0,
+                  is_main_quest: false,
+                  is_boss: false,
+                  created_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString(),
+                },
+                error: null,
+              }),
+            }),
+          }),
+        }),
+      }),
+    };
+    (getSupabaseServerClient as unknown as Mock).mockResolvedValue(mockClient);
+    const params = Promise.resolve({ id: "quest-123" });
+
+    // Invalid difficulty (> 1)
+    const res1 = await patchQuest(
+      new Request("http://localhost:3000/api/quests/quest-123", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ difficulty: 1.5 }),
+      }),
+      { params },
+    );
+    expect(res1.status).toBe(400);
+    expect((await res1.json()).error).toContain("difficulty must be a number between 0 and 1");
+
+    // Invalid progress (> 100)
+    const res2 = await patchQuest(
+      new Request("http://localhost:3000/api/quests/quest-123", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ progress: 150 }),
+      }),
+      { params },
+    );
+    expect(res2.status).toBe(400);
+    expect((await res2.json()).error).toContain("progress must be a number between 0 and 100");
+
+    // Invalid questType
+    const res3 = await patchQuest(
+      new Request("http://localhost:3000/api/quests/quest-123", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ questType: "invalid_type" }),
+      }),
+      { params },
+    );
+    expect(res3.status).toBe(400);
+    expect((await res3.json()).error).toContain("questType must be one of");
+
+    // Invalid status
+    const res4 = await patchQuest(
+      new Request("http://localhost:3000/api/quests/quest-123", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "invalid_status" }),
+      }),
+      { params },
+    );
+    expect(res4.status).toBe(400);
+    expect((await res4.json()).error).toContain("status must be one of");
+  });
 });

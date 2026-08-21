@@ -353,4 +353,94 @@ describe.skipIf(!DATABASE_URL)("Stage 3.1 — Full Real HTTP / Browser Auth E2E 
     });
     expect(userBPatchRes.status).toBe(404);
   });
+
+  test("9. Full End-to-End Quest Growth Loop over HTTP (Create Quest -> Create Linked Activity -> Assess -> Confirm -> Quest Progress & Parent Roll-up Verified over HTTP)", async () => {
+    const jarA = createCookieJar();
+    await jarA.client.auth.signInWithPassword({
+      email: userAEmail,
+      password: testPassword,
+    });
+    const cookieHeaderA = jarA.getCookieHeader();
+
+    // 1. User A creates Parent Quest via HTTP POST /api/quests
+    const parentRes = await fetch(`${BASE_URL}/api/quests`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Cookie: cookieHeaderA },
+      body: JSON.stringify({
+        title: "E2E Master Quest",
+        questType: "production",
+        questSize: "major",
+        isMainQuest: true,
+      }),
+    });
+    expect(parentRes.status).toBe(201);
+    const { quest: parentQuest } = await parentRes.json();
+
+    // 2. User A creates Child Quest via HTTP POST /api/quests
+    const childRes = await fetch(`${BASE_URL}/api/quests`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Cookie: cookieHeaderA },
+      body: JSON.stringify({
+        title: "E2E Child Subtask",
+        parentQuestId: parentQuest.id,
+        questType: "skill",
+        questSize: "standard",
+        progress: 0,
+      }),
+    });
+    expect(childRes.status).toBe(201);
+    const { quest: childQuest } = await childRes.json();
+
+    // 3. User A creates Activity linked to Child Quest
+    const actRes = await fetch(`${BASE_URL}/api/activities`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Cookie: cookieHeaderA },
+      body: JSON.stringify({
+        rawInput: "Completed critical subtask implementation and automated tests",
+        questId: childQuest.id,
+        totalMinutes: 60,
+        effectiveMinutes: 50,
+      }),
+    });
+    expect(actRes.status).toBe(201);
+    const { activity } = await actRes.json();
+    expect(activity.questId).toBe(childQuest.id);
+    expect(activity.questSizeSnapshot).toBe("standard");
+
+    // 4. Request AI Assessment over HTTP
+    const assessRes = await fetch(`${BASE_URL}/api/activities/${activity.id}/assess`, {
+      method: "POST",
+      headers: { Cookie: cookieHeaderA },
+    });
+    expect(assessRes.status).toBe(200);
+    const { assessment } = await assessRes.json();
+
+    // 5. Confirm and Settle Assessment over HTTP
+    const confirmRes = await fetch(`${BASE_URL}/api/assessments/${assessment.id}/confirm`, {
+      method: "POST",
+      headers: { Cookie: cookieHeaderA },
+    });
+    expect(confirmRes.status).toBe(200);
+    const { transaction } = await confirmRes.json();
+    expect(transaction.amount).toBeGreaterThan(0);
+    expect(transaction.modifierJson.questSize).toBe("standard");
+
+    // 6. Verify Child Quest progress advanced over HTTP GET /api/quests/[id]
+    const checkChild = await fetch(`${BASE_URL}/api/quests/${childQuest.id}`, {
+      headers: { Cookie: cookieHeaderA },
+    });
+    expect(checkChild.status).toBe(200);
+    const { quest: updatedChild } = await checkChild.json();
+    expect(updatedChild.progress).toBeGreaterThan(0);
+
+    // 7. Verify Parent Quest aggregated progress over HTTP GET /api/quests?tree=true
+    const checkTree = await fetch(`${BASE_URL}/api/quests?tree=true`, {
+      headers: { Cookie: cookieHeaderA },
+    });
+    expect(checkTree.status).toBe(200);
+    const { tree } = await checkTree.json();
+    const parentInTree = tree.find((t: { id: string }) => t.id === parentQuest.id);
+    expect(parentInTree).toBeDefined();
+    expect(parentInTree.progress).toBe(updatedChild.progress);
+  });
 });

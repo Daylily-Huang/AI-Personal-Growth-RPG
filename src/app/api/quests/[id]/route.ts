@@ -26,6 +26,10 @@ export async function GET(
   }
 }
 
+const VALID_QUEST_TYPES = ["learning", "skill", "production", "physical", "maintenance", "reflection"];
+const VALID_QUEST_SIZES = ["micro", "minor", "standard", "major", "epic", "main"];
+const VALID_QUEST_STATUSES = ["locked", "available", "active", "paused", "completed", "failed", "archived"];
+
 export async function PATCH(
   request: Request,
   props: { params: Promise<{ id: string }> },
@@ -38,6 +42,25 @@ export async function PATCH(
     const existing = await repo.getQuest(id);
     if (!existing) {
       return NextResponse.json({ error: "Quest not found" }, { status: 404 });
+    }
+
+    if (body.questType !== undefined && !VALID_QUEST_TYPES.includes(body.questType)) {
+      return NextResponse.json({ error: `questType must be one of: ${VALID_QUEST_TYPES.join(", ")}` }, { status: 400 });
+    }
+    if (body.questSize !== undefined && !VALID_QUEST_SIZES.includes(body.questSize)) {
+      return NextResponse.json({ error: `questSize must be one of: ${VALID_QUEST_SIZES.join(", ")}` }, { status: 400 });
+    }
+    if (body.status !== undefined && !VALID_QUEST_STATUSES.includes(body.status)) {
+      return NextResponse.json({ error: `status must be one of: ${VALID_QUEST_STATUSES.join(", ")}` }, { status: 400 });
+    }
+    if (body.difficulty !== undefined && (typeof body.difficulty !== "number" || body.difficulty < 0 || body.difficulty > 1)) {
+      return NextResponse.json({ error: "difficulty must be a number between 0 and 1" }, { status: 400 });
+    }
+    if (body.goalAlignment !== undefined && (typeof body.goalAlignment !== "number" || body.goalAlignment < 0 || body.goalAlignment > 1)) {
+      return NextResponse.json({ error: "goalAlignment must be a number between 0 and 1" }, { status: 400 });
+    }
+    if (body.progress !== undefined && (typeof body.progress !== "number" || body.progress < 0 || body.progress > 100)) {
+      return NextResponse.json({ error: "progress must be a number between 0 and 100" }, { status: 400 });
     }
 
     if (body.parentQuestId !== undefined && body.parentQuestId !== null) {
@@ -72,7 +95,10 @@ export async function PATCH(
 
     const updated = await repo.updateQuest(id, updates);
 
-    // Sync parent progress if progress or status changed
+    // Sync progress on both old parent and new parent (Round26 P1-3)
+    if (existing.parentQuestId && existing.parentQuestId !== updated.parentQuestId) {
+      await syncParentQuestProgress(repo, existing.parentQuestId);
+    }
     if (updated.parentQuestId) {
       await syncParentQuestProgress(repo, updated.parentQuestId);
     }

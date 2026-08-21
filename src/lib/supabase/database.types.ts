@@ -43,6 +43,7 @@ export type Database = {
           ended_at: string | null
           id: string
           quest_id: string | null
+          quest_size_snapshot: string | null
           raw_input: string
           rules_version: string
           started_at: string | null
@@ -60,6 +61,7 @@ export type Database = {
           ended_at?: string | null
           id?: string
           quest_id?: string | null
+          quest_size_snapshot?: string | null
           raw_input: string
           rules_version: string
           started_at?: string | null
@@ -77,6 +79,7 @@ export type Database = {
           ended_at?: string | null
           id?: string
           quest_id?: string | null
+          quest_size_snapshot?: string | null
           raw_input?: string
           rules_version?: string
           started_at?: string | null
@@ -930,6 +933,7 @@ export type Database = {
           ended_at: string | null
           id: string
           quest_id: string | null
+          quest_size_snapshot: string | null
           raw_input: string
           rules_version: string
           started_at: string | null
@@ -947,6 +951,10 @@ export type Database = {
         }
       }
       player_level_from_xp: { Args: { p_total_xp: number }; Returns: number }
+      recompute_quest_chain: {
+        Args: { p_parent_id: string; p_user_id: string }
+        Returns: undefined
+      }
       record_ai_assessment: {
         Args: {
           p_activity_id: string

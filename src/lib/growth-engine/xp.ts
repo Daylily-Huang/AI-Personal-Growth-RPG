@@ -44,6 +44,8 @@ export interface XpModifiers {
   goalAlignment: number;
   repetitionPenalty: number;
   timeFactor: number;
+  questSize?: QuestSize;
+  questCap?: number;
 }
 
 export interface XpResult {
@@ -152,7 +154,8 @@ export function calculateXp(input: XpInput): XpResult {
   const time = timeFactor(input.effectiveMinutes);
 
   const rawXp = base * difficulty * masteryGain * evidence * novelty * goalAlignment * repetitionPenalty * time;
-  const capped = Math.min(rawXp, questSizeCap(input.questSize));
+  const cap = questSizeCap(input.questSize);
+  const capped = Math.min(rawXp, cap);
   const finalXp = Math.max(0, Math.round(capped));
 
   return {
@@ -166,6 +169,7 @@ export function calculateXp(input: XpInput): XpResult {
       goalAlignment: round3(goalAlignment),
       repetitionPenalty: round3(repetitionPenalty),
       timeFactor: round3(time),
+      ...(input.questSize ? { questSize: input.questSize, questCap: cap } : {}),
     },
     rulesVersion: RULES_VERSION,
   };
