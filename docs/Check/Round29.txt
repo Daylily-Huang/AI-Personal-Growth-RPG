@@ -1,0 +1,469 @@
+继续审完了。这一轮可以正式收口。
+
+# Round29 最终审查结论
+
+| 项目 | 结论 |
+|---|---|
+| 评分 | **9.4 / 10** |
+| 状态 | **PASS** |
+| P0 | **0** |
+| P1 | **0** |
+| P2 | **1 个明确 + 1 个低优先语义项** |
+| Stage2 Settlement Authority | **FROZEN** |
+| Stage3 Auth / Read Path | **FROZEN** |
+| Stage4 Quest System | **FROZEN** |
+| 下一阶段 | **GO → Stage5 Skill Tree & Knowledge Graph** |
+
+你这次上传的 Round28 总结对核心修复的描述，已经与远程实现基本吻合。
+
+最新实际功能 commit：
+
+```text
+88dda6018e2c47ca301ff198231c6c04e2c4606b
+feat(quest): Stage 4.4 activity quest snapshot RPC correction and search_path hardening
+```
+
+相对上轮只改了 0035、Demo、Quest tests/E2E 和文档，没有重新碰 Stage2 的 0023–0027 Settlement authority，因此没有发现 Stage2 regression。
+
+---
+
+## 上一轮 P1：正式关闭
+
+0035 第一件事就是删除 0034 错误创建的 legacy overload：
+
+```sql
+DROP FUNCTION IF EXISTS public.create_activity(
+  uuid,
+  text,
+  text,
+  text,
+  bigint,
+  bigint,
+  uuid
+);
+```
+
+然后真正 `CREATE OR REPLACE` 当前生产正在使用的 RPC：
+
+```sql
+CREATE OR REPLACE FUNCTION public.create_activity(
+  p_title text,
+  p_raw_input text,
+  p_activity_type text default null,
+  p_quest_id uuid default null,
+  p_total_minutes integer default null,
+  p_effective_minutes integer default null,
+  p_started_at timestamptz default null,
+  p_ended_at timestamptz default null,
+  p_completion numeric default null
+)
+RETURNS public.activities
+```
+
+
+
+这与 0033 原本生产 RPC 的 signature 一致，不再出现 `description/domain_id/bigint timestamp` 那套错误模型。
+
+因此上一轮：
+
+> `0034 create_activity overload / snapshot wiring`
+
+这个 **P1 = CLOSED**。
+
+---
+
+# 三维 Quest Snapshot 现在真的闭环了
+
+新的生产 RPC 会在 Activity 创建时，同时冻结：
+
+```text
+quest_size_snapshot
+quest_id_snapshot
+quest_title_snapshot
+```
+
+具体先从用户自己的 Quest：
+
+```sql
+SELECT quest_size, title
+FROM public.quests
+WHERE id = p_quest_id
+  AND user_id = auth.uid();
+```
+
+然后插入：
+
+```sql
+quest_size_snapshot,
+quest_id_snapshot,
+quest_title_snapshot
+```
+
+
+
+同时还保留了之前的重要 authority invariant：
+
+```text
+user_id = auth.uid()
+rules_version = 当前 active version
+status = pending_assessment
+Quest 必须属于当前用户
+```
+
+所以并没有为了修 snapshot 把 Stage2 的 Activity authority 重新打开。
+
+---
+
+# HTTP E2E 这次确实能抓住上一轮 bug
+
+这是这轮最关键的验证证据。
+
+测试现在创建 linked Activity 后直接断言：
+
+```ts
+expect(activity.questSizeSnapshot).toBe("standard");
+expect(activity.questIdSnapshot).toBe(childQuest.id);
+expect(activity.questTitleSnapshot).toBe("E2E Child Subtask");
+```
+
+随后故意修改原 Quest：
+
+```ts
+title: "Renamed Subtask Title",
+questSize: "micro"
+```
+
+ 
+
+最后 Settlement 后断言：
+
+```ts
+transaction.modifierJson.questSize === "standard"
+transaction.modifierJson.questCap === 120
+transaction.modifierJson.questIdSnapshot === childQuest.id
+transaction.modifierJson.questTitleSnapshot === "E2E Child Subtask"
+```
+
+
+
+也就是说现在真实行为是：
+
+```text
+Activity 创建
+│
+├─ Quest = Q1
+├─ title = "E2E Child Subtask"
+└─ size = standard
+       ↓
+冻结
+       ↓
+之后 Quest 改为：
+title = "Renamed..."
+size = micro
+       ↓
+Assessment / Confirm
+       ↓
+Ledger 仍然：
+Q1
+"E2E Child Subtask"
+standard
+cap=120
+```
+
+这正是我们前几轮要求的：
+
+> **历史事实不能被当前可变 Quest 状态重新解释。**
+
+这一项已经成立。
+
+---
+
+# DB Authority Test 也不是只测 HTTP 外壳
+
+直连 PostgreSQL 的 authority test 同样增加：
+
+```ts
+expect(actRes.rows[0].quest_size_snapshot).toBe("epic");
+expect(actRes.rows[0].quest_id_snapshot).toBe(questId);
+expect(actRes.rows[0].quest_title_snapshot)
+  .toBe("Epic Architectural Overhaul");
+```
+
+随后才改 Quest 的 size/title。
+
+最终 ledger modifier 又验证：
+
+```text
+questSize = epic
+questCap = 800
+questIdSnapshot = 原 questId
+questTitleSnapshot = 原标题
+```
+
+
+
+所以这次不是：
+
+```text
+TypeScript 看起来对
+```
+
+而是：
+
+```text
+PostgreSQL RPC
+→ Activity row
+→ Settlement
+→ XP Ledger
+```
+
+整个链路都有证据。
+
+---
+
+# SECURITY DEFINER search_path 也修正确了
+
+正式 `create_activity`：
+
+```sql
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+```
+
+`recompute_quest_chain` 也重新建立为：
+
+```sql
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+```
+
+并继续：
+
+```sql
+REVOKE ALL ... FROM public, anon, authenticated;
+GRANT EXECUTE ... TO service_role;
+```
+
+
+
+因此上一轮的 security posture P2 也可以关闭。
+
+---
+
+# Demo / Production 也重新对齐
+
+DemoRepository 创建 Activity 时现在增加：
+
+```ts
+questIdSnapshot: boundQuest?.id ?? null,
+questTitleSnapshot: boundQuest?.title ?? null,
+```
+
+
+
+这意味着 Demo 不会再次出现：
+
+```text
+Production 有 snapshot
+Demo 没 snapshot
+```
+
+这种行为分叉。
+
+---
+
+# 唯一明确剩余的 P2：`database.types.ts` 已经 schema drift
+
+这一点总结没有提，但远程代码可以直接确认。
+
+实际 PostgreSQL `activities` 已经有：
+
+```text
+quest_id_snapshot
+quest_title_snapshot
+```
+
+而最新：
+
+```text
+src/lib/supabase/database.types.ts
+```
+
+的 `activities.Row` 仍然只有：
+
+```ts
+quest_id: string | null
+quest_size_snapshot: string | null
+```
+
+没有：
+
+```ts
+quest_id_snapshot
+quest_title_snapshot
+```
+
+
+
+所以 `mapActivity()` 现在不得不手写：
+
+```ts
+ActivityRow & {
+  quest_size_snapshot?: string | null;
+  quest_id_snapshot?: string | null;
+  quest_title_snapshot?: string | null;
+}
+```
+
+
+
+这说明 generated types 已经落后于 migration。
+
+### 为什么只是 P2
+
+因为运行时链路已经由 HTTP + PostgreSQL E2E 证明正确，手工 intersection 只是绕过 stale generated type，不会导致 production snapshot 丢失。
+
+但进入 Stage5 前建议直接执行一次标准类型生成，例如你们现有 Supabase 工作流使用的 typegen 命令，把：
+
+```text
+0034
+0035
+```
+
+后的最终 schema 重新生成进 `database.types.ts`。
+
+然后删除 `mapActivity()` 那个临时 intersection hack。
+
+这是典型的：
+
+> **schema hygiene / developer safety issue**
+
+不是 Stage4 authority blocker。
+
+---
+
+# 另一个很低优先级语义点
+
+Main Quest partial index 当前定义：
+
+```sql
+WHERE is_main_quest = true
+AND status NOT IN ('completed', 'failed', 'archived')
+```
+
+所以：
+
+```text
+locked
+available
+active
+paused
+```
+
+都会占据唯一 Main Quest 名额。
+
+这与 DemoRepository 的逻辑是一致的，因此不存在 Demo/DB divergence。
+
+只是文档有时称它：
+
+> “唯一活跃 Main Quest”
+
+严格来说更准确应该叫：
+
+> **唯一非终态 Main Quest**
+
+如果这是设计本意，改文字即可；不算功能缺陷。
+
+---
+
+# 测试数量解释现在合理了
+
+上传总结把上一轮的：
+
+```text
+15 files / 120
+```
+
+解释清楚了：
+
+```text
+无 XP_RPG_TEST_DB_URL：
+15 passed + 6 skipped
+
+有 XP_RPG_TEST_DB_URL：
+21 passed / 0 skipped
+173 tests
+```
+
+
+
+代码中确实存在大量：
+
+```ts
+describe.skipIf(!DATABASE_URL)
+```
+
+例如 HTTP E2E。
+
+因此这个数量变化现在有合理解释，我不再把它列为异常项。
+
+不过我仍然要保持证据边界：
+
+> GitHub connector 对 `88dda601...` 当前返回的 combined status 和 workflow runs 仍是空数组。
+
+所以我能确认的是：
+
+- 代码结构正确；
+- 测试代码存在；
+- 你提交的执行报告声称 21/173、0 skipped、build/lint/typecheck/db reset 全绿；
+- 我**不能独立声称 GitHub Actions UI 当前显示绿色**。
+
+这个限制不改变本轮代码审查结论。
+
+---
+
+# 正式冻结判定
+
+经过 Stage4 → 4.1 → 4.2 → 4.3 → 4.4 几轮收口，现在 Quest 核心链已经具备：
+
+```text
+Quest hierarchy
+  ↓
+tenant-safe parent relation
+  ↓
+cycle prevention
+  ↓
+authoritative derived roll-up
+  ↓
+concurrency locking
+  ↓
+Activity binds Quest
+  ↓
+freeze Quest identity + size
+  ↓
+Growth Engine XP cap
+  ↓
+deterministic Quest progress delta
+  ↓
+atomic Settlement
+  ↓
+XP Ledger audit trail
+```
+
+关键永久状态边界也已经基本符合项目最初设定：
+
+> AI 提议；Growth Engine 决策；可信 server/database 保存永久状态。
+
+因此这次我正式签：
+
+> **9.4 / 10 — PASS**  
+> **P0 = 0**  
+> **P1 = 0**  
+> **Stage2 Settlement Authority = FROZEN**  
+> **Stage3 Auth / Supabase Read Path = FROZEN**  
+> **Stage4 Quest System = FROZEN**  
+> **GO → Stage5 Skill Tree & Knowledge Graph**
+
+Stage5 开工时，把 **`database.types.ts` regenerate** 放在最前面的 housekeeping task 即可，不需要再为 Stage4 单独开 Round30。

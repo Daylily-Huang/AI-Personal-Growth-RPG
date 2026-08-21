@@ -4,7 +4,7 @@ import { mapActivity, mapAssessment, mapPlayer, mapSkill, mapTransaction } from 
 describe("Supabase row mappings", () => {
   test("maps snake_case activity facts to the domain shape", () => {
     expect(mapActivity({
-      id: "a1", user_id: "u1", quest_id: null, quest_size_snapshot: null, title: "Read", raw_input: " read ",
+      id: "a1", user_id: "u1", quest_id: null, quest_size_snapshot: null, quest_id_snapshot: null, quest_title_snapshot: null, title: "Read", raw_input: " read ",
       activity_type: "study", status: "pending_assessment", total_minutes: 20,
       effective_minutes: 15, started_at: null, ended_at: null, completion: null,
       rules_version: "v1", created_at: "2026-01-01T00:00:00Z", updated_at: "2026-01-01T00:00:00Z",
