@@ -70,7 +70,7 @@ export default function LoginPage() {
     setError(null);
     setMessage(null);
 
-    const demoEmail = "demo_player@growth.rpg";
+    const demoEmail = "demo_player@growth-rpg.dev";
     const demoPassword = "Password123!";
 
     try {
@@ -87,13 +87,18 @@ export default function LoginPage() {
       });
 
       if (signInErr) {
-        // If user not found, sign up then sign in
-        const { error: signUpErr } = await client.auth.signUp({
+        // If user not found or bad credentials, attempt to sign up
+        const { data: signUpData, error: signUpErr } = await client.auth.signUp({
           email: demoEmail,
           password: demoPassword,
         });
         if (signUpErr && !signUpErr.message.includes("already registered")) {
           throw signUpErr;
+        }
+        if (signUpData?.session) {
+          router.push("/dashboard");
+          router.refresh();
+          return;
         }
         const { error: retrySignInErr } = await client.auth.signInWithPassword({
           email: demoEmail,
