@@ -219,6 +219,16 @@ export class DemoRepository implements Repository {
   async addQuest(input: NewQuestInput): Promise<Quest> {
     const db = this.readDb();
     const now = new Date().toISOString();
+    const isMainQuest = Boolean(input.isMainQuest);
+    const initialStatus = input.status ?? "available";
+
+    if (isMainQuest && !["completed", "failed", "archived"].includes(initialStatus)) {
+      const hasActiveMain = (db.quests ?? []).some((q) => q.isMainQuest && !["completed", "failed", "archived"].includes(q.status));
+      if (hasActiveMain) {
+        throw new Error("UNIQUE_ACTIVE_MAIN_QUEST: User already has an active main quest");
+      }
+    }
+
     const quest: Quest = {
       id: crypto.randomUUID(),
       parentQuestId: input.parentQuestId ?? null,
@@ -226,14 +236,14 @@ export class DemoRepository implements Repository {
       description: input.description?.trim() ?? null,
       questType: input.questType,
       questSize: input.questSize ?? "standard",
-      status: input.status ?? "available",
+      status: initialStatus,
       difficulty: input.difficulty ?? 0.5,
       goalAlignment: input.goalAlignment ?? 0.5,
       progress: input.progress ?? 0,
       deadline: input.deadline ?? null,
-      isMainQuest: Boolean(input.isMainQuest),
+      isMainQuest,
       isBoss: Boolean(input.isBoss),
-      completedAt: input.status === "completed" ? now : null,
+      completedAt: initialStatus === "completed" ? now : null,
       createdAt: now,
       updatedAt: now,
     };
@@ -255,6 +265,16 @@ export class DemoRepository implements Repository {
     }
     const current = db.quests[index]!;
 
+    const isMainQuest = updates.isMainQuest !== undefined ? Boolean(updates.isMainQuest) : current.isMainQuest;
+    const updatedStatus = updates.status ?? current.status;
+
+    if (isMainQuest && !["completed", "failed", "archived"].includes(updatedStatus)) {
+      const hasActiveMain = db.quests.some((q) => q.id !== id && q.isMainQuest && !["completed", "failed", "archived"].includes(q.status));
+      if (hasActiveMain) {
+        throw new Error("UNIQUE_ACTIVE_MAIN_QUEST: User already has an active main quest");
+      }
+    }
+
     // Anti-cycle check: parent cannot be self or descendant
     if (updates.parentQuestId !== undefined && updates.parentQuestId !== null) {
       if (updates.parentQuestId === id) {
@@ -275,7 +295,6 @@ export class DemoRepository implements Repository {
 
     const hasChildren = db.quests.some((q) => q.parentQuestId === id);
     const now = new Date().toISOString();
-    const updatedStatus = updates.status ?? current.status;
 
     // Derived progress guard: if node has children, its progress is derived from children
     let derivedProgress = updates.progress !== undefined ? updates.progress : current.progress;
@@ -285,7 +304,11 @@ export class DemoRepository implements Repository {
       if (children.length > 0) {
         derivedProgress = Math.round(children.reduce((s, c) => s + c.progress, 0) / children.length);
         const allCompleted = children.every((c) => c.status === "completed") && derivedProgress === 100;
-        if (allCompleted) {
+        
+        // P2-2: Do not resurrect failed or archived parents
+        if (current.status === "failed" || current.status === "archived") {
+           finalStatus = current.status;
+        } else if (allCompleted) {
           finalStatus = "completed";
         } else if (derivedProgress < 100) {
           finalStatus = current.status === "completed" ? "active" : updatedStatus === "completed" ? (current.status === "available" ? "available" : "active") : updatedStatus;
@@ -308,7 +331,7 @@ export class DemoRepository implements Repository {
       goalAlignment: updates.goalAlignment !== undefined ? Math.max(0, Math.min(1, updates.goalAlignment)) : current.goalAlignment,
       progress: Math.max(0, Math.min(100, derivedProgress)),
       deadline: updates.deadline !== undefined ? updates.deadline : current.deadline,
-      isMainQuest: updates.isMainQuest !== undefined ? Boolean(updates.isMainQuest) : current.isMainQuest,
+      isMainQuest,
       isBoss: updates.isBoss !== undefined ? Boolean(updates.isBoss) : current.isBoss,
       completedAt: finalStatus === "completed" ? (current.completedAt ?? now) : null,
       updatedAt: now,
@@ -341,15 +364,19 @@ export class DemoRepository implements Repository {
         const totalProgress = children.reduce((sum, c) => sum + c.progress, 0);
         parent.progress = Math.round(totalProgress / children.length);
         const allCompleted = children.every((c) => c.status === "completed") && parent.progress === 100;
-        if (allCompleted) {
-          parent.status = "completed";
-          parent.completedAt = parent.completedAt ?? now;
-        } else if (parent.progress > 0 && parent.status === "available") {
-          parent.status = "active";
-        } else if (parent.status === "completed" && parent.progress < 100) {
-          parent.status = "active";
-          parent.completedAt = null;
+        
+        if (parent.status !== "failed" && parent.status !== "archived") {
+          if (allCompleted) {
+            parent.status = "completed";
+            parent.completedAt = parent.completedAt ?? now;
+          } else if (parent.progress > 0 && parent.status === "available") {
+            parent.status = "active";
+          } else if (parent.status === "completed" && parent.progress < 100) {
+            parent.status = "active";
+            parent.completedAt = null;
+          }
         }
+        
         parent.updatedAt = now;
       }
       currentId = parent.parentQuestId;

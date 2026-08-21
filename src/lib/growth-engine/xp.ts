@@ -46,6 +46,8 @@ export interface XpModifiers {
   timeFactor: number;
   questSize?: QuestSize;
   questCap?: number;
+  questIdSnapshot?: string;
+  questTitleSnapshot?: string;
 }
 
 export interface XpResult {

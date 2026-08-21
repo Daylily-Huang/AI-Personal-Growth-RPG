@@ -1,11 +1,14 @@
 import type { AssessmentProposal } from "@/lib/ai/schemas";
 
+
 export type ActivityStatus = "pending_assessment" | "assessed" | "confirmed";
 
 export interface Activity {
   id: string;
-  questId?: string | null;
+  questId: string | null;
   questSizeSnapshot?: QuestSize | null;
+  questIdSnapshot?: string | null;
+  questTitleSnapshot?: string | null;
   rawInput: string;
   title: string;
   activityType: string | null;

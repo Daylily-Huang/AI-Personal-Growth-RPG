@@ -1,0 +1,755 @@
+继续审完了。Round26 报告里宣称 **Stage4.2 = PASS / FROZEN**，并称 5 个 P1、4 个 P2 已全部关闭。 这次绝大多数核心修复确实已经落地，但我仍然不能签 Frozen：发现 **1 个新的跨租户 SECURITY DEFINER 权限漏洞**，另外报告声称关闭的两个 P2 实际仍未关闭。
+
+# Round27 审查结论
+
+| 项目 | 结论 |
+|---|---|
+| 评分 | **8.8 / 10** |
+| 状态 | **CONDITIONAL FAIL** |
+| P0 | 0 |
+| P1 | **1** |
+| P2 | **4** |
+| Stage2 Settlement Authority | **Frozen** |
+| Stage3 Auth / Read Path | **Frozen** |
+| Stage4 Quest System | **接近冻结，剩一次窄修复** |
+| Stage5 Skill Tree | **暂时 NO-GO** |
+
+最新远程提交已经确认：
+
+```text
+b19bba7e77c89577505e9d96cbf016234706507c
+feat(stage4.2): close quest authority...
+```
+
+相对上一轮 `81fd2931` 正好新增一个 Stage4.2 commit，0033、Growth Engine、tests 等都真实存在于远程，不是本地摘要。
+
+---
+
+## 上一轮 5 个 P1，大部分确实关闭了
+
+### 1. Parent derived progress 防伪造：关闭
+
+0033 增加了：
+
+```sql
+trg_prevent_parent_progress_spoofing
+```
+
+对于有非 archived children 的 parent，客户端即使：
+
+```sql
+progress = 100
+status = 'completed'
+```
+
+BEFORE trigger 也会重新根据 children 求平均并覆盖。
+
+这个方向现在成立。
+
+---
+
+### 2. Composite FK 删除：关闭
+
+已经改成：
+
+```sql
+on delete set null (parent_quest_id)
+```
+
+而不是把整个：
+
+```text
+(user_id, parent_quest_id)
+```
+
+一起置 NULL。
+
+live DB 测试也真正执行了：
+
+```text
+delete parent
+→ child 保留
+→ child.user_id 保留
+→ child.parent_quest_id = null
+```
+
+
+
+这项正式关闭。
+
+---
+
+### 3. Reparent old/new parent：主体关闭
+
+现在 trigger 会：
+
+```text
+OLD parent chain → recompute
+NEW parent chain → recompute
+```
+
+而不是只算新 parent。
+
+`recompute_quest_chain()` 也确实：
+
+```sql
+SELECT ... FOR UPDATE
+```
+
+锁 parent row。
+
+因此上一轮明显的 stale old-parent bug 已解决。
+
+---
+
+### 4. Demo / Production 两套 Quest progression：关闭
+
+现在有独立纯函数：
+
+```ts
+calculateQuestProgressDelta(...)
+```
+
+规则集中在 Growth Engine。
+
+SettlementService 统一计算：
+
+```ts
+const questProgressDelta =
+  calculateQuestProgressDelta(...)
+```
+
+然后写入 `SettlementToApply`。
+
+Demo 和 PostgreSQL 均消费这个 delta。
+
+这一架构已经从：
+
+```text
+Demo 算一遍
+DB 再发明一遍
+```
+
+变成：
+
+```text
+Growth Engine
+    ↓
+questProgressDelta
+    ↓
+Demo / Supabase 只应用结果
+```
+
+这是正确方向。
+
+---
+
+### 5. Quest Size snapshot：主体关闭
+
+Activity 现在新增：
+
+```text
+quest_size_snapshot
+```
+
+创建 Activity 时直接从所属 Quest 冻结。
+
+Domain 类型也有：
+
+```ts
+questSizeSnapshot?: QuestSize | null
+```
+
+
+
+SettlementService 优先读取 snapshot，而不是 settlement 时再读当前 Quest size。
+
+XP modifier 也新增：
+
+```text
+questSize
+questCap
+```
+
+最终进入 ledger 的 `modifier_json`。
+
+因此：
+
+```text
+Activity 创建时 Quest=epic
+后来 Quest 改成 micro
+```
+
+不会改变这笔 Activity 的 XP cap。
+
+这个关键 invariant 已经成立。
+
+---
+
+# P1：0033 新增了一个跨租户 SECURITY DEFINER RPC 漏洞
+
+这是本轮唯一真正阻塞冻结的问题。
+
+0033 创建：
+
+```sql
+public.recompute_quest_chain(
+    p_user_id uuid,
+    p_parent_id uuid
+)
+```
+
+而且它是：
+
+```sql
+SECURITY DEFINER
+```
+
+内部可以：
+
+```sql
+select ...
+from public.quests
+where user_id = p_user_id
+for update;
+
+update public.quests ...
+```
+
+也就是说，这个函数具有跨 RLS 的 DB owner 权限。
+
+问题出在 0033 最后：
+
+```sql
+revoke all on function
+public.recompute_quest_chain(uuid, uuid)
+from public, anon, authenticated;
+
+grant execute on function
+public.recompute_quest_chain(uuid, uuid)
+to service_role, authenticated;
+```
+
+
+
+你先 revoke authenticated，然后**马上又 grant 回去了**。
+
+---
+
+## 攻击面非常明确
+
+User A 可以调用：
+
+```text
+RPC recompute_quest_chain(
+    p_user_id = User B UUID,
+    p_parent_id = User B Quest UUID
+)
+```
+
+因为：
+
+```text
+p_user_id
+```
+
+是调用方自己传入的，而不是：
+
+```sql
+auth.uid()
+```
+
+函数又是 `SECURITY DEFINER`。
+
+所以函数内部不会受到 User A 的 RLS 限制。
+
+结果：
+
+> authenticated 用户拥有调用高权限函数修改其他租户 Quest 派生状态的能力。
+
+虽然它不能随便写任意数字，只能按 B 的 children 重算，但依然是明确的：
+
+```text
+cross-tenant unauthorized write
+```
+
+而且可以改：
+
+```text
+progress
+status
+completed_at
+updated_at
+```
+
+并获取/占用其他用户 Quest 行锁。
+
+这是不能 Frozen 的权限边界漏洞。
+
+---
+
+## 修复非常简单
+
+0034：
+
+```sql
+revoke all
+on function public.recompute_quest_chain(uuid, uuid)
+from public, anon, authenticated;
+
+grant execute
+on function public.recompute_quest_chain(uuid, uuid)
+to service_role;
+```
+
+甚至如果除了 trigger/internal function 根本没人需要直接 RPC 调它，连 `service_role` 外部 grant 都可以不要。
+
+核心是：
+
+> **绝不能 grant authenticated。**
+
+然后加 live DB test：
+
+```text
+set role authenticated
+JWT = User A
+
+call recompute_quest_chain(User B, User B parent)
+→ permission denied
+```
+
+同时验证：
+
+```text
+User A 正常 PATCH 自己 child
+→ DB trigger
+→ internal recompute
+→ Parent 正常更新
+```
+
+这样才能证明：
+
+```text
+外部不可调用
+内部 trigger 仍能工作
+```
+
+---
+
+# P2-1：“唯一活跃 Main Quest”实际上没有实现
+
+Round26 报告写：
+
+> “API 与领域层对 isMainQuest 的状态与重挂载进行守卫。”
+
+
+
+但远程代码不是这样。
+
+`POST /api/quests`：
+
+```ts
+isMainQuest: Boolean(body?.isMainQuest)
+```
+
+然后直接：
+
+```ts
+repo.addQuest(input)
+```
+
+没有检查已有 Main Quest。
+
+PATCH 同样直接：
+
+```ts
+updates.isMainQuest = body.isMainQuest;
+```
+
+没有唯一性检查。
+
+Demo `addQuest()` 也直接接受：
+
+```ts
+isMainQuest: Boolean(input.isMainQuest)
+```
+
+
+
+0033 里也没有 partial unique index。
+
+所以现在完全可以：
+
+```text
+User A
+├── Main Quest A
+├── Main Quest B
+└── Main Quest C
+```
+
+全部：
+
+```text
+is_main_quest = true
+status = active
+```
+
+而 Dashboard 最终只能随便 `.find()` 一个。
+
+### 建议
+
+如果设计要求“一个用户最多一个非 archived Main Quest”：
+
+```sql
+create unique index ...
+on quests(user_id)
+where is_main_quest = true
+  and status <> 'archived';
+```
+
+如果只限制 `active/available/paused`，则把具体状态写清楚。
+
+这是 P2，不值得阻止权限修复之外的大面积返工，但报告不能说它已经关闭。
+
+---
+
+# P2-2：failed / archived Parent 仍然可能被“复活”
+
+`settle_activity` 对直接绑定 Quest 的保护确实存在：
+
+```sql
+if quest.status not in ('archived', 'failed')
+```
+
+才推进。
+
+这一层没问题。
+
+但 parent roll-up 不是这样。
+
+`recompute_quest_chain()`：
+
+```sql
+v_new_status :=
+case
+  when v_all_completed
+       and v_avg_progress = 100
+    then 'completed'
+```
+
+没有先判断：
+
+```text
+parent.status = failed
+parent.status = archived
+```
+
+
+
+因此：
+
+```text
+Main Quest = failed
+
+├─ Child A completed
+└─ Child B completed
+```
+
+任意 child 更新触发 recompute 后：
+
+```text
+failed
+→ completed
+```
+
+同样：
+
+```text
+archived
+→ completed
+```
+
+这是明显生命周期语义错误。
+
+### 建议
+
+在 `recompute_quest_chain` 最前面：
+
+```text
+如果 parent.status ∈ {failed, archived}
+→ 不允许 roll-up 改变它的 terminal status
+```
+
+到底 progress 要不要继续统计可以另定，但：
+
+```text
+failed / archived
+```
+
+至少不应被自动改成 `completed`。
+
+---
+
+# P2-3：“并发测试”实际上没有测试真正并发连接
+
+报告声称：
+
+> 并发 4 兄弟任务并行更新、无丢失、无死锁。
+
+
+
+测试代码确实：
+
+```ts
+await Promise.all([
+  client.query(...),
+  client.query(...),
+  client.query(...),
+  client.query(...),
+]);
+```
+
+
+
+但这里四个 query 全部使用**同一个 `pg.Client`**。
+
+单个 PostgreSQL connection 无法同时执行四个独立 transaction/query；node-postgres 会在同一连接上排队。
+
+所以它验证的是：
+
+```text
+快速连续提交 4 次
+```
+
+不是：
+
+```text
+4 个并发 transaction
+同时竞争 parent row
+```
+
+`FOR UPDATE` 的实现方向是对的，因此我没有把它升成 P1。
+
+但真正的 concurrency gate 应该使用：
+
+```text
+4 个独立 Client / Pool connection
+```
+
+让它们真正竞争同一个 parent。
+
+---
+
+# P2-4：历史 Quest 身份仍会在物理删除后丢失
+
+现在冻结的是：
+
+```text
+quest_size_snapshot
+```
+
+这是最重要的 XP cap audit，已经解决。
+
+但 Activity 的关联仍是：
+
+```text
+activity.quest_id
+→ quests.id
+ON DELETE SET NULL
+```
+
+Quest 被删除后：
+
+```text
+activity.quest_id = null
+```
+
+而 ledger modifier 目前保存：
+
+```text
+questSize
+questCap
+```
+
+却没有：
+
+```text
+questIdSnapshot
+questTitleSnapshot
+```
+
+所以历史上你仍然可以解释：
+
+> “为什么这笔 XP 上限是 800？”
+
+但不能再可靠回答：
+
+> “这笔 XP 当时属于哪一个 Quest？”
+
+不影响 XP authority，因此只是 P2。
+
+后续可以选择：
+
+- confirmed Activity 引用过的 Quest 禁止 hard delete，只允许 `archived`；
+- 或 ledger / Activity 再冻结 `quest_id_snapshot`。
+
+---
+
+# 还有一个 legacy snapshot 小缺口
+
+0033 对已有 Activity：
+
+```sql
+ADD COLUMN quest_size_snapshot ... DEFAULT NULL
+```
+
+但没有 backfill。
+
+因此：
+
+```text
+0033 之前创建
+尚未 settlement
+已经绑定 Quest
+```
+
+的 Activity：
+
+```text
+quest_size_snapshot = NULL
+```
+
+SettlementService 会 fallback 到：
+
+```ts
+repo.getQuest(activity.questId).questSize
+```
+
+
+
+也就是说只有 **0033 之后的新 Activity** 才真正做到“creation-time freeze”。
+
+考虑到项目还在 MVP 开发阶段，我把它算在 P2/迁移兼容，而不是重新开 P1。
+
+最好补：
+
+```sql
+update activities a
+set quest_size_snapshot = q.quest_size
+from quests q
+where a.quest_id = q.id
+  and a.quest_size_snapshot is null;
+```
+
+这只能冻结迁移时的值，无法恢复过去真正的历史值，但比继续可变好。
+
+---
+
+# HTTP E2E 这次确实补齐了
+
+这一点值得正式关闭。
+
+新的测试真正执行：
+
+```text
+HTTP POST Parent Quest
+↓
+HTTP POST Child Quest
+↓
+HTTP POST linked Activity
+↓
+HTTP Assess
+↓
+HTTP Confirm
+↓
+HTTP GET Child Quest
+↓
+Child progress > 0
+↓
+HTTP GET Quest tree
+↓
+Parent progress == Child progress
+```
+
+
+
+同时验证：
+
+```text
+activity.questSizeSnapshot = standard
+transaction.modifierJson.questSize = standard
+```
+
+这已经是真正的：
+
+> **Production HTTP Quest Growth Loop E2E**
+
+这一项我认可。
+
+---
+
+# GitHub CI 状态
+
+对于最新：
+
+```text
+b19bba7e…
+```
+
+connector 当前仍返回：
+
+```text
+combined statuses = []
+workflow runs = []
+```
+
+所以我不能独立确认 GitHub Actions UI 是 green 还是 red。
+
+你上传的报告声明：
+
+```text
+172 tests
+8 E2E
+6 authority tests
+tsc green
+build green
+lint green
+db reset 0001→0033 green
+```
+
+
+
+这些与代码结构基本相容，但属于交付报告中的执行结果，而不是我独立看到的 Actions 证据。
+
+---
+
+# 下一轮只做 Stage4.3 Final Security Closure
+
+不要做 Stage5，不要继续扩 UI。
+
+真正 hard blocker 只有一个：
+
+1. **撤销 authenticated 对 `recompute_quest_chain` 的 EXECUTE**
+2. 加 cross-tenant SECURITY DEFINER RPC denial test
+
+顺手处理三个小问题：
+
+3. failed / archived parent 不得被 roll-up 复活；
+4. 真正实现“唯一 Main Quest”，或者从报告/设计里明确删除这个 invariant；
+5. concurrency test 改为多个真实 DB connection。
+
+如果愿意再做审计增强：
+
+6. backfill legacy `quest_size_snapshot`；
+7. confirmed-linked Quest 采用 archive，或冻结 quest identity snapshot。
+
+如果第 1 项彻底关闭，并且回归测试没有破坏 0027/Stage2 authority，我下一轮预期就是：
+
+> **9.3–9.5 / 10 — PASS**  
+> **P0=0 / P1=0**  
+> **Stage2 FROZEN**  
+> **Stage3 FROZEN**  
+> **Stage4 Quest System FROZEN**  
+> **GO → Stage5 Skill Tree**
+
+现在不需要再大修 Quest。**只差一个真正的安全权限收口。**

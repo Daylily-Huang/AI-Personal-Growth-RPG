@@ -114,7 +114,7 @@ export async function PATCH(
         : typeof error === "object" && error !== null && "message" in error
           ? String((error as { message: unknown }).message)
           : "";
-    if (message.includes("Cycle detected") || message.includes("Self-parenting")) {
+    if (message.includes("Cycle detected") || message.includes("Self-parenting") || message.includes("UNIQUE_ACTIVE_MAIN_QUEST") || message.includes("unique_active_main_quest")) {
       return NextResponse.json({ error: message }, { status: 400 });
     }
     console.error("Failed to update quest", error);

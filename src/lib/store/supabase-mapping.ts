@@ -10,11 +10,13 @@ type PlayerRow = Database["public"]["Tables"]["player_states"]["Row"];
 type VerificationRow = Database["public"]["Tables"]["mastery_verifications"]["Row"];
 type QuestRow = Database["public"]["Tables"]["quests"]["Row"];
 
-export function mapActivity(row: ActivityRow & { quest_size_snapshot?: string | null }): Activity {
+export function mapActivity(row: ActivityRow & { quest_size_snapshot?: string | null; quest_id_snapshot?: string | null; quest_title_snapshot?: string | null }): Activity {
   return {
     id: row.id,
     questId: row.quest_id,
     questSizeSnapshot: (row.quest_size_snapshot as Activity["questSizeSnapshot"]) ?? null,
+    questIdSnapshot: row.quest_id_snapshot ?? null,
+    questTitleSnapshot: row.quest_title_snapshot ?? null,
     rawInput: row.raw_input,
     title: row.title,
     activityType: row.activity_type,

@@ -364,13 +364,16 @@ describe.skipIf(!DATABASE_URL)("Stage 4.2 — Quest Authority, Derived State & A
     const c3 = c3Res.rows[0].id;
     const c4 = c4Res.rows[0].id;
 
-    // 4. Concurrently update all 4 siblings: 25, 50, 75, 100
-    await Promise.all([
-      client.query(`update public.quests set progress = 25 where id = '${c1}';`),
-      client.query(`update public.quests set progress = 50 where id = '${c2}';`),
-      client.query(`update public.quests set progress = 75 where id = '${c3}';`),
-      client.query(`update public.quests set progress = 100, status = 'completed' where id = '${c4}';`),
-    ]);
+    // 4. Concurrently update all 4 siblings using a pg.Pool to simulate true parallel connections
+    const { Pool } = await import("pg");
+    const pool = new Pool({ connectionString: DATABASE_URL, max: 4 });
+    
+    const p1 = pool.query(`update public.quests set progress = 25 where id = '${c1}';`);
+    const p2 = pool.query(`update public.quests set progress = 50 where id = '${c2}';`);
+    const p3 = pool.query(`update public.quests set progress = 75 where id = '${c3}';`);
+    const p4 = pool.query(`update public.quests set progress = 100, status = 'completed' where id = '${c4}';`);
+    
+    await Promise.all([p1, p2, p3, p4]);
 
     // Parent avg should be (25 + 50 + 75 + 100) / 4 = 63% (round(62.5))
     const pCheck = await client.query<{ progress: number; status: string }>(`
@@ -386,12 +389,13 @@ describe.skipIf(!DATABASE_URL)("Stage 4.2 — Quest Authority, Derived State & A
     expect(Number(gpCheck.rows[0].progress)).toBe(63);
     expect(gpCheck.rows[0].status).toBe("active");
 
-    // 5. Complete all remaining children -> assert both parent & grandparent complete with 100%
-    await Promise.all([
-      client.query(`update public.quests set progress = 100, status = 'completed' where id = '${c1}';`),
-      client.query(`update public.quests set progress = 100, status = 'completed' where id = '${c2}';`),
-      client.query(`update public.quests set progress = 100, status = 'completed' where id = '${c3}';`),
-    ]);
+    // 5. Complete all remaining children
+    const p5 = pool.query(`update public.quests set progress = 100, status = 'completed' where id = '${c1}';`);
+    const p6 = pool.query(`update public.quests set progress = 100, status = 'completed' where id = '${c2}';`);
+    const p7 = pool.query(`update public.quests set progress = 100, status = 'completed' where id = '${c3}';`);
+    await Promise.all([p5, p6, p7]);
+
+    await pool.end();
 
     const pFinal = await client.query<{ progress: number; status: string; completed_at: string | null }>(`
       select progress, status, completed_at from public.quests where id = '${parent}';
@@ -406,5 +410,26 @@ describe.skipIf(!DATABASE_URL)("Stage 4.2 — Quest Authority, Derived State & A
     expect(Number(gpFinal.rows[0].progress)).toBe(100);
     expect(gpFinal.rows[0].status).toBe("completed");
     expect(gpFinal.rows[0].completed_at).not.toBeNull();
+  });
+
+  test("P1: Cross-tenant SECURITY DEFINER RPC denial (Stage 4.3 Security Closure)", async () => {
+    // 1. Create a Quest for User B
+    const bRes = await client.query<{ id: string }>(`
+      insert into public.quests (user_id, title, quest_type, quest_size, status)
+      values ('${USER_B}', 'User B Target', 'learning', 'standard', 'active')
+      returning id;
+    `);
+    const targetQuest = bRes.rows[0].id;
+
+    // 2. User A attempts to call recompute_quest_chain for User B's quest
+    await client.query("set role authenticated");
+    await client.query("select set_config('request.jwt.claim.sub', $1, false)", [USER_A]);
+
+    // Should receive a permission denied error
+    await expect(
+      client.query(`select public.recompute_quest_chain('${USER_B}', '${targetQuest}')`)
+    ).rejects.toThrow(/permission denied/i);
+
+    await client.query("reset role");
   });
 });

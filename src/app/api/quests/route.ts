@@ -126,7 +126,7 @@ export async function POST(request: Request) {
         : typeof error === "object" && error !== null && "message" in error
           ? String((error as { message: unknown }).message)
           : "";
-    if (message.includes("Cycle detected") || message.includes("Self-parenting") || message.includes("violates foreign key")) {
+    if (message.includes("Cycle detected") || message.includes("Self-parenting") || message.includes("violates foreign key") || message.includes("UNIQUE_ACTIVE_MAIN_QUEST") || message.includes("unique_active_main_quest")) {
       return NextResponse.json({ error: message }, { status: 400 });
     }
     console.error("Failed to create quest", error);

@@ -147,7 +147,11 @@ export class SettlementService {
       repetitionPenalty: xpResult.modifiers.repetitionPenalty,
       amount: xpDelta,
       baseAmount: assessment.proposal.xp_semantics.base_value,
-      modifierJson: xpResult.modifiers as unknown as Record<string, unknown>,
+      modifierJson: {
+        ...xpResult.modifiers,
+        ...(activity.questIdSnapshot ? { questIdSnapshot: activity.questIdSnapshot } : {}),
+        ...(activity.questTitleSnapshot ? { questTitleSnapshot: activity.questTitleSnapshot } : {}),
+      } as unknown as Record<string, unknown>,
       reason: activity.rawInput,
       // Milestone 2.7: the ledger records the rule set frozen at Activity
       // creation, NOT whatever engine is deployed today.
