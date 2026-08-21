@@ -9,13 +9,13 @@ import {
 } from "@/lib/auth/demo-login";
 
 describe("Demo Quick Login & Error Discrimination (Regression Suite)", () => {
-  test("1. isInvalidCredentialsError accurately identifies credential errors and excludes others", () => {
-    // True cases
+  test("1. isInvalidCredentialsError strictly identifies invalid_credentials error code and excludes others", () => {
+    // True cases (strictly error.code === "invalid_credentials")
     expect(isInvalidCredentialsError({ code: "invalid_credentials", message: "Invalid login credentials", status: 400 })).toBe(true);
     expect(isInvalidCredentialsError({ code: "invalid_credentials" })).toBe(true);
-    expect(isInvalidCredentialsError({ message: "Invalid login credentials" })).toBe(true);
 
-    // False cases (network / 429 / 500 / null / unknown)
+    // False cases (message alone, network, 429, 500, null, undefined)
+    expect(isInvalidCredentialsError({ message: "Invalid login credentials" })).toBe(false);
     expect(isInvalidCredentialsError(null)).toBe(false);
     expect(isInvalidCredentialsError(undefined)).toBe(false);
     expect(isInvalidCredentialsError(new Error("Failed to fetch"))).toBe(false);

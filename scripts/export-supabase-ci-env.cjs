@@ -24,6 +24,47 @@ function parseSupabaseStatusOutput(raw) {
   return vars;
 }
 
+function validateAndExtractCredentials(vars) {
+  let apiUrl = vars.API_URL;
+  if (!apiUrl && vars.REST_URL) {
+    try {
+      const parsed = new URL(vars.REST_URL);
+      apiUrl = parsed.origin;
+    } catch {
+      // ignore
+    }
+  }
+
+  const pubKey = vars.PUBLISHABLE_KEY || vars.ANON_KEY;
+  const secretKey = vars.SECRET_KEY || vars.SERVICE_ROLE_KEY;
+  const dbUrl = vars.DB_URL;
+
+  const missingFields = [];
+  if (!apiUrl) missingFields.push("API_URL");
+  if (!pubKey) missingFields.push("PUBLISHABLE_KEY/ANON_KEY");
+  if (!secretKey) missingFields.push("SECRET_KEY/SERVICE_ROLE_KEY");
+  if (!dbUrl) missingFields.push("DB_URL");
+
+  if (missingFields.length > 0) {
+    return {
+      success: false,
+      missingFields,
+      errorMessage: `Missing Supabase status fields: ${missingFields.join(", ")}`,
+    };
+  }
+
+  return {
+    success: true,
+    missingFields: [],
+    credentials: {
+      apiUrl,
+      pubKey,
+      secretKey,
+      dbUrl,
+    },
+  };
+}
+
 function readStatusRaw() {
   // Check if piped from stdin
   try {
@@ -45,28 +86,15 @@ function readStatusRaw() {
 function exportSupabaseEnv() {
   const raw = readStatusRaw();
   const vars = parseSupabaseStatusOutput(raw);
+  const result = validateAndExtractCredentials(vars);
 
-  let apiUrl = vars.API_URL;
-  if (!apiUrl && vars.REST_URL) {
-    try {
-      const parsed = new URL(vars.REST_URL);
-      apiUrl = parsed.origin;
-    } catch {
-      // ignore
-    }
-  }
-
-  const pubKey = vars.PUBLISHABLE_KEY || vars.ANON_KEY;
-  const secretKey = vars.SECRET_KEY || vars.SERVICE_ROLE_KEY;
-  const dbUrl = vars.DB_URL;
-
-  if (!apiUrl || !pubKey || !secretKey || !dbUrl) {
-    console.error("Failed to parse local Supabase credentials from status output.");
-    console.error("Raw output received:\n" + raw);
-    console.error("Parsed variables:", vars);
+  if (!result.success) {
+    // Strict leak-free diagnostic: only report missing field names
+    console.error(result.errorMessage);
     process.exit(1);
   }
 
+  const { apiUrl, pubKey, secretKey, dbUrl } = result.credentials;
   const envFile = process.env.GITHUB_ENV;
   if (envFile) {
     const lines = [
@@ -78,12 +106,7 @@ function exportSupabaseEnv() {
     fs.appendFileSync(envFile, lines.join("\n") + "\n");
     console.log("Successfully exported Supabase credentials to GITHUB_ENV.");
   } else {
-    console.log("Supabase credentials parsed successfully:", {
-      apiUrl,
-      pubKeyPrefix: pubKey.slice(0, 10) + "...",
-      secretKeyPrefix: secretKey.slice(0, 10) + "...",
-      dbUrl,
-    });
+    console.log("Supabase credentials resolved successfully (all required fields present).");
   }
 }
 
@@ -91,4 +114,9 @@ if (require.main === module) {
   exportSupabaseEnv();
 }
 
-module.exports = { stripAnsi, parseSupabaseStatusOutput, exportSupabaseEnv };
+module.exports = {
+  stripAnsi,
+  parseSupabaseStatusOutput,
+  validateAndExtractCredentials,
+  exportSupabaseEnv,
+};

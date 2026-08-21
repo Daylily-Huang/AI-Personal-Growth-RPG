@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { parseSupabaseStatusOutput } = require("../scripts/export-supabase-ci-env.cjs");
+const { parseSupabaseStatusOutput, validateAndExtractCredentials } = require("../scripts/export-supabase-ci-env.cjs");
 
 describe("CI Supabase Status Env Parser (Regression Suite)", () => {
   test("1. Parses normal status output ignoring warnings and status headers", () => {
@@ -31,6 +31,10 @@ Started supabase local development setup.
     expect(vars.DB_URL).toBe("postgresql://postgres:postgres@127.0.0.1:54322/postgres");
     expect(vars.ANON_KEY).toBe("anon-jwt-token-value");
     expect(vars.SERVICE_ROLE_KEY).toBe("service-role-jwt-value");
+
+    const validation = validateAndExtractCredentials(vars);
+    expect(validation.success).toBe(true);
+    expect(validation.credentials.apiUrl).toBe("http://127.0.0.1:54321");
   });
 
   test("2. Handles legacy status output without PUBLISHABLE_KEY / SECRET_KEY", () => {
@@ -46,6 +50,11 @@ SERVICE_ROLE_KEY='legacy-service-key'
     expect(vars.ANON_KEY).toBe("legacy-anon-key");
     expect(vars.SERVICE_ROLE_KEY).toBe("legacy-service-key");
     expect(vars.DB_URL).toBe("postgresql://postgres:postgres@127.0.0.1:54322/postgres");
+
+    const validation = validateAndExtractCredentials(vars);
+    expect(validation.success).toBe(true);
+    expect(validation.credentials.pubKey).toBe("legacy-anon-key");
+    expect(validation.credentials.secretKey).toBe("legacy-service-key");
   });
 
   test("3. Strips ANSI color escape sequences cleanly", () => {
@@ -61,5 +70,32 @@ SERVICE_ROLE_KEY='legacy-service-key'
     expect(vars.ANON_KEY).toBe("color-anon-key");
     expect(vars.SERVICE_ROLE_KEY).toBe("color-service-key");
     expect(vars.DB_URL).toBe("postgresql://postgres:postgres@127.0.0.1:54322/postgres");
+  });
+
+  test("4. Failure diagnostics do not leak sensitive credentials or secrets (Major 2 regression)", () => {
+    const fakeSecret = "sb_secret_ULTRA_SENSITIVE_KEY_99999";
+    const fakeAnon = "sb_publishable_FAKE_ANON_88888";
+    const fakeDbUrl = "postgresql://postgres:topsecretpassword123@127.0.0.1:54322/postgres";
+
+    // Omit API_URL intentionally to trigger failure
+    const rawOutputWithMissingField = `
+SECRET_KEY="${fakeSecret}"
+PUBLISHABLE_KEY="${fakeAnon}"
+DB_URL="${fakeDbUrl}"
+`;
+    const vars = parseSupabaseStatusOutput(rawOutputWithMissingField);
+    const result = validateAndExtractCredentials(vars);
+
+    expect(result.success).toBe(false);
+    expect(result.missingFields).toContain("API_URL");
+    expect(result.errorMessage).toBe("Missing Supabase status fields: API_URL");
+
+    // Strictly assert that failure diagnostic does not contain any sensitive values
+    expect(result.errorMessage).not.toContain(fakeSecret);
+    expect(result.errorMessage).not.toContain(fakeAnon);
+    expect(result.errorMessage).not.toContain("topsecretpassword123");
+    expect(result.errorMessage).not.toContain(fakeDbUrl);
+    expect(result.errorMessage).not.toContain("sb_secret");
+    expect(result.errorMessage).not.toContain("sb_publishable");
   });
 });

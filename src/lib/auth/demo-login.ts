@@ -15,12 +15,8 @@ export interface DemoLoginResult {
  */
 export function isInvalidCredentialsError(err: unknown): boolean {
   if (!err || typeof err !== "object") return false;
-  const e = err as { code?: string; message?: string; status?: number };
-  if (e.code === "invalid_credentials") return true;
-  if (typeof e.message === "string" && e.message.toLowerCase().includes("invalid login credentials")) {
-    return true;
-  }
-  return false;
+  const e = err as { code?: string };
+  return e.code === "invalid_credentials";
 }
 
 /**
