@@ -17,22 +17,25 @@ export interface SupabaseProjectConfig {
   publishableKey: string;
 }
 
-function required(name: string): string {
-  const value = process.env[name];
-  if (!value || value.trim() === "") {
-    throw new Error(
-      `Supabase env missing: ${name}. Add it to .env.local (see .env.example). ` +
-        `If you only need the code path without a live project, provide the value explicitly.`,
-    );
-  }
-  return value.trim();
-}
-
 /** URL + publishable key — the only config the browser / user-scoped clients need. */
 export function getProjectConfig(): SupabaseProjectConfig {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim();
+
+  if (!url) {
+    throw new Error(
+      `Supabase env missing: NEXT_PUBLIC_SUPABASE_URL. Add it to .env.local (see .env.example).`,
+    );
+  }
+  if (!publishableKey) {
+    throw new Error(
+      `Supabase env missing: NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY. Add it to .env.local (see .env.example).`,
+    );
+  }
+
   return {
-    url: required("NEXT_PUBLIC_SUPABASE_URL"),
-    publishableKey: required("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"),
+    url,
+    publishableKey,
   };
 }
 

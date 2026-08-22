@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Sparkles, KeyRound, Mail, ArrowRight, Loader2, UserCheck, ShieldCheck } from "lucide-react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
+import { performQuickDemoLogin } from "@/lib/auth/demo-login";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -70,9 +71,6 @@ export default function LoginPage() {
     setError(null);
     setMessage(null);
 
-    const demoEmail = "demo_player@growth.rpg";
-    const demoPassword = "Password123!";
-
     try {
       if (!isConfigured) {
         router.push("/dashboard");
@@ -80,32 +78,13 @@ export default function LoginPage() {
       }
 
       const client = getSupabaseBrowserClient();
-      // Try to sign in first
-      const { error: signInErr } = await client.auth.signInWithPassword({
-        email: demoEmail,
-        password: demoPassword,
-      });
-
-      if (signInErr) {
-        // If user not found, sign up then sign in
-        const { error: signUpErr } = await client.auth.signUp({
-          email: demoEmail,
-          password: demoPassword,
-        });
-        if (signUpErr && !signUpErr.message.includes("already registered")) {
-          throw signUpErr;
-        }
-        const { error: retrySignInErr } = await client.auth.signInWithPassword({
-          email: demoEmail,
-          password: demoPassword,
-        });
-        if (retrySignInErr) throw retrySignInErr;
-      }
+      await performQuickDemoLogin(client);
 
       router.push("/dashboard");
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "快速登录失败");
+    } finally {
       setLoading(false);
     }
   }

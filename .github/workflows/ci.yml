@@ -68,15 +68,10 @@ jobs:
           version: 2.114.0
 
       - name: Start local Supabase stack
-        run: supabase db start
+        run: supabase start
 
       - name: Export local Supabase credentials
-        run: |
-          eval $(supabase status -o env)
-          echo "NEXT_PUBLIC_SUPABASE_URL=${API_URL}" >> "$GITHUB_ENV"
-          echo "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=${PUBLISHABLE_KEY:-$ANON_KEY}" >> "$GITHUB_ENV"
-          echo "SUPABASE_SECRET_KEY=${SECRET_KEY:-$SERVICE_ROLE_KEY}" >> "$GITHUB_ENV"
-          echo "XP_RPG_TEST_DB_URL=${DB_URL}" >> "$GITHUB_ENV"
+        run: supabase status -o env | node scripts/export-supabase-ci-env.cjs
 
       - name: Build production app
         run: pnpm build
