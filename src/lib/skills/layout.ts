@@ -21,7 +21,8 @@ export interface ComputeSkillGraphOptions {
  * acyclic, but their union could theoretically cycle. To ensure deterministic, crash-proof
  * layout:
  *   1. Primary topological layering is computed strictly on `prerequisite` edges (guaranteed DAG).
- *   2. Hierarchical contains depth is incorporated where it does not cause cycles.
+ *   2. `contains` and `supports` relations do not influence layering at all; they are
+ *      emitted purely as styled edges after prerequisite layering is complete.
  *   3. Any unvisited or cycle-entangled node falls back safely to layer 0.
  *   4. Node placement is deterministically sorted by layer, name, and ID.
  */

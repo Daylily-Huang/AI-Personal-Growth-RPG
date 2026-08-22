@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getRequestRepository, AuthRequiredError } from "@/lib/store/request-repository";
 import { computeSkillGraph } from "@/lib/skills/layout";
+import { isValidUuid } from "@/lib/http/validation";
 
 export async function GET(request?: Request) {
   try {
@@ -20,6 +21,14 @@ export async function GET(request?: Request) {
       }
     }
 
+    // 3. Validate query (Round 3 P1): a malformed domainId must be rejected outright
+    //    instead of silently producing an empty graph indistinguishable from a
+    //    valid-but-empty domain filter.
+    if (domainId !== null && !isValidUuid(domainId)) {
+      return NextResponse.json({ error: "domainId must be a valid UUID" }, { status: 400 });
+    }
+
+    // 4. Repository read + derive graph
     const [domains, skills, edges] = await Promise.all([
       repo.listDomains(),
       repo.listSkills(),

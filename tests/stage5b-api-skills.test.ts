@@ -89,6 +89,12 @@ describe("Stage 5B — Skill API Routes", () => {
       expect(res.status).toBe(401);
     });
 
+    test("unauth GET /api/skills?domainId=not-a-uuid returns 401 (auth precedes query validation)", async () => {
+      const req = new Request("http://localhost:3000/api/skills?domainId=not-a-uuid");
+      const res = await getSkills(req);
+      expect(res.status).toBe(401);
+    });
+
     test("GET /api/skills/[id] returns 401 even with invalid UUID", async () => {
       const req = new Request("http://localhost:3000/api/skills/not-a-uuid");
       const res = await getSkillDetail(req, { params: Promise.resolve({ id: "not-a-uuid" }) });
@@ -260,6 +266,75 @@ describe("Stage 5B — Skill API Routes", () => {
       expect(tsNode.data.derivedState).toBe("proficient");
       expect(nextNode.data.derivedState).toBe("available");
       expect(nextNode.position.x).toBe(280); // topological layer 1
+    });
+  });
+
+  describe("GET /api/skills domainId Query Validation (Round 3 P1)", () => {
+    test("returns 400 for malformed domainId and never touches repository list methods", async () => {
+      const listDomainsSpy = vi.spyOn(demoRepo, "listDomains");
+      const listSkillsSpy = vi.spyOn(demoRepo, "listSkills");
+      const listEdgesSpy = vi.spyOn(demoRepo, "listSkillEdges");
+
+      const req = new Request("http://localhost:3000/api/skills?domainId=not-a-uuid");
+      const res = await getSkills(req);
+
+      expect(res.status).toBe(400);
+      const body = await res.json();
+      expect(body.error).toBe("domainId must be a valid UUID");
+      expect(listDomainsSpy).not.toHaveBeenCalled();
+      expect(listSkillsSpy).not.toHaveBeenCalled();
+      expect(listEdgesSpy).not.toHaveBeenCalled();
+    });
+
+    test("distinguishes invalid identifier from valid-but-nonexistent domain filter (200 empty graph)", async () => {
+      // Seed one real skill so the empty result proves filtering, not an empty store.
+      const act = await demoRepo.addActivity({ rawInput: "Practice TS", totalMinutes: 60 });
+      const assess = await demoRepo.addAssessment({
+        activityId: act.id,
+        proposal: mockProposal("TypeScript"),
+        modelName: "test-model",
+        promptVersion: "v1",
+      });
+      await demoRepo.applySettlement({
+        assessmentId: assess.id,
+        transaction: {
+          id: crypto.randomUUID(),
+          activityId: act.id,
+          assessmentId: assess.id,
+          xpType: "activity",
+          skillId: "",
+          skillName: "TypeScript",
+          activityType: "coding",
+          repetitionCount: 0,
+          repetitionPenalty: 1,
+          amount: 300,
+          baseAmount: 300,
+          modifierJson: {},
+          reason: "TS Practice",
+          rulesVersion: "test",
+          createdAt: new Date().toISOString(),
+        },
+        xpDelta: 300,
+        primarySkill: {
+          skill: { resolution: "create", proposedName: "TypeScript" },
+          name: "TypeScript",
+          xpDelta: 300,
+          masteryAction: { action: "upgrade", proposedLevel: 3, confidence: 0.85 },
+        },
+        player: { xpDelta: 300 },
+      });
+
+      const nonexistentDomainUuid = crypto.randomUUID();
+      const req = new Request(
+        `http://localhost:3000/api/skills?domainId=${nonexistentDomainUuid}`,
+      );
+      const res = await getSkills(req);
+
+      expect(res.status).toBe(200);
+      const data = await res.json();
+      expect(data.domains).toEqual([]);
+      expect(data.nodes).toEqual([]);
+      expect(data.edges).toEqual([]);
     });
   });
 

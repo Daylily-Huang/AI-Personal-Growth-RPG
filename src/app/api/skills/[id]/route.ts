@@ -1,15 +1,10 @@
 import { NextResponse } from "next/server";
 import { getRequestRepository, AuthRequiredError } from "@/lib/store/request-repository";
 import type { UpdateSkillMetadataInput } from "@/lib/store/types";
+import { isValidUuid } from "@/lib/http/validation";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
-}
-
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-function isValidUuid(val: unknown): val is string {
-  return typeof val === "string" && UUID_REGEX.test(val);
 }
 
 export async function GET(_request: Request, context: RouteContext) {
