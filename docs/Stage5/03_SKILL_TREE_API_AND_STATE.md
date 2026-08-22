@@ -1,6 +1,6 @@
 # Stage 5 — Skill Tree API & Derived State Specification
 
-> **Status**: PROPOSED / DESIGN FREEZE (ROUND 2)  
+> **Status**: PROPOSED / DESIGN FREEZE (ROUND 3)  
 > **Target Milestone**: Stage 5 (Skill Tree)  
 > **Related Rules**: `docs/Design ChatGPT/03_TECHNICAL_IMPLEMENTATION.md`, `docs/Design ChatGPT/06_DATABASE_SCHEMA_AND_DATA_DICTIONARY.md`
 
@@ -222,7 +222,7 @@ The function `computeSkillDerivedState(skill, prerequisites)` is guaranteed to p
 }
 ```
 - **Error Codes**:
-  - `400 Bad Request`: 参数不合法或尝试建立自环 (`source == target`);
+  - `400 Bad Request`: 参数不合法、尝试建立自环 (`source == target`) 或跨租户节点；
   - `409 Conflict`: 
     - `prerequisite` 关系检测到有向环 (`Cycle detected in prerequisite DAG`);
     - `contains` 关系目标节点已存在父节点 (`Target already has a contains parent`) 或检测到层级环路;
@@ -253,6 +253,6 @@ The function `computeSkillDerivedState(skill, prerequisites)` is guaranteed to p
 ```
 - **Response**: `200 OK` 返回更新后的 Skill 对象。
 - **Error Codes**:
-  - `400 Bad Request`: 命名为空或非法参数；
+  - `400 Bad Request`: 命名为空、跨租户指定 `domain_id` 或非法参数；
   - `404 Not Found`: 技能不存在或无权操作；
   - `409 Conflict`: 与该用户下已有其他技能的 `normalized_name` 冲突。

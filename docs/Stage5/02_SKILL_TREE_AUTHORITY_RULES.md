@@ -1,6 +1,6 @@
 # Stage 5 — Skill Tree Authority & Evidence Rules
 
-> **Status**: PROPOSED / DESIGN FREEZE (ROUND 2)  
+> **Status**: PROPOSED / DESIGN FREEZE (ROUND 3)  
 > **Target Milestone**: Stage 5 (Skill Tree)  
 > **Related Rules**: `docs/Design ChatGPT/01_SYSTEM_RULES.md`, `docs/Design ChatGPT/05_AI_GAME_MASTER_CONTRACT.md`, `docs/Design ChatGPT/06_DATABASE_SCHEMA_AND_DATA_DICTIONARY.md`
 
@@ -10,7 +10,7 @@
 
 In accordance with Core Invariant **"LLM produces proposals; application code commits permanent growth state"**, AI Game Master (LLM) is strictly prohibited from directly writing persistent skills into the database.
 
-### 1.1 Resolution Authority Discriminated Union
+### 1.1 Resolution Authority Discriminated Union & MasteryAction 3-State
 
 To completely close the authority gap where label matching might hallucinate duplicate skills during settlement, `SettlementToApply` and the database `settle_activity` RPC contract are frozen to an **explicit discriminated union**:
 
@@ -27,14 +27,30 @@ export type SkillResolutionInput =
       proposedName: string;
     };
 
+/**
+ * Stage 5A MUST preserve existing Stage 2 MasteryAction semantics:
+ * - `none`: No change in mastery
+ * - `upgrade`: Immediate upgrade (for lower levels M1-M3 or already verified)
+ * - `request_verification`: High mastery (M4+) queues a pending MasteryVerification record
+ */
+export type MasteryAction =
+  | { action: "none" }
+  | {
+      action: "upgrade";
+      proposedLevel: number;
+      confidence: number;
+    }
+  | {
+      action: "request_verification";
+      fromLevel: number;
+      toLevel: number;
+      confidence: number;
+    };
+
 export interface SettlementSkillToApply {
   skill: SkillResolutionInput;
   xpDelta: number;
-  masteryAction: {
-    action: "upgrade" | "none";
-    proposedLevel: number;
-    confidence: number;
-  };
+  masteryAction: MasteryAction;
 }
 ```
 
@@ -66,14 +82,14 @@ sequenceDiagram
     else resolution == "create"
         Store->>Store: 执行归一化查重并分配全新 UUID 插入 skills
     end
-    Store->>Store: 原子落账: xp_transactions + evidence_records + mastery_events
+    Store->>Store: 原子落账: xp_transactions + evidence_records + mastery_events/verifications
     Store-->>App: 结算成功
 ```
 
 ### 1.2 Resolution Rules & Invariants
 1. **Existing Skill Authority**:
    - 当传入 `{ resolution: "existing", skillId }` 时，服务端 / RPC **必须校验该 `skillId` 存在且 `user_id = p_user_id`**；
-   - 校验通过后，RPC **绝对禁止再通过 label/name 重新猜测或创建新技能**，必须直接在此 `skill_id` 上累加 XP 与更新 Mastery；
+   - 校验通过后，RPC **绝对禁止再通过 label/name 重新猜测或创建新技能**，必须直接在此 `skill_id` 上累加 XP 与执行 `masteryAction`；
 2. **New Skill Creation Authority**:
    - 当传入 `{ resolution: "create", proposedName }` 时，由 RPC 执行 normalized_name 查重（`ON CONFLICT (user_id, normalized_name)`），创建新 Skill 行并分配永久 UUID；
 3. **Secondary Skills**:
@@ -85,18 +101,10 @@ sequenceDiagram
 
 Stage 5 严格执行 **“High Mastery requires Evidence”**，并在 `/skills` 详情抽屉中提供真实的 Evidence Timeline。
 
-### 2.1 Schema Reuse & Zero-Duplication
+### 2.1 Schema Reuse & Referential Integrity
 - **严禁** 新建任何形式的重复 evidence 表；
-- 完整复用 Stage 2–4 建立的 `public.evidence_records` 事实表：
-  - `id`: UUID (Primary Key)
-  - `user_id`: UUID (Tenant)
-  - `activity_id`: UUID (FK -> activities)
-  - `skill_id`: UUID (FK -> skills)
-  - `evidence_level`: INTEGER (0..6, E0..E6)
-  - `evidence_type`: TEXT
-  - `description`: TEXT
-  - `verified`: BOOLEAN
-  - `created_at`: TIMESTAMPTZ
+- 完整复用 Stage 2–4 建立的 `public.evidence_records` 事实表；
+- **外键闭环 (P2)**：确保 `public.mastery_events.evidence_id` 具备指向 `public.evidence_records(id)` 的显式外键约束（`FOREIGN KEY (evidence_id) REFERENCES public.evidence_records(id) ON DELETE SET NULL`）。
 
 ### 2.2 Atomic Write Execution Order in `settle_activity`
 在结算确认时，`settle_activity` RPC 在**单次数据库事务**中执行以下原子步骤：
@@ -119,29 +127,57 @@ Stage 5 严格执行 **“High Mastery requires Evidence”**，并在 `/skills`
    • description = v_evidence_explanation
    • verified = (v_mastery_level < 4 OR v_is_verified)
    │
-6. Process Mastery Progression:
-   ├── If Verification Required (M >= 4 & unverified):
-   │     Insert public.mastery_verifications (status = 'pending', linking skill_id, evidence_level)
-   └── If Immediate Upgrade:
-         Update public.skills (mastery_level, mastery_confidence)
-         Insert public.mastery_events (event_type = 'upgrade', evidence_id = v_evidence_id)
+6. Process MasteryAction 3-State Protocol:
+   ├── If action == "none":
+   │     No mastery changes
+   ├── If action == "upgrade":
+   │     Update public.skills (mastery_level = proposedLevel, mastery_confidence = confidence)
+   │     Insert public.mastery_events (event_type = 'upgrade', evidence_id = v_evidence_id)
+   └── If action == "request_verification":
+         Insert public.mastery_verifications (status = 'pending', linking skill_id, evidence_level)
+         (Skill mastery_level remains unchanged until verified)
    │
 7. Update Player Totals & Linked Quest Progress
    │
 8. Commit Transaction & Return Authoritative Snapshot
 ```
 
-### 2.3 Idempotency & Evidence Deduplication
-- 每个 Activity 仅能完成一次 `activity` 主结算，数据库部分唯一索引 `xp_transactions_one_activity_settlement_idx` 是绝对屏障；
-- `evidence_records` 的写入伴随该主结算发生，确保单个 Activity 对特定 Skill 的主证据记录单次唯一。
+---
+
+## 3. Tenant-Safe Reference Integrity (Composite Foreign Keys)
+
+为杜绝 User A 引用或连接 User B 的技能/域，所有关联关系在**数据库引擎层**通过复合外键保证绝对隔离：
+
+```sql
+-- 1. Skills composite key
+ALTER TABLE public.skills ADD CONSTRAINT skills_user_id_composite_key UNIQUE (user_id, id);
+
+-- 2. Domains composite key
+ALTER TABLE public.domains ADD CONSTRAINT domains_user_id_composite_key UNIQUE (user_id, id);
+
+-- 3. Domains hierarchy composite foreign key (Blocker 2B)
+ALTER TABLE public.domains ADD CONSTRAINT fk_domains_parent_tenant_safe
+  FOREIGN KEY (user_id, parent_id) REFERENCES public.domains(user_id, id) ON DELETE SET NULL;
+
+-- 4. Skills domain association composite foreign key (Blocker 2B)
+ALTER TABLE public.skills ADD CONSTRAINT fk_skills_domain_tenant_safe
+  FOREIGN KEY (user_id, domain_id) REFERENCES public.domains(user_id, id) ON DELETE SET NULL;
+
+-- 5. Skill Edges composite foreign keys (Blocker 2)
+ALTER TABLE public.skill_edges ADD CONSTRAINT fk_skill_edges_source_tenant_safe
+  FOREIGN KEY (user_id, source_skill_id) REFERENCES public.skills(user_id, id) ON DELETE CASCADE;
+
+ALTER TABLE public.skill_edges ADD CONSTRAINT fk_skill_edges_target_tenant_safe
+  FOREIGN KEY (user_id, target_skill_id) REFERENCES public.skills(user_id, id) ON DELETE CASCADE;
+```
 
 ---
 
-## 3. Skill Metadata Mutation Authority
+## 4. Skill Metadata Mutation Authority
 
-为彻底杜绝客户端通过直接 `UPDATE` 篡改 `xp`, `level`, `mastery_level` 等核心成长属性，权限矩阵冻结如下：
+为彻底杜绝客户端篡改核心成长属性，权限矩阵与专属 RPC 冻结如下：
 
-### 3.1 Dedicated `update_skill_metadata` RPC
+### 4.1 Dedicated `update_skill_metadata` RPC
 客户端修改技能展示信息（如重命名、别名、归属域、归档状态）必须调用服务端专属 RPC：
 
 ```sql
@@ -164,7 +200,7 @@ DECLARE
   v_new_aliases TEXT[];
   v_now TIMESTAMPTZ := now();
 BEGIN
-  -- 1. Ownership validation
+  -- 1. Ownership validation on skill
   SELECT * INTO v_skill FROM public.skills
   WHERE id = p_skill_id AND user_id = auth.uid()
   FOR UPDATE;
@@ -173,17 +209,24 @@ BEGIN
     RAISE EXCEPTION 'Skill not found or access denied';
   END IF;
 
+  -- 2. Domain tenant ownership validation (Blocker 2B)
+  IF p_domain_id IS NOT NULL THEN
+    IF NOT EXISTS (SELECT 1 FROM public.domains WHERE id = p_domain_id AND user_id = auth.uid()) THEN
+      RAISE EXCEPTION 'Invalid domain_id or cross-tenant domain access denied';
+    END IF;
+  END IF;
+
   v_old_name := v_skill.name;
   v_new_aliases := coalesce(p_aliases, '{}'::text[]);
 
-  -- 2. Rename Alias Conservation: If name changed, append old name to aliases
+  -- 3. Rename Alias Conservation: If name changed, append old name to aliases
   IF p_name IS NOT NULL AND btrim(p_name) <> '' AND btrim(p_name) <> v_old_name THEN
     IF NOT (v_old_name = ANY(v_new_aliases)) THEN
       v_new_aliases := array_append(v_new_aliases, v_old_name);
     END IF;
   END IF;
 
-  -- 3. Whitelist Update (XP, Level, Mastery strictly untouched)
+  -- 4. Whitelist Update (XP, Level, Mastery strictly untouched)
   UPDATE public.skills
   SET
     name = coalesce(nullif(btrim(p_name), ''), name),
@@ -202,13 +245,13 @@ $$;
 
 ---
 
-## 4. Security & RLS Matrix
+## 5. Security & RLS Matrix
 
-| 表名 (`Table`) | SELECT 权限 | INSERT 权限 | UPDATE 权限 | DELETE 权限 |
-|---|---|---|---|---|
-| `public.domains` | `auth.uid() = user_id` | `auth.uid() = user_id` | `auth.uid() = user_id` | `auth.uid() = user_id` |
-| `public.skills` | `auth.uid() = user_id` | **Revoked** (仅 `settle_activity` RPC 可插入) | **Revoked** (直接 UPDATE 撤销，仅由 `update_skill_metadata` RPC 修改白名单展示字段) | **Revoked** (仅允许归档 `status = 'archived'`) |
-| `public.skill_edges` | `auth.uid() = user_id` | `auth.uid() = user_id` (受 DAG/单父/自环触发器约束) | `auth.uid() = user_id` | `auth.uid() = user_id` |
-| `public.evidence_records` | `auth.uid() = user_id` | **Service Role Only** (RPC 写入) | **Service Role Only** | **Revoked** |
-| `public.mastery_events` | `auth.uid() = user_id` | **Service Role Only** (RPC 写入) | **Revoked** | **Revoked** |
-| `public.mastery_verifications` | `auth.uid() = user_id` | **Service Role Only** (RPC 写入) | **Service Role / Admin** | **Revoked** |
+| 表名 (`Table`) | SELECT 权限 | INSERT 权限 | UPDATE 权限 | DELETE 权限 | 租户外键防护 (Composite FK) |
+|---|---|---|---|---|---|
+| `public.domains` | `auth.uid() = user_id` | `auth.uid() = user_id` | `auth.uid() = user_id` | `auth.uid() = user_id` | `(user_id, parent_id) -> domains(user_id, id)` |
+| `public.skills` | `auth.uid() = user_id` | **Revoked** (仅 `settle_activity` RPC 可插入) | **Revoked** (仅 `update_skill_metadata` RPC 白名单更新) | **Revoked** (仅允许归档 `status = 'archived'`) | `(user_id, domain_id) -> domains(user_id, id)` |
+| `public.skill_edges` | `auth.uid() = user_id` | `auth.uid() = user_id` (受 DAG/单父/自环触发器约束) | `auth.uid() = user_id` | `auth.uid() = user_id` | `(user_id, source/target) -> skills(user_id, id)` |
+| `public.evidence_records` | `auth.uid() = user_id` | **Service Role Only** (RPC 写入) | **Service Role Only** | **Revoked** | `(user_id, skill_id) -> skills(user_id, id)` |
+| `public.mastery_events` | `auth.uid() = user_id` | **Service Role Only** (RPC 写入) | **Revoked** | **Revoked** | `evidence_id -> evidence_records(id)` |
+| `public.mastery_verifications` | `auth.uid() = user_id` | **Service Role Only** (RPC 写入) | **Service Role / Admin** | **Revoked** | `skill_id -> skills(id)` |
