@@ -8,10 +8,12 @@ import type {
   Activity,
   Assessment,
   Db,
+  EvidenceRecord,
   MasteryVerification,
   NewActivityInput,
   NewAssessmentInput,
   NewQuestInput,
+  NewSkillEdgeInput,
   PlayerState,
   Quest,
   QuestStatus,
@@ -19,6 +21,7 @@ import type {
   SkillEdge,
   SkillState,
   UpdateQuestInput,
+  UpdateSkillMetadataInput,
   XpTransaction,
 } from "./types";
 import type { Repository, SettlementResult } from "./repository";
@@ -36,6 +39,7 @@ function emptyDb(): Db {
     transactions: [],
     skills: {},
     skillEdges: [],
+    evidenceRecords: [],
     masteryVerifications: [],
     quests: [],
     player: {
@@ -53,6 +57,9 @@ function defaultSkill(id: string, name: string): SkillState {
     id,
     name,
     aliases: [],
+    description: null,
+    domainId: null,
+    status: "active",
     xp: 0,
     level: 1,
     masteryLevel: 1,
@@ -134,9 +141,11 @@ export class DemoRepository implements Repository {
     return normalizeDb(parsed as Db);
   }
 
-  private writeDb(db: Db): void {
+  writeDb(db: Db): void {
     const file = dbPath();
-    fs.mkdirSync(path.dirname(file), { recursive: true });
+    const dir = path.dirname(file);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+
     const tmp = `${file}.tmp`;
     fs.writeFileSync(/* turbopackIgnore: true */ tmp, JSON.stringify(db, null, 2), "utf8");
     fs.renameSync(tmp, file);
@@ -178,6 +187,11 @@ export class DemoRepository implements Repository {
     return findSkillByLabel(db.skills, label) ?? null;
   }
 
+  async getSkillById(id: string): Promise<SkillState | null> {
+    const db = this.readDb();
+    return db.skills[id] ?? null;
+  }
+
   async listSkills(): Promise<SkillState[]> {
     return Object.values(this.readDb().skills);
   }
@@ -186,12 +200,125 @@ export class DemoRepository implements Repository {
     return this.readDb().skillEdges;
   }
 
+  async listEvidenceRecords(skillId?: string): Promise<EvidenceRecord[]> {
+    const records = this.readDb().evidenceRecords ?? [];
+    if (skillId) {
+      return records.filter((r) => r.skillId === skillId);
+    }
+    return records;
+  }
+
   async getPlayer(): Promise<PlayerState> {
     return this.readDb().player;
   }
 
   async listMasteryVerifications(): Promise<MasteryVerification[]> {
     return this.readDb().masteryVerifications;
+  }
+
+  // ---- skills & edges (Stage 5A) ----
+
+  async addEdge(input: NewSkillEdgeInput): Promise<SkillEdge> {
+    const db = this.readDb();
+    const sourceId = input.sourceSkillId;
+    const targetId = input.targetSkillId;
+    const relation = input.relationType;
+
+    // 1. Anti-self edge
+    if (sourceId === targetId) {
+      throw new Error("Self-edges are forbidden: sourceSkillId cannot equal targetSkillId");
+    }
+
+    // 2. Both nodes exist
+    if (!db.skills[sourceId] || !db.skills[targetId]) {
+      throw new Error("Referenced skill not found");
+    }
+
+    // 3. Unique relation
+    const duplicate = db.skillEdges.some(
+      (e) => e.sourceId === sourceId && e.targetId === targetId && e.relation === relation,
+    );
+    if (duplicate) {
+      throw new Error("Duplicate edge: relationship already exists");
+    }
+
+    // 4. Single-parent contains invariant (Partial Unique Index)
+    if (relation === "contains") {
+      const existingParent = db.skillEdges.some((e) => e.targetId === targetId && e.relation === "contains");
+      if (existingParent) {
+        throw new Error("Single-parent violation: Target skill already has a contains parent");
+      }
+    }
+
+    // 5. Anti-cycle DAG check for prerequisite and contains
+    if (relation === "prerequisite" || relation === "contains") {
+      const visited = new Set<string>();
+      const queue = [targetId];
+      while (queue.length > 0) {
+        const curr = queue.shift()!;
+        if (curr === sourceId) {
+          throw new Error(`Cycle detected: Cannot create ${relation} edge that introduces a directed cycle`);
+        }
+        if (!visited.has(curr)) {
+          visited.add(curr);
+          const nextTargets = db.skillEdges
+            .filter((e) => e.sourceId === curr && e.relation === relation)
+            .map((e) => e.targetId);
+          queue.push(...nextTargets);
+        }
+      }
+    }
+
+    const edge: SkillEdge = {
+      id: crypto.randomUUID(),
+      sourceId,
+      targetId,
+      relation,
+      createdAt: new Date().toISOString(),
+    };
+
+    db.skillEdges.push(edge);
+    this.writeDb(db);
+    return edge;
+  }
+
+  async deleteEdge(id: string): Promise<void> {
+    const db = this.readDb();
+    db.skillEdges = db.skillEdges.filter((e) => e.id !== id);
+    this.writeDb(db);
+  }
+
+  async updateSkillMetadata(id: string, updates: UpdateSkillMetadataInput): Promise<SkillState> {
+    const db = this.readDb();
+    const skill = db.skills[id];
+    if (!skill) {
+      throw new Error("Skill not found or access denied");
+    }
+
+    const oldName = skill.name;
+    const newAliases = updates.aliases ? Array.from(new Set(updates.aliases)) : [...skill.aliases];
+
+    if (updates.name && updates.name.trim() !== "" && updates.name.trim() !== oldName) {
+      if (!newAliases.includes(oldName)) {
+        newAliases.push(oldName);
+      }
+      const newNorm = normalizeLabel(updates.name);
+      const conflict = Object.values(db.skills).find(
+        (s) => s.id !== id && normalizeLabel(s.name) === newNorm,
+      );
+      if (conflict) {
+        throw new Error(`A skill with normalized name "${newNorm}" already exists for this user`);
+      }
+      skill.name = updates.name.trim();
+    }
+
+    skill.aliases = newAliases;
+    if (updates.description !== undefined) skill.description = updates.description;
+    if (updates.domainId !== undefined) skill.domainId = updates.domainId;
+    if (updates.status !== undefined) skill.status = updates.status;
+
+    this.writeDb(db);
+    return skill;
   }
 
   // ---- quests ----
@@ -213,8 +340,6 @@ export class DemoRepository implements Repository {
     }
     return list;
   }
-
-  // ---- writes ----
 
   async addQuest(input: NewQuestInput): Promise<Quest> {
     const db = this.readDb();
@@ -247,6 +372,7 @@ export class DemoRepository implements Repository {
       createdAt: now,
       updatedAt: now,
     };
+
     db.quests = db.quests ?? [];
     db.quests.push(quest);
     if (quest.parentQuestId) {
@@ -280,7 +406,6 @@ export class DemoRepository implements Repository {
       if (updates.parentQuestId === id) {
         throw new Error("Self-parenting is forbidden: quest cannot be its own parent");
       }
-      // Check if `id` is an ancestor of `updates.parentQuestId`
       let checkParentId: string | null = updates.parentQuestId;
       const visited = new Set<string>();
       while (checkParentId && !visited.has(checkParentId)) {
@@ -296,7 +421,6 @@ export class DemoRepository implements Repository {
     const hasChildren = db.quests.some((q) => q.parentQuestId === id);
     const now = new Date().toISOString();
 
-    // Derived progress guard: if node has children, its progress is derived from children
     let derivedProgress = updates.progress !== undefined ? updates.progress : current.progress;
     let finalStatus = updatedStatus;
     if (hasChildren) {
@@ -305,7 +429,6 @@ export class DemoRepository implements Repository {
         derivedProgress = Math.round(children.reduce((s, c) => s + c.progress, 0) / children.length);
         const allCompleted = children.every((c) => c.status === "completed") && derivedProgress === 100;
         
-        // P2-2: Do not resurrect failed or archived parents
         if (current.status === "failed" || current.status === "archived") {
            finalStatus = current.status;
         } else if (allCompleted) {
@@ -338,7 +461,6 @@ export class DemoRepository implements Repository {
     };
     db.quests[index] = updated;
 
-    // Trigger parent roll-up on both old and new parent (Round26 P1-3)
     if (oldParentId && oldParentId !== newParentId) {
       this.rollUpParentProgress(db, oldParentId, now);
     }
@@ -388,7 +510,6 @@ export class DemoRepository implements Repository {
     const existing = db.quests.find((q) => q.id === id);
     const parentId = existing?.parentQuestId ?? null;
 
-    // Set parentQuestId = null on all children (ON DELETE SET NULL)
     for (const child of db.quests) {
       if (child.parentQuestId === id) {
         child.parentQuestId = null;
@@ -419,7 +540,6 @@ export class DemoRepository implements Repository {
       status: "pending_assessment",
       totalMinutes: input.totalMinutes ?? null,
       effectiveMinutes: input.effectiveMinutes ?? null,
-      // Milestone 2.7: freeze the rule set at creation time (audit of history).
       rulesVersion: RULES_VERSION,
       createdAt: now,
     };
@@ -433,9 +553,6 @@ export class DemoRepository implements Repository {
     const activity = db.activities.find((a) => a.id === input.activityId);
     if (!activity) throw new Error("Activity not found");
 
-    // Round6 (option B): a confirmed Activity carries a permanent original
-    // settlement — no re-assessment until a correction pipeline exists, so no
-    // forever-pending zombie revisions can be minted.
     if (activity.status === "confirmed") {
       throw new ActivityAlreadySettledError(activity.id);
     }
@@ -447,59 +564,61 @@ export class DemoRepository implements Repository {
       proposal: input.proposal,
       modelName: input.modelName,
       promptVersion: input.promptVersion,
-      // Round7: inherit the Activity's frozen rules_version (not the engine's
-      // current one) so an old activity is never assessed under future rules.
-      rulesVersion: activity.rulesVersion,
+      rulesVersion: activity.rulesVersion ?? RULES_VERSION,
       confidence: input.proposal.confidence,
       createdAt: new Date().toISOString(),
       confirmedAt: null,
     };
-
     db.assessments.unshift(assessment);
-    activity.status = "assessed"; // confirmed activities throw above, so always pending→assessed
     this.writeDb(db);
     return assessment;
   }
 
-  /** READ-ONLY stable-id lookup; never creates or writes anything. */
   async lookupSkillId(label: string): Promise<string | null> {
     const db = this.readDb();
     return findSkillByLabel(db.skills, label)?.id ?? null;
   }
 
-  /**
-   * Single atomic settlement write.
-   *
-   * Preflight (Round6): the ONLY place skills are resolved/created. All Skill
-   * ids are random UUIDs (never derived from the name). Returns the authoritative
-   * persisted transaction + mastery verification.
-   *
-   * Integrity guards:
-   *   1. one `xpType=activity` settlement per Activity → `already_settled`;
-   *   2. repetition snapshot derived from the committed view THIS atomic write;
-   *      stale snapshot → `repetition_conflict` (+ fresh count);
-   *   3. one pending MasteryVerification per skill (returns the persisted one);
-   *   4. confirming one assessment supersedes sibling pending revisions.
-   */
   async applySettlement(settlement: SettlementToApply): Promise<SettlementResult> {
     const db = this.readDb();
+
+    // Guard 1a: assessment must exist and still be pending.
     const assessment = db.assessments.find((a) => a.id === settlement.assessmentId);
     if (!assessment) return { ok: false, reason: "not_found" };
     if (assessment.status !== "pending") return { ok: false, reason: "already_confirmed" };
 
-    const activity = db.activities.find((a) => a.id === settlement.transaction.activityId);
+    // Guard 1b: activity must exist and not yet be confirmed.
+    const activity = db.activities.find((a) => a.id === assessment.activityId);
     if (!activity) return { ok: false, reason: "activity_not_found" };
+    if (activity.status === "confirmed") return { ok: false, reason: "already_settled" };
 
-    // Guard 1: one original activity settlement per Activity.
+    // Guard 1c: activity must not have an existing activity-settlement transaction.
     const alreadySettled = db.transactions.some(
-      (t) => t.activityId === activity.id && t.xpType === "activity",
+      (t) => t.activityId === activity.id && (t.xpType ?? "activity") === "activity",
     );
     if (alreadySettled) return { ok: false, reason: "already_settled" };
 
-    const now = settlement.transaction.createdAt;
+    const now = new Date().toISOString();
 
-    // Resolve-or-create the primary skill INSIDE the atomic unit (UUID identity).
-    const primary = this.resolveOrCreateSkill(db, settlement.primarySkill.name);
+    // Stage 5A Skill Resolution Authority (Strict Discriminated Union - NO BYPASS)
+    let primary: SkillState;
+    const skillRes = settlement.primarySkill.skill;
+    if (!skillRes || (skillRes.resolution !== "existing" && skillRes.resolution !== "create")) {
+      return { ok: false, reason: "missing_or_invalid_skill_resolution" };
+    }
+
+    if (skillRes.resolution === "existing") {
+      const existing = db.skills[skillRes.skillId];
+      if (!existing) {
+        return { ok: false, reason: "skill_not_found_or_not_owned" };
+      }
+      primary = existing;
+    } else {
+      if (!skillRes.proposedName || skillRes.proposedName.trim() === "") {
+        return { ok: false, reason: "empty_proposed_skill_name" };
+      }
+      primary = this.resolveOrCreateSkill(db, skillRes.proposedName);
+    }
     const skillId = primary.id;
 
     // Guard 2: authoritative repetition snapshot by stable skillId.
@@ -513,6 +632,24 @@ export class DemoRepository implements Repository {
       return { ok: false, reason: "repetition_conflict", actualRepetitionCount: authoritativeCount };
     }
 
+    // Validate and resolve secondary skills if present
+    if (settlement.relatedSkillResolutions) {
+      for (const res of settlement.relatedSkillResolutions) {
+        if (res.resolution === "create") {
+          if (!res.proposedName || res.proposedName.trim() === "") {
+            return { ok: false, reason: "empty_related_skill_proposed_name" };
+          }
+          this.resolveOrCreateSkill(db, res.proposedName);
+        } else if (res.resolution === "existing") {
+          if (!db.skills[res.skillId]) {
+            return { ok: false, reason: "related_skill_not_found_or_not_owned" };
+          }
+        } else {
+          return { ok: false, reason: "invalid_related_skill_resolution" };
+        }
+      }
+    }
+
     // 1) ledger (append-only) with the authoritative skill id.
     const storedTransaction: XpTransaction = {
       ...settlement.transaction,
@@ -521,11 +658,26 @@ export class DemoRepository implements Repository {
     };
     db.transactions.unshift(storedTransaction);
 
-    // 2) player total (delta) + derived provisional XP level.
+    // 2) Authoritative Evidence Record persistence (Stage 5A)
+    const evidenceRecord: EvidenceRecord = {
+      id: settlement.evidence?.id ?? crypto.randomUUID(),
+      userId: "u-demo",
+      activityId: activity.id,
+      skillId,
+      evidenceLevel: settlement.evidence?.level ?? settlement.masteryVerification?.evidenceLevel ?? 0,
+      evidenceType: settlement.evidence?.type ?? activity.activityType ?? "activity_output",
+      description: settlement.evidence?.explanation ?? settlement.transaction.reason ?? "",
+      verified: settlement.primarySkill.masteryAction.action !== "request_verification",
+      createdAt: now,
+    };
+    db.evidenceRecords = db.evidenceRecords ?? [];
+    db.evidenceRecords.unshift(evidenceRecord);
+
+    // 3) player total (delta) + derived provisional XP level.
     db.player.totalXp += settlement.player.xpDelta;
     db.player.playerLevel = levelFromXp(db.player.totalXp).level;
 
-    // 3) primary skill (delta) + derived skill level + mastery action.
+    // 4) primary skill (delta) + derived skill level + mastery action.
     primary.xp += settlement.primarySkill.xpDelta;
     primary.level = levelFromXp(primary.xp).level;
     primary.lastUsedAt = now;
@@ -535,13 +687,7 @@ export class DemoRepository implements Repository {
       primary.masteryConfidence = masteryAction.confidence;
     }
 
-    // 4) secondary skills + related edges (by stable id), deduped.
-    for (const label of settlement.relatedSkillLabels) {
-      const related = this.resolveOrCreateSkill(db, label);
-      this.addEdge(db, { sourceId: skillId, targetId: related.id, relation: "related" });
-    }
-
-    // 5) authoritative pending MasteryVerification (create or return existing).
+    // 6) authoritative pending MasteryVerification (create or return existing).
     let verification: MasteryVerification | undefined;
     if (settlement.masteryVerification) {
       const existing = db.masteryVerifications.find(
@@ -559,7 +705,7 @@ export class DemoRepository implements Repository {
       }
     }
 
-    // 6) supersede sibling pending revisions of the same Activity (no zombies).
+    // 7) supersede sibling pending revisions of the same Activity.
     for (const other of db.assessments) {
       if (
         other.activityId === activity.id &&
@@ -570,12 +716,12 @@ export class DemoRepository implements Repository {
       }
     }
 
-    // 7) mark assessment + activity settled.
+    // 8) mark assessment + activity settled.
     assessment.status = "confirmed";
     assessment.confirmedAt = now;
     activity.status = "confirmed";
 
-    // 8) Milestone 4.2: Advance linked Quest progress (using shared deterministic delta)
+    // 9) Advance linked Quest progress
     if (activity.questId) {
       const boundQuest = db.quests.find((q) => q.id === activity.questId);
       if (boundQuest && boundQuest.status !== "archived" && boundQuest.status !== "failed") {
@@ -614,11 +760,19 @@ export class DemoRepository implements Repository {
     return skill;
   }
 
-  private addEdge(db: Db, edge: SkillEdge): void {
+  private addEdgeInternal(db: Db, edge: Omit<SkillEdge, "id">): void {
     const exists = db.skillEdges.some(
       (e) => e.sourceId === edge.sourceId && e.targetId === edge.targetId && e.relation === edge.relation,
     );
-    if (!exists && edge.sourceId !== edge.targetId) db.skillEdges.push(edge);
+    if (!exists && edge.sourceId !== edge.targetId) {
+      db.skillEdges.push({
+        id: crypto.randomUUID(),
+        sourceId: edge.sourceId,
+        targetId: edge.targetId,
+        relation: edge.relation,
+        createdAt: new Date().toISOString(),
+      });
+    }
   }
 
   async reset(): Promise<void> {
@@ -655,6 +809,7 @@ function normalizeDb(parsed: Db): Db {
   }));
   out.assessments = parsed.assessments ?? [];
   out.quests = parsed.quests ?? [];
+  out.evidenceRecords = parsed.evidenceRecords ?? [];
 
   // --- rebuild skills with stable UUIDs keyed by normalized label ---
   const legacySkills = (parsed.skills ?? {}) as Record<string, Omit<SkillState, "id"> & { id?: string }>;
@@ -667,30 +822,34 @@ function normalizeDb(parsed: Db): Db {
 
     let id: string;
     if (storedId && isUuid(storedId)) {
-      // Already a stable random UUID (post-Preflight writes) → preserve it.
       id = storedId;
     } else {
-      // Legacy (name-keyed / v2 slug ids) → reuse an existing mapping by any
-      // label if present, else deterministic v5 (migration seed only).
       id = labels.map((l) => idByLabel.get(normalizeLabel(l))).find(Boolean) as string | undefined
         ?? deterministicSkillId(name);
     }
 
-    // Bind every label of this skill to the single stable id (idempotent merge).
     for (const label of labels) {
       idByLabel.set(normalizeLabel(label), id);
     }
 
+    const isUuidKey = isUuid(key);
+    const extraAlias = (name !== key && key && !isUuidKey) ? [key] : [];
+
     const existing = out.skills[id];
     if (existing) {
       for (const label of labels) {
-        if (!existing.aliases.includes(label) && existing.name !== label) existing.aliases.push(label);
+        if (!isUuid(label) && !existing.aliases.includes(label) && existing.name !== label) {
+          existing.aliases.push(label);
+        }
       }
     } else {
       out.skills[id] = {
         id,
         name,
-        aliases: Array.from(new Set([...(s.aliases ?? []), ...(name !== key && key ? [key] : [])])),
+        aliases: Array.from(new Set([...(s.aliases ?? []), ...extraAlias])),
+        description: s.description ?? null,
+        domainId: s.domainId ?? null,
+        status: s.status ?? "active",
         xp: s.xp ?? 0,
         level: s.level ?? 1,
         masteryLevel: s.masteryLevel ?? 1,
@@ -709,7 +868,6 @@ function normalizeDb(parsed: Db): Db {
       const h = idByLabel.get(normalizeLabel(displayName));
       if (h) return h;
     }
-    // Unknown reference (e.g. old slug id): deterministically re-seed a stub.
     const id = deterministicSkillId(displayName ?? oldId ?? "unlinked-skill");
     if (!out.skills[id]) out.skills[id] = defaultSkill(id, displayName ?? "Unlinked");
     idByLabel.set(normalizeLabel(displayName ?? id), id);
@@ -744,7 +902,18 @@ function normalizeDb(parsed: Db): Db {
       const exists = out.skillEdges.some(
         (e) => e.sourceId === sourceId && e.targetId === targetId && e.relation === raw.relation,
       );
-      if (!exists) out.skillEdges.push({ sourceId, targetId, relation: raw.relation });
+      if (!exists) {
+        const relationType = (raw.relation === "prerequisite" || raw.relation === "contains" || raw.relation === "supports")
+          ? raw.relation
+          : "supports";
+        out.skillEdges.push({
+          id: raw.id ?? crypto.randomUUID(),
+          sourceId,
+          targetId,
+          relation: relationType,
+          createdAt: raw.createdAt ?? new Date().toISOString(),
+        });
+      }
     }
   }
 

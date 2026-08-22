@@ -123,8 +123,12 @@ describe("Milestone 2.7/Preflight — settlement guards & skill identity (store-
         createdAt: new Date().toISOString(),
       },
       xpDelta: 10,
-      primarySkill: { name, xpDelta: 10, masteryAction: { action: "none" } },
-      relatedSkillLabels: [],
+      primarySkill: {
+        skill: { resolution: "create", proposedName: name },
+        name,
+        xpDelta: 10,
+        masteryAction: { action: "none" },
+      },
       player: { xpDelta: 10 },
       masteryVerification: input.masteryVerification,
     };

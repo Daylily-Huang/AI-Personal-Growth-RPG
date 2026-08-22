@@ -10,6 +10,7 @@ import type {
   MasteryVerification,
   MasteryAction,
   SettlementToApply,
+  SkillResolutionInput,
   XpTransaction,
 } from "./types";
 
@@ -24,13 +25,10 @@ const MAX_REPETITION_CONFLICT_RETRIES = 3;
 /**
  * Domain service for the Growth Loop — the SINGLE copy of settlement rules.
  *
- * Milestone 2.7 additions:
- * - one `xpType="activity"` settlement per Activity (the store also guards this);
- * - `rulesVersion` is frozen on the Activity and recorded on the ledger, so a
- *   future engine upgrade never silently re-arbitrates old histories;
- * - repetition snapshot conflicts are retried with a fresh count (optimistic
- *   concurrency), because the authoritative count is derived inside the store's
- *   atomic write.
+ * Stage 5A additions:
+ * - Skill resolution discriminated union (`existing` vs `create`);
+ * - Authoritative evidence record persistence alongside activity settlement;
+ * - Preservation of the native MasteryAction 3-state protocol (`none` / `upgrade` / `request_verification`).
  */
 export class SettlementService {
   constructor(private readonly repo: Repository) {}
@@ -63,6 +61,11 @@ export class SettlementService {
     // atomic applySettlement, never here (Round6 — no side effects on failure).
     const existingSkillId = await this.repo.lookupSkillId(skillLabel);
     const skillId = existingSkillId ?? "";
+
+    // Primary skill resolution authority (Discriminated Union)
+    const primarySkillResolution: SkillResolutionInput = existingSkillId
+      ? { resolution: "existing", skillId: existingSkillId }
+      : { resolution: "create", proposedName: skillLabel };
 
     // Repetition only counts SIMILAR prior activities by the SAME STABLE SKILL ID
     // (aliases count as one and the same skill) + same type + 30-day window.
@@ -129,11 +132,20 @@ export class SettlementService {
       };
     }
 
-    // Secondary skills: only labels travel; the store resolves/creates nodes
-    // and related edges by stable id inside the atomic settlement.
+    // Secondary skills: resolve existing vs create
     const relatedSkillLabels = assessment.proposal.affected_skills
       .slice(1)
       .map((s) => s.name);
+
+    const relatedSkillResolutions: SkillResolutionInput[] = [];
+    for (const label of relatedSkillLabels) {
+      const existingId = await this.repo.lookupSkillId(label);
+      if (existingId) {
+        relatedSkillResolutions.push({ resolution: "existing", skillId: existingId });
+      } else {
+        relatedSkillResolutions.push({ resolution: "create", proposedName: label });
+      }
+    }
 
     const transaction: XpTransaction = {
       id: crypto.randomUUID(),
@@ -153,8 +165,6 @@ export class SettlementService {
         ...(activity.questTitleSnapshot ? { questTitleSnapshot: activity.questTitleSnapshot } : {}),
       } as unknown as Record<string, unknown>,
       reason: activity.rawInput,
-      // Milestone 2.7: the ledger records the rule set frozen at Activity
-      // creation, NOT whatever engine is deployed today.
       rulesVersion: activity.rulesVersion,
       createdAt: now,
     };
@@ -164,13 +174,19 @@ export class SettlementService {
       transaction,
       xpDelta,
       primarySkill: {
+        skill: primarySkillResolution,
         name: skillName,
         xpDelta,
         masteryAction,
       },
-      relatedSkillLabels,
+      relatedSkillResolutions,
       player: { xpDelta },
       masteryVerification,
+      evidence: {
+        level: assessment.proposal.evidence.level,
+        explanation: assessment.proposal.evidence.explanation || activity.rawInput,
+        type: activityType ?? "activity_output",
+      },
       questProgressDelta,
     };
 
@@ -188,7 +204,6 @@ export class SettlementService {
     }
 
     if (result.reason === "repetition_conflict") {
-      // Optimistic concurrency: re-read with the fresh authoritative count.
       return {
         result: { ok: false, reason: "repetition_conflict", actualRepetitionCount: result.actualRepetitionCount },
         retry: true,

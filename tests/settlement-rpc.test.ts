@@ -100,6 +100,7 @@ type MasteryActionJson =
 function buildSettlement(input: {
   assessmentId: string;
   activityId: string;
+  skill?: Record<string, unknown>;
   skillName?: string;
   activityType?: string | null;
   repetitionCount?: number;
@@ -112,13 +113,14 @@ function buildSettlement(input: {
   xpType?: string;
   masteryAction?: MasteryActionJson;
   masteryVerification?: Record<string, unknown> | null;
-  relatedSkillLabels?: string[];
+  relatedSkillResolutions?: Array<Record<string, unknown>>;
 }): Record<string, unknown> {
   const xpDelta = input.xpDelta ?? 50;
   const txAmount = input.txAmount ?? xpDelta;
   const skillXpDelta = input.skillXpDelta ?? xpDelta;
   const activityType = input.activityType ?? "study";
   const masteryAction = input.masteryAction ?? { action: "none" };
+  const skillName = input.skillName ?? "Statistics";
   return {
     assessmentId: input.assessmentId,
     xpDelta,
@@ -128,7 +130,7 @@ function buildSettlement(input: {
       assessmentId: input.assessmentId,
       xpType: input.xpType ?? "activity",
       skillId: "",
-      skillName: input.skillName ?? "Statistics",
+      skillName,
       activityType,
       repetitionCount: input.repetitionCount ?? 0,
       repetitionPenalty: 1,
@@ -140,11 +142,12 @@ function buildSettlement(input: {
       createdAt: new Date().toISOString(),
     },
     primarySkill: {
-      name: input.skillName ?? "Statistics",
+      skill: input.skill ?? { resolution: "create", proposedName: skillName },
+      name: skillName,
       xpDelta: skillXpDelta,
       masteryAction,
     },
-    relatedSkillLabels: input.relatedSkillLabels ?? [],
+    relatedSkillResolutions: input.relatedSkillResolutions ?? [],
     player: { xpDelta },
     ...(input.masteryVerification ? { masteryVerification: input.masteryVerification } : {}),
   };

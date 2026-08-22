@@ -1,10 +1,22 @@
 import type { AssessmentProposal } from "@/lib/ai/schemas";
 import type { Database } from "@/lib/supabase/database.types";
-import type { Activity, Assessment, MasteryVerification, PlayerState, Quest, SkillState, XpTransaction } from "./types";
+import type {
+  Activity,
+  Assessment,
+  EvidenceRecord,
+  MasteryVerification,
+  PlayerState,
+  Quest,
+  SkillEdge,
+  SkillState,
+  XpTransaction,
+} from "./types";
 
 type ActivityRow = Database["public"]["Tables"]["activities"]["Row"];
 type AssessmentRow = Database["public"]["Tables"]["ai_assessments"]["Row"];
 type SkillRow = Database["public"]["Tables"]["skills"]["Row"];
+type SkillEdgeRow = Database["public"]["Tables"]["skill_edges"]["Row"];
+type EvidenceRow = Database["public"]["Tables"]["evidence_records"]["Row"];
 type TransactionRow = Database["public"]["Tables"]["xp_transactions"]["Row"];
 type PlayerRow = Database["public"]["Tables"]["player_states"]["Row"];
 type VerificationRow = Database["public"]["Tables"]["mastery_verifications"]["Row"];
@@ -48,11 +60,38 @@ export function mapSkill(row: SkillRow): SkillState {
     id: row.id,
     name: row.name,
     aliases: row.aliases ?? [],
+    description: row.description ?? null,
+    domainId: row.domain_id ?? null,
+    status: (row.status as SkillState["status"]) ?? "active",
     xp: Number(row.xp),
     level: row.level,
     masteryLevel: row.mastery_level,
     masteryConfidence: Number(row.mastery_confidence),
     lastUsedAt: row.last_used_at,
+  };
+}
+
+export function mapSkillEdge(row: SkillEdgeRow): SkillEdge {
+  return {
+    id: row.id,
+    sourceId: row.source_skill_id,
+    targetId: row.target_skill_id,
+    relation: row.relation_type as SkillEdge["relation"],
+    createdAt: row.created_at,
+  };
+}
+
+export function mapEvidenceRecord(row: EvidenceRow): EvidenceRecord {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    activityId: row.activity_id ?? "",
+    skillId: row.skill_id ?? null,
+    evidenceLevel: row.evidence_level,
+    evidenceType: row.evidence_type ?? null,
+    description: row.description ?? null,
+    verified: Boolean(row.verified),
+    createdAt: row.created_at,
   };
 }
 
@@ -125,4 +164,3 @@ export function mapQuest(row: QuestRow): Quest {
     updatedAt: row.updated_at,
   };
 }
-

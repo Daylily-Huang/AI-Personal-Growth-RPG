@@ -1,6 +1,5 @@
 import type { AssessmentProposal } from "@/lib/ai/schemas";
 
-
 export type ActivityStatus = "pending_assessment" | "assessed" | "confirmed";
 
 export interface Activity {
@@ -70,14 +69,17 @@ export interface XpTransaction {
 }
 
 /**
- * Stable skill identity (Milestone 2.7): the database/domain always refers to a
+ * Stable skill identity (Milestone 2.7 & Stage 5): the database/domain always refers to a
  * skill by `id`; `name` is a display label and `aliases` help AI matching. The
- * display name must never be the primary identity again.
+ * display name must never be the primary identity.
  */
 export interface SkillState {
   id: string;
   name: string;
   aliases: string[];
+  description?: string | null;
+  domainId?: string | null;
+  status?: "active" | "archived";
   xp: number;
   level: number;
   masteryLevel: number;
@@ -85,11 +87,42 @@ export interface SkillState {
   lastUsedAt: string | null;
 }
 
+/** Stage 5 Minimal Skill Edge Relations */
+export type SkillEdgeRelationType = "prerequisite" | "contains" | "supports";
+
 /** Skill tree edge — endpoints are STABLE skill IDs (never display names). */
 export interface SkillEdge {
+  id?: string;
   sourceId: string;
   targetId: string;
-  relation: string;
+  relation: SkillEdgeRelationType | string;
+  createdAt?: string;
+}
+
+export interface NewSkillEdgeInput {
+  sourceSkillId: string;
+  targetSkillId: string;
+  relationType: SkillEdgeRelationType;
+}
+
+export interface UpdateSkillMetadataInput {
+  name?: string;
+  aliases?: string[];
+  description?: string | null;
+  domainId?: string | null;
+  status?: "active" | "archived";
+}
+
+export interface EvidenceRecord {
+  id: string;
+  userId: string;
+  activityId: string;
+  skillId: string | null;
+  evidenceLevel: number;
+  evidenceType: string | null;
+  description: string | null;
+  verified: boolean;
+  createdAt: string;
 }
 
 export interface PlayerState {
@@ -129,6 +162,7 @@ export interface Db {
   transactions: XpTransaction[];
   skills: Record<string, SkillState>;
   skillEdges: SkillEdge[];
+  evidenceRecords: EvidenceRecord[];
   masteryVerifications: MasteryVerification[];
   quests: Quest[];
   player: PlayerState;
@@ -149,17 +183,36 @@ export type MasteryAction =
     };
 
 /**
+ * Stage 5A Skill Resolution Input (Discriminated Union):
+ * - `existing`: explicitly binds to an existing verified skill ID;
+ * - `create`: explicitly creates a new skill with user-confirmed name.
+ */
+export type SkillResolutionInput =
+  | {
+      resolution: "existing";
+      skillId: string;
+    }
+  | {
+      resolution: "create";
+      proposedName: string;
+    };
+
+export interface SettlementSkillToApply {
+  /** Stage 5A Mandatory Stable-ID Skill Resolution (Discriminated Union) */
+  skill: SkillResolutionInput;
+  /** Display name / AI label snapshot at settle time. */
+  name: string;
+  xpDelta: number;
+  masteryAction: MasteryAction;
+}
+
+/**
  * The full change set a settlement produces.
  *
  * CRITICAL (Milestone 2.6): this is DELTA-based, not absolute-state. The
  * repository must apply `+= xpDelta` on the current stored state inside its own
  * atomic transaction — it must NOT blindly overwrite totals with values the
  * service computed from an older snapshot (that is the lost-update bug).
- *
- * Preflight (Round6): NO skill is created outside the atomic settlement. The
- * command carries display labels only; the repository resolves-or-creates the
- * stable skill (random UUID, never derived from the name) inside the atomic
- * write and returns the authoritative persisted result.
  */
 export interface SettlementToApply {
   assessmentId: string;
@@ -168,18 +221,20 @@ export interface SettlementToApply {
   /** = transaction.amount; applied as `current += xpDelta`. */
   xpDelta: number;
   /** Primary skill candidate: resolved-or-created atomically by the store. */
-  primarySkill: {
-    /** Display name / AI label used for normalized matching. */
-    name: string;
-    xpDelta: number;
-    masteryAction: MasteryAction;
-  };
-  /** Secondary skill labels; nodes + related edges are created atomically. */
-  relatedSkillLabels: string[];
+  primarySkill: SettlementSkillToApply;
+  /** Secondary skill resolutions (Discriminated Union array). */
+  relatedSkillResolutions?: SkillResolutionInput[];
   /** Apply as `player.totalXp += xpDelta`; level is recomputed by the store. */
   player: { xpDelta: number };
   /** Created when the mastery upgrade requires verification. */
   masteryVerification?: MasteryVerification;
+  /** Authoritative evidence record to persist alongside settlement. */
+  evidence?: {
+    id?: string;
+    level: number;
+    type?: string;
+    explanation: string;
+  };
   /** Deterministic quest progression delta computed by the domain Growth Engine. */
   questProgressDelta?: number;
 }
@@ -297,4 +352,3 @@ export interface DashboardSnapshot {
   mainQuest?: Quest | null;
   activeQuests?: Quest[];
 }
-

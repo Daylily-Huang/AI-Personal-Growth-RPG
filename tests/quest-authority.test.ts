@@ -234,13 +234,13 @@ describe.skipIf(!DATABASE_URL)("Stage 4.2 — Quest Authority, Derived State & A
         reason: "Refactored DB Constraints",
       },
       primarySkill: {
+        skill: { resolution: "create", proposedName: "Database Architecture" },
         name: "Database Architecture",
         xpDelta: 85,
         masteryAction: { action: "none" },
       },
       player: { xpDelta: 85 },
       questProgressDelta: 40,
-      relatedSkillLabels: [],
     };
 
     const settleRes = await client.query<{ settle_activity: { ok: boolean; transaction: { modifierJson: Record<string, unknown> } } }>(`
@@ -304,13 +304,13 @@ describe.skipIf(!DATABASE_URL)("Stage 4.2 — Quest Authority, Derived State & A
         reason: "Post-mortem analysis",
       },
       primarySkill: {
+        skill: { resolution: "create", proposedName: "Post Mortem Analysis" },
         name: "Post Mortem Analysis",
         xpDelta: 20,
         masteryAction: { action: "none" },
       },
       player: { xpDelta: 20 },
       questProgressDelta: 50,
-      relatedSkillLabels: [],
     };
 
     const settleRes = await client.query<{ settle_activity: { ok: boolean } }>(`

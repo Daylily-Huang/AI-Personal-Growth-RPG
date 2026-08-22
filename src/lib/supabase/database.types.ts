@@ -274,11 +274,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "domains_parent_id_fkey"
-            columns: ["parent_id"]
+            foreignKeyName: "fk_domains_parent_tenant_safe"
+            columns: ["user_id", "parent_id"]
             isOneToOne: false
             referencedRelation: "domains"
-            referencedColumns: ["id"]
+            referencedColumns: ["user_id", "id"]
           },
         ]
       }
@@ -331,11 +331,11 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "evidence_records_skill_id_fkey"
-            columns: ["skill_id"]
+            foreignKeyName: "fk_evidence_records_skill_tenant_safe"
+            columns: ["user_id", "skill_id"]
             isOneToOne: false
             referencedRelation: "skills"
-            referencedColumns: ["id"]
+            referencedColumns: ["user_id", "id"]
           },
         ]
       }
@@ -503,6 +503,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_mastery_events_evidence"
+            columns: ["evidence_id"]
+            isOneToOne: false
+            referencedRelation: "evidence_records"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "mastery_events_activity_id_fkey"
             columns: ["activity_id"]
@@ -767,6 +774,51 @@ export type Database = {
         }
         Relationships: []
       }
+      skill_edges: {
+        Row: {
+          created_at: string
+          id: string
+          relation_type: string
+          source_skill_id: string
+          target_skill_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          relation_type: string
+          source_skill_id: string
+          target_skill_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          relation_type?: string
+          source_skill_id?: string
+          target_skill_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_skill_edges_source_tenant_safe"
+            columns: ["user_id", "source_skill_id"]
+            isOneToOne: false
+            referencedRelation: "skills"
+            referencedColumns: ["user_id", "id"]
+          },
+          {
+            foreignKeyName: "fk_skill_edges_target_tenant_safe"
+            columns: ["user_id", "target_skill_id"]
+            isOneToOne: false
+            referencedRelation: "skills"
+            referencedColumns: ["user_id", "id"]
+          },
+        ]
+      }
       skills: {
         Row: {
           aliases: string[]
@@ -821,11 +873,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "skills_domain_id_fkey"
-            columns: ["domain_id"]
+            foreignKeyName: "fk_skills_domain_tenant_safe"
+            columns: ["user_id", "domain_id"]
             isOneToOne: false
             referencedRelation: "domains"
-            referencedColumns: ["id"]
+            referencedColumns: ["user_id", "id"]
           },
         ]
       }
@@ -996,6 +1048,32 @@ export type Database = {
       settle_activity: {
         Args: { p_settlement: Json; p_user_id: string }
         Returns: Json
+      }
+      update_skill_metadata: {
+        Args: { p_skill_id: string; p_updates: Json }
+        Returns: {
+          aliases: string[]
+          created_at: string
+          description: string | null
+          domain_id: string | null
+          id: string
+          last_used_at: string | null
+          level: number
+          mastery_confidence: number
+          mastery_level: number
+          name: string
+          normalized_name: string
+          status: string
+          updated_at: string
+          user_id: string
+          xp: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "skills"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       xp_threshold_for_level: { Args: { p_level: number }; Returns: number }
     }

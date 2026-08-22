@@ -3,13 +3,41 @@ import type { Database, Json } from "@/lib/supabase/database.types";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { AssessmentPersistenceService } from "./assessment-persistence.service";
 import type { Repository, SettlementResult } from "./repository";
-import type { Activity, Assessment, MasteryVerification, NewActivityInput, NewAssessmentInput, NewQuestInput, PlayerState, Quest, QuestStatus, SettlementToApply, SkillEdge, SkillState, UpdateQuestInput, XpTransaction } from "./types";
-import { mapActivity, mapAssessment, mapMasteryVerification, mapPlayer, mapQuest, mapSkill, mapTransaction } from "./supabase-mapping";
+import type {
+  Activity,
+  Assessment,
+  EvidenceRecord,
+  MasteryVerification,
+  NewActivityInput,
+  NewAssessmentInput,
+  NewQuestInput,
+  NewSkillEdgeInput,
+  PlayerState,
+  Quest,
+  QuestStatus,
+  SettlementToApply,
+  SkillEdge,
+  SkillState,
+  UpdateQuestInput,
+  UpdateSkillMetadataInput,
+  XpTransaction,
+} from "./types";
+import {
+  mapActivity,
+  mapAssessment,
+  mapEvidenceRecord,
+  mapMasteryVerification,
+  mapPlayer,
+  mapQuest,
+  mapSkill,
+  mapSkillEdge,
+  mapTransaction,
+} from "./supabase-mapping";
 
 const normalize = (value: string) => value.trim().toLowerCase().replace(/\s+/g, " ");
 type Client = SupabaseClient<Database>;
 
-/** Stage2-A: RLS-scoped data mapping. Permanent settlement remains Stage2-B RPC. */
+/** Stage 5A: RLS-scoped data mapping & graph/evidence repository */
 export class SupabaseRepository implements Repository {
   constructor(private readonly client: Client, private readonly userId: string) {
     if (!userId) throw new Error("SupabaseRepository requires an authenticated user id");
@@ -47,7 +75,6 @@ export class SupabaseRepository implements Repository {
       .order("created_at", { ascending: false });
     if (error) throw error;
     return (data ?? []).map((row) => {
-      // P2-2: use the persisted snapshot (settlement-time name), not the current skill name.
       return mapTransaction(row, row.skill_name_snapshot);
     });
   }
@@ -58,6 +85,17 @@ export class SupabaseRepository implements Repository {
     return skills.find((skill) => normalize(skill.name) === key || skill.aliases.some((alias) => normalize(alias) === key)) ?? null;
   }
 
+  async getSkillById(id: string): Promise<SkillState | null> {
+    const { data, error } = await this.client
+      .from("skills")
+      .select("*")
+      .eq("id", id)
+      .eq("user_id", this.userId)
+      .maybeSingle();
+    if (error) throw error;
+    return data ? mapSkill(data) : null;
+  }
+
   async listSkills(): Promise<SkillState[]> {
     const { data, error } = await this.client.from("skills").select("*").eq("user_id", this.userId).order("name");
     if (error) throw error;
@@ -65,9 +103,67 @@ export class SupabaseRepository implements Repository {
   }
 
   async listSkillEdges(): Promise<SkillEdge[]> {
-    // The Demo model has edges, but no relational skill_edges table exists yet.
-    // Keep this read empty until the graph schema is added deliberately.
-    return [];
+    const { data, error } = await this.client
+      .from("skill_edges")
+      .select("*")
+      .eq("user_id", this.userId)
+      .order("created_at");
+    if (error) throw error;
+    return (data ?? []).map(mapSkillEdge);
+  }
+
+  async listEvidenceRecords(skillId?: string): Promise<EvidenceRecord[]> {
+    let query = this.client
+      .from("evidence_records")
+      .select("*")
+      .eq("user_id", this.userId);
+    if (skillId) {
+      query = query.eq("skill_id", skillId);
+    }
+    const { data, error } = await query.order("created_at", { ascending: false });
+    if (error) throw error;
+    return (data ?? []).map(mapEvidenceRecord);
+  }
+
+  async addEdge(input: NewSkillEdgeInput): Promise<SkillEdge> {
+    const { data, error } = await this.client
+      .from("skill_edges")
+      .insert({
+        user_id: this.userId,
+        source_skill_id: input.sourceSkillId,
+        target_skill_id: input.targetSkillId,
+        relation_type: input.relationType,
+      })
+      .select()
+      .single();
+    if (error) throw error;
+    return mapSkillEdge(data);
+  }
+
+  async deleteEdge(id: string): Promise<void> {
+    const { error } = await this.client
+      .from("skill_edges")
+      .delete()
+      .eq("id", id)
+      .eq("user_id", this.userId);
+    if (error) throw error;
+  }
+
+  async updateSkillMetadata(id: string, updates: UpdateSkillMetadataInput): Promise<SkillState> {
+    const payload: Record<string, unknown> = {};
+    if (updates.name !== undefined) payload.name = updates.name;
+    if (updates.aliases !== undefined) payload.aliases = updates.aliases;
+    if (updates.description !== undefined) payload.description = updates.description;
+    if (updates.domainId !== undefined) payload.domain_id = updates.domainId;
+    if (updates.status !== undefined) payload.status = updates.status;
+
+    const { data, error } = await this.client.rpc("update_skill_metadata", {
+      p_skill_id: id,
+      p_updates: payload as unknown as Json,
+    });
+    if (error) throw error;
+    if (!data) throw new Error("update_skill_metadata returned no skill");
+    return mapSkill(data as unknown as Database["public"]["Tables"]["skills"]["Row"]);
   }
 
   async getPlayer(): Promise<PlayerState> {
@@ -183,13 +279,9 @@ export class SupabaseRepository implements Repository {
     if (error) throw error;
   }
 
-
   async addActivity(input: NewActivityInput): Promise<Activity> {
     const rawInput = input.rawInput.trim();
     const title = rawInput.slice(0, 80) || "未命名 Activity";
-    // Round13 P1-1: Activity creation is server-owned. The client never chooses
-    // user_id/status/rules_version/audit timestamps — create_activity RPC derives
-    // them. Direct INSERT on activities is revoked (0022).
     const { data, error } = await this.client.rpc("create_activity", {
       p_title: title,
       p_raw_input: rawInput,
@@ -203,8 +295,6 @@ export class SupabaseRepository implements Repository {
   }
 
   async addAssessment(input: NewAssessmentInput): Promise<Assessment> {
-    // Round12/13: AI assessments are server-authored. The authorized persistence
-    // service writes through the service-role-only record_ai_assessment RPC.
     return new AssessmentPersistenceService().recordForAuthenticatedActivity(this.userId, input);
   }
 
@@ -213,11 +303,6 @@ export class SupabaseRepository implements Repository {
   }
 
   async applySettlement(settlement: SettlementToApply): Promise<SettlementResult> {
-    // Stage2-B: settlement is a server-owned atomic DB transaction via the
-    // service-role-only settle_activity RPC. The RPC enforces ownership,
-    // one-activity-settlement idempotency, the authoritative repetition
-    // snapshot, pending-verification dedupe and all state transitions inside
-    // one transaction — the client never re-implements growth rules.
     const admin = getSupabaseAdminClient();
     const { data, error } = await admin.rpc("settle_activity", {
       p_user_id: this.userId,
