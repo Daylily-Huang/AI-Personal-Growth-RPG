@@ -3,12 +3,15 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { RULES_VERSION } from "@/lib/growth-engine/xp";
 import { levelFromXp } from "@/lib/growth-engine/levels";
+import { assembleSkillDetail } from "@/lib/skills/derived-state";
 import { countRecentSimilar } from "./similarity";
 import type {
   Activity,
   Assessment,
   Db,
+  Domain,
   EvidenceRecord,
+  MasteryEvent,
   MasteryVerification,
   NewActivityInput,
   NewAssessmentInput,
@@ -18,6 +21,7 @@ import type {
   Quest,
   QuestStatus,
   SettlementToApply,
+  SkillDetailResponse,
   SkillEdge,
   SkillState,
   UpdateQuestInput,
@@ -34,12 +38,29 @@ const SIMILARITY_WINDOW_DAYS = 30;
 function emptyDb(): Db {
   return {
     version: 4,
+    domains: [
+      {
+        id: "d-cs",
+        name: "Computer Science",
+        slug: "computer-science",
+        parentId: null,
+        sortOrder: 0,
+      },
+      {
+        id: "d-math",
+        name: "Mathematics",
+        slug: "mathematics",
+        parentId: null,
+        sortOrder: 1,
+      },
+    ],
     activities: [],
     assessments: [],
     transactions: [],
     skills: {},
     skillEdges: [],
     evidenceRecords: [],
+    masteryEvents: [],
     masteryVerifications: [],
     quests: [],
     player: {
@@ -190,6 +211,44 @@ export class DemoRepository implements Repository {
   async getSkillById(id: string): Promise<SkillState | null> {
     const db = this.readDb();
     return db.skills[id] ?? null;
+  }
+
+  async listDomains(): Promise<Domain[]> {
+    return this.readDb().domains ?? [];
+  }
+
+  async listMasteryEvents(skillId?: string): Promise<MasteryEvent[]> {
+    const list = this.readDb().masteryEvents ?? [];
+    if (skillId) {
+      return list.filter((me) => me.skillId === skillId);
+    }
+    return list;
+  }
+
+  async getSkillDetails(id: string): Promise<SkillDetailResponse | null> {
+    const db = this.readDb();
+    const skill = db.skills[id];
+    if (!skill) return null;
+
+    const domainName = skill.domainId
+      ? (db.domains ?? []).find((d) => d.id === skill.domainId)?.name ?? null
+      : null;
+
+    const activityTitlesMap = new Map<string, string>();
+    for (const act of db.activities ?? []) {
+      activityTitlesMap.set(act.id, act.title);
+    }
+
+    return assembleSkillDetail({
+      skill,
+      domainName,
+      allSkills: Object.values(db.skills),
+      allEdges: db.skillEdges ?? [],
+      evidenceRecords: db.evidenceRecords ?? [],
+      masteryEvents: db.masteryEvents ?? [],
+      transactions: db.transactions ?? [],
+      activityTitlesMap,
+    });
   }
 
   async listSkills(): Promise<SkillState[]> {
@@ -683,8 +742,24 @@ export class DemoRepository implements Repository {
     primary.lastUsedAt = now;
     const masteryAction = settlement.primarySkill.masteryAction;
     if (masteryAction.action === "upgrade") {
+      const fromLevel = primary.masteryLevel;
       primary.masteryLevel = masteryAction.proposedLevel;
       primary.masteryConfidence = masteryAction.confidence;
+
+      db.masteryEvents = db.masteryEvents ?? [];
+      db.masteryEvents.unshift({
+        id: crypto.randomUUID(),
+        userId: "u-demo",
+        skillId,
+        activityId: activity.id,
+        evidenceId: evidenceRecord.id,
+        fromLevel,
+        toLevel: masteryAction.proposedLevel,
+        confidence: masteryAction.confidence,
+        eventType: "upgrade",
+        reason: "settle_activity",
+        createdAt: now,
+      });
     }
 
     // 6) authoritative pending MasteryVerification (create or return existing).
@@ -810,6 +885,8 @@ function normalizeDb(parsed: Db): Db {
   out.assessments = parsed.assessments ?? [];
   out.quests = parsed.quests ?? [];
   out.evidenceRecords = parsed.evidenceRecords ?? [];
+  out.masteryEvents = parsed.masteryEvents ?? [];
+  out.domains = parsed.domains ?? emptyDb().domains;
 
   // --- rebuild skills with stable UUIDs keyed by normalized label ---
   const legacySkills = (parsed.skills ?? {}) as Record<string, Omit<SkillState, "id"> & { id?: string }>;
