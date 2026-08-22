@@ -1,6 +1,6 @@
 # Stage 5 — Skill Tree Implementation Plan (5A–5D)
 
-> **Status**: PROPOSED / DESIGN FREEZE (ROUND 3)  
+> **Status**: PROPOSED / DESIGN FREEZE (ROUND 4)  
 > **Target Milestone**: Stage 5 (Skill Tree)  
 > **Pre-requisite**: PR #1 Stabilization Merged (Commit `43fdbc8`)
 
@@ -27,11 +27,12 @@ To protect delivery velocity and system stability, the following features are **
 ```text
 ┌────────────────────────────────────────────────────────────────────────┐
 │ Stage 5A: Domain Model, Schema, Evidence & Graph Authority             │
-│ • Database migration: Composite FKs (skills, skill_edges, domains)     │
+│ • Database migration: Composite FKs + Column-Specific SET NULL         │
 │ • Single-parent contains + DAG anti-cycle + supports directed graph    │
 │ • Settlement upgrade: SkillResolutionInput union + MasteryAction 3-stat│
 │ • Authoritative evidence_records atomic write in settle_activity       │
 │ • Evidence FK integrity: mastery_events(evidence_id) -> evidence(id)   │
+│ • Evidence composite FK: evidence_records(user_id, skill_id) -> skills │
 │ • Domain hierarchy & skill metadata RPC (update_skill_metadata)        │
 │ • Repository port & store implementations (Demo + Supabase)            │
 │ • Unit & repository test suite (including cross-tenant DB tests)       │
@@ -72,14 +73,17 @@ To protect delivery velocity and system stability, the following features are **
 - **Objectives**:
   1. Add migration `supabase/migrations/0036_skill_edges_and_tenant_fks.sql`:
      - Add composite unique constraints: `skills(user_id, id)` and `domains(user_id, id)`;
-     - Enforce domain tenant hierarchy: `domains(user_id, parent_id) REFERENCES domains(user_id, id) ON DELETE SET NULL`;
-     - Enforce skill domain tenant safety: `skills(user_id, domain_id) REFERENCES domains(user_id, id) ON DELETE SET NULL`;
+     - Enforce domain tenant hierarchy with column-specific SET NULL:  
+       `domains(user_id, parent_id) REFERENCES domains(user_id, id) ON DELETE SET NULL (parent_id)`;
+     - Enforce skill domain tenant safety with column-specific SET NULL:  
+       `skills(user_id, domain_id) REFERENCES domains(user_id, id) ON DELETE SET NULL (domain_id)`;
      - Create `public.skill_edges` with `(user_id, source_skill_id)` and `(user_id, target_skill_id)` referencing `skills(user_id, id) ON DELETE CASCADE`;
      - Add partial unique index: `UNIQUE(user_id, target_skill_id) WHERE relation_type = 'contains'` (Single-parent invariant);
      - Add unique index: `UNIQUE(user_id, source_skill_id, target_skill_id, relation_type)`;
      - Add DB trigger function `prevent_skill_edge_cycle()` to block cycles on `prerequisite` and `contains`;
      - Ensure `supports` allows directed synergy without artificial cycle rejection;
      - Add foreign key `mastery_events(evidence_id) REFERENCES public.evidence_records(id) ON DELETE SET NULL` (P2 Evidence FK Integrity);
+     - Add composite foreign key `evidence_records(user_id, skill_id) REFERENCES public.skills(user_id, id) ON DELETE SET NULL (skill_id)`;
      - Configure strict RLS on `public.skill_edges`.
   2. Add migration `supabase/migrations/0037_skill_settlement_and_evidence.sql`:
      - Upgrade `settle_activity` RPC to accept `SkillResolutionInput` (`existing` with user ownership check vs `create` with normalized name check);
@@ -95,7 +99,7 @@ To protect delivery velocity and system stability, the following features are **
      - `updateSkillMetadata(id: string, updates: UpdateSkillMetadataInput): Promise<SkillState>`
   4. Update `DemoRepository` and `SupabaseRepository` to maintain behavioral parity.
 - **Verification**:
-  - `tests/skill-edges-schema.test.ts`: Anti-cycle, single-parent contains, composite FK cross-tenant rejection tests (User A source/target pointing to User B rejected by DB).
+  - `tests/skill-edges-schema.test.ts`: Anti-cycle, single-parent contains, composite FK cross-tenant rejection tests (User A source/target pointing to User B rejected by DB), column-specific SET NULL tests (deleting parent domain or skill domain leaves user_id intact and clears parent_id/domain_id).
   - `tests/skill-settlement-authority.test.ts`: Stable-ID existing resolution vs create resolution, evidence_records write tests, MasteryAction 3-state regression test.
 
 ---
@@ -135,7 +139,7 @@ To protect delivery velocity and system stability, the following features are **
 - **Objectives**:
   1. Run full test suite with Supabase local stack (`supabase start`);
   2. Add E2E tests in `tests/e2e-skills-browser.test.ts`;
-  3. Verify RLS and tenant isolation in `tests/rls-skills.test.ts` (including cross-tenant foreign key blocks);
+  3. Verify RLS and tenant isolation in `tests/rls-skills.test.ts` (including cross-tenant foreign key blocks and column-specific SET NULL integrity);
   4. Run `pnpm harness:deterministic` and `pnpm test`.
 - **Verification**:
   - GitHub Actions `check` and `supabase-integration` all green.

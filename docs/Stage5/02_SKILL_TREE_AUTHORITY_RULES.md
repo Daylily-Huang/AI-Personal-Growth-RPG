@@ -1,6 +1,6 @@
 # Stage 5 — Skill Tree Authority & Evidence Rules
 
-> **Status**: PROPOSED / DESIGN FREEZE (ROUND 3)  
+> **Status**: PROPOSED / DESIGN FREEZE (ROUND 4)  
 > **Target Milestone**: Stage 5 (Skill Tree)  
 > **Related Rules**: `docs/Design ChatGPT/01_SYSTEM_RULES.md`, `docs/Design ChatGPT/05_AI_GAME_MASTER_CONTRACT.md`, `docs/Design ChatGPT/06_DATABASE_SCHEMA_AND_DATA_DICTIONARY.md`
 
@@ -144,9 +144,9 @@ Stage 5 严格执行 **“High Mastery requires Evidence”**，并在 `/skills`
 
 ---
 
-## 3. Tenant-Safe Reference Integrity (Composite Foreign Keys)
+## 3. Tenant-Safe Reference Integrity (Column-Specific SET NULL)
 
-为杜绝 User A 引用或连接 User B 的技能/域，所有关联关系在**数据库引擎层**通过复合外键保证绝对隔离：
+为杜绝跨租户篡改，所有关联关系在**数据库引擎层**通过复合外键保证绝对隔离。对于可空关联字段，**必须使用 PostgreSQL 字段级 `ON DELETE SET NULL (column_name)`**，严格防止非空的 `user_id` 被意外置 NULL：
 
 ```sql
 -- 1. Skills composite key
@@ -155,20 +155,29 @@ ALTER TABLE public.skills ADD CONSTRAINT skills_user_id_composite_key UNIQUE (us
 -- 2. Domains composite key
 ALTER TABLE public.domains ADD CONSTRAINT domains_user_id_composite_key UNIQUE (user_id, id);
 
--- 3. Domains hierarchy composite foreign key (Blocker 2B)
+-- 3. Domains hierarchy composite foreign key (Blocker 2B & Column-Specific SET NULL)
 ALTER TABLE public.domains ADD CONSTRAINT fk_domains_parent_tenant_safe
-  FOREIGN KEY (user_id, parent_id) REFERENCES public.domains(user_id, id) ON DELETE SET NULL;
+  FOREIGN KEY (user_id, parent_id) REFERENCES public.domains(user_id, id)
+  ON DELETE SET NULL (parent_id);
 
--- 4. Skills domain association composite foreign key (Blocker 2B)
+-- 4. Skills domain association composite foreign key (Blocker 2B & Column-Specific SET NULL)
 ALTER TABLE public.skills ADD CONSTRAINT fk_skills_domain_tenant_safe
-  FOREIGN KEY (user_id, domain_id) REFERENCES public.domains(user_id, id) ON DELETE SET NULL;
+  FOREIGN KEY (user_id, domain_id) REFERENCES public.domains(user_id, id)
+  ON DELETE SET NULL (domain_id);
 
 -- 5. Skill Edges composite foreign keys (Blocker 2)
 ALTER TABLE public.skill_edges ADD CONSTRAINT fk_skill_edges_source_tenant_safe
-  FOREIGN KEY (user_id, source_skill_id) REFERENCES public.skills(user_id, id) ON DELETE CASCADE;
+  FOREIGN KEY (user_id, source_skill_id) REFERENCES public.skills(user_id, id)
+  ON DELETE CASCADE;
 
 ALTER TABLE public.skill_edges ADD CONSTRAINT fk_skill_edges_target_tenant_safe
-  FOREIGN KEY (user_id, target_skill_id) REFERENCES public.skills(user_id, id) ON DELETE CASCADE;
+  FOREIGN KEY (user_id, target_skill_id) REFERENCES public.skills(user_id, id)
+  ON DELETE CASCADE;
+
+-- 6. Evidence Records composite foreign key (Column-Specific SET NULL)
+ALTER TABLE public.evidence_records ADD CONSTRAINT fk_evidence_records_skill_tenant_safe
+  FOREIGN KEY (user_id, skill_id) REFERENCES public.skills(user_id, id)
+  ON DELETE SET NULL (skill_id);
 ```
 
 ---
@@ -249,9 +258,9 @@ $$;
 
 | 表名 (`Table`) | SELECT 权限 | INSERT 权限 | UPDATE 权限 | DELETE 权限 | 租户外键防护 (Composite FK) |
 |---|---|---|---|---|---|
-| `public.domains` | `auth.uid() = user_id` | `auth.uid() = user_id` | `auth.uid() = user_id` | `auth.uid() = user_id` | `(user_id, parent_id) -> domains(user_id, id)` |
-| `public.skills` | `auth.uid() = user_id` | **Revoked** (仅 `settle_activity` RPC 可插入) | **Revoked** (仅 `update_skill_metadata` RPC 白名单更新) | **Revoked** (仅允许归档 `status = 'archived'`) | `(user_id, domain_id) -> domains(user_id, id)` |
-| `public.skill_edges` | `auth.uid() = user_id` | `auth.uid() = user_id` (受 DAG/单父/自环触发器约束) | `auth.uid() = user_id` | `auth.uid() = user_id` | `(user_id, source/target) -> skills(user_id, id)` |
-| `public.evidence_records` | `auth.uid() = user_id` | **Service Role Only** (RPC 写入) | **Service Role Only** | **Revoked** | `(user_id, skill_id) -> skills(user_id, id)` |
-| `public.mastery_events` | `auth.uid() = user_id` | **Service Role Only** (RPC 写入) | **Revoked** | **Revoked** | `evidence_id -> evidence_records(id)` |
+| `public.domains` | `auth.uid() = user_id` | `auth.uid() = user_id` | `auth.uid() = user_id` | `auth.uid() = user_id` | `(user_id, parent_id) -> domains(user_id, id) ON DELETE SET NULL (parent_id)` |
+| `public.skills` | `auth.uid() = user_id` | **Revoked** (仅 `settle_activity` RPC 可插入) | **Revoked** (仅 `update_skill_metadata` RPC 白名单更新) | **Revoked** (仅允许归档 `status = 'archived'`) | `(user_id, domain_id) -> domains(user_id, id) ON DELETE SET NULL (domain_id)` |
+| `public.skill_edges` | `auth.uid() = user_id` | `auth.uid() = user_id` (受 DAG/单父/自环触发器约束) | `auth.uid() = user_id` | `auth.uid() = user_id` | `(user_id, source/target) -> skills(user_id, id) ON DELETE CASCADE` |
+| `public.evidence_records` | `auth.uid() = user_id` | **Service Role Only** (RPC 写入) | **Service Role Only** | **Revoked** | `(user_id, skill_id) -> skills(user_id, id) ON DELETE SET NULL (skill_id)` |
+| `public.mastery_events` | `auth.uid() = user_id` | **Service Role Only** (RPC 写入) | **Revoked** | **Revoked** | `evidence_id -> evidence_records(id) ON DELETE SET NULL` |
 | `public.mastery_verifications` | `auth.uid() = user_id` | **Service Role Only** (RPC 写入) | **Service Role / Admin** | **Revoked** | `skill_id -> skills(id)` |

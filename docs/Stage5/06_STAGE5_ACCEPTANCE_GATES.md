@@ -1,6 +1,6 @@
 # Stage 5 — Skill Tree Acceptance Gates & Review Checklist
 
-> **Status**: PROPOSED / DESIGN FREEZE (ROUND 3)  
+> **Status**: PROPOSED / DESIGN FREEZE (ROUND 4)  
 > **Target Milestone**: Stage 5 (Skill Tree)  
 > **Related Rules**: `docs/Design ChatGPT/04_MVP_ROADMAP_AND_ACCEPTANCE.md`, `docs/Design ChatGPT/08_TESTING_EVALS_AND_QA.md`
 
@@ -13,8 +13,13 @@ Each sub-stage PR must strictly meet its corresponding gate criteria before proc
 ### Gate 5A — Schema, Authority & Evidence Integrity
 - [ ] **Table Integrity & Composite Foreign Keys (Blocker 2)**:
   - `public.skill_edges` created with composite foreign keys referencing `public.skills(user_id, id)` on both source and target;
-  - `public.domains` enforces `(user_id, parent_id) REFERENCES public.domains(user_id, id)`;
-  - `public.skills` enforces `(user_id, domain_id) REFERENCES public.domains(user_id, id)`.
+  - `public.domains` enforces `(user_id, parent_id) REFERENCES public.domains(user_id, id) ON DELETE SET NULL (parent_id)`;
+  - `public.skills` enforces `(user_id, domain_id) REFERENCES public.domains(user_id, id) ON DELETE SET NULL (domain_id)`;
+  - `public.evidence_records` enforces `(user_id, skill_id) REFERENCES public.skills(user_id, id) ON DELETE SET NULL (skill_id)`.
+- [ ] **Column-Specific SET NULL Database Verification Tests (Round 4 Closure)**:
+  - Real DB test: Delete a parent domain $\to$ all child domains have `parent_id IS NULL` and `user_id` remains unchanged;
+  - Real DB test: Delete a domain $\to$ all associated skills have `domain_id IS NULL` and `user_id` remains unchanged;
+  - Real DB test: Delete a skill $\to$ all associated evidence records have `skill_id IS NULL` and `user_id` remains unchanged.
 - [ ] **Database-Level Cross-Tenant Rejection Tests (Blocker 2 & 2B)**:
   - Real DB test verifies User A creating an edge with User B's skill as source is rejected by database engine (FK violation);
   - Real DB test verifies User A creating an edge with User B's skill as target is rejected by database engine (FK violation);
@@ -78,11 +83,11 @@ Each sub-stage PR must strictly meet its corresponding gate criteria before proc
 
 | Requirement | Verification Method | Status |
 |---|---|---|
-| **Domain Model & Ontology Separation** | Audit against `01_SKILL_TREE_DOMAIN_MODEL.md` | Frozen (Round 3) |
-| **Authority, Settlement Union, MasteryAction & Evidence** | Audit against `02_SKILL_TREE_AUTHORITY_RULES.md` | Frozen (Round 3) |
-| **Total Derived State & API Contract** | Audit against `03_SKILL_TREE_API_AND_STATE.md` | Frozen (Round 3) |
-| **UI Design & Canvas Usability** | Audit against `04_SKILL_TREE_UI_SPEC.md` | Frozen (Round 3) |
-| **Phased Plan & Scope Containment** | Audit against `05_STAGE5_IMPLEMENTATION_PLAN.md` | Frozen (Round 3) |
-| **Acceptance Gates & Invariants** | Audit against `06_STAGE5_ACCEPTANCE_GATES.md` | Frozen (Round 3) |
+| **Domain Model & Ontology Separation** | Audit against `01_SKILL_TREE_DOMAIN_MODEL.md` | Frozen (Round 4) |
+| **Authority, Settlement Union, MasteryAction & Evidence** | Audit against `02_SKILL_TREE_AUTHORITY_RULES.md` | Frozen (Round 4) |
+| **Total Derived State & API Contract** | Audit against `03_SKILL_TREE_API_AND_STATE.md` | Frozen (Round 4) |
+| **UI Design & Canvas Usability** | Audit against `04_SKILL_TREE_UI_SPEC.md` | Frozen (Round 4) |
+| **Phased Plan & Scope Containment** | Audit against `05_STAGE5_IMPLEMENTATION_PLAN.md` | Frozen (Round 4) |
+| **Acceptance Gates & Invariants** | Audit against `06_STAGE5_ACCEPTANCE_GATES.md` | Frozen (Round 4) |
 | **Automated Test Suite** | `pnpm test` + `pnpm harness:deterministic` | Target 100% Pass |
 | **Live CI Full Stack** | GitHub Actions Run on feature branch | Target GREEN 🟢 |
