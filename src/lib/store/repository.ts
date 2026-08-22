@@ -1,10 +1,12 @@
 import type {
   Activity,
   Assessment,
+  EvidenceRecord,
   MasteryVerification,
   NewActivityInput,
   NewAssessmentInput,
   NewQuestInput,
+  NewSkillEdgeInput,
   PlayerState,
   Quest,
   QuestStatus,
@@ -12,6 +14,7 @@ import type {
   SkillEdge,
   SkillState,
   UpdateQuestInput,
+  UpdateSkillMetadataInput,
   XpTransaction,
 } from "./types";
 
@@ -40,7 +43,7 @@ export interface SettlementResult {
 /**
  * Storage port (Repository pattern).
  *
- * SEMANTICS (Milestone 2.6):
+ * SEMANTICS (Milestone 2.6 & Stage 5A):
  * - ALL methods are async, because the Supabase implementation is remote
  *   (`await supabase.from(...)`). An async port is set from day one.
  * - The port NEVER contains business rules — it only reads/persists data.
@@ -51,14 +54,15 @@ export interface SettlementResult {
  *   The store (not the service) is responsible for keeping running totals and
  *   derived levels consistent under concurrency — see docs/06 for the design.
  *
- * ATOMIC SETTLEMENT GUARANTEES (Milestone 2.7, the store MUST enforce):
+ * ATOMIC SETTLEMENT GUARANTEES (Stage 5A, the store MUST enforce):
  *   1. Activity idempotency — an Activity can carry only ONE `xpType=activity`
  *      ledger entry. Second settlement for the same Activity → `already_settled`.
- *   2. Repetition snapshot — the similar-count that decides the penalty is
- *      derived from a CONSISTENT committed view inside the atomic write. If it
- *      differs from the service's snapshot → `repetition_conflict` + fresh
- *      `actualRepetitionCount`, and the caller retries.
- *   3. At most one `pending` MasteryVerification per skill.
+ *   2. Stable-ID resolution — accepts `SkillResolutionInput` union (`existing` vs `create`).
+ *      When `existing` is passed, the store never re-resolves identity from name.
+ *   3. Authoritative Evidence persistence — writes `evidence_records` atomically.
+ *   4. MasteryAction 3-state protocol — preserves `none` / `upgrade` / `request_verification`.
+ *   5. Repetition snapshot — derived from consistent committed view inside atomic write.
+ *   6. At most one `pending` MasteryVerification per skill.
  */
 export interface Repository {
   // ---- reads ----
@@ -68,10 +72,17 @@ export interface Repository {
   listPendingAssessments(): Promise<Assessment[]>;
   listTransactions(): Promise<XpTransaction[]>;
   getSkill(name: string): Promise<SkillState | null>;
+  getSkillById(id: string): Promise<SkillState | null>;
   listSkills(): Promise<SkillState[]>;
   listSkillEdges(): Promise<SkillEdge[]>;
+  listEvidenceRecords(skillId?: string): Promise<EvidenceRecord[]>;
   getPlayer(): Promise<PlayerState>;
   listMasteryVerifications(): Promise<MasteryVerification[]>;
+
+  // ---- skills & edges (Stage 5A) ----
+  addEdge(input: NewSkillEdgeInput): Promise<SkillEdge>;
+  deleteEdge(id: string): Promise<void>;
+  updateSkillMetadata(id: string, updates: UpdateSkillMetadataInput): Promise<SkillState>;
 
   // ---- quests ----
   getQuest(id: string): Promise<Quest | null>;
@@ -100,4 +111,3 @@ export interface Repository {
   /** Wipe the store (demo/testing only). */
   reset(): Promise<void>;
 }
-

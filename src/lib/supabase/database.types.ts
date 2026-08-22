@@ -829,6 +829,51 @@ export type Database = {
           },
         ]
       }
+      skill_edges: {
+        Row: {
+          created_at: string
+          id: string
+          relation_type: string
+          source_skill_id: string
+          target_skill_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          relation_type: string
+          source_skill_id: string
+          target_skill_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          relation_type?: string
+          source_skill_id?: string
+          target_skill_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_skill_edges_source_tenant_safe"
+            columns: ["user_id", "source_skill_id"]
+            isOneToOne: false
+            referencedRelation: "skills"
+            referencedColumns: ["user_id", "id"]
+          },
+          {
+            foreignKeyName: "fk_skill_edges_target_tenant_safe"
+            columns: ["user_id", "target_skill_id"]
+            isOneToOne: false
+            referencedRelation: "skills"
+            referencedColumns: ["user_id", "id"]
+          },
+        ]
+      }
       xp_transactions: {
         Row: {
           activity_id: string
@@ -996,6 +1041,39 @@ export type Database = {
       settle_activity: {
         Args: { p_settlement: Json; p_user_id: string }
         Returns: Json
+      }
+      update_skill_metadata: {
+        Args: {
+          p_aliases?: string[]
+          p_description?: string
+          p_domain_id?: string
+          p_name?: string
+          p_skill_id: string
+          p_status?: string
+        }
+        Returns: {
+          aliases: string[]
+          created_at: string
+          description: string | null
+          domain_id: string | null
+          id: string
+          last_used_at: string | null
+          level: number
+          mastery_confidence: number
+          mastery_level: number
+          name: string
+          normalized_name: string
+          status: string
+          updated_at: string
+          user_id: string
+          xp: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "skills"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       xp_threshold_for_level: { Args: { p_level: number }; Returns: number }
     }

@@ -58,9 +58,11 @@ const EXPECTED_ORDER = [
   "0033_quest_authority_closure",
   "0034_security_closure",
   "0035_activity_quest_snapshot_final",
+  "0036_skill_edges_and_tenant_fks",
+  "0037_skill_settlement_and_evidence",
 ];
 
-const PRIVATE_TABLES = [
+const STAGE1_PRIVATE_TABLES = [
   "profiles",
   "player_states",
   "domains",
@@ -110,7 +112,7 @@ describe("M3 Stage1 — migration chain completeness & order", () => {
   test("every private table is created before the RLS migration", () => {
     const seq = [...EXPECTED_ORDER];
     const rlsIndex = seq.indexOf("0017_rls");
-    for (const table of PRIVATE_TABLES) {
+    for (const table of STAGE1_PRIVATE_TABLES) {
       const createdIn = seq.findIndex((name) =>
         (migrations.get(name) ?? "").includes(`create table if not exists public.${table}`),
       );
@@ -156,7 +158,7 @@ describe("M3 Stage1 — DB invariants demanded by reviewers", () => {
 
   test("0017 rls: every private table is wired to RLS (referenced in policy arrays)", () => {
     const sql = migrations.get("0017_rls") ?? "";
-    for (const table of PRIVATE_TABLES) {
+    for (const table of STAGE1_PRIVATE_TABLES) {
       expect(sql, `table ${table} missing from RLS wiring`).toContain(`'${table}'`);
     }
   });
