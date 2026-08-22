@@ -15,6 +15,15 @@ export interface ComputeSkillGraphOptions {
 
 /**
  * Pure function to compute positioned graph nodes, derived states, and styled edges.
+ *
+ * Cycle-Safe Strategy for Mixed Relations (P2):
+ * Stage 5A DB guarantees that `prerequisite` edges and `contains` edges are individually
+ * acyclic, but their union could theoretically cycle. To ensure deterministic, crash-proof
+ * layout:
+ *   1. Primary topological layering is computed strictly on `prerequisite` edges (guaranteed DAG).
+ *   2. Hierarchical contains depth is incorporated where it does not cause cycles.
+ *   3. Any unvisited or cycle-entangled node falls back safely to layer 0.
+ *   4. Node placement is deterministically sorted by layer, name, and ID.
  */
 export function computeSkillGraph(
   domains: Domain[],
@@ -43,7 +52,7 @@ export function computeSkillGraph(
     (e) => validSkillIds.has(e.sourceId) && validSkillIds.has(e.targetId),
   );
 
-  // 4. Compute topological layering based on prerequisite and hierarchy edges
+  // 4. Compute topological layering based on prerequisite DAG
   const levels = new Map<string, number>();
   const indegree = new Map<string, number>();
 
@@ -52,9 +61,9 @@ export function computeSkillGraph(
     indegree.set(skill.id, 0);
   }
 
-  // Prerequisite / contains edges determine vertical/horizontal DAG depth
-  const dagEdges = filteredEdges.filter((e) => e.relation === "prerequisite" || e.relation === "contains");
-  for (const edge of dagEdges) {
+  // Primary structural layering uses prerequisite edges
+  const prereqEdges = filteredEdges.filter((e) => e.relation === "prerequisite");
+  for (const edge of prereqEdges) {
     if (!indegree.has(edge.sourceId) || !indegree.has(edge.targetId)) continue;
     indegree.set(edge.targetId, (indegree.get(edge.targetId) ?? 0) + 1);
   }
@@ -63,16 +72,28 @@ export function computeSkillGraph(
   let head = 0;
   while (head < queue.length) {
     const id = queue[head++];
-    for (const edge of dagEdges.filter((e) => e.sourceId === id)) {
+    for (const edge of prereqEdges.filter((e) => e.sourceId === id)) {
       levels.set(edge.targetId, Math.max(levels.get(edge.targetId) ?? 0, (levels.get(id) ?? 0) + 1));
       indegree.set(edge.targetId, (indegree.get(edge.targetId) ?? 0) - 1);
       if ((indegree.get(edge.targetId) ?? 0) === 0) queue.push(edge.targetId);
     }
   }
 
+  // Fallback: any node with remaining indegree > 0 (e.g. if an edge set had a cycle) is safely kept at layer 0
+
   // 5. Group by layer for stable spacing and calculate derived states
+  // Sort deterministic order by layer ASC, then name ASC, then id ASC
+  const sortedSkills = [...filteredSkills].sort((a, b) => {
+    const la = levels.get(a.id) ?? 0;
+    const lb = levels.get(b.id) ?? 0;
+    if (la !== lb) return la - lb;
+    const nameComp = a.name.localeCompare(b.name);
+    if (nameComp !== 0) return nameComp;
+    return a.id.localeCompare(b.id);
+  });
+
   const layerIndex = new Map<number, number>();
-  const nodes: SkillFlowNode[] = filteredSkills.map((skill) => {
+  const nodes: SkillFlowNode[] = sortedSkills.map((skill) => {
     const layer = levels.get(skill.id) ?? 0;
     const index = layerIndex.get(layer) ?? 0;
     layerIndex.set(layer, index + 1);

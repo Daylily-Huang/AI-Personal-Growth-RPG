@@ -10,7 +10,6 @@ import path from "node:path";
 import crypto from "node:crypto";
 
 const DATABASE_URL = process.env.XP_RPG_TEST_DB_URL ?? "postgresql://postgres:postgres@127.0.0.1:54322/postgres";
-
 const DEFAULT_LOCAL_SERVICE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54321";
@@ -86,15 +85,16 @@ describe("Stage 5B — SupabaseRepository & Cross-Tenant Read Models (Live Postg
     expect(domainsB[0].name).toBe("Physics");
   });
 
-  test("2. getSkillDetails: returns complete snapshot with timeline, mastery events, and prerequisites", async () => {
+  test("2. getSkillDetails: returns complete snapshot and exact authoritative createdAt matching DB (P1-1)", async () => {
     // Seed skill for User A in Computer Science domain
     const domainId = "d1111111-1111-4000-a000-000000000002";
-    const skillA1 = await pgClient.query<{ id: string }>(`
+    const skillA1 = await pgClient.query<{ id: string; created_at: string }>(`
       insert into public.skills (user_id, domain_id, name, aliases, description, xp, level, mastery_level, mastery_confidence)
       values ('${USER_5B_A}', '${domainId}', 'JavaScript', '{"JS"}', 'Core web language', 500, 4, 3, 0.85)
-      returning id;
+      returning id, created_at;
     `);
     const s1Id = skillA1.rows[0].id;
+    const s1CreatedAt = skillA1.rows[0].created_at;
 
     const skillA2 = await pgClient.query<{ id: string }>(`
       insert into public.skills (user_id, domain_id, name, aliases, description, xp, level, mastery_level, mastery_confidence)
@@ -142,6 +142,8 @@ describe("Stage 5B — SupabaseRepository & Cross-Tenant Read Models (Live Postg
     expect(detailJS!.skill.name).toBe("JavaScript");
     expect(detailJS!.skill.domainName).toBe("Computer Science");
     expect(detailJS!.skill.derivedState).toBe("proficient");
+    // P1-1: detail.skill.createdAt === actual public.skills.created_at ISO string
+    expect(new Date(detailJS!.skill.createdAt).toISOString()).toBe(new Date(s1CreatedAt).toISOString());
     expect(detailJS!.nextUnlocks).toHaveLength(1);
     expect(detailJS!.nextUnlocks[0].name).toBe("TypeScript");
     expect(detailJS!.nextUnlocks[0].derivedState).toBe("available");
@@ -161,7 +163,30 @@ describe("Stage 5B — SupabaseRepository & Cross-Tenant Read Models (Live Postg
     expect(detailTS!.prerequisites[0].isFulfilled).toBe(true);
   });
 
-  test("3. Cross-Tenant Isolation: User B cannot access User A's skill details, evidence, or events", async () => {
+  test("3. deleteEdge Semantics & Tenant Isolation (P1-2)", async () => {
+    // 1. User A creates edge
+    const skillsA = await repoA.listSkills();
+    const edge = await repoA.addEdge({
+      sourceSkillId: skillsA[0].id,
+      targetSkillId: skillsA[1].id,
+      relationType: "supports",
+    });
+    expect(edge.id).toBeDefined();
+
+    // 2. User B attempts to delete User A's edge -> MUST RETURN false (P1-2 / Cross-tenant)
+    const deletedByB = await repoB.deleteEdge(edge.id!);
+    expect(deletedByB).toBe(false);
+
+    // 3. User A deletes own edge -> MUST RETURN true
+    const deletedByA = await repoA.deleteEdge(edge.id!);
+    expect(deletedByA).toBe(true);
+
+    // 4. User A deletes same edge again -> MUST RETURN false
+    const deletedAgain = await repoA.deleteEdge(edge.id!);
+    expect(deletedAgain).toBe(false);
+  });
+
+  test("4. Cross-Tenant Isolation: User B cannot access User A's skill details, evidence, or events", async () => {
     const skillARes = await pgClient.query<{ id: string }>(`
       select id from public.skills where user_id = '${USER_5B_A}' limit 1;
     `);
@@ -180,7 +205,80 @@ describe("Stage 5B — SupabaseRepository & Cross-Tenant Read Models (Live Postg
     expect(crossEvents).toHaveLength(0);
   });
 
-  test("4. DemoRepository and SupabaseRepository Parity", async () => {
+  test("5. Domain assignment validation parity between Demo and Supabase (P1-4)", async () => {
+    const skillsA = await repoA.listSkills();
+    const skillAId = skillsA[0].id;
+    const nonExistentDomainUuid = crypto.randomUUID();
+
+    // Supabase rejects non-existent/cross-tenant domain
+    await expect(
+      repoA.updateSkillMetadata(skillAId, { domainId: nonExistentDomainUuid }),
+    ).rejects.toThrow();
+
+    // Demo repository rejects non-existent domain
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "demo-domain-test-"));
+    process.env.DEMO_DB_PATH = path.join(tempDir, "demo.json");
+    const demoRepo = new DemoRepository();
+    await demoRepo.reset();
+
+    const act = await demoRepo.addActivity({ rawInput: "Domain test", totalMinutes: 10 });
+    const assess = await demoRepo.addAssessment({
+      activityId: act.id,
+      modelName: "test-model",
+      promptVersion: "v1",
+      proposal: {
+        activity: { type: "learning", completion: 0.8 },
+        difficulty: { complexity: 0.5, uncertainty: 0.4, expertise_gap: 0.5, resistance: 0.4 },
+        growth: { effort: 0.6, learning: 0.7, performance: 0.3, outcome: 0.5, artifact_value: 0.2, character_evidence: 0.1 },
+        evidence: { level: 2, explanation: "tested domain" },
+        affected_skills: [{ name: "DomainSkill", reason: "test" }],
+        knowledge_updates: { proposed_nodes: [], proposed_edges: [] },
+        mastery_changes: [],
+        xp_semantics: { base_value: 20, difficulty: 0.5, mastery_gain: 0.5, novelty: 0.5, goal_alignment: 0.6, repetition_risk: "low" },
+        artifacts: [],
+        next_quest: null,
+        confidence: 0.9,
+        uncertainty_notes: [],
+      },
+    });
+    const setRes = await demoRepo.applySettlement({
+      assessmentId: assess.id,
+      transaction: {
+        id: crypto.randomUUID(),
+        activityId: act.id,
+        assessmentId: assess.id,
+        xpType: "activity",
+        skillId: "",
+        skillName: "DomainSkill",
+        activityType: "coding",
+        repetitionCount: 0,
+        repetitionPenalty: 1,
+        amount: 20,
+        baseAmount: 20,
+        modifierJson: {},
+        reason: "Test",
+        rulesVersion: "test",
+        createdAt: new Date().toISOString(),
+      },
+      xpDelta: 20,
+      primarySkill: {
+        skill: { resolution: "create", proposedName: "DomainSkill" },
+        name: "DomainSkill",
+        xpDelta: 20,
+        masteryAction: { action: "none" },
+      },
+      player: { xpDelta: 20 },
+    });
+
+    await expect(
+      demoRepo.updateSkillMetadata(setRes.skillId!, { domainId: nonExistentDomainUuid }),
+    ).rejects.toThrow(/Referenced domain does not exist/);
+
+    fs.rmSync(tempDir, { recursive: true, force: true });
+    delete process.env.DEMO_DB_PATH;
+  });
+
+  test("6. DemoRepository and SupabaseRepository Read-Model Parity", async () => {
     // Setup isolated DemoRepository
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "demo-parity-test-"));
     process.env.DEMO_DB_PATH = path.join(tempDir, "demo.json");
@@ -260,6 +358,7 @@ describe("Stage 5B — SupabaseRepository & Cross-Tenant Read Models (Live Postg
     expect(demoDetail).not.toBeNull();
     expect(demoDetail!.skill.name).toBe("Rust");
     expect(demoDetail!.skill.derivedState).toBe("proficient");
+    expect(demoDetail!.skill.createdAt).toBeDefined();
     expect(demoDetail!.evidenceTimeline).toHaveLength(1);
     expect(demoDetail!.evidenceTimeline[0].evidenceLevel).toBe(4);
     expect(demoDetail!.evidenceTimeline[0].verified).toBe(true);

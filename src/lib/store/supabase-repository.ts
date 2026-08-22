@@ -205,13 +205,15 @@ export class SupabaseRepository implements Repository {
     return mapSkillEdge(data);
   }
 
-  async deleteEdge(id: string): Promise<void> {
-    const { error } = await this.client
+  async deleteEdge(id: string): Promise<boolean> {
+    const { data, error } = await this.client
       .from("skill_edges")
       .delete()
       .eq("id", id)
-      .eq("user_id", this.userId);
+      .eq("user_id", this.userId)
+      .select("id");
     if (error) throw error;
+    return Boolean(data && data.length > 0);
   }
 
   async updateSkillMetadata(id: string, updates: UpdateSkillMetadataInput): Promise<SkillState> {

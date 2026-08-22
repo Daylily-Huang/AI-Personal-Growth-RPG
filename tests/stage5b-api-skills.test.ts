@@ -76,7 +76,7 @@ describe("Stage 5B — Skill API Routes", () => {
     vi.restoreAllMocks();
   });
 
-  describe("Unauthenticated Access (401)", () => {
+  describe("P1-3 — Unauthenticated Access (Must return 401 before any parsing/validation)", () => {
     beforeEach(() => {
       (getRequestRepository as unknown as Mock).mockRejectedValue(
         new AuthRequiredError(),
@@ -89,29 +89,53 @@ describe("Stage 5B — Skill API Routes", () => {
       expect(res.status).toBe(401);
     });
 
-    test("GET /api/skills/[id] returns 401", async () => {
-      const req = new Request("http://localhost:3000/api/skills/s-1");
-      const res = await getSkillDetail(req, { params: Promise.resolve({ id: "s-1" }) });
+    test("GET /api/skills/[id] returns 401 even with invalid UUID", async () => {
+      const req = new Request("http://localhost:3000/api/skills/not-a-uuid");
+      const res = await getSkillDetail(req, { params: Promise.resolve({ id: "not-a-uuid" }) });
       expect(res.status).toBe(401);
     });
 
-    test("PATCH /api/skills/[id] returns 401", async () => {
-      const req = new Request("http://localhost:3000/api/skills/s-1", {
+    test("unauth + valid PATCH returns 401", async () => {
+      const validUuid = crypto.randomUUID();
+      const req = new Request(`http://localhost:3000/api/skills/${validUuid}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: "Renamed" }),
+        body: JSON.stringify({ name: "Renamed Skill" }),
       });
-      const res = await patchSkill(req, { params: Promise.resolve({ id: "s-1" }) });
+      const res = await patchSkill(req, { params: Promise.resolve({ id: validUuid }) });
       expect(res.status).toBe(401);
     });
 
-    test("POST /api/skills/edges returns 401", async () => {
+    test("unauth + empty-name PATCH returns 401 (not 400)", async () => {
+      const validUuid = crypto.randomUUID();
+      const req = new Request(`http://localhost:3000/api/skills/${validUuid}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: "   " }),
+      });
+      const res = await patchSkill(req, { params: Promise.resolve({ id: validUuid }) });
+      expect(res.status).toBe(401);
+    });
+
+    test("unauth + malformed JSON PATCH returns 401 (not 400)", async () => {
+      const validUuid = crypto.randomUUID();
+      const req = new Request(`http://localhost:3000/api/skills/${validUuid}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: "{ not valid json",
+      });
+      const res = await patchSkill(req, { params: Promise.resolve({ id: validUuid }) });
+      expect(res.status).toBe(401);
+    });
+
+    test("unauth + self-edge POST returns 401 (not 400)", async () => {
+      const sameId = crypto.randomUUID();
       const req = new Request("http://localhost:3000/api/skills/edges", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          sourceSkillId: "s-1",
-          targetSkillId: "s-2",
+          sourceSkillId: sameId,
+          targetSkillId: sameId,
           relationType: "prerequisite",
         }),
       });
@@ -119,11 +143,21 @@ describe("Stage 5B — Skill API Routes", () => {
       expect(res.status).toBe(401);
     });
 
-    test("DELETE /api/skills/edges/[id] returns 401", async () => {
-      const req = new Request("http://localhost:3000/api/skills/edges/e-1", {
+    test("unauth + malformed JSON POST returns 401 (not 400)", async () => {
+      const req = new Request("http://localhost:3000/api/skills/edges", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "invalid json string",
+      });
+      const res = await postSkillEdge(req);
+      expect(res.status).toBe(401);
+    });
+
+    test("DELETE /api/skills/edges/[id] returns 401 even with invalid UUID", async () => {
+      const req = new Request("http://localhost:3000/api/skills/edges/not-a-uuid", {
         method: "DELETE",
       });
-      const res = await deleteSkillEdge(req, { params: Promise.resolve({ id: "e-1" }) });
+      const res = await deleteSkillEdge(req, { params: Promise.resolve({ id: "not-a-uuid" }) });
       expect(res.status).toBe(401);
     });
   });
@@ -230,15 +264,26 @@ describe("Stage 5B — Skill API Routes", () => {
   });
 
   describe("GET /api/skills/[id] Detail Read Model", () => {
-    test("returns 404 for non-existent skill id", async () => {
-      const req = new Request("http://localhost:3000/api/skills/00000000-0000-0000-0000-000000000000");
+    test("returns 400 for invalid UUID format", async () => {
+      const req = new Request("http://localhost:3000/api/skills/invalid-format");
       const res = await getSkillDetail(req, {
-        params: Promise.resolve({ id: "00000000-0000-0000-0000-000000000000" }),
+        params: Promise.resolve({ id: "invalid-format" }),
+      });
+      expect(res.status).toBe(400);
+      const body = await res.json();
+      expect(body.error).toContain("Valid skill UUID is required");
+    });
+
+    test("returns 404 for non-existent valid skill UUID", async () => {
+      const randomUuid = crypto.randomUUID();
+      const req = new Request(`http://localhost:3000/api/skills/${randomUuid}`);
+      const res = await getSkillDetail(req, {
+        params: Promise.resolve({ id: randomUuid }),
       });
       expect(res.status).toBe(404);
     });
 
-    test("returns full detail model including timeline and prerequisites", async () => {
+    test("returns full detail model including timeline and prerequisites with stable createdAt", async () => {
       const act = await demoRepo.addActivity({ rawInput: "Build Auth", totalMinutes: 90 });
       const assess = await demoRepo.addAssessment({
         activityId: act.id,
@@ -282,24 +327,135 @@ describe("Stage 5B — Skill API Routes", () => {
       });
 
       const skillId = setRes.skillId!;
-      const req = new Request(`http://localhost:3000/api/skills/${skillId}`);
-      const res = await getSkillDetail(req, { params: Promise.resolve({ id: skillId }) });
-      expect(res.status).toBe(200);
+      const req1 = new Request(`http://localhost:3000/api/skills/${skillId}`);
+      const res1 = await getSkillDetail(req1, { params: Promise.resolve({ id: skillId }) });
+      expect(res1.status).toBe(200);
 
-      const body = await res.json();
-      expect(body.skill.id).toBe(skillId);
-      expect(body.skill.name).toBe("Supabase RLS");
-      expect(body.skill.derivedState).toBe("learning");
-      expect(body.evidenceTimeline).toHaveLength(1);
-      expect(body.evidenceTimeline[0].evidenceLevel).toBe(2);
-      expect(body.evidenceTimeline[0].verified).toBe(true);
-      expect(body.masteryHistory).toHaveLength(1);
-      expect(body.masteryHistory[0].toLevel).toBe(2);
-      expect(body.recentTransactions).toHaveLength(1);
+      const body1 = await res1.json();
+      expect(body1.skill.id).toBe(skillId);
+      expect(body1.skill.name).toBe("Supabase RLS");
+      expect(body1.skill.derivedState).toBe("learning");
+      expect(body1.skill.createdAt).toBeDefined();
+      expect(body1.evidenceTimeline).toHaveLength(1);
+      expect(body1.evidenceTimeline[0].evidenceLevel).toBe(2);
+      expect(body1.evidenceTimeline[0].verified).toBe(true);
+      expect(body1.masteryHistory).toHaveLength(1);
+      expect(body1.masteryHistory[0].toLevel).toBe(2);
+      expect(body1.recentTransactions).toHaveLength(1);
+
+      // Verify deterministic timestamp across multiple calls
+      const req2 = new Request(`http://localhost:3000/api/skills/${skillId}`);
+      const res2 = await getSkillDetail(req2, { params: Promise.resolve({ id: skillId }) });
+      const body2 = await res2.json();
+      expect(body2.skill.createdAt).toBe(body1.skill.createdAt);
     });
   });
 
-  describe("PATCH /api/skills/[id] Metadata Mutation", () => {
+  describe("PATCH /api/skills/[id] Validation & Metadata Mutation", () => {
+    test("returns 400 when route id is not a valid UUID", async () => {
+      const req = new Request("http://localhost:3000/api/skills/bad-id", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: "Valid Name" }),
+      });
+      const res = await patchSkill(req, { params: Promise.resolve({ id: "bad-id" }) });
+      expect(res.status).toBe(400);
+      const body = await res.json();
+      expect(body.error).toContain("Valid skill UUID is required");
+    });
+
+    test("returns 400 when body is malformed JSON", async () => {
+      const validUuid = crypto.randomUUID();
+      const req = new Request(`http://localhost:3000/api/skills/${validUuid}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: "{ bad json",
+      });
+      const res = await patchSkill(req, { params: Promise.resolve({ id: validUuid }) });
+      expect(res.status).toBe(400);
+      const body = await res.json();
+      expect(body.error).toContain("Malformed JSON body");
+    });
+
+    test("returns 400 when name is empty string or only whitespace", async () => {
+      const validUuid = crypto.randomUUID();
+      const req = new Request(`http://localhost:3000/api/skills/${validUuid}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: "   " }),
+      });
+      const res = await patchSkill(req, { params: Promise.resolve({ id: validUuid }) });
+      expect(res.status).toBe(400);
+      const body = await res.json();
+      expect(body.error).toContain("name must be a non-empty string");
+    });
+
+    test("returns 400 when domainId is invalid UUID format", async () => {
+      const validUuid = crypto.randomUUID();
+      const req = new Request(`http://localhost:3000/api/skills/${validUuid}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ domainId: "not-a-uuid" }),
+      });
+      const res = await patchSkill(req, { params: Promise.resolve({ id: validUuid }) });
+      expect(res.status).toBe(400);
+      const body = await res.json();
+      expect(body.error).toContain("domainId must be a valid UUID or null");
+    });
+
+    test("returns 400 when domainId is valid UUID but does not exist (Demo/Supabase parity)", async () => {
+      const act = await demoRepo.addActivity({ rawInput: "Learn Go", totalMinutes: 45 });
+      const assess = await demoRepo.addAssessment({
+        activityId: act.id,
+        proposal: mockProposal("Golang"),
+        modelName: "test-model",
+        promptVersion: "v1",
+      });
+
+      const setRes = await demoRepo.applySettlement({
+        assessmentId: assess.id,
+        transaction: {
+          id: crypto.randomUUID(),
+          activityId: act.id,
+          assessmentId: assess.id,
+          xpType: "activity",
+          skillId: "",
+          skillName: "Golang",
+          activityType: "coding",
+          repetitionCount: 0,
+          repetitionPenalty: 1,
+          amount: 50,
+          baseAmount: 50,
+          modifierJson: {},
+          reason: "Go practice",
+          rulesVersion: "test",
+          createdAt: new Date().toISOString(),
+        },
+        xpDelta: 50,
+        primarySkill: {
+          skill: { resolution: "create", proposedName: "Golang" },
+          name: "Golang",
+          xpDelta: 50,
+          masteryAction: { action: "none" },
+        },
+        player: { xpDelta: 50 },
+      });
+
+      const skillId = setRes.skillId!;
+      const nonExistentDomainUuid = crypto.randomUUID();
+
+      const req = new Request(`http://localhost:3000/api/skills/${skillId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ domainId: nonExistentDomainUuid }),
+      });
+
+      const res = await patchSkill(req, { params: Promise.resolve({ id: skillId }) });
+      expect(res.status).toBe(400);
+      const body = await res.json();
+      expect(body.error).toContain("domain");
+    });
+
     test("successfully updates skill metadata and preserves old name in aliases", async () => {
       const act = await demoRepo.addActivity({ rawInput: "Learn Go", totalMinutes: 45 });
       const assess = await demoRepo.addAssessment({
@@ -346,7 +502,7 @@ describe("Stage 5B — Skill API Routes", () => {
         body: JSON.stringify({
           name: "Go Programming Language",
           description: "Systems programming with Go",
-          domainId: "d-cs",
+          domainId: "d1111111-1111-4000-a000-000000000001",
         }),
       });
 
@@ -357,17 +513,7 @@ describe("Stage 5B — Skill API Routes", () => {
       expect(body.name).toBe("Go Programming Language");
       expect(body.aliases).toContain("Golang");
       expect(body.description).toBe("Systems programming with Go");
-      expect(body.domainId).toBe("d-cs");
-    });
-
-    test("returns 400 when name is empty string", async () => {
-      const req = new Request("http://localhost:3000/api/skills/some-id", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: "   " }),
-      });
-      const res = await patchSkill(req, { params: Promise.resolve({ id: "some-id" }) });
-      expect(res.status).toBe(400);
+      expect(body.domainId).toBe("d1111111-1111-4000-a000-000000000001");
     });
 
     test("returns 409 when renaming to a name that conflicts with an existing skill", async () => {
@@ -457,13 +603,60 @@ describe("Stage 5B — Skill API Routes", () => {
   });
 
   describe("POST /api/skills/edges & DELETE /api/skills/edges/[id]", () => {
-    test("rejects self-edge with 400", async () => {
+    test("POST returns 400 for malformed JSON body", async () => {
+      const req = new Request("http://localhost:3000/api/skills/edges", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{ broken",
+      });
+      const res = await postSkillEdge(req);
+      expect(res.status).toBe(400);
+      const body = await res.json();
+      expect(body.error).toContain("Malformed JSON body");
+    });
+
+    test("POST returns 400 when sourceSkillId is invalid UUID", async () => {
+      const validUuid = crypto.randomUUID();
       const req = new Request("http://localhost:3000/api/skills/edges", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          sourceSkillId: "same-id",
-          targetSkillId: "same-id",
+          sourceSkillId: "invalid-source",
+          targetSkillId: validUuid,
+          relationType: "prerequisite",
+        }),
+      });
+      const res = await postSkillEdge(req);
+      expect(res.status).toBe(400);
+      const body = await res.json();
+      expect(body.error).toContain("sourceSkillId must be a valid UUID");
+    });
+
+    test("POST returns 400 when targetSkillId is invalid UUID", async () => {
+      const validUuid = crypto.randomUUID();
+      const req = new Request("http://localhost:3000/api/skills/edges", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sourceSkillId: validUuid,
+          targetSkillId: "invalid-target",
+          relationType: "prerequisite",
+        }),
+      });
+      const res = await postSkillEdge(req);
+      expect(res.status).toBe(400);
+      const body = await res.json();
+      expect(body.error).toContain("targetSkillId must be a valid UUID");
+    });
+
+    test("POST rejects self-edge with 400", async () => {
+      const sameId = crypto.randomUUID();
+      const req = new Request("http://localhost:3000/api/skills/edges", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sourceSkillId: sameId,
+          targetSkillId: sameId,
           relationType: "prerequisite",
         }),
       });
@@ -474,7 +667,7 @@ describe("Stage 5B — Skill API Routes", () => {
       expect(body.error).toContain("Self-edges are forbidden");
     });
 
-    test("rejects cycle in prerequisite DAG with 409", async () => {
+    test("POST rejects cycle in prerequisite DAG with 409", async () => {
       const act = await demoRepo.addActivity({ rawInput: "Seeding skills", totalMinutes: 10 });
       const assess = await demoRepo.addAssessment({
         activityId: act.id,
@@ -575,7 +768,7 @@ describe("Stage 5B — Skill API Routes", () => {
       expect(res2.status).toBe(409);
     });
 
-    test("successfully creates and deletes an edge", async () => {
+    test("P1-2 — DELETE edge returns 204 on success, 404 on repeat or non-existent edge", async () => {
       const act = await demoRepo.addActivity({ rawInput: "Seeding skills", totalMinutes: 10 });
       const assess = await demoRepo.addAssessment({
         activityId: act.id,
@@ -664,13 +857,33 @@ describe("Stage 5B — Skill API Routes", () => {
       const edge = await createRes.json();
       expect(edge.id).toBeDefined();
 
-      const deleteReq = new Request(`http://localhost:3000/api/skills/edges/${edge.id}`, {
+      // 1. First DELETE -> 204
+      const deleteReq1 = new Request(`http://localhost:3000/api/skills/edges/${edge.id}`, {
         method: "DELETE",
       });
-      const deleteRes = await deleteSkillEdge(deleteReq, {
+      const deleteRes1 = await deleteSkillEdge(deleteReq1, {
         params: Promise.resolve({ id: edge.id }),
       });
-      expect(deleteRes.status).toBe(204);
+      expect(deleteRes1.status).toBe(204);
+
+      // 2. Second DELETE on same edge -> 404 (P1-2)
+      const deleteReq2 = new Request(`http://localhost:3000/api/skills/edges/${edge.id}`, {
+        method: "DELETE",
+      });
+      const deleteRes2 = await deleteSkillEdge(deleteReq2, {
+        params: Promise.resolve({ id: edge.id }),
+      });
+      expect(deleteRes2.status).toBe(404);
+
+      // 3. DELETE random nonexistent UUID edge -> 404 (P1-2)
+      const randomEdgeUuid = crypto.randomUUID();
+      const deleteReq3 = new Request(`http://localhost:3000/api/skills/edges/${randomEdgeUuid}`, {
+        method: "DELETE",
+      });
+      const deleteRes3 = await deleteSkillEdge(deleteReq3, {
+        params: Promise.resolve({ id: randomEdgeUuid }),
+      });
+      expect(deleteRes3.status).toBe(404);
     });
   });
 });

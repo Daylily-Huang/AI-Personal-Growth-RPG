@@ -6,14 +6,24 @@ interface RouteContext {
   params: Promise<{ id: string }>;
 }
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function isValidUuid(val: unknown): val is string {
+  return typeof val === "string" && UUID_REGEX.test(val);
+}
+
 export async function GET(_request: Request, context: RouteContext) {
   try {
+    // 1. Authenticate first (P1-3)
+    const repo = await getRequestRepository();
+
+    // 2. Validate route param (P1-4)
     const { id } = await context.params;
-    if (!id) {
-      return NextResponse.json({ error: "Skill ID is required" }, { status: 400 });
+    if (!id || !isValidUuid(id)) {
+      return NextResponse.json({ error: "Valid skill UUID is required" }, { status: 400 });
     }
 
-    const repo = await getRequestRepository();
+    // 3. Query detail read model
     const detail = await repo.getSkillDetails(id);
 
     if (!detail) {
@@ -32,50 +42,66 @@ export async function GET(_request: Request, context: RouteContext) {
 
 export async function PATCH(request: Request, context: RouteContext) {
   try {
+    // 1. Authenticate first (P1-3)
+    const repo = await getRequestRepository();
+
+    // 2. Validate route param (P1-4)
     const { id } = await context.params;
-    if (!id) {
-      return NextResponse.json({ error: "Skill ID is required" }, { status: 400 });
+    if (!id || !isValidUuid(id)) {
+      return NextResponse.json({ error: "Valid skill UUID is required" }, { status: 400 });
     }
 
-    const body = await request.json();
+    // 3. Parse JSON body (P1-3 / P1-4)
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Malformed JSON body" }, { status: 400 });
+    }
+
     if (!body || typeof body !== "object") {
       return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
 
+    const b = body as Record<string, unknown>;
     const updates: UpdateSkillMetadataInput = {};
 
-    if (body.name !== undefined) {
-      if (typeof body.name !== "string" || body.name.trim() === "") {
+    if (b.name !== undefined) {
+      if (typeof b.name !== "string" || b.name.trim() === "") {
         return NextResponse.json({ error: "name must be a non-empty string" }, { status: 400 });
       }
-      updates.name = body.name.trim();
+      updates.name = b.name.trim();
     }
 
-    if (body.aliases !== undefined) {
-      if (!Array.isArray(body.aliases) || body.aliases.some((a: unknown) => typeof a !== "string")) {
+    if (b.aliases !== undefined) {
+      if (!Array.isArray(b.aliases) || b.aliases.some((a: unknown) => typeof a !== "string")) {
         return NextResponse.json({ error: "aliases must be an array of strings" }, { status: 400 });
       }
-      updates.aliases = body.aliases.map((a: string) => a.trim()).filter(Boolean);
+      updates.aliases = b.aliases.map((a: string) => a.trim()).filter(Boolean);
     }
 
-    if (body.description !== undefined) {
-      updates.description = body.description === null ? null : String(body.description).trim();
+    if (b.description !== undefined) {
+      if (b.description !== null && typeof b.description !== "string") {
+        return NextResponse.json({ error: "description must be a string or null" }, { status: 400 });
+      }
+      updates.description = b.description === null ? null : b.description.trim();
     }
 
-    if (body.domainId !== undefined) {
-      updates.domainId = body.domainId === null ? null : String(body.domainId);
+    if (b.domainId !== undefined) {
+      if (b.domainId !== null && !isValidUuid(b.domainId)) {
+        return NextResponse.json({ error: "domainId must be a valid UUID or null" }, { status: 400 });
+      }
+      updates.domainId = b.domainId;
     }
 
-    if (body.status !== undefined) {
-      if (body.status !== "active" && body.status !== "archived") {
+    if (b.status !== undefined) {
+      if (b.status !== "active" && b.status !== "archived") {
         return NextResponse.json({ error: "status must be 'active' or 'archived'" }, { status: 400 });
       }
-      updates.status = body.status;
+      updates.status = b.status;
     }
 
-    const repo = await getRequestRepository();
     const updatedSkill = await repo.updateSkillMetadata(id, updates);
-
     return NextResponse.json(updatedSkill, { status: 200 });
   } catch (error) {
     if (error instanceof AuthRequiredError) {
@@ -89,27 +115,29 @@ export async function PATCH(request: Request, context: RouteContext) {
           ? String((error as { message: unknown }).message)
           : String(error);
 
-    if (message.includes("Skill not found") || message.includes("access denied")) {
+    if (message.includes("Skill not found")) {
       return NextResponse.json({ error: message }, { status: 404 });
     }
 
     if (
       message.includes("already exists") ||
       message.includes("duplicate") ||
-      message.includes("normalized name")
+      message.includes("normalized name") ||
+      message.includes("23505")
     ) {
       return NextResponse.json({ error: message }, { status: 409 });
     }
 
     if (
-      message.includes("cross-tenant") ||
+      message.includes("does not exist") ||
       message.includes("foreign key") ||
-      message.includes("violates")
+      message.includes("23503") ||
+      message.includes("domain")
     ) {
       return NextResponse.json({ error: message }, { status: 400 });
     }
 
     console.error("Failed to update skill metadata", error);
-    return NextResponse.json({ error: message || "Failed to update skill metadata" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to update skill metadata" }, { status: 500 });
   }
 }

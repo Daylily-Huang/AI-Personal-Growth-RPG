@@ -40,14 +40,14 @@ function emptyDb(): Db {
     version: 4,
     domains: [
       {
-        id: "d-cs",
+        id: "d1111111-1111-4000-a000-000000000001",
         name: "Computer Science",
         slug: "computer-science",
         parentId: null,
         sortOrder: 0,
       },
       {
-        id: "d-math",
+        id: "d2222222-2222-4000-a000-000000000002",
         name: "Mathematics",
         slug: "mathematics",
         parentId: null,
@@ -73,7 +73,7 @@ function emptyDb(): Db {
   };
 }
 
-function defaultSkill(id: string, name: string): SkillState {
+function defaultSkill(id: string, name: string, createdAt = "1970-01-01T00:00:00.000Z"): SkillState {
   return {
     id,
     name,
@@ -86,6 +86,8 @@ function defaultSkill(id: string, name: string): SkillState {
     masteryLevel: 1,
     masteryConfidence: 0.5,
     lastUsedAt: null,
+    createdAt,
+    updatedAt: createdAt,
   };
 }
 
@@ -341,10 +343,13 @@ export class DemoRepository implements Repository {
     return edge;
   }
 
-  async deleteEdge(id: string): Promise<void> {
+  async deleteEdge(id: string): Promise<boolean> {
     const db = this.readDb();
-    db.skillEdges = db.skillEdges.filter((e) => e.id !== id);
+    const idx = db.skillEdges.findIndex((e) => e.id === id);
+    if (idx === -1) return false;
+    db.skillEdges.splice(idx, 1);
     this.writeDb(db);
+    return true;
   }
 
   async updateSkillMetadata(id: string, updates: UpdateSkillMetadataInput): Promise<SkillState> {
@@ -373,7 +378,15 @@ export class DemoRepository implements Repository {
 
     skill.aliases = newAliases;
     if (updates.description !== undefined) skill.description = updates.description;
-    if (updates.domainId !== undefined) skill.domainId = updates.domainId;
+    if (updates.domainId !== undefined) {
+      if (updates.domainId !== null) {
+        const domainExists = (db.domains ?? []).some((d) => d.id === updates.domainId);
+        if (!domainExists) {
+          throw new Error("Referenced domain does not exist or access denied");
+        }
+      }
+      skill.domainId = updates.domainId;
+    }
     if (updates.status !== undefined) skill.status = updates.status;
 
     this.writeDb(db);
@@ -676,7 +689,7 @@ export class DemoRepository implements Repository {
       if (!skillRes.proposedName || skillRes.proposedName.trim() === "") {
         return { ok: false, reason: "empty_proposed_skill_name" };
       }
-      primary = this.resolveOrCreateSkill(db, skillRes.proposedName);
+      primary = this.resolveOrCreateSkill(db, skillRes.proposedName, now);
     }
     const skillId = primary.id;
 
@@ -698,7 +711,7 @@ export class DemoRepository implements Repository {
           if (!res.proposedName || res.proposedName.trim() === "") {
             return { ok: false, reason: "empty_related_skill_proposed_name" };
           }
-          this.resolveOrCreateSkill(db, res.proposedName);
+          this.resolveOrCreateSkill(db, res.proposedName, now);
         } else if (res.resolution === "existing") {
           if (!db.skills[res.skillId]) {
             return { ok: false, reason: "related_skill_not_found_or_not_owned" };
@@ -826,11 +839,11 @@ export class DemoRepository implements Repository {
     };
   }
 
-  private resolveOrCreateSkill(db: Db, label: string): SkillState {
+  private resolveOrCreateSkill(db: Db, label: string, now = "1970-01-01T00:00:00.000Z"): SkillState {
     const existing = findSkillByLabel(db.skills, label);
     if (existing) return existing;
     const id = crypto.randomUUID();
-    const skill = defaultSkill(id, label.trim() || "unnamed");
+    const skill = defaultSkill(id, label.trim() || "unnamed", now);
     db.skills[id] = skill;
     return skill;
   }
@@ -932,6 +945,8 @@ function normalizeDb(parsed: Db): Db {
         masteryLevel: s.masteryLevel ?? 1,
         masteryConfidence: s.masteryConfidence ?? 0.5,
         lastUsedAt: s.lastUsedAt ?? null,
+        createdAt: s.createdAt ?? "1970-01-01T00:00:00.000Z",
+        updatedAt: s.updatedAt ?? s.createdAt ?? "1970-01-01T00:00:00.000Z",
       };
     }
   }

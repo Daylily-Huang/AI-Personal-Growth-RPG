@@ -310,6 +310,39 @@ describe("Stage 5B — Skill Derived State & Layout Pure Logic", () => {
       expect(result.masteryHistory).toHaveLength(1);
       expect(result.recentTransactions).toHaveLength(1);
     });
+
+    it("is 100% pure and produces identical deep output on repeated calls with unchanged input", () => {
+      const skill: SkillState = {
+        id: "s-stable",
+        name: "Stable Skill",
+        aliases: [],
+        domainId: null,
+        status: "active",
+        xp: 100,
+        level: 2,
+        masteryLevel: 2,
+        masteryConfidence: 0.8,
+        lastUsedAt: "2026-08-20T10:00:00.000Z",
+        createdAt: "2026-08-01T00:00:00.000Z",
+      };
+
+      const params = {
+        skill,
+        domainName: null,
+        allSkills: [skill],
+        allEdges: [],
+        evidenceRecords: [],
+        masteryEvents: [],
+        transactions: [],
+      };
+
+      const res1 = assembleSkillDetail(params);
+      const res2 = assembleSkillDetail(params);
+
+      expect(res1).toEqual(res2);
+      expect(res1.skill.createdAt).toBe("2026-08-01T00:00:00.000Z");
+      expect(res2.skill.createdAt).toBe("2026-08-01T00:00:00.000Z");
+    });
   });
 
   describe("computeSkillGraph Layout Generation", () => {
@@ -383,6 +416,50 @@ describe("Stage 5B — Skill Derived State & Layout Pure Logic", () => {
       expect(mathGraph.nodes).toHaveLength(1);
       expect(mathGraph.nodes[0].id).toBe("s-3");
       expect(mathGraph.nodes[0].data.derivedState).toBe("archived");
+    });
+
+    it("handles mixed relations without cycles or hanging (P2 Mixed-Relation Topology)", () => {
+      // sA has prerequisite sB, but sB has contains sA
+      const sA: SkillState = {
+        id: "s-a",
+        name: "Skill A",
+        aliases: [],
+        domainId: null,
+        status: "active",
+        xp: 100,
+        level: 2,
+        masteryLevel: 2,
+        masteryConfidence: 0.8,
+        lastUsedAt: null,
+      };
+
+      const sB: SkillState = {
+        id: "s-b",
+        name: "Skill B",
+        aliases: [],
+        domainId: null,
+        status: "active",
+        xp: 0,
+        level: 1,
+        masteryLevel: 0,
+        masteryConfidence: 0.0,
+        lastUsedAt: null,
+      };
+
+      const mixedEdges: SkillEdge[] = [
+        { id: "e-1", sourceId: "s-a", targetId: "s-b", relation: "prerequisite" },
+        { id: "e-2", sourceId: "s-b", targetId: "s-a", relation: "contains" },
+      ];
+
+      const graph = computeSkillGraph([], [sA, sB], mixedEdges);
+      expect(graph.nodes).toHaveLength(2);
+      expect(graph.edges).toHaveLength(2);
+
+      const nodeA = graph.nodes.find((n) => n.id === "s-a")!;
+      const nodeB = graph.nodes.find((n) => n.id === "s-b")!;
+
+      expect(nodeA.position.x).toBe(0);
+      expect(nodeB.position.x).toBe(280); // prerequisite places sB at layer 1
     });
   });
 });

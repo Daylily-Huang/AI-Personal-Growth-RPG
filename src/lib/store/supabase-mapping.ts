@@ -72,6 +72,8 @@ export function mapSkill(row: SkillRow): SkillState {
     masteryLevel: row.mastery_level,
     masteryConfidence: Number(row.mastery_confidence),
     lastUsedAt: row.last_used_at,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
   };
 }
 

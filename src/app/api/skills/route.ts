@@ -4,6 +4,10 @@ import { computeSkillGraph } from "@/lib/skills/layout";
 
 export async function GET(request?: Request) {
   try {
+    // 1. Authenticate first (P1-3)
+    const repo = await getRequestRepository();
+
+    // 2. Parse query filters
     let domainId: string | null = null;
     let status: "active" | "archived" | "all" = "active";
 
@@ -16,7 +20,6 @@ export async function GET(request?: Request) {
       }
     }
 
-    const repo = await getRequestRepository();
     const [domains, skills, edges] = await Promise.all([
       repo.listDomains(),
       repo.listSkills(),

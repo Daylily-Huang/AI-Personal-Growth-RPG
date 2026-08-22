@@ -87,7 +87,7 @@ export interface Repository {
 
   // ---- skills & edges (Stage 5A) ----
   addEdge(input: NewSkillEdgeInput): Promise<SkillEdge>;
-  deleteEdge(id: string): Promise<void>;
+  deleteEdge(id: string): Promise<boolean>;
   updateSkillMetadata(id: string, updates: UpdateSkillMetadataInput): Promise<SkillState>;
 
   // ---- quests ----

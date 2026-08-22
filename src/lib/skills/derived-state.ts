@@ -247,7 +247,7 @@ export function assembleSkillDetail(params: {
       masteryConfidence: skill.masteryConfidence,
       derivedState,
       lastUsedAt: skill.lastUsedAt,
-      createdAt: (skill as unknown as { createdAt?: string }).createdAt ?? new Date().toISOString(),
+      createdAt: skill.createdAt ?? "1970-01-01T00:00:00.000Z",
     },
     prerequisites,
     nextUnlocks,
