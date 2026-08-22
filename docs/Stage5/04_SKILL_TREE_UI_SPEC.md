@@ -1,6 +1,6 @@
 # Stage 5 — Skill Tree UI Specification
 
-> **Status**: PROPOSED / DESIGN FREEZE CANDIDATE  
+> **Status**: PROPOSED / DESIGN FREEZE (ROUND 2)  
 > **Target Milestone**: Stage 5 (Skill Tree)  
 > **Related Rules**: `docs/Design ChatGPT/07_UI_DESIGN_SYSTEM.md`, `src/app/skills/page.tsx`
 
@@ -44,22 +44,23 @@ The `/skills` page is structured as a **3-Column Canvas Workspace** powered by `
   - Clicking a domain filters the canvas nodes and centers the viewport on that domain cluster.
 - **Search & Derived State Filter**:
   - Instant text filter by name/alias;
-  - Filter pills: `All`, `Learning`, `Proficient`, `Advanced`, `Locked`.
+  - Filter pills: `All`, `Available`, `Learning`, `Proficient`, `Advanced`, `Locked`.
 
 ---
 
 ### 2.2 Center Canvas: ReactFlow Skill Graph
-- **Library**: `@xyflow/react` (retained, no rewrite).
+- **Library**: `@xyflow/react` (retained and extended).
 - **Custom `SkillNode` Component**:
   - **Header**: Skill Name + Domain Tag badge;
   - **Pills Row**: `Lv.{level}` (Amber badge) + `M{masteryLevel}` (Sky badge) + `Derived State` (e.g. `Learning` / `Locked` icon);
-  - **Metrics Footer**: Current XP + Mini Confidence Bar (`Math.round(confidence * 100)%`);
-  - **Visual States by Derived State**:
+  - **Metrics Footer**: Current XP + Confidence meter (`Math.round(masteryConfidence * 100)%`);
+  - **Visual Styling by Derived State**:
     - `locked`: Grayscale border, lock icon, muted opacity (0.6);
-    - `available`: Dashed emerald border, pulse glow;
+    - `available`: Dashed emerald border, subtle pulse;
     - `learning`: Solid sky-500 border, blue accent;
     - `proficient`: Solid amber-500 border, warm glow;
-    - `advanced`: Solid purple-500 border, double ring, crown/sparkle badge.
+    - `advanced`: Solid purple-500 border, double ring, crown/sparkle badge;
+    - `archived`: Gray hatched background, archived tag.
 - **Edge Styling**:
   - `prerequisite`: Solid line with arrow marker, color `#38bdf8` (Sky);
   - `contains`: Dashed line with circle marker, color `#a855f7` (Purple);
@@ -70,18 +71,18 @@ The `/skills` page is structured as a **3-Column Canvas Workspace** powered by `
 ### 2.3 Right Panel: Deep Skill Detail & Evidence Inspector
 - **Header Section**:
   - Skill Title, Aliases chips, Domain category;
-  - Edit metadata button (triggers modal for name/alias/description update);
+  - Edit metadata button (triggers modal calling `PATCH /api/skills/[id]`);
   - Archive/Unarchive toggle.
 - **Mastery & Progression Section**:
   - Level progress bar: `Current XP / Next Level XP`;
   - Mastery Ladder indicator: Displays rank from `M0 (Unknown)` to `M10 (Create)`, highlighting current validated rank;
-  - Mastery Confidence Meter with tooltip explaining retention and decay.
+  - Mastery Confidence Meter with explanatory tooltip.
 - **Evidence & Audit Timeline**:
   - Chronological feed of linked `evidence_records` and `activities`;
   - Each item displays: Evidence Level badge (`E0`–`E6`), Activity Title, Verification Checkmark, Timestamp.
 - **Prerequisites & Unlocks Graph**:
-  - **Prerequisites Checklist**: Lists upstream skills with fulfillment indicator (✓ if M >= 2 or Lv >= 2, ✗ if unfulfilled);
-  - **Next Unlocks**: Clickable cards of downstream skills that unlock when this skill advances.
+  - **Prerequisites Checklist**: Lists upstream skills with fulfillment indicator (✓ if $M \ge 2 \land \text{conf} \ge 0.5$, ✗ if unfulfilled);
+  - **Next Unlocks**: Clickable cards of downstream skills that unlock when this skill reaches $M \ge 2$.
 - **Future Hooks (Interface Only — Out of Scope for Stage 5 Implementation)**:
   - `Related Quests` (Placeholder container, reserved for Stage 7 Quest-Skill integration);
   - `Produced Artifacts` (Placeholder container, reserved for Stage 7 Artifact Library).

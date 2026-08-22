@@ -1,21 +1,21 @@
 # Stage 5 — Skill Tree API & Derived State Specification
 
-> **Status**: PROPOSED / DESIGN FREEZE CANDIDATE  
+> **Status**: PROPOSED / DESIGN FREEZE (ROUND 2)  
 > **Target Milestone**: Stage 5 (Skill Tree)  
 > **Related Rules**: `docs/Design ChatGPT/03_TECHNICAL_IMPLEMENTATION.md`, `docs/Design ChatGPT/06_DATABASE_SCHEMA_AND_DATA_DICTIONARY.md`
 
 ---
 
-## 1. Skill Derived State Machine
+## 1. Skill Derived State Machine (Total Deterministic Function)
 
-To prevent data corruption and state conflicts, product states (`locked`, `available`, `learning`, `proficient`, `advanced`, `archived`) are **purely derived at runtime/query-time**, and are NOT arbitrarily mutable database columns.
+To prevent data corruption and state conflicts, product states (`locked`, `available`, `learning`, `proficient`, `advanced`, `archived`) are **strictly derived at query/runtime via a total deterministic function**.
 
 ```text
                                ┌──────────────┐
                                │   archived   │ (skill.status == 'archived')
                                └──────────────┘
                                       ▲
-                                      │ (archive action)
+                                      │ (status check)
                  ┌────────────────────┴────────────────────┐
                  │                                         │
         [Any active prerequisite unfulfilled?]             │
@@ -28,7 +28,7 @@ To prevent data corruption and state conflicts, product states (`locked`, `avail
                         ┌────────────┐                     │
                         │ available  │ (xp == 0 && M <= 1) │
                         └────────────┘                     │
-                              │ (First practice / XP > 0)  │
+                              │ (xp > 0 || M >= 2)         │
                               ▼                            │
                         ┌────────────┐                     │
                         │  learning  │ (M < 3 || conf < 0.5)
@@ -45,32 +45,48 @@ To prevent data corruption and state conflicts, product states (`locked`, `avail
                         └────────────┘                     │
 ```
 
-### 1.1 Formal Derived State Definitions
+---
 
-Given a skill $S$, its incoming prerequisite edges $\text{Prereqs}(S) = \{ P \mid (P \to S, \text{type} = \text{'prerequisite'}) \}$, and mastery confidence threshold $\theta = 0.5$:
+## 2. Formal Predicates & Hard Prerequisite Invariant
 
-$$\text{IsPrereqFulfilled}(P) \iff \Big( P.\text{mastery\_level} \ge 2 \lor P.\text{level} \ge 2 \Big)$$
+Given a skill $S$, its incoming prerequisite edges $\text{Prereqs}(S) = \{ P \mid (P \to S, \text{relation} = \text{'prerequisite'}) \}$:
+
+### 2.1 Hard Prerequisite Invariant (Mastery-Only)
+$$\text{IsPrereqFulfilled}(P) \iff \Big( P.\text{mastery\_level} \ge 2 \land P.\text{mastery\_confidence} \ge 0.5 \Big)$$
 
 $$\text{AllPrereqsMet}(S) \iff \forall P \in \text{Prereqs}(S), \text{IsPrereqFulfilled}(P)$$
 
-| Derived State | 严格判定公式 (Evaluation Predicates) | 语义说明 |
-|---|---|---|
-| **`archived`** | $S.\text{status} = \text{'archived'}$ | 技能已归档隐藏。 |
-| **`locked`** | $S.\text{status} \ne \text{'archived'} \land \neg \text{AllPrereqsMet}(S)$ | 存在未满足的前置依赖技能。 |
-| **`available`** | $S.\text{status} \ne \text{'archived'} \land \text{AllPrereqsMet}(S) \land S.\text{xp} = 0 \land S.\text{mastery\_level} \le 1$ | 前置已满足，但尚未开始有效练习。 |
-| **`learning`** | $S.\text{status} \ne \text{'archived'} \land \text{AllPrereqsMet}(S) \land \big( S.\text{xp} > 0 \land (S.\text{mastery\_level} < 3 \lor S.\text{mastery\_confidence} < 0.5) \big)$ | 已开始练习，处于基础掌握或待复习状态。 |
-| **`proficient`** | $S.\text{status} \ne \text{'archived'} \land \text{AllPrereqsMet}(S) \land 3 \le S.\text{mastery\_level} < 6 \land S.\text{mastery\_confidence} \ge 0.5$ | 能够独立应用，掌握度达到 M3–M5。 |
-| **`advanced`** | $S.\text{status} \ne \text{'archived'} \land \text{AllPrereqsMet}(S) \land S.\text{mastery\_level} \ge 6 \land S.\text{mastery\_confidence} \ge 0.5$ | 高阶掌握 M6–M10，具备强证据支撑。 |
-
-### 1.2 Anti-Conflict Guarantee
-- 状态计算为单调互斥条件阶梯，严格杜绝出现 `Mastery = M1 但 derivedState = 'advanced'` 的语义冲突。
+> [!IMPORTANT]
+> **Level (XP) Cannot Substitute Mastery**:  
+> Prerequisite fulfillment is strictly predicated upon demonstrated competence depth ($M \ge 2$ Understand). Grinding XP or high Level on an upstream skill **never** bypasses the requirement for verified competence.
 
 ---
 
-## 2. API Contract Specification
+## 3. Total Truth Table & Boundary Case Coverage
 
-### 2.1 `GET /api/skills`
-获取当前用户的全量技能树、域层级及边关系。
+The function `computeSkillDerivedState(skill, prerequisites)` is guaranteed to partition the entire state space into exactly one mutually exclusive status:
+
+| Status (`status`) | Prereqs Met (`AllPrereqsMet`) | XP (`xp`) | Mastery (`mastery_level`) | Confidence (`mastery_confidence`) | **Derived State** | 场景与业务语义解释 |
+|---|---|---|---|---|---|---|
+| `'archived'` | Any | Any | Any | Any | **`archived`** | 技能已被用户主动归档隐藏。 |
+| `'active'` | **False** | Any | Any | Any | **`locked`** | 存在未满足的前置依赖技能（$P.M < 2$ 或 $P.\text{conf} < 0.5$）。 |
+| `'active'` | **True** | $= 0$ | $0$ | Any | **`available`** | 前置就绪，全新未接触技能（M0 无 XP）。 |
+| `'active'` | **True** | $= 0$ | $1$ | Any | **`available`** | 前置就绪，仅初步感知概念（M1 无有效练习 XP）。 |
+| `'active'` | **True** | $= 0$ | $2$ | Any | **`learning`** | 具备先验理解基础（M2），尚未在系统内产出练习 XP。 |
+| `'active'` | **True** | $> 0$ | $0$ | Any | **`learning`** | 已产生练习记录，处于 M0 摸索起步阶段。 |
+| `'active'` | **True** | $> 0$ | $1$ | Any | **`learning`** | 已产生练习记录，处于 M1 基础感知阶段。 |
+| `'active'` | **True** | $\ge 0$ | $2$ | Any | **`learning`** | 处于 M2 理解阶段，尚未达到 M3 独立应用。 |
+| `'active'` | **True** | $\ge 0$ | $3 \le M < 6$ | $< 0.5$ | **`learning`** | 虽达 M3–M5，但置信度衰减至临界值以下，需练习巩固。 |
+| `'active'` | **True** | $\ge 0$ | $3 \le M < 6$ | $\ge 0.5$ | **`proficient`** | 掌握度达到 M3–M5 且置信度充足，具备独立实践能力。 |
+| `'active'` | **True** | $\ge 0$ | $\ge 6$ | $< 0.5$ | **`learning`** | 虽达高阶 M6+，但当前置信度较低，降级至强化学习态。 |
+| `'active'` | **True** | $\ge 0$ | $\ge 6$ | $\ge 0.5$ | **`advanced`** | 高阶掌握 M6–M10 且置信度饱满，具备深度证据支撑。 |
+
+---
+
+## 4. API Contract Specification
+
+### 4.1 `GET /api/skills`
+获取当前用户的全量技能树图谱与层级域。
 
 - **Query Parameters**:
   - `domainId` *(optional, UUID)*: 按特定域过滤
@@ -91,7 +107,7 @@ $$\text{AllPrereqsMet}(S) \iff \forall P \in \text{Prereqs}(S), \text{IsPrereqFu
     {
       "id": "22222222-2222-2222-2222-222222222222",
       "domainId": "11111111-1111-1111-1111-111111111111",
-      "position": { "x": 0, "y": 0 },
+      "position": { "x": 280, "y": 140 },
       "data": {
         "name": "TypeScript",
         "aliases": ["TS"],
@@ -120,7 +136,7 @@ $$\text{AllPrereqsMet}(S) \iff \forall P \in \text{Prereqs}(S), \text{IsPrereqFu
 
 ---
 
-### 2.2 `GET /api/skills/[id]`
+### 4.2 `GET /api/skills/[id]`
 获取单个技能的完整深度画像及证据链。
 
 - **Response Format (`200 OK`)**:
@@ -147,6 +163,7 @@ $$\text{AllPrereqsMet}(S) \iff \forall P \in \text{Prereqs}(S), \text{IsPrereqFu
       "id": "source-skill-uuid",
       "name": "JavaScript Fundamentals",
       "masteryLevel": 5,
+      "masteryConfidence": 0.9,
       "isFulfilled": true
     }
   ],
@@ -193,8 +210,8 @@ $$\text{AllPrereqsMet}(S) \iff \forall P \in \text{Prereqs}(S), \text{IsPrereqFu
 
 ---
 
-### 2.3 `POST /api/skills/edges`
-在技能间建立关系边（需经 DAG 校验）。
+### 4.3 `POST /api/skills/edges`
+在技能间建立关系边。
 
 - **Request Body**:
 ```json
@@ -204,21 +221,26 @@ $$\text{AllPrereqsMet}(S) \iff \forall P \in \text{Prereqs}(S), \text{IsPrereqFu
   "relationType": "prerequisite"
 }
 ```
-- **Validation**:
-  - `sourceSkillId != targetSkillId`（禁止自环）
-  - `relationType in ['prerequisite', 'contains', 'supports']`
-  - 若 `relationType === 'prerequisite' | 'contains'`，执行有向环检测（Anti-Cycle Detection），若检测到环路返回 `400 Conflict: Cycle detected in prerequisite DAG`。
+- **Error Codes**:
+  - `400 Bad Request`: 参数不合法或尝试建立自环 (`source == target`);
+  - `409 Conflict`: 
+    - `prerequisite` 关系检测到有向环 (`Cycle detected in prerequisite DAG`);
+    - `contains` 关系目标节点已存在父节点 (`Target already has a contains parent`) 或检测到层级环路;
+    - 关系已存在 (`Duplicate edge`).
 
 ---
 
-### 2.4 `DELETE /api/skills/edges/[id]`
+### 4.4 `DELETE /api/skills/edges/[id]`
 删除指定关系边。
 - **Response**: `204 No Content`
+- **Error Codes**:
+  - `404 Not Found`: 边不存在或无权操作。
 
 ---
 
-### 2.5 `PATCH /api/skills/[id]`
-更新技能显示元数据（不可修改 XP、Level 或 Mastery）。
+### 4.5 `PATCH /api/skills/[id]`
+通过服务端专属 `update_skill_metadata` RPC 更新技能展示信息（白名单字段）。
+
 - **Request Body**:
 ```json
 {
@@ -230,3 +252,7 @@ $$\text{AllPrereqsMet}(S) \iff \forall P \in \text{Prereqs}(S), \text{IsPrereqFu
 }
 ```
 - **Response**: `200 OK` 返回更新后的 Skill 对象。
+- **Error Codes**:
+  - `400 Bad Request`: 命名为空或非法参数；
+  - `404 Not Found`: 技能不存在或无权操作；
+  - `409 Conflict`: 与该用户下已有其他技能的 `normalized_name` 冲突。
