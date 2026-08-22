@@ -610,5 +610,159 @@ describe("Stage 5A — Skill Graph Authority & Store Invariants (DemoRepository)
     });
     expect(resBadId.ok).toBe(false);
     expect(resBadId.reason).toBe("skill_not_found_or_not_owned");
+
+    // 3. Empty proposedName -> MUST REJECT
+    const resEmptyName = await repo.applySettlement({
+      assessmentId: assess.id,
+      transaction: {
+        id: crypto.randomUUID(),
+        activityId: act.id,
+        assessmentId: assess.id,
+        xpType: "activity",
+        skillId: "",
+        skillName: "TypeScript",
+        activityType: "skill",
+        repetitionCount: 0,
+        repetitionPenalty: 1,
+        amount: 20,
+        baseAmount: 20,
+        modifierJson: {},
+        reason: "Test",
+        rulesVersion: "test",
+        createdAt: new Date().toISOString(),
+      },
+      xpDelta: 20,
+      primarySkill: {
+        skill: { resolution: "create", proposedName: "   " },
+        name: "TypeScript",
+        xpDelta: 20,
+        masteryAction: { action: "none" },
+      },
+      player: { xpDelta: 20 },
+    });
+    expect(resEmptyName.ok).toBe(false);
+    expect(resEmptyName.reason).toBe("empty_proposed_skill_name");
+  });
+
+  test("9. Evidence verified parity across none, upgrade, and request_verification", async () => {
+    // 9.1 none -> verified = true
+    const act1 = await repo.addActivity({ rawInput: "Demo Ev None" });
+    const assess1 = await repo.addAssessment({
+      activityId: act1.id,
+      proposal: createMockProposal({ affected_skills: [{ name: "SkillNone", reason: "None" }] }),
+      modelName: "test-model",
+      promptVersion: "1.0",
+    });
+    await repo.applySettlement({
+      assessmentId: assess1.id,
+      transaction: {
+        id: crypto.randomUUID(),
+        activityId: act1.id,
+        assessmentId: assess1.id,
+        xpType: "activity",
+        skillId: "",
+        skillName: "SkillNone",
+        activityType: "learning",
+        repetitionCount: 0,
+        repetitionPenalty: 1,
+        amount: 20,
+        baseAmount: 20,
+        modifierJson: {},
+        reason: "None",
+        rulesVersion: "test",
+        createdAt: new Date().toISOString(),
+      },
+      xpDelta: 20,
+      primarySkill: {
+        skill: { resolution: "create", proposedName: "SkillNone" },
+        name: "SkillNone",
+        xpDelta: 20,
+        masteryAction: { action: "none" },
+      },
+      player: { xpDelta: 20 },
+    });
+    const s1 = (await repo.getSkill("SkillNone"))!;
+    const ev1 = await repo.listEvidenceRecords(s1.id);
+    expect(ev1[0].verified).toBe(true);
+
+    // 9.2 upgrade -> verified = true
+    const act2 = await repo.addActivity({ rawInput: "Demo Ev Upgrade" });
+    const assess2 = await repo.addAssessment({
+      activityId: act2.id,
+      proposal: createMockProposal({ affected_skills: [{ name: "SkillUpgrade", reason: "Upgrade" }] }),
+      modelName: "test-model",
+      promptVersion: "1.0",
+    });
+    await repo.applySettlement({
+      assessmentId: assess2.id,
+      transaction: {
+        id: crypto.randomUUID(),
+        activityId: act2.id,
+        assessmentId: assess2.id,
+        xpType: "activity",
+        skillId: "",
+        skillName: "SkillUpgrade",
+        activityType: "production",
+        repetitionCount: 0,
+        repetitionPenalty: 1,
+        amount: 30,
+        baseAmount: 30,
+        modifierJson: {},
+        reason: "Upgrade",
+        rulesVersion: "test",
+        createdAt: new Date().toISOString(),
+      },
+      xpDelta: 30,
+      primarySkill: {
+        skill: { resolution: "create", proposedName: "SkillUpgrade" },
+        name: "SkillUpgrade",
+        xpDelta: 30,
+        masteryAction: { action: "upgrade", proposedLevel: 2, confidence: 0.9 },
+      },
+      player: { xpDelta: 30 },
+    });
+    const s2 = (await repo.getSkill("SkillUpgrade"))!;
+    const ev2 = await repo.listEvidenceRecords(s2.id);
+    expect(ev2[0].verified).toBe(true);
+
+    // 9.3 request_verification -> verified = false
+    const act3 = await repo.addActivity({ rawInput: "Demo Ev ReqVerif" });
+    const assess3 = await repo.addAssessment({
+      activityId: act3.id,
+      proposal: createMockProposal({ affected_skills: [{ name: "SkillReqVerif", reason: "ReqVerif" }] }),
+      modelName: "test-model",
+      promptVersion: "1.0",
+    });
+    await repo.applySettlement({
+      assessmentId: assess3.id,
+      transaction: {
+        id: crypto.randomUUID(),
+        activityId: act3.id,
+        assessmentId: assess3.id,
+        xpType: "activity",
+        skillId: "",
+        skillName: "SkillReqVerif",
+        activityType: "production",
+        repetitionCount: 0,
+        repetitionPenalty: 1,
+        amount: 40,
+        baseAmount: 40,
+        modifierJson: {},
+        reason: "ReqVerif",
+        rulesVersion: "test",
+        createdAt: new Date().toISOString(),
+      },
+      xpDelta: 40,
+      primarySkill: {
+        skill: { resolution: "create", proposedName: "SkillReqVerif" },
+        name: "SkillReqVerif",
+        xpDelta: 40,
+        masteryAction: { action: "request_verification", fromLevel: 1, toLevel: 3, confidence: 0.8 },
+      },
+      player: { xpDelta: 40 },
+    });
+    const s3 = (await repo.getSkill("SkillReqVerif"))!;
+    const ev3 = await repo.listEvidenceRecords(s3.id);
+    expect(ev3[0].verified).toBe(false);
   });
 });

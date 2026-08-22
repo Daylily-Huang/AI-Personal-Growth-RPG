@@ -178,8 +178,11 @@ BEGIN
     v_skill_is_new := false;
 
   ELSIF v_skill_resolution_type = 'create' THEN
-    -- Resolution: User-confirmed new skill candidate
-    v_skill_name := coalesce(nullif(btrim(p_settlement->'primarySkill'->'skill'->>'proposedName'), ''), 'General Growth');
+    -- Resolution: User-confirmed new skill candidate (Empty name MUST REJECT)
+    v_skill_name := btrim(coalesce(p_settlement->'primarySkill'->'skill'->>'proposedName', ''));
+    IF v_skill_name = '' THEN
+      RETURN jsonb_build_object('ok', false, 'reason', 'empty_proposed_skill_name');
+    END IF;
     v_normalized_skill_name := regexp_replace(lower(v_skill_name), '\s+', ' ', 'g');
 
     PERFORM pg_advisory_xact_lock(hashtext(p_user_id::text || '|' || v_normalized_skill_name));
@@ -218,8 +221,8 @@ BEGIN
           RETURN jsonb_build_object('ok', false, 'reason', 'related_skill_not_found_or_not_owned');
         END IF;
       ELSIF v_rel_res_type = 'create' THEN
-        v_rel_proposed_name := btrim(v_rel_item->>'proposedName');
-        IF v_rel_proposed_name IS NULL OR v_rel_proposed_name = '' THEN
+        v_rel_proposed_name := btrim(coalesce(v_rel_item->>'proposedName', ''));
+        IF v_rel_proposed_name = '' THEN
           RETURN jsonb_build_object('ok', false, 'reason', 'empty_related_skill_proposed_name');
         END IF;
       ELSE
@@ -306,13 +309,13 @@ BEGIN
   )
   RETURNING * INTO v_tx_row;
 
-  -- G.3) Authoritative Evidence Persistence (Atomically linked to activity + skill)
+  -- G.3) Authoritative Evidence Persistence (Unified Stage 5A verified semantics)
   INSERT INTO public.evidence_records (
     id, user_id, activity_id, skill_id, evidence_level, evidence_type,
     description, verified, created_at
   ) VALUES (
     v_evidence_id, p_user_id, v_activity_id, v_skill_id, v_evidence_level,
-    v_evidence_type, v_evidence_explanation, (v_mastery_action = 'upgrade'), v_now
+    v_evidence_type, v_evidence_explanation, (v_mastery_action <> 'request_verification'), v_now
   );
 
   -- G.4) Player XP + Level recompute.
@@ -392,8 +395,8 @@ BEGIN
     FOR v_rel_item IN SELECT * FROM jsonb_array_elements(p_settlement->'relatedSkillResolutions') LOOP
       v_rel_res_type := v_rel_item->>'resolution';
       IF v_rel_res_type = 'create' THEN
-        v_rel_proposed_name := btrim(v_rel_item->>'proposedName');
-        IF v_rel_proposed_name IS NOT NULL AND v_rel_proposed_name <> '' THEN
+        v_rel_proposed_name := btrim(coalesce(v_rel_item->>'proposedName', ''));
+        IF v_rel_proposed_name <> '' THEN
           INSERT INTO public.skills (user_id, name)
           VALUES (p_user_id, v_rel_proposed_name)
           ON CONFLICT (user_id, normalized_name) DO NOTHING;
@@ -504,10 +507,10 @@ DECLARE
   v_new_normalized TEXT;
   v_now TIMESTAMPTZ := now();
 BEGIN
-  -- Determine authoritative user identity
-  v_user_id := coalesce(auth.uid(), (p_updates->>'user_id')::uuid);
+  -- Determine authoritative user identity strictly from auth.uid()
+  v_user_id := auth.uid();
   IF v_user_id IS NULL THEN
-    RAISE EXCEPTION 'Skill not found or access denied';
+    RAISE EXCEPTION 'Authentication required';
   END IF;
 
   -- 1. Ownership validation on skill
