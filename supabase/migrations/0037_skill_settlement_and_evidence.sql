@@ -49,10 +49,11 @@ DECLARE
   v_tx_row public.xp_transactions;
   v_existing_pending public.mastery_verifications;
   v_verification jsonb := null;
-  v_i integer;
   v_rel_item jsonb;
   v_rel_res_type text;
   v_rel_proposed_name text;
+  v_rel_skill_id uuid;
+  v_rel_existing_id uuid;
   v_assessment public.ai_assessments;
   v_activity public.activities;
   v_primary_skill_xp_delta numeric;
@@ -148,12 +149,16 @@ BEGIN
   END IF;
 
   -- ============================================================
-  -- Phase C: Skill Resolution Authority (Blocker 1 - Stable ID Union)
+  -- Phase C: Skill Resolution Authority (Strict Stable ID Union - NO BYPASS)
   -- ============================================================
+  IF p_settlement->'primarySkill'->'skill' IS NULL THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'missing_or_invalid_skill_resolution');
+  END IF;
+
   v_skill_resolution_type := p_settlement->'primarySkill'->'skill'->>'resolution';
 
   IF v_skill_resolution_type = 'existing' THEN
-    -- Resolution: Existing stable skill UUID
+    -- Resolution: Existing stable skill UUID (Must exist and belong to tenant)
     v_skill_id := (p_settlement->'primarySkill'->'skill'->>'skillId')::uuid;
     IF v_skill_id IS NULL THEN
       RETURN jsonb_build_object('ok', false, 'reason', 'invalid_existing_skill_id');
@@ -194,39 +199,48 @@ BEGIN
     END IF;
 
   ELSE
-    -- Legacy fallback (string name in primarySkill.name or transaction.skillName)
-    v_skill_name := coalesce(
-      nullif(p_settlement->'primarySkill'->>'name', ''),
-      nullif(v_tx->>'skillName', ''),
-      'General Growth'
-    );
-    v_normalized_skill_name := regexp_replace(lower(btrim(v_skill_name)), '\s+', ' ', 'g');
+    RETURN jsonb_build_object('ok', false, 'reason', 'missing_or_invalid_skill_resolution');
+  END IF;
 
-    PERFORM pg_advisory_xact_lock(hashtext(p_user_id::text || '|' || v_normalized_skill_name));
-
-    SELECT * INTO v_skill_row
-    FROM public.skills
-    WHERE user_id = p_user_id AND normalized_name = v_normalized_skill_name
-    FOR UPDATE;
-
-    IF FOUND THEN
-      v_skill_id := v_skill_row.id;
-      v_skill_is_new := false;
-    ELSE
-      v_skill_id := null;
-      v_skill_is_new := true;
-    END IF;
+  -- Phase C.2: Validate secondary skill resolutions if present
+  IF p_settlement->'relatedSkillResolutions' IS NOT NULL AND jsonb_typeof(p_settlement->'relatedSkillResolutions') = 'array' THEN
+    FOR v_rel_item IN SELECT * FROM jsonb_array_elements(p_settlement->'relatedSkillResolutions') LOOP
+      v_rel_res_type := v_rel_item->>'resolution';
+      IF v_rel_res_type = 'existing' THEN
+        v_rel_skill_id := (v_rel_item->>'skillId')::uuid;
+        IF v_rel_skill_id IS NULL THEN
+          RETURN jsonb_build_object('ok', false, 'reason', 'invalid_related_skill_id');
+        END IF;
+        SELECT id INTO v_rel_existing_id
+        FROM public.skills
+        WHERE id = v_rel_skill_id AND user_id = p_user_id;
+        IF NOT FOUND THEN
+          RETURN jsonb_build_object('ok', false, 'reason', 'related_skill_not_found_or_not_owned');
+        END IF;
+      ELSIF v_rel_res_type = 'create' THEN
+        v_rel_proposed_name := btrim(v_rel_item->>'proposedName');
+        IF v_rel_proposed_name IS NULL OR v_rel_proposed_name = '' THEN
+          RETURN jsonb_build_object('ok', false, 'reason', 'empty_related_skill_proposed_name');
+        END IF;
+      ELSE
+        RETURN jsonb_build_object('ok', false, 'reason', 'invalid_related_skill_resolution');
+      END IF;
+    END LOOP;
   END IF;
 
   v_current_mastery := coalesce(v_skill_row.mastery_level, 1);
-
-  -- ============================================================
-  -- Phase D: Authoritative timestamp AFTER lock
-  -- ============================================================
   v_now := clock_timestamp();
 
   -- ============================================================
-  -- Phase E: Repetition check
+  -- Phase D: Evidence preparation (P2 Authority)
+  -- ============================================================
+  v_evidence_id := coalesce((p_settlement->'evidence'->>'id')::uuid, gen_random_uuid());
+  v_evidence_level := coalesce((p_settlement->'evidence'->>'level')::int, (p_settlement->'masteryVerification'->>'evidenceLevel')::int, 1);
+  v_evidence_explanation := coalesce(p_settlement->'evidence'->>'explanation', v_reason);
+  v_evidence_type := coalesce(p_settlement->'evidence'->>'type', v_activity_type, 'activity_output');
+
+  -- ============================================================
+  -- Phase E: Repetition count derivation & check
   -- ============================================================
   IF v_skill_is_new THEN
     v_authoritative_count := 0;
@@ -292,43 +306,23 @@ BEGIN
   )
   RETURNING * INTO v_tx_row;
 
-  -- G.3) Authoritative Evidence Persistence (public.evidence_records)
-  v_evidence_id := coalesce((p_settlement->'evidence'->>'id')::uuid, gen_random_uuid());
-  v_evidence_level := coalesce(
-    (p_settlement->'evidence'->>'level')::int,
-    (p_settlement->'masteryVerification'->>'evidenceLevel')::int,
-    0
-  );
-  v_evidence_explanation := coalesce(
-    p_settlement->'evidence'->>'explanation',
-    p_settlement->'evidence'->>'description',
-    v_reason
-  );
-  v_evidence_type := coalesce(
-    p_settlement->'evidence'->>'type',
-    v_activity_type,
-    'activity_output'
-  );
-
+  -- G.3) Authoritative Evidence Persistence (Atomically linked to activity + skill)
   INSERT INTO public.evidence_records (
-    id, user_id, activity_id, skill_id, evidence_level,
-    evidence_type, description, verified, created_at
+    id, user_id, activity_id, skill_id, evidence_level, evidence_type,
+    description, verified, created_at
   ) VALUES (
     v_evidence_id, p_user_id, v_activity_id, v_skill_id, v_evidence_level,
-    v_evidence_type, v_evidence_explanation,
-    (v_mastery_action <> 'request_verification'),
-    v_now
+    v_evidence_type, v_evidence_explanation, (v_mastery_action = 'upgrade'), v_now
   );
 
-  -- G.4) Player total + derived level.
-  INSERT INTO public.player_states (user_id, total_xp, player_level, updated_at)
-  VALUES (p_user_id, v_xp_delta, public.player_level_from_xp(v_xp_delta), v_now)
-  ON CONFLICT (user_id) DO UPDATE
+  -- G.4) Player XP + Level recompute.
+  UPDATE public.player_states
     SET total_xp = public.player_states.total_xp + v_xp_delta,
         player_level = public.player_level_from_xp(public.player_states.total_xp + v_xp_delta),
-        updated_at = v_now;
+        updated_at = v_now
+    WHERE user_id = p_user_id;
 
-  -- G.5) Primary skill XP delta + derived level.
+  -- G.5) Skill XP + Level recompute.
   UPDATE public.skills
     SET xp = public.skills.xp + v_xp_delta,
         level = public.player_level_from_xp(public.skills.xp + v_xp_delta),
@@ -393,7 +387,7 @@ BEGIN
     );
   END IF;
 
-  -- G.7) Secondary skills resolution (Supports SkillResolutionInput union or string array)
+  -- G.7) Secondary skills resolution (Strict SkillResolutionInput array)
   IF p_settlement->'relatedSkillResolutions' IS NOT NULL AND jsonb_typeof(p_settlement->'relatedSkillResolutions') = 'array' THEN
     FOR v_rel_item IN SELECT * FROM jsonb_array_elements(p_settlement->'relatedSkillResolutions') LOOP
       v_rel_res_type := v_rel_item->>'resolution';
@@ -404,14 +398,6 @@ BEGIN
           VALUES (p_user_id, v_rel_proposed_name)
           ON CONFLICT (user_id, normalized_name) DO NOTHING;
         END IF;
-      END IF;
-    END LOOP;
-  ELSIF p_settlement->'relatedSkillLabels' IS NOT NULL AND jsonb_typeof(p_settlement->'relatedSkillLabels') = 'array' THEN
-    FOR v_rel_proposed_name IN SELECT * FROM jsonb_array_elements_text(p_settlement->'relatedSkillLabels') LOOP
-      IF v_rel_proposed_name IS NOT NULL AND btrim(v_rel_proposed_name) <> '' THEN
-        INSERT INTO public.skills (user_id, name)
-        VALUES (p_user_id, btrim(v_rel_proposed_name))
-        ON CONFLICT (user_id, normalized_name) DO NOTHING;
       END IF;
     END LOOP;
   END IF;
@@ -494,15 +480,11 @@ REVOKE ALL ON FUNCTION public.settle_activity(uuid, jsonb) FROM public, anon, au
 GRANT EXECUTE ON FUNCTION public.settle_activity(uuid, jsonb) TO service_role;
 
 -- ==============================================================================
--- 2. SKILL METADATA MUTATION RPC (Whitelist & Domain Ownership Check)
+-- 2. SKILL METADATA MUTATION RPC (Whitelist, Domain Ownership Check & PATCH Semantics)
 -- ==============================================================================
 CREATE OR REPLACE FUNCTION public.update_skill_metadata(
   p_skill_id UUID,
-  p_name TEXT,
-  p_aliases TEXT[],
-  p_description TEXT,
-  p_domain_id UUID,
-  p_status TEXT
+  p_updates JSONB
 )
 RETURNS public.skills
 LANGUAGE plpgsql
@@ -510,72 +492,109 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
+  v_user_id UUID;
   v_skill public.skills;
-  v_old_name TEXT;
+  v_new_name TEXT;
+  v_name_arg TEXT;
   v_new_aliases TEXT[];
+  v_new_description TEXT;
+  v_new_domain_id UUID;
+  v_domain_arg UUID;
+  v_new_status TEXT;
   v_new_normalized TEXT;
   v_now TIMESTAMPTZ := now();
 BEGIN
+  -- Determine authoritative user identity
+  v_user_id := coalesce(auth.uid(), (p_updates->>'user_id')::uuid);
+  IF v_user_id IS NULL THEN
+    RAISE EXCEPTION 'Skill not found or access denied';
+  END IF;
+
   -- 1. Ownership validation on skill
   SELECT * INTO v_skill FROM public.skills
-  WHERE id = p_skill_id AND user_id = auth.uid()
+  WHERE id = p_skill_id AND user_id = v_user_id
   FOR UPDATE;
   
   IF NOT FOUND THEN
     RAISE EXCEPTION 'Skill not found or access denied';
   END IF;
 
-  -- 2. Domain tenant ownership validation (Blocker 2B)
-  IF p_domain_id IS NOT NULL THEN
-    IF NOT EXISTS (SELECT 1 FROM public.domains WHERE id = p_domain_id AND user_id = auth.uid()) THEN
-      RAISE EXCEPTION 'Invalid domain_id or cross-tenant domain access denied';
+  v_new_name := v_skill.name;
+  v_new_aliases := v_skill.aliases;
+  v_new_description := v_skill.description;
+  v_new_domain_id := v_skill.domain_id;
+  v_new_status := v_skill.status;
+
+  -- 2. Handle aliases update if present
+  IF p_updates ? 'aliases' AND p_updates->'aliases' IS NOT NULL AND jsonb_typeof(p_updates->'aliases') = 'array' THEN
+    SELECT coalesce(array_agg(x), '{}'::text[]) INTO v_new_aliases
+    FROM jsonb_array_elements_text(p_updates->'aliases') t(x);
+  END IF;
+
+  -- 3. Handle rename & Alias Conservation
+  IF p_updates ? 'name' AND p_updates->>'name' IS NOT NULL AND btrim(p_updates->>'name') <> '' THEN
+    v_name_arg := btrim(p_updates->>'name');
+    IF v_name_arg <> v_skill.name THEN
+      IF NOT (v_skill.name = ANY(v_new_aliases)) THEN
+        v_new_aliases := array_append(v_new_aliases, v_skill.name);
+      END IF;
+      
+      v_new_normalized := regexp_replace(lower(v_name_arg), '\s+', ' ', 'g');
+      IF EXISTS (
+        SELECT 1 FROM public.skills
+        WHERE user_id = v_user_id
+          AND normalized_name = v_new_normalized
+          AND id <> p_skill_id
+      ) THEN
+        RAISE EXCEPTION 'A skill with normalized name "%" already exists for this user', v_new_normalized;
+      END IF;
+
+      v_new_name := v_name_arg;
     END IF;
   END IF;
 
-  v_old_name := v_skill.name;
-  v_new_aliases := coalesce(p_aliases, '{}'::text[]);
-
-  -- 3. Rename Alias Conservation: If name changed, append old name to aliases
-  IF p_name IS NOT NULL AND btrim(p_name) <> '' AND btrim(p_name) <> v_old_name THEN
-    IF NOT (v_old_name = ANY(v_new_aliases)) THEN
-      v_new_aliases := array_append(v_new_aliases, v_old_name);
-    END IF;
-    
-    -- Check normalized conflict with other skills of this user
-    v_new_normalized := regexp_replace(lower(btrim(p_name)), '\s+', ' ', 'g');
-    IF EXISTS (
-      SELECT 1 FROM public.skills
-      WHERE user_id = auth.uid()
-        AND normalized_name = v_new_normalized
-        AND id <> p_skill_id
-    ) THEN
-      RAISE EXCEPTION 'A skill with normalized name "%" already exists for this user', v_new_normalized;
-    END IF;
+  -- 4. Handle description (supports explicit NULL or string)
+  IF p_updates ? 'description' THEN
+    v_new_description := p_updates->>'description';
   END IF;
 
-  -- 4. Status validation
-  IF p_status IS NOT NULL AND p_status NOT IN ('active', 'archived') THEN
-    RAISE EXCEPTION 'Invalid status: %', p_status;
+  -- 5. Handle domain_id (supports explicit NULL or UUID)
+  IF p_updates ? 'domain_id' THEN
+    v_domain_arg := (p_updates->>'domain_id')::uuid;
+    IF v_domain_arg IS NOT NULL THEN
+      IF NOT EXISTS (SELECT 1 FROM public.domains WHERE id = v_domain_arg AND user_id = v_user_id) THEN
+        RAISE EXCEPTION 'Invalid domain_id or cross-tenant domain access denied';
+      END IF;
+    END IF;
+    v_new_domain_id := v_domain_arg;
   END IF;
 
-  -- 5. Whitelist Update (XP, Level, Mastery strictly untouched)
+  -- 6. Handle status
+  IF p_updates ? 'status' AND p_updates->>'status' IS NOT NULL THEN
+    IF p_updates->>'status' NOT IN ('active', 'archived') THEN
+      RAISE EXCEPTION 'Invalid status: %', p_updates->>'status';
+    END IF;
+    v_new_status := p_updates->>'status';
+  END IF;
+
+  -- 7. Whitelist Update (XP, Level, Mastery strictly untouched)
   UPDATE public.skills
   SET
-    name = coalesce(nullif(btrim(p_name), ''), name),
+    name = v_new_name,
     aliases = v_new_aliases,
-    description = p_description,
-    domain_id = p_domain_id,
-    status = coalesce(p_status, status),
+    description = v_new_description,
+    domain_id = v_new_domain_id,
+    status = v_new_status,
     updated_at = v_now
-  WHERE id = p_skill_id AND user_id = auth.uid()
+  WHERE id = p_skill_id AND user_id = v_user_id
   RETURNING * INTO v_skill;
 
   RETURN v_skill;
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.update_skill_metadata(UUID, TEXT, TEXT[], TEXT, UUID, TEXT) FROM public, anon;
-GRANT EXECUTE ON FUNCTION public.update_skill_metadata(UUID, TEXT, TEXT[], TEXT, UUID, TEXT) TO authenticated;
+REVOKE ALL ON FUNCTION public.update_skill_metadata(UUID, JSONB) FROM public, anon;
+GRANT EXECUTE ON FUNCTION public.update_skill_metadata(UUID, JSONB) TO authenticated, service_role;
 
 -- ==============================================================================
 -- 3. REVOKE DIRECT UPDATE ON PUBLIC.SKILLS FOR AUTHENTICATED

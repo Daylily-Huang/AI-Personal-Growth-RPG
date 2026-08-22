@@ -198,7 +198,8 @@ export type SkillResolutionInput =
     };
 
 export interface SettlementSkillToApply {
-  skill?: SkillResolutionInput;
+  /** Stage 5A Mandatory Stable-ID Skill Resolution (Discriminated Union) */
+  skill: SkillResolutionInput;
   /** Display name / AI label snapshot at settle time. */
   name: string;
   xpDelta: number;
@@ -221,10 +222,8 @@ export interface SettlementToApply {
   xpDelta: number;
   /** Primary skill candidate: resolved-or-created atomically by the store. */
   primarySkill: SettlementSkillToApply;
-  /** Secondary skill resolutions. */
+  /** Secondary skill resolutions (Discriminated Union array). */
   relatedSkillResolutions?: SkillResolutionInput[];
-  /** Secondary skill labels (legacy fallback); nodes + related edges are created atomically. */
-  relatedSkillLabels: string[];
   /** Apply as `player.totalXp += xpDelta`; level is recomputed by the store. */
   player: { xpDelta: number };
   /** Created when the mastery upgrade requires verification. */

@@ -134,6 +134,9 @@ BEGIN
     -- Only enforce acyclic DAG on 'prerequisite' and 'contains' relations.
     -- 'supports' is a directed synergy graph and allows mutual cycles (A -> B and B -> A).
     IF NEW.relation_type IN ('prerequisite', 'contains') THEN
+        -- Serialize DAG mutations per tenant and relation type to prevent concurrent cycle races
+        PERFORM pg_advisory_xact_lock(hashtext(NEW.user_id::text || '|' || NEW.relation_type));
+
         WITH RECURSIVE traverse AS (
             -- Base case: traverse edges of the same relation starting from NEW.target_skill_id
             SELECT target_skill_id

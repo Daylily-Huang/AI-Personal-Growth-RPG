@@ -150,13 +150,16 @@ export class SupabaseRepository implements Repository {
   }
 
   async updateSkillMetadata(id: string, updates: UpdateSkillMetadataInput): Promise<SkillState> {
+    const payload: Record<string, unknown> = {};
+    if (updates.name !== undefined) payload.name = updates.name;
+    if (updates.aliases !== undefined) payload.aliases = updates.aliases;
+    if (updates.description !== undefined) payload.description = updates.description;
+    if (updates.domainId !== undefined) payload.domain_id = updates.domainId;
+    if (updates.status !== undefined) payload.status = updates.status;
+
     const { data, error } = await this.client.rpc("update_skill_metadata", {
       p_skill_id: id,
-      p_name: updates.name ?? undefined,
-      p_aliases: updates.aliases ?? undefined,
-      p_description: updates.description ?? undefined,
-      p_domain_id: updates.domainId ?? undefined,
-      p_status: updates.status ?? undefined,
+      p_updates: payload as unknown as Json,
     });
     if (error) throw error;
     if (!data) throw new Error("update_skill_metadata returned no skill");

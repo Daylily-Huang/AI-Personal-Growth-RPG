@@ -600,19 +600,24 @@ export class DemoRepository implements Repository {
 
     const now = new Date().toISOString();
 
-    // Stage 5A Skill Resolution Authority (Discriminated Union)
+    // Stage 5A Skill Resolution Authority (Strict Discriminated Union - NO BYPASS)
     let primary: SkillState;
     const skillRes = settlement.primarySkill.skill;
-    if (skillRes?.resolution === "existing") {
+    if (!skillRes || (skillRes.resolution !== "existing" && skillRes.resolution !== "create")) {
+      return { ok: false, reason: "missing_or_invalid_skill_resolution" };
+    }
+
+    if (skillRes.resolution === "existing") {
       const existing = db.skills[skillRes.skillId];
       if (!existing) {
-        throw new Error("Existing skill not found");
+        return { ok: false, reason: "skill_not_found_or_not_owned" };
       }
       primary = existing;
-    } else if (skillRes?.resolution === "create") {
-      primary = this.resolveOrCreateSkill(db, skillRes.proposedName);
     } else {
-      primary = this.resolveOrCreateSkill(db, settlement.primarySkill.name);
+      if (!skillRes.proposedName || skillRes.proposedName.trim() === "") {
+        return { ok: false, reason: "empty_proposed_skill_name" };
+      }
+      primary = this.resolveOrCreateSkill(db, skillRes.proposedName);
     }
     const skillId = primary.id;
 
@@ -625,6 +630,24 @@ export class DemoRepository implements Repository {
     });
     if (authoritativeCount !== settlement.transaction.repetitionCount) {
       return { ok: false, reason: "repetition_conflict", actualRepetitionCount: authoritativeCount };
+    }
+
+    // Validate and resolve secondary skills if present
+    if (settlement.relatedSkillResolutions) {
+      for (const res of settlement.relatedSkillResolutions) {
+        if (res.resolution === "create") {
+          if (!res.proposedName || res.proposedName.trim() === "") {
+            return { ok: false, reason: "empty_related_skill_proposed_name" };
+          }
+          this.resolveOrCreateSkill(db, res.proposedName);
+        } else if (res.resolution === "existing") {
+          if (!db.skills[res.skillId]) {
+            return { ok: false, reason: "related_skill_not_found_or_not_owned" };
+          }
+        } else {
+          return { ok: false, reason: "invalid_related_skill_resolution" };
+        }
+      }
     }
 
     // 1) ledger (append-only) with the authoritative skill id.
@@ -662,23 +685,6 @@ export class DemoRepository implements Repository {
     if (masteryAction.action === "upgrade") {
       primary.masteryLevel = masteryAction.proposedLevel;
       primary.masteryConfidence = masteryAction.confidence;
-    }
-
-    // 5) secondary skills resolution (supports SkillResolutionInput union or labels)
-    if (settlement.relatedSkillResolutions) {
-      for (const res of settlement.relatedSkillResolutions) {
-        if (res.resolution === "create") {
-          const related = this.resolveOrCreateSkill(db, res.proposedName);
-          this.addEdgeInternal(db, { sourceId: skillId, targetId: related.id, relation: "supports" });
-        } else if (res.resolution === "existing" && db.skills[res.skillId]) {
-          this.addEdgeInternal(db, { sourceId: skillId, targetId: res.skillId, relation: "supports" });
-        }
-      }
-    } else if (settlement.relatedSkillLabels) {
-      for (const label of settlement.relatedSkillLabels) {
-        const related = this.resolveOrCreateSkill(db, label);
-        this.addEdgeInternal(db, { sourceId: skillId, targetId: related.id, relation: "supports" });
-      }
     }
 
     // 6) authoritative pending MasteryVerification (create or return existing).

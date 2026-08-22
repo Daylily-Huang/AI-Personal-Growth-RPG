@@ -180,7 +180,6 @@ export class SettlementService {
         masteryAction,
       },
       relatedSkillResolutions,
-      relatedSkillLabels,
       player: { xpDelta },
       masteryVerification,
       evidence: {

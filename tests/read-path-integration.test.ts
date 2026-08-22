@@ -243,11 +243,11 @@ describe.skipIf(!DATABASE_URL)("Stage 3 — Full Supabase Read Path & E2E Integr
       xpDelta: 60,
       player: { xpDelta: 60 },
       primarySkill: {
+        skill: { resolution: "create", proposedName: "TypeScript" },
         name: "TypeScript",
         xpDelta: 60,
         masteryAction: { action: "none" },
       },
-      relatedSkillLabels: [],
       transaction: {
         id: crypto.randomUUID(),
         activityId: activity.id,
@@ -453,11 +453,11 @@ describe.skipIf(!DATABASE_URL)("Stage 3 — Full Supabase Read Path & E2E Integr
         createdAt: new Date().toISOString(),
       },
       primarySkill: {
+        skill: { resolution: "create" as const, proposedName: "LiveQuestSkill" },
         name: "LiveQuestSkill",
         xpDelta: 50,
         masteryAction: { action: "none" as const },
       },
-      relatedSkillLabels: [],
       player: { xpDelta: 50 },
     };
 

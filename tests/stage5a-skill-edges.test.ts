@@ -79,7 +79,6 @@ describe("Stage 5A — Skill Graph Authority & Store Invariants (DemoRepository)
         masteryAction: { action: "none" },
       },
       relatedSkillResolutions: [{ resolution: "create", proposedName: "TypeScript" }],
-      relatedSkillLabels: ["TypeScript"],
       player: { xpDelta: 30 },
     };
 
@@ -144,7 +143,6 @@ describe("Stage 5A — Skill Graph Authority & Store Invariants (DemoRepository)
         xpDelta: 20,
         masteryAction: { action: "none" },
       },
-      relatedSkillLabels: [],
       player: { xpDelta: 20 },
     });
 
@@ -205,7 +203,6 @@ describe("Stage 5A — Skill Graph Authority & Store Invariants (DemoRepository)
         { resolution: "create", proposedName: "ParentB" },
         { resolution: "create", proposedName: "Child" },
       ],
-      relatedSkillLabels: ["ParentB", "Child"],
       player: { xpDelta: 20 },
     });
 
@@ -275,7 +272,6 @@ describe("Stage 5A — Skill Graph Authority & Store Invariants (DemoRepository)
         { resolution: "create", proposedName: "SkillB" },
         { resolution: "create", proposedName: "SkillC" },
       ],
-      relatedSkillLabels: ["SkillB", "SkillC"],
       player: { xpDelta: 20 },
     });
 
@@ -331,7 +327,6 @@ describe("Stage 5A — Skill Graph Authority & Store Invariants (DemoRepository)
         xpDelta: 20,
         masteryAction: { action: "none" },
       },
-      relatedSkillLabels: [],
       player: { xpDelta: 20 },
     });
 
@@ -372,7 +367,6 @@ describe("Stage 5A — Skill Graph Authority & Store Invariants (DemoRepository)
         xpDelta: 20,
         masteryAction: { action: "none" },
       },
-      relatedSkillLabels: [],
       player: { xpDelta: 20 },
     });
 
@@ -388,7 +382,7 @@ describe("Stage 5A — Skill Graph Authority & Store Invariants (DemoRepository)
     expect(edge2.id).toBeDefined();
   });
 
-  test("6. updateSkillMetadata: Rename preserves old name in aliases (Alias Conservation)", async () => {
+  test("6. updateSkillMetadata: Rename preserves old name in aliases (Alias Conservation) and PATCH semantics", async () => {
     const act = await repo.addActivity({ rawInput: "Rename test" });
     const assess = await repo.addAssessment({
       activityId: act.id,
@@ -425,14 +419,13 @@ describe("Stage 5A — Skill Graph Authority & Store Invariants (DemoRepository)
         xpDelta: 20,
         masteryAction: { action: "none" },
       },
-      relatedSkillLabels: [],
       player: { xpDelta: 20 },
     });
 
     const ts = (await repo.getSkill("TypeScript"))!;
     expect(ts.aliases).toEqual([]);
 
-    // Rename to "TypeScript Advanced"
+    // 1. Rename to "TypeScript Advanced" with description
     const updated = await repo.updateSkillMetadata(ts.id, {
       name: "TypeScript Advanced",
       description: "Advanced type gymnastics",
@@ -441,6 +434,13 @@ describe("Stage 5A — Skill Graph Authority & Store Invariants (DemoRepository)
     expect(updated.name).toBe("TypeScript Advanced");
     expect(updated.aliases).toContain("TypeScript"); // Old name preserved in aliases!
     expect(updated.description).toBe("Advanced type gymnastics");
+
+    // 2. Explicit null for description
+    const clearedDesc = await repo.updateSkillMetadata(ts.id, {
+      description: null,
+    });
+    expect(clearedDesc.description).toBeNull();
+    expect(clearedDesc.name).toBe("TypeScript Advanced"); // Omitted name remains untouched
 
     // Lookup by old name still finds the same skill
     const byOldName = await repo.getSkill("TypeScript");
@@ -502,7 +502,6 @@ describe("Stage 5A — Skill Graph Authority & Store Invariants (DemoRepository)
           confidence: 0.95,
         },
       },
-      relatedSkillLabels: [],
       player: { xpDelta: 50 },
       evidence: {
         level: 4,
@@ -536,5 +535,80 @@ describe("Stage 5A — Skill Graph Authority & Store Invariants (DemoRepository)
     expect(evidenceList[0].evidenceLevel).toBe(4);
     expect(evidenceList[0].evidenceType).toBe("production");
     expect(evidenceList[0].description).toBe("Refactored to clean architecture with zero type escapes");
+  });
+
+  test("8. Stable ID Authority: Missing skill resolution or invalid ID is rejected", async () => {
+    const act = await repo.addActivity({ rawInput: "Stable ID test" });
+    const assess = await repo.addAssessment({
+      activityId: act.id,
+      proposal: createMockProposal(),
+      modelName: "test-model",
+      promptVersion: "1.0",
+    });
+
+    // 1. Missing skill resolution input -> MUST REJECT
+    const resNoResolution = await repo.applySettlement({
+      assessmentId: assess.id,
+      transaction: {
+        id: crypto.randomUUID(),
+        activityId: act.id,
+        assessmentId: assess.id,
+        xpType: "activity",
+        skillId: "",
+        skillName: "TypeScript",
+        activityType: "skill",
+        repetitionCount: 0,
+        repetitionPenalty: 1,
+        amount: 20,
+        baseAmount: 20,
+        modifierJson: {},
+        reason: "Test",
+        rulesVersion: "test",
+        createdAt: new Date().toISOString(),
+      },
+      xpDelta: 20,
+      primarySkill: {
+        // @ts-expect-error test invalid resolution
+        skill: undefined,
+        name: "TypeScript",
+        xpDelta: 20,
+        masteryAction: { action: "none" },
+      },
+      player: { xpDelta: 20 },
+    });
+    expect(resNoResolution.ok).toBe(false);
+    expect(resNoResolution.reason).toBe("missing_or_invalid_skill_resolution");
+
+    // 2. Non-existent existing skill ID -> MUST REJECT
+    const resBadId = await repo.applySettlement({
+      assessmentId: assess.id,
+      transaction: {
+        id: crypto.randomUUID(),
+        activityId: act.id,
+        assessmentId: assess.id,
+        xpType: "activity",
+        skillId: "",
+        skillName: "TypeScript",
+        activityType: "skill",
+        repetitionCount: 0,
+        repetitionPenalty: 1,
+        amount: 20,
+        baseAmount: 20,
+        modifierJson: {},
+        reason: "Test",
+        rulesVersion: "test",
+        createdAt: new Date().toISOString(),
+      },
+      xpDelta: 20,
+      primarySkill: {
+        skill: { resolution: "existing", skillId: "00000000-0000-4000-a000-000000000000" },
+        name: "TypeScript",
+        xpDelta: 20,
+        masteryAction: { action: "none" },
+      },
+      player: { xpDelta: 20 },
+    });
+    expect(resBadId.ok).toBe(false);
+    expect(resBadId.reason).toBe("skill_not_found_or_not_owned");
   });
 });
