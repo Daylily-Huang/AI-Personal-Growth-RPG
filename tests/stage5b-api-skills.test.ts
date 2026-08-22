@@ -95,6 +95,12 @@ describe("Stage 5B — Skill API Routes", () => {
       expect(res.status).toBe(401);
     });
 
+    test("unauth GET /api/skills?status=banana returns 401 (not 400)", async () => {
+      const req = new Request("http://localhost:3000/api/skills?status=banana");
+      const res = await getSkills(req);
+      expect(res.status).toBe(401);
+    });
+
     test("GET /api/skills/[id] returns 401 even with invalid UUID", async () => {
       const req = new Request("http://localhost:3000/api/skills/not-a-uuid");
       const res = await getSkillDetail(req, { params: Promise.resolve({ id: "not-a-uuid" }) });
@@ -335,6 +341,83 @@ describe("Stage 5B — Skill API Routes", () => {
       expect(data.domains).toEqual([]);
       expect(data.nodes).toEqual([]);
       expect(data.edges).toEqual([]);
+    });
+  });
+
+  describe("GET /api/skills status Query Validation (Round 4 P1)", () => {
+    test("returns 400 for invalid status and never touches repository list methods", async () => {
+      const listDomainsSpy = vi.spyOn(demoRepo, "listDomains");
+      const listSkillsSpy = vi.spyOn(demoRepo, "listSkills");
+      const listEdgesSpy = vi.spyOn(demoRepo, "listSkillEdges");
+
+      const req = new Request("http://localhost:3000/api/skills?status=banana");
+      const res = await getSkills(req);
+
+      expect(res.status).toBe(400);
+      const body = await res.json();
+      expect(body.error).toBe("status must be one of: active, archived, all");
+      expect(listDomainsSpy).not.toHaveBeenCalled();
+      expect(listSkillsSpy).not.toHaveBeenCalled();
+      expect(listEdgesSpy).not.toHaveBeenCalled();
+    });
+
+    test("accepts active/archived/all and preserves existing filtering semantics", async () => {
+      // Seed one settled skill (default status: active)
+      const act = await demoRepo.addActivity({ rawInput: "Probe status", totalMinutes: 30 });
+      const assess = await demoRepo.addAssessment({
+        activityId: act.id,
+        proposal: mockProposal("Status Probe Skill"),
+        modelName: "test-model",
+        promptVersion: "v1",
+      });
+      const seeded = await demoRepo.applySettlement({
+        assessmentId: assess.id,
+        transaction: {
+          id: crypto.randomUUID(),
+          activityId: act.id,
+          assessmentId: assess.id,
+          xpType: "activity",
+          skillId: "",
+          skillName: "Status Probe Skill",
+          activityType: "coding",
+          repetitionCount: 0,
+          repetitionPenalty: 1,
+          amount: 40,
+          baseAmount: 40,
+          modifierJson: {},
+          reason: "status probe",
+          rulesVersion: "test",
+          createdAt: new Date().toISOString(),
+        },
+        xpDelta: 40,
+        primarySkill: {
+          skill: { resolution: "create", proposedName: "Status Probe Skill" },
+          name: "Status Probe Skill",
+          xpDelta: 40,
+          masteryAction: { action: "none" },
+        },
+        player: { xpDelta: 40 },
+      });
+      expect(seeded.skillId).toBeDefined();
+
+      const base = "http://localhost:3000/api/skills";
+
+      const resActive = await getSkills(new Request(`${base}?status=active`));
+      expect(resActive.status).toBe(200);
+      expect((await resActive.json()).nodes).toHaveLength(1);
+
+      const resAll = await getSkills(new Request(`${base}?status=all`));
+      expect(resAll.status).toBe(200);
+      expect((await resAll.json()).nodes).toHaveLength(1);
+
+      const resArchived = await getSkills(new Request(`${base}?status=archived`));
+      expect(resArchived.status).toBe(200);
+      expect((await resArchived.json()).nodes).toHaveLength(0);
+
+      // Omitted status defaults to active
+      const resDefault = await getSkills(new Request(base));
+      expect(resDefault.status).toBe(200);
+      expect((await resDefault.json()).nodes).toHaveLength(1);
     });
   });
 

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getRequestRepository, AuthRequiredError } from "@/lib/store/request-repository";
 import { computeSkillGraph } from "@/lib/skills/layout";
-import { isValidUuid } from "@/lib/http/validation";
+import { isValidUuid, isValidSkillStatusFilter, type SkillStatusFilter } from "@/lib/http/validation";
 
 export async function GET(request?: Request) {
   try {
@@ -10,22 +10,25 @@ export async function GET(request?: Request) {
 
     // 2. Parse query filters
     let domainId: string | null = null;
-    let status: "active" | "archived" | "all" = "active";
+    let statusParam: string | null = null;
 
     if (request?.url) {
       const { searchParams } = new URL(request.url);
       domainId = searchParams.get("domainId");
-      const statusParam = searchParams.get("status") as "active" | "archived" | "all" | null;
-      if (statusParam === "archived" || statusParam === "all") {
-        status = statusParam;
-      }
+      statusParam = searchParams.get("status");
     }
 
-    // 3. Validate query (Round 3 P1): a malformed domainId must be rejected outright
-    //    instead of silently producing an empty graph indistinguishable from a
-    //    valid-but-empty domain filter.
+    // 3. Validate query (Round 3/4 P1): malformed filters must be rejected outright
+    //    instead of silently degrading to defaults indistinguishable from valid input.
     if (domainId !== null && !isValidUuid(domainId)) {
       return NextResponse.json({ error: "domainId must be a valid UUID" }, { status: 400 });
+    }
+
+    if (statusParam !== null && !isValidSkillStatusFilter(statusParam)) {
+      return NextResponse.json(
+        { error: "status must be one of: active, archived, all" },
+        { status: 400 },
+      );
     }
 
     // 4. Repository read + derive graph
@@ -37,7 +40,7 @@ export async function GET(request?: Request) {
 
     const graph = computeSkillGraph(domains, skills, edges, {
       domainId: domainId || undefined,
-      status,
+      status: (statusParam ?? "active") as SkillStatusFilter,
     });
 
     return NextResponse.json(graph, { status: 200 });
