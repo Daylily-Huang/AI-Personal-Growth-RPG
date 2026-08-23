@@ -9,7 +9,7 @@ import os from "node:os";
 import path from "node:path";
 import crypto from "node:crypto";
 
-const DATABASE_URL = process.env.XP_RPG_TEST_DB_URL ?? "postgresql://postgres:postgres@127.0.0.1:54322/postgres";
+const DATABASE_URL = process.env.XP_RPG_TEST_DB_URL;
 const DEFAULT_LOCAL_SERVICE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54321";
@@ -18,7 +18,7 @@ const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SECRET_KEY || DEFAULT_LOC
 const USER_5B_A = "55555555-aaaa-4aaa-aaaa-aaaaaaaaaaaa";
 const USER_5B_B = "55555555-bbbb-4bbb-bbbb-bbbbbbbbbbbb";
 
-describe("Stage 5B — SupabaseRepository & Cross-Tenant Read Models (Live PostgreSQL)", () => {
+describe.skipIf(!DATABASE_URL)("Stage 5B — SupabaseRepository & Cross-Tenant Read Models (Live PostgreSQL)", () => {
   let pgClient: Client;
   let repoA: SupabaseRepository;
   let repoB: SupabaseRepository;

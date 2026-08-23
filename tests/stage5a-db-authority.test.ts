@@ -1,12 +1,12 @@
 import { describe, expect, test, beforeAll, afterAll } from "vitest";
 import { Client } from "pg";
 
-const DATABASE_URL = process.env.XP_RPG_TEST_DB_URL ?? "postgresql://postgres:postgres@127.0.0.1:54322/postgres";
+const DATABASE_URL = process.env.XP_RPG_TEST_DB_URL;
 
 const USER_A = "11111111-aaaa-4aaa-aaaa-aaaaaaaaaaaa";
 const USER_B = "22222222-bbbb-4bbb-bbbb-bbbbbbbbbbbb";
 
-describe("Stage 5A — Skill Graph, Tenant Integrity & Evidence Authority (Live PostgreSQL)", () => {
+describe.skipIf(!DATABASE_URL)("Stage 5A — Skill Graph, Tenant Integrity & Evidence Authority (Live PostgreSQL)", () => {
   let client: Client;
 
   beforeAll(async () => {
