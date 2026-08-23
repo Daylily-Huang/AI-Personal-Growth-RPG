@@ -43,31 +43,50 @@ export default function SkillsPage() {
     return () => mq.removeEventListener("change", update);
   }, []);
 
-  const load = useCallback(async (): Promise<boolean> => {
-    setLoading(true);
-    setError(null);
-    try {
-      // status=all keeps archived skills available to the explicit "已归档"
-      // pill; the default canvas scope mirrors the API's active-only contract.
-      const res = await fetch("/api/skills?status=all");
-      if (res.status === 401) {
-        router.push("/login");
-        return false;
-      }
-      if (!res.ok) throw new Error("加载技能树失败");
-      setGraph((await res.json()) as SkillTreeGraphResponse);
-      return true;
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "未知错误");
-      return false;
-    } finally {
-      setLoading(false);
+  // All setStates happen after an await (react-hooks/set-state-in-effect);
+  // the initial loading=true comes from useState and the refresh() event
+  // handler owns the explicit loading indicators for manual reloads.
+  const doFetchGraph = useCallback(async (): Promise<SkillTreeGraphResponse | null> => {
+    // status=all keeps archived skills available to the explicit "已归档"
+    // pill; the default canvas scope mirrors the API's active-only contract.
+    const res = await fetch("/api/skills?status=all");
+    if (res.status === 401) {
+      router.push("/login");
+      return null;
     }
+    if (!res.ok) throw new Error("加载技能树失败");
+    return (await res.json()) as SkillTreeGraphResponse;
   }, [router]);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    let ignore = false;
+    doFetchGraph()
+      .then((data) => {
+        if (!ignore && data) setGraph(data);
+      })
+      .catch((e) => {
+        if (!ignore) setError(e instanceof Error ? e.message : "未知错误");
+      })
+      .finally(() => {
+        if (!ignore) setLoading(false);
+      });
+    return () => {
+      ignore = true;
+    };
+  }, [doFetchGraph]);
+
+  function refresh() {
+    setLoading(true);
+    setError(null);
+    doFetchGraph()
+      .then((data) => {
+        if (data) setGraph(data);
+      })
+      .catch((e) => {
+        setError(e instanceof Error ? e.message : "未知错误");
+      })
+      .finally(() => setLoading(false));
+  }
 
   const domainListItems = useMemo(
     () => buildDomainList(graph?.domains ?? [], graph?.nodes ?? []),
@@ -219,7 +238,7 @@ export default function SkillsPage() {
               <p className="max-w-md text-sm text-zinc-400">{error}</p>
               <button
                 type="button"
-                onClick={() => void load()}
+                onClick={refresh}
                 className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-4 py-2 text-sm hover:bg-white/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400"
               >
                 <RefreshCw className="h-4 w-4" aria-hidden="true" /> 重试
@@ -260,7 +279,6 @@ export default function SkillsPage() {
             <SkillGraphCanvas
               nodes={flowNodes}
               rawEdges={visible.edges}
-              selectedId={selectedSkillId}
               onSelect={handleSelect}
               focusTarget={focusTarget}
               fitKey={`${domainId ?? "all"}|${stateFilter}|${graph ? "loaded" : "empty"}|${search === "" ? "q0" : "q1"}`}
@@ -281,7 +299,7 @@ export default function SkillsPage() {
                 domains={graph?.domains ?? []}
                 onClose={() => handleSelect(null)}
                 onFocusSkill={handleFocusSkill}
-                onChanged={() => void load()}
+                onChanged={refresh}
               />
             </aside>
           ) : (
@@ -299,7 +317,7 @@ export default function SkillsPage() {
                   domains={graph?.domains ?? []}
                   onClose={() => handleSelect(null)}
                   onFocusSkill={handleFocusSkill}
-                  onChanged={() => void load()}
+                  onChanged={refresh}
                 />
               </div>
             </>

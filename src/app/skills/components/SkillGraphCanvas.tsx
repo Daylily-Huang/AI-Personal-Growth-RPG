@@ -82,14 +82,12 @@ export interface CanvasFocusTarget {
 function CanvasInner({
   nodes,
   rawEdges,
-  selectedId,
   onSelect,
   focusTarget,
   fitKey,
 }: {
   nodes: SkillFlowNodeType[];
   rawEdges: SkillFlowEdge[];
-  selectedId: string | null;
   onSelect: (skillId: string | null) => void;
   focusTarget: CanvasFocusTarget | null;
   fitKey: string;
@@ -141,7 +139,6 @@ function CanvasInner({
 export default function SkillGraphCanvas(props: {
   nodes: SkillFlowNodeType[];
   rawEdges: SkillFlowEdge[];
-  selectedId: string | null;
   onSelect: (skillId: string | null) => void;
   focusTarget: CanvasFocusTarget | null;
   fitKey: string;

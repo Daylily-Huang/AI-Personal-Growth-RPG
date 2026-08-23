@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Archive,
   ArchiveRestore,
@@ -45,6 +46,7 @@ export default function SkillDetailPanel({
   onFocusSkill: (skillId: string) => void;
   onChanged: () => void;
 }) {
+  const router = useRouter();
   const [detail, setDetail] = useState<SkillDetailResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -58,51 +60,49 @@ export default function SkillDetailPanel({
     domainId: "",
   });
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch(`/api/skills/${skillId}`);
-      if (res.status === 401) {
-        window.location.href = "/login";
-        return;
-      }
-      if (!res.ok) throw new Error("加载技能详情失败");
-      setDetail((await res.json()) as SkillDetailResponse);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "未知错误");
-    } finally {
-      setLoading(false);
+  // The page mounts this panel with key={skillId}, so all fetch state resets
+  // via remount; every setState below happens after an await (no sync
+  // setState inside effect bodies — react-hooks/set-state-in-effect).
+  const doFetchDetail = useCallback(async (): Promise<SkillDetailResponse | null> => {
+    const res = await fetch(`/api/skills/${skillId}`);
+    if (res.status === 401) {
+      router.push("/login");
+      return null;
     }
-  }, [skillId]);
+    if (!res.ok) throw new Error("加载技能详情失败");
+    return (await res.json()) as SkillDetailResponse;
+  }, [router, skillId]);
 
   useEffect(() => {
     let ignore = false;
-    setLoading(true);
-    setError(null);
-    setEditing(false);
-    setDetail(null);
-    (async () => {
-      try {
-        const res = await fetch(`/api/skills/${skillId}`);
-        if (ignore) return;
-        if (res.status === 401) {
-          window.location.href = "/login";
-          return;
-        }
-        if (!res.ok) throw new Error("加载技能详情失败");
-        const data = (await res.json()) as SkillDetailResponse;
-        if (!ignore) setDetail(data);
-      } catch (e) {
+    doFetchDetail()
+      .then((data) => {
+        if (!ignore && data) setDetail(data);
+      })
+      .catch((e) => {
         if (!ignore) setError(e instanceof Error ? e.message : "未知错误");
-      } finally {
+      })
+      .finally(() => {
         if (!ignore) setLoading(false);
-      }
-    })();
+      });
     return () => {
       ignore = true;
     };
-  }, [skillId]);
+  }, [doFetchDetail]);
+
+  /** Event-handler path: explicit refresh with loading indicators. */
+  function reload() {
+    setLoading(true);
+    setError(null);
+    doFetchDetail()
+      .then((data) => {
+        if (data) setDetail(data);
+      })
+      .catch((e) => {
+        setError(e instanceof Error ? e.message : "未知错误");
+      })
+      .finally(() => setLoading(false));
+  }
 
   function openEditor() {
     if (!detail) return;
@@ -126,14 +126,14 @@ export default function SkillDetailPanel({
         body: JSON.stringify(body),
       });
       if (res.status === 401) {
-        window.location.href = "/login";
+        router.push("/login");
         return false;
       }
       if (!res.ok) {
         const data = (await res.json().catch(() => null)) as { error?: string } | null;
         throw new Error(data?.error ?? `更新失败（${res.status}）`);
       }
-      await load();
+      reload();
       onChanged();
       return true;
     } catch (e) {
@@ -271,7 +271,7 @@ export default function SkillDetailPanel({
             <p className="text-sm text-red-300">{error}</p>
             <button
               type="button"
-              onClick={load}
+              onClick={reload}
               className="rounded-lg border border-white/10 px-3 py-1.5 text-sm hover:bg-white/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400"
             >
               重试

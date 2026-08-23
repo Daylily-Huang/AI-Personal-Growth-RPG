@@ -2,7 +2,6 @@ import type {
   Domain,
   SkillDerivedState,
   SkillEdgeRelationType,
-  SkillFlowEdge,
   SkillFlowNode,
   SkillTreeGraphResponse,
 } from "@/lib/store/types";
