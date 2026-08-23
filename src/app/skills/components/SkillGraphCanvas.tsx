@@ -19,7 +19,8 @@ import { getRelationVisual } from "./presentation";
 
 const NODE_TYPES = { skillNode: SkillNodeView };
 
-function toFlowEdges(edges: SkillFlowEdge[]): Edge[] {
+/** Pure mapping (Stage 5B relation facts → React Flow edge config), exported for tests. */
+export function toFlowEdges(edges: SkillFlowEdge[]): Edge[] {
   return edges.map((edge, index) => {
     const visual = getRelationVisual(edge.relation);
     // MarkerType in @xyflow/react v12 only ships Arrow/ArrowClosed; the frozen

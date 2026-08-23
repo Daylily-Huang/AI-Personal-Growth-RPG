@@ -279,6 +279,20 @@ export default function SkillDetailPanel({
           </div>
         ) : detail ? (
           <>
+            {/* Description (Stage 5B field; null → explicit empty state) */}
+            <section aria-label="技能描述">
+              <h3 className="pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+                描述
+              </h3>
+              {detail.skill.description ? (
+                <p className="whitespace-pre-wrap text-xs leading-relaxed text-zinc-300">
+                  {detail.skill.description}
+                </p>
+              ) : (
+                <p className="text-xs text-zinc-600">暂无描述。</p>
+              )}
+            </section>
+
             {/* Progression */}
             <section aria-label="等级与掌握进度" className="space-y-3">
               <div>
@@ -341,15 +355,23 @@ export default function SkillDetailPanel({
                 </div>
               </div>
 
-              <div className="text-[11px] text-zinc-500">
-                上次使用：
-                {detail.skill.lastUsedAt ? (
-                  <time dateTime={detail.skill.lastUsedAt}>
-                    {formatTimestamp(detail.skill.lastUsedAt)}
+              <div className="space-y-0.5 text-[11px] text-zinc-500">
+                <div>
+                  上次使用：
+                  {detail.skill.lastUsedAt ? (
+                    <time dateTime={detail.skill.lastUsedAt}>
+                      {formatTimestamp(detail.skill.lastUsedAt)}
+                    </time>
+                  ) : (
+                    "从未使用"
+                  )}
+                </div>
+                <div>
+                  创建于：
+                  <time dateTime={detail.skill.createdAt}>
+                    {formatTimestamp(detail.skill.createdAt)}
                   </time>
-                ) : (
-                  "从未使用"
-                )}
+                </div>
               </div>
             </section>
 
@@ -436,16 +458,32 @@ export default function SkillDetailPanel({
                   {detail.masteryHistory.map((event) => (
                     <li
                       key={event.id}
-                      className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.02] px-2.5 py-1.5 text-[11px]"
+                      className="rounded-lg border border-white/10 bg-white/[0.02] px-2.5 py-1.5 text-[11px]"
                     >
-                      <BadgeCheck aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-sky-300" />
-                      <MasteryHistoryEventType eventType={event.eventType} />
-                      <span className="font-mono text-zinc-400">
-                        M{event.fromLevel}→M{event.toLevel}
-                      </span>
-                      <span className="ml-auto shrink-0 text-zinc-500">
-                        <time dateTime={event.createdAt}>{formatTimestamp(event.createdAt)}</time>
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <BadgeCheck aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-sky-300" />
+                        <MasteryHistoryEventType eventType={event.eventType} />
+                        <span className="font-mono text-zinc-400">
+                          M{event.fromLevel}→M{event.toLevel}
+                        </span>
+                        <span
+                          className="shrink-0 rounded bg-sky-400/10 px-1 py-0.5 font-mono text-[10px] text-sky-300"
+                          title="变更时的掌握置信度快照"
+                        >
+                          置信 {formatConfidence(event.confidence)}
+                        </span>
+                        <span className="ml-auto shrink-0 text-zinc-500">
+                          <time dateTime={event.createdAt}>{formatTimestamp(event.createdAt)}</time>
+                        </span>
+                      </div>
+                      {event.reason ? (
+                        <p
+                          className="mt-1 line-clamp-2 pl-[22px] leading-relaxed text-zinc-400"
+                          title={event.reason}
+                        >
+                          {event.reason}
+                        </p>
+                      ) : null}
                     </li>
                   ))}
                 </ul>

@@ -9,13 +9,13 @@ import type {
   SkillTreeGraphResponse,
 } from "@/lib/store/types";
 import DomainFilterPanel from "./components/DomainFilterPanel";
+import { resolveFocusTarget } from "./components/controller";
 import SkillGraphCanvas, { type CanvasFocusTarget } from "./components/SkillGraphCanvas";
 import SkillDetailPanel from "./components/SkillDetailPanel";
 import type { SkillFlowNodeType } from "./components/SkillNode";
 import {
   buildDomainList,
   filterGraph,
-  findNodeById,
 } from "./components/presentation";
 
 export default function SkillsPage() {
@@ -127,16 +127,20 @@ export default function SkillsPage() {
     setDetailOpen(true);
   }
 
-  /** Focus a skill from panels/search: relax viewport filters so it is visible. */
+  /**
+   * Focus a skill from panels/search: relax viewport filters so the target is
+   * visible. Archived skills are hidden under "all", so they require the
+   * explicit "archived" pill (P1-1 regression fix); active skills use "all".
+   */
   function handleFocusSkill(skillId: string) {
-    const node = findNodeById(graph?.nodes ?? [], skillId);
+    const focus = resolveFocusTarget(graph?.nodes ?? [], skillId);
     setDomainId(null);
-    setStateFilter("all");
+    setStateFilter(focus.stateFilter);
     setSearch("");
     setSelectedSkillId(skillId);
     setDetailOpen(true);
-    if (node) {
-      setFocusTarget({ x: node.position.x, y: node.position.y, nonce: Date.now() });
+    if (focus.position) {
+      setFocusTarget({ x: focus.position.x, y: focus.position.y, nonce: Date.now() });
     }
   }
 

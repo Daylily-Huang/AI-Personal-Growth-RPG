@@ -1,0 +1,110 @@
+{
+  "results": [
+    {
+      "name": "login → dashboard redirect",
+      "ok": true,
+      "detail": "http://127.0.0.1:3000/dashboard"
+    },
+    {
+      "name": "canvas renders 5 active skill nodes",
+      "ok": true,
+      "detail": "count=5"
+    },
+    {
+      "name": "left filter panel is 280px",
+      "ok": true,
+      "detail": "width=280"
+    },
+    {
+      "name": "six skills exist in model, five visible under default active scope",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "contains-circle SVG marker renders and is referenced by a contains edge",
+      "ok": true,
+      "detail": "{\"exists\":true,\"circleFill\":\"#a855f7\",\"referencedByEdge\":true,\"dasharray\":null,\"stroke\":null}"
+    },
+    {
+      "name": "MiniMap + Controls(fitView) present",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Programming detail keeps sensible empty description",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "detail shows 创建于 time",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "proficient badge 熟练 shown",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "metadata editor opens",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "locked node shows 已锁定 + unfulfilled prereq row",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "P1-1 regression: focusing archived prereq switches to 已归档 scope and node IS visible",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "学习中 pill filters canvas to Statistics",
+      "ok": true,
+      "detail": "[\"StatisticsLv.1M1学习中30 XP \"]"
+    },
+    {
+      "name": "search narrows canvas",
+      "ok": true,
+      "detail": "count=1"
+    },
+    {
+      "name": "mobile: no horizontal overflow",
+      "ok": true,
+      "detail": "overflow=0px"
+    },
+    {
+      "name": "mobile filter drawer opens",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "mobile detail drawer shows available state + real description",
+      "ok": true,
+      "detail": "Academic Writing论文writing可开始描述从文献综述到成稿的完整写作能力。多轮真实论文活动沉淀，包含结"
+    },
+    {
+      "name": "mobile detail drawer: no horizontal overflow",
+      "ok": true,
+      "detail": "overflow=0px"
+    },
+    {
+      "name": "EvidenceTimeline populated for Programming",
+      "ok": true,
+      "detail": "证据与审计E4Python 性能调优第二次迭代，实际应用进生产脚本未验证用户在真实任务中应用，属于 E4。learning·08/24 01:43E4Pytho"
+    },
+    {
+      "name": "mastery history empty-state kept sensible",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "prerequisite solid-sky edge + arrow marker present",
+      "ok": true,
+      "detail": "{\"arrowMarkers\":[\"1__color=#38bdf8&height=16&type=arrowclosed&width=16\"],\"hasSkyEdge\":true}"
+    }
+  ],
+  "consoleErrors": []
+}
