@@ -69,6 +69,20 @@ export interface XpTransaction {
 }
 
 /**
+ * Stage 5 Domain model: hierarchical skill categories.
+ */
+export interface Domain {
+  id: string;
+  name: string;
+  slug: string;
+  parentId: string | null;
+  sortOrder?: number;
+  description?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+/**
  * Stable skill identity (Milestone 2.7 & Stage 5): the database/domain always refers to a
  * skill by `id`; `name` is a display label and `aliases` help AI matching. The
  * display name must never be the primary identity.
@@ -85,6 +99,8 @@ export interface SkillState {
   masteryLevel: number;
   masteryConfidence: number;
   lastUsedAt: string | null;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 /** Stage 5 Minimal Skill Edge Relations */
@@ -125,6 +141,20 @@ export interface EvidenceRecord {
   createdAt: string;
 }
 
+export interface MasteryEvent {
+  id: string;
+  userId: string;
+  skillId: string;
+  activityId?: string | null;
+  evidenceId?: string | null;
+  fromLevel: number;
+  toLevel: number;
+  confidence: number;
+  eventType: string;
+  reason: string | null;
+  createdAt: string;
+}
+
 export interface PlayerState {
   totalXp: number;
   playerLevel: number;
@@ -155,14 +185,128 @@ export interface MasteryVerification {
   resolvedAt: string | null;
 }
 
+// ---------------------------------------------------------------------------
+// Stage 5B API & Derived State Read Models
+// ---------------------------------------------------------------------------
+
+export type SkillDerivedState =
+  | "locked"
+  | "available"
+  | "learning"
+  | "proficient"
+  | "advanced"
+  | "archived";
+
+export interface SkillFlowNodeData {
+  name: string;
+  aliases: string[];
+  level: number;
+  xp: number;
+  masteryLevel: number;
+  masteryConfidence: number;
+  derivedState: SkillDerivedState;
+  lastUsedAt: string | null;
+  prerequisiteCount: number;
+  unfulfilledPrerequisiteCount: number;
+}
+
+export interface SkillFlowNode {
+  id: string;
+  domainId: string | null;
+  position: { x: number; y: number };
+  data: SkillFlowNodeData;
+}
+
+export interface SkillFlowEdge {
+  id: string;
+  source: string;
+  target: string;
+  relation: SkillEdgeRelationType | string;
+  animated?: boolean;
+}
+
+export interface SkillTreeGraphResponse {
+  domains: Domain[];
+  nodes: SkillFlowNode[];
+  edges: SkillFlowEdge[];
+}
+
+export interface SkillDetailPrerequisite {
+  id: string;
+  name: string;
+  masteryLevel: number;
+  masteryConfidence: number;
+  isFulfilled: boolean;
+}
+
+export interface SkillDetailNextUnlock {
+  id: string;
+  name: string;
+  derivedState: SkillDerivedState;
+}
+
+export interface SkillDetailEvidenceItem {
+  id: string;
+  activityId: string;
+  activityTitle?: string | null;
+  evidenceLevel: number;
+  evidenceType: string | null;
+  description: string | null;
+  verified: boolean;
+  createdAt: string;
+}
+
+export interface SkillDetailMasteryEventItem {
+  id: string;
+  eventType: string;
+  fromLevel: number;
+  toLevel: number;
+  confidence: number;
+  reason: string | null;
+  createdAt: string;
+}
+
+export interface SkillDetailTransactionItem {
+  id: string;
+  amount: number;
+  reason: string;
+  createdAt: string;
+}
+
+export interface SkillDetailResponse {
+  skill: {
+    id: string;
+    name: string;
+    aliases: string[];
+    description: string | null;
+    domainId: string | null;
+    domainName: string | null;
+    level: number;
+    xp: number;
+    nextLevelXp: number;
+    masteryLevel: number;
+    masteryConfidence: number;
+    derivedState: SkillDerivedState;
+    lastUsedAt: string | null;
+    createdAt: string;
+  };
+  prerequisites: SkillDetailPrerequisite[];
+  nextUnlocks: SkillDetailNextUnlock[];
+  evidenceTimeline: SkillDetailEvidenceItem[];
+  masteryHistory: SkillDetailMasteryEventItem[];
+  recentTransactions: SkillDetailTransactionItem[];
+}
+
 export interface Db {
   version: 4;
+  domains?: Domain[];
   activities: Activity[];
   assessments: Assessment[];
   transactions: XpTransaction[];
   skills: Record<string, SkillState>;
   skillEdges: SkillEdge[];
   evidenceRecords: EvidenceRecord[];
+  masteryEvents?: MasteryEvent[];
   masteryVerifications: MasteryVerification[];
   quests: Quest[];
   player: PlayerState;

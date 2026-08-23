@@ -3,12 +3,15 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { RULES_VERSION } from "@/lib/growth-engine/xp";
 import { levelFromXp } from "@/lib/growth-engine/levels";
+import { assembleSkillDetail } from "@/lib/skills/derived-state";
 import { countRecentSimilar } from "./similarity";
 import type {
   Activity,
   Assessment,
   Db,
+  Domain,
   EvidenceRecord,
+  MasteryEvent,
   MasteryVerification,
   NewActivityInput,
   NewAssessmentInput,
@@ -18,6 +21,7 @@ import type {
   Quest,
   QuestStatus,
   SettlementToApply,
+  SkillDetailResponse,
   SkillEdge,
   SkillState,
   UpdateQuestInput,
@@ -34,12 +38,29 @@ const SIMILARITY_WINDOW_DAYS = 30;
 function emptyDb(): Db {
   return {
     version: 4,
+    domains: [
+      {
+        id: "d1111111-1111-4000-a000-000000000001",
+        name: "Computer Science",
+        slug: "computer-science",
+        parentId: null,
+        sortOrder: 0,
+      },
+      {
+        id: "d2222222-2222-4000-a000-000000000002",
+        name: "Mathematics",
+        slug: "mathematics",
+        parentId: null,
+        sortOrder: 1,
+      },
+    ],
     activities: [],
     assessments: [],
     transactions: [],
     skills: {},
     skillEdges: [],
     evidenceRecords: [],
+    masteryEvents: [],
     masteryVerifications: [],
     quests: [],
     player: {
@@ -52,7 +73,7 @@ function emptyDb(): Db {
   };
 }
 
-function defaultSkill(id: string, name: string): SkillState {
+function defaultSkill(id: string, name: string, createdAt = "1970-01-01T00:00:00.000Z"): SkillState {
   return {
     id,
     name,
@@ -65,6 +86,8 @@ function defaultSkill(id: string, name: string): SkillState {
     masteryLevel: 1,
     masteryConfidence: 0.5,
     lastUsedAt: null,
+    createdAt,
+    updatedAt: createdAt,
   };
 }
 
@@ -192,6 +215,44 @@ export class DemoRepository implements Repository {
     return db.skills[id] ?? null;
   }
 
+  async listDomains(): Promise<Domain[]> {
+    return this.readDb().domains ?? [];
+  }
+
+  async listMasteryEvents(skillId?: string): Promise<MasteryEvent[]> {
+    const list = this.readDb().masteryEvents ?? [];
+    if (skillId) {
+      return list.filter((me) => me.skillId === skillId);
+    }
+    return list;
+  }
+
+  async getSkillDetails(id: string): Promise<SkillDetailResponse | null> {
+    const db = this.readDb();
+    const skill = db.skills[id];
+    if (!skill) return null;
+
+    const domainName = skill.domainId
+      ? (db.domains ?? []).find((d) => d.id === skill.domainId)?.name ?? null
+      : null;
+
+    const activityTitlesMap = new Map<string, string>();
+    for (const act of db.activities ?? []) {
+      activityTitlesMap.set(act.id, act.title);
+    }
+
+    return assembleSkillDetail({
+      skill,
+      domainName,
+      allSkills: Object.values(db.skills),
+      allEdges: db.skillEdges ?? [],
+      evidenceRecords: db.evidenceRecords ?? [],
+      masteryEvents: db.masteryEvents ?? [],
+      transactions: db.transactions ?? [],
+      activityTitlesMap,
+    });
+  }
+
   async listSkills(): Promise<SkillState[]> {
     return Object.values(this.readDb().skills);
   }
@@ -282,10 +343,13 @@ export class DemoRepository implements Repository {
     return edge;
   }
 
-  async deleteEdge(id: string): Promise<void> {
+  async deleteEdge(id: string): Promise<boolean> {
     const db = this.readDb();
-    db.skillEdges = db.skillEdges.filter((e) => e.id !== id);
+    const idx = db.skillEdges.findIndex((e) => e.id === id);
+    if (idx === -1) return false;
+    db.skillEdges.splice(idx, 1);
     this.writeDb(db);
+    return true;
   }
 
   async updateSkillMetadata(id: string, updates: UpdateSkillMetadataInput): Promise<SkillState> {
@@ -314,7 +378,15 @@ export class DemoRepository implements Repository {
 
     skill.aliases = newAliases;
     if (updates.description !== undefined) skill.description = updates.description;
-    if (updates.domainId !== undefined) skill.domainId = updates.domainId;
+    if (updates.domainId !== undefined) {
+      if (updates.domainId !== null) {
+        const domainExists = (db.domains ?? []).some((d) => d.id === updates.domainId);
+        if (!domainExists) {
+          throw new Error("Referenced domain does not exist or access denied");
+        }
+      }
+      skill.domainId = updates.domainId;
+    }
     if (updates.status !== undefined) skill.status = updates.status;
 
     this.writeDb(db);
@@ -617,7 +689,7 @@ export class DemoRepository implements Repository {
       if (!skillRes.proposedName || skillRes.proposedName.trim() === "") {
         return { ok: false, reason: "empty_proposed_skill_name" };
       }
-      primary = this.resolveOrCreateSkill(db, skillRes.proposedName);
+      primary = this.resolveOrCreateSkill(db, skillRes.proposedName, now);
     }
     const skillId = primary.id;
 
@@ -639,7 +711,7 @@ export class DemoRepository implements Repository {
           if (!res.proposedName || res.proposedName.trim() === "") {
             return { ok: false, reason: "empty_related_skill_proposed_name" };
           }
-          this.resolveOrCreateSkill(db, res.proposedName);
+          this.resolveOrCreateSkill(db, res.proposedName, now);
         } else if (res.resolution === "existing") {
           if (!db.skills[res.skillId]) {
             return { ok: false, reason: "related_skill_not_found_or_not_owned" };
@@ -683,8 +755,24 @@ export class DemoRepository implements Repository {
     primary.lastUsedAt = now;
     const masteryAction = settlement.primarySkill.masteryAction;
     if (masteryAction.action === "upgrade") {
+      const fromLevel = primary.masteryLevel;
       primary.masteryLevel = masteryAction.proposedLevel;
       primary.masteryConfidence = masteryAction.confidence;
+
+      db.masteryEvents = db.masteryEvents ?? [];
+      db.masteryEvents.unshift({
+        id: crypto.randomUUID(),
+        userId: "u-demo",
+        skillId,
+        activityId: activity.id,
+        evidenceId: evidenceRecord.id,
+        fromLevel,
+        toLevel: masteryAction.proposedLevel,
+        confidence: masteryAction.confidence,
+        eventType: "upgrade",
+        reason: "settle_activity",
+        createdAt: now,
+      });
     }
 
     // 6) authoritative pending MasteryVerification (create or return existing).
@@ -751,11 +839,11 @@ export class DemoRepository implements Repository {
     };
   }
 
-  private resolveOrCreateSkill(db: Db, label: string): SkillState {
+  private resolveOrCreateSkill(db: Db, label: string, now = "1970-01-01T00:00:00.000Z"): SkillState {
     const existing = findSkillByLabel(db.skills, label);
     if (existing) return existing;
     const id = crypto.randomUUID();
-    const skill = defaultSkill(id, label.trim() || "unnamed");
+    const skill = defaultSkill(id, label.trim() || "unnamed", now);
     db.skills[id] = skill;
     return skill;
   }
@@ -810,6 +898,8 @@ function normalizeDb(parsed: Db): Db {
   out.assessments = parsed.assessments ?? [];
   out.quests = parsed.quests ?? [];
   out.evidenceRecords = parsed.evidenceRecords ?? [];
+  out.masteryEvents = parsed.masteryEvents ?? [];
+  out.domains = parsed.domains ?? emptyDb().domains;
 
   // --- rebuild skills with stable UUIDs keyed by normalized label ---
   const legacySkills = (parsed.skills ?? {}) as Record<string, Omit<SkillState, "id"> & { id?: string }>;
@@ -855,6 +945,8 @@ function normalizeDb(parsed: Db): Db {
         masteryLevel: s.masteryLevel ?? 1,
         masteryConfidence: s.masteryConfidence ?? 0.5,
         lastUsedAt: s.lastUsedAt ?? null,
+        createdAt: s.createdAt ?? "1970-01-01T00:00:00.000Z",
+        updatedAt: s.updatedAt ?? s.createdAt ?? "1970-01-01T00:00:00.000Z",
       };
     }
   }

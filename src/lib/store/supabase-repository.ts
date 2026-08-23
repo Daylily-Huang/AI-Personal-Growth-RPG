@@ -1,12 +1,15 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database, Json } from "@/lib/supabase/database.types";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
+import { assembleSkillDetail } from "@/lib/skills/derived-state";
 import { AssessmentPersistenceService } from "./assessment-persistence.service";
 import type { Repository, SettlementResult } from "./repository";
 import type {
   Activity,
   Assessment,
+  Domain,
   EvidenceRecord,
+  MasteryEvent,
   MasteryVerification,
   NewActivityInput,
   NewAssessmentInput,
@@ -16,6 +19,7 @@ import type {
   Quest,
   QuestStatus,
   SettlementToApply,
+  SkillDetailResponse,
   SkillEdge,
   SkillState,
   UpdateQuestInput,
@@ -25,7 +29,9 @@ import type {
 import {
   mapActivity,
   mapAssessment,
+  mapDomain,
   mapEvidenceRecord,
+  mapMasteryEvent,
   mapMasteryVerification,
   mapPlayer,
   mapQuest,
@@ -96,6 +102,65 @@ export class SupabaseRepository implements Repository {
     return data ? mapSkill(data) : null;
   }
 
+  async listDomains(): Promise<Domain[]> {
+    const { data, error } = await this.client
+      .from("domains")
+      .select("*")
+      .eq("user_id", this.userId)
+      .order("sort_order", { ascending: true })
+      .order("name", { ascending: true });
+    if (error) throw error;
+    return (data ?? []).map(mapDomain);
+  }
+
+  async listMasteryEvents(skillId?: string): Promise<MasteryEvent[]> {
+    let query = this.client
+      .from("mastery_events")
+      .select("*")
+      .eq("user_id", this.userId);
+    if (skillId) {
+      query = query.eq("skill_id", skillId);
+    }
+    const { data, error } = await query.order("created_at", { ascending: false });
+    if (error) throw error;
+    return (data ?? []).map(mapMasteryEvent);
+  }
+
+  async getSkillDetails(id: string): Promise<SkillDetailResponse | null> {
+    const skill = await this.getSkillById(id);
+    if (!skill) return null;
+
+    const [domains, allSkills, allEdges, evidenceRecords, masteryEvents, transactions, activities] = await Promise.all([
+      this.listDomains(),
+      this.listSkills(),
+      this.listSkillEdges(),
+      this.listEvidenceRecords(id),
+      this.listMasteryEvents(id),
+      this.listTransactions(),
+      this.listActivities(),
+    ]);
+
+    const domainName = skill.domainId
+      ? domains.find((d) => d.id === skill.domainId)?.name ?? null
+      : null;
+
+    const activityTitlesMap = new Map<string, string>();
+    for (const act of activities) {
+      activityTitlesMap.set(act.id, act.title);
+    }
+
+    return assembleSkillDetail({
+      skill,
+      domainName,
+      allSkills,
+      allEdges,
+      evidenceRecords,
+      masteryEvents,
+      transactions,
+      activityTitlesMap,
+    });
+  }
+
   async listSkills(): Promise<SkillState[]> {
     const { data, error } = await this.client.from("skills").select("*").eq("user_id", this.userId).order("name");
     if (error) throw error;
@@ -140,13 +205,15 @@ export class SupabaseRepository implements Repository {
     return mapSkillEdge(data);
   }
 
-  async deleteEdge(id: string): Promise<void> {
-    const { error } = await this.client
+  async deleteEdge(id: string): Promise<boolean> {
+    const { data, error } = await this.client
       .from("skill_edges")
       .delete()
       .eq("id", id)
-      .eq("user_id", this.userId);
+      .eq("user_id", this.userId)
+      .select("id");
     if (error) throw error;
+    return Boolean(data && data.length > 0);
   }
 
   async updateSkillMetadata(id: string, updates: UpdateSkillMetadataInput): Promise<SkillState> {

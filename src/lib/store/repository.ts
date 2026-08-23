@@ -1,7 +1,9 @@
 import type {
   Activity,
   Assessment,
+  Domain,
   EvidenceRecord,
+  MasteryEvent,
   MasteryVerification,
   NewActivityInput,
   NewAssessmentInput,
@@ -11,6 +13,7 @@ import type {
   Quest,
   QuestStatus,
   SettlementToApply,
+  SkillDetailResponse,
   SkillEdge,
   SkillState,
   UpdateQuestInput,
@@ -73,15 +76,18 @@ export interface Repository {
   listTransactions(): Promise<XpTransaction[]>;
   getSkill(name: string): Promise<SkillState | null>;
   getSkillById(id: string): Promise<SkillState | null>;
+  getSkillDetails(id: string): Promise<SkillDetailResponse | null>;
   listSkills(): Promise<SkillState[]>;
   listSkillEdges(): Promise<SkillEdge[]>;
   listEvidenceRecords(skillId?: string): Promise<EvidenceRecord[]>;
+  listDomains(): Promise<Domain[]>;
+  listMasteryEvents(skillId?: string): Promise<MasteryEvent[]>;
   getPlayer(): Promise<PlayerState>;
   listMasteryVerifications(): Promise<MasteryVerification[]>;
 
   // ---- skills & edges (Stage 5A) ----
   addEdge(input: NewSkillEdgeInput): Promise<SkillEdge>;
-  deleteEdge(id: string): Promise<void>;
+  deleteEdge(id: string): Promise<boolean>;
   updateSkillMetadata(id: string, updates: UpdateSkillMetadataInput): Promise<SkillState>;
 
   // ---- quests ----

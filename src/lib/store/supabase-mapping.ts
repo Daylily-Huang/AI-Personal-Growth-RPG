@@ -3,7 +3,9 @@ import type { Database } from "@/lib/supabase/database.types";
 import type {
   Activity,
   Assessment,
+  Domain,
   EvidenceRecord,
+  MasteryEvent,
   MasteryVerification,
   PlayerState,
   Quest,
@@ -21,6 +23,8 @@ type TransactionRow = Database["public"]["Tables"]["xp_transactions"]["Row"];
 type PlayerRow = Database["public"]["Tables"]["player_states"]["Row"];
 type VerificationRow = Database["public"]["Tables"]["mastery_verifications"]["Row"];
 type QuestRow = Database["public"]["Tables"]["quests"]["Row"];
+type DomainRow = Database["public"]["Tables"]["domains"]["Row"];
+type MasteryEventRow = Database["public"]["Tables"]["mastery_events"]["Row"];
 
 export function mapActivity(row: ActivityRow): Activity {
   return {
@@ -68,6 +72,8 @@ export function mapSkill(row: SkillRow): SkillState {
     masteryLevel: row.mastery_level,
     masteryConfidence: Number(row.mastery_confidence),
     lastUsedAt: row.last_used_at,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
   };
 }
 
@@ -162,5 +168,34 @@ export function mapQuest(row: QuestRow): Quest {
     completedAt: row.completed_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+  };
+}
+
+export function mapDomain(row: DomainRow): Domain {
+  return {
+    id: row.id,
+    name: row.name,
+    slug: row.slug,
+    parentId: row.parent_id,
+    sortOrder: row.sort_order,
+    description: row.description ?? null,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+export function mapMasteryEvent(row: MasteryEventRow): MasteryEvent {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    skillId: row.skill_id ?? "",
+    activityId: row.activity_id ?? null,
+    evidenceId: row.evidence_id ?? null,
+    fromLevel: row.from_level,
+    toLevel: row.to_level,
+    confidence: Number(row.confidence ?? 0),
+    eventType: row.event_type,
+    reason: row.reason ?? null,
+    createdAt: row.created_at,
   };
 }
