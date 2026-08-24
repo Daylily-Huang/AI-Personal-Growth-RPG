@@ -61,6 +61,7 @@ const EXPECTED_ORDER = [
   "0036_skill_edges_and_tenant_fks",
   "0037_skill_settlement_and_evidence",
   "0038_skill_edges_grants",
+  "0039_knowledge_graph_authority",
 ];
 
 const STAGE1_PRIVATE_TABLES = [
