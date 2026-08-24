@@ -9,7 +9,7 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["tests/**/*.test.ts"],
+    include: ["tests/**/*.test.ts", "tests/**/*.test.tsx"],
     // The DB-backed tests (migration smoke + final-state authority) share one
     // live Supabase/Postgres instance. Disable file-level parallelism so they
     // never apply migrations against the same database concurrently (Round13).
