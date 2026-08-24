@@ -10,9 +10,11 @@ const REDACTIONS = [
   [/eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{4,}\.[A-Za-z0-9_-]{4,}/g, "[REDACTED_JWT]"],
   // URL userinfo (DB URL postgres passwords etc.) — scheme is not secret, keep it
   [/((?:https?|postgresql|postgres)):\/\/[^:@/\s]+:[^@/\s]+@/g, "$1://[REDACTED]@"],
-  // labeled secrets: `anon key: <v>`, `service_role key: <v>`, `JWT secret: <v>`,
+  // Labeled secrets (colon format): `anon key: <v>`, `service_role key: <v>`, `JWT secret: <v>`,
   // `Storage Secret Key: <v>`, `password: <v>` ...
   [/((?:[A-Za-z0-9_ -]*\b(?:key|secret|password)\b[A-Za-z0-9_ -]*?):\s*)(\S+)/gi, "$1[REDACTED]"],
+  // Box / table / pipe formatted secrets: `│ Storage Access Key │ <v> │`, `| Secret Key | <v> |`
+  [/([│|║┃]\s*(?:[A-Za-z0-9_ -]*\b(?:key|secret|password)\b[A-Za-z0-9_ -]*?)\s*[│|║┃]\s*)\S.*?(?=\s*[│|║┃]|$)/gi, "$1[REDACTED]"],
 ];
 
 function sanitizeSupabaseLog(text) {

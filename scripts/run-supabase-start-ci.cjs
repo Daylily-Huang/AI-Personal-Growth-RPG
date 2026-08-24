@@ -27,5 +27,5 @@ if (result.status === 0) {
 console.error(`supabase start FAILED (exit=${result.status}). Sanitized diagnostics (tail):`);
 const tail = output.split("\n").slice(-80).join("\n");
 console.error(sanitizeSupabaseLog(tail));
-if (result.error) console.error(`spawn error: ${result.error.message}`);
+if (result.error) console.error(`spawn error: ${sanitizeSupabaseLog(result.error.message)}`);
 process.exit(result.status ?? 1);

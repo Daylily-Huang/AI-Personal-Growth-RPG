@@ -83,6 +83,27 @@ function readStatusRaw() {
   });
 }
 
+function registerGithubMasks(credentials, vars = {}) {
+  const sensitiveValues = [
+    credentials?.pubKey,
+    credentials?.secretKey,
+    credentials?.dbUrl,
+    vars?.JWT_SECRET,
+    vars?.SERVICE_ROLE_KEY,
+    vars?.ANON_KEY,
+    vars?.PUBLISHABLE_KEY,
+    vars?.SECRET_KEY,
+  ];
+
+  const seen = new Set();
+  for (const val of sensitiveValues) {
+    if (val && typeof val === "string" && val.trim().length > 0 && !seen.has(val.trim())) {
+      seen.add(val.trim());
+      console.log(`::add-mask::${val.trim()}`);
+    }
+  }
+}
+
 function exportSupabaseEnv() {
   const raw = readStatusRaw();
   const vars = parseSupabaseStatusOutput(raw);
@@ -97,6 +118,9 @@ function exportSupabaseEnv() {
   const { apiUrl, pubKey, secretKey, dbUrl } = result.credentials;
   const envFile = process.env.GITHUB_ENV;
   if (envFile) {
+    // Register sensitive values with GitHub Actions runner so subsequent step logs mask them as ***
+    registerGithubMasks(result.credentials, vars);
+
     const lines = [
       `NEXT_PUBLIC_SUPABASE_URL=${apiUrl}`,
       `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=${pubKey}`,
@@ -118,5 +142,6 @@ module.exports = {
   stripAnsi,
   parseSupabaseStatusOutput,
   validateAndExtractCredentials,
+  registerGithubMasks,
   exportSupabaseEnv,
 };
