@@ -79,5 +79,8 @@ jobs:
       - name: Run database-backed tests
         run: pnpm test
 
+      - name: Deterministic growth-engine harness (Gate 5D)
+        run: pnpm harness:deterministic
+
       - name: Run E2E tests
         run: pnpm test:e2e

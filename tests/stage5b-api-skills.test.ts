@@ -1045,3 +1045,151 @@ describe("Stage 5B — Skill API Routes", () => {
     });
   });
 });
+
+describe("Stage 5D — route-layer error-mapping branches (Gate 5D)", () => {
+  let tempDir: string;
+  let demoRepo: DemoRepository;
+
+  beforeEach(async () => {
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "demo-skills-5d-test-"));
+    process.env.DEMO_DB_PATH = path.join(tempDir, "demo.json");
+    demoRepo = new DemoRepository();
+    await demoRepo.reset();
+    (getRequestRepository as unknown as Mock).mockResolvedValue(demoRepo);
+  });
+
+  afterEach(() => {
+    try {
+      if (tempDir && fs.existsSync(tempDir)) {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      }
+    } catch {}
+    delete process.env.DEMO_DB_PATH;
+    vi.restoreAllMocks();
+  });
+
+  async function seedSkill(name: string): Promise<string> {
+    const act = await demoRepo.addActivity({ rawInput: `Seeding ${name}`, totalMinutes: 10 });
+    const assess = await demoRepo.addAssessment({
+      activityId: act.id,
+      proposal: mockProposal(name),
+      modelName: "test-model",
+      promptVersion: "v1",
+    });
+    const settled = await demoRepo.applySettlement({
+      assessmentId: assess.id,
+      transaction: {
+        id: crypto.randomUUID(),
+        activityId: act.id,
+        assessmentId: assess.id,
+        xpType: "activity",
+        skillId: "",
+        skillName: name,
+        activityType: "coding",
+        repetitionCount: 0,
+        repetitionPenalty: 1,
+        amount: 10,
+        baseAmount: 10,
+        modifierJson: {},
+        reason: "Seed",
+        rulesVersion: "test",
+        createdAt: new Date().toISOString(),
+      },
+      xpDelta: 10,
+      primarySkill: {
+        skill: { resolution: "create", proposedName: name },
+        name,
+        xpDelta: 10,
+        masteryAction: { action: "none" },
+      },
+      player: { xpDelta: 10 },
+    });
+    return settled.skillId!;
+  }
+
+  function postEdge(sourceSkillId: string, targetSkillId: string, relationType: string) {
+    return postSkillEdge(
+      new Request("http://localhost:3000/api/skills/edges", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sourceSkillId, targetSkillId, relationType }),
+      }),
+    );
+  }
+
+  test("POST duplicate edge (same pair + relation) -> 409", async () => {
+    const a = await seedSkill("Dup A");
+    const b = await seedSkill("Dup B");
+    expect((await postEdge(a, b, "prerequisite")).status).toBe(201);
+    expect((await postEdge(a, b, "prerequisite")).status).toBe(409);
+  });
+
+  test("POST second contains parent -> 409 (single-parent tree invariant)", async () => {
+    const p1 = await seedSkill("Contains Parent 1");
+    const p2 = await seedSkill("Contains Parent 2");
+    const child = await seedSkill("Contains Child");
+    expect((await postEdge(p1, child, "contains")).status).toBe(201);
+    expect((await postEdge(p2, child, "contains")).status).toBe(409);
+  });
+
+  test("POST edge referencing a nonexistent skill UUID -> 400 (not 404/500)", async () => {
+    const a = await seedSkill("Anchor Skill");
+    const ghost = crypto.randomUUID();
+    expect((await postEdge(ghost, a, "supports")).status).toBe(400);
+    expect((await postEdge(a, ghost, "supports")).status).toBe(400);
+  });
+
+  test("DELETE /api/skills/edges/[not-a-uuid] with session -> 400", async () => {
+    const res = await deleteSkillEdge(new Request("http://localhost:3000/api/skills/edges/not-a-uuid", {
+      method: "DELETE",
+    }), { params: Promise.resolve({ id: "not-a-uuid" }) });
+    expect(res.status).toBe(400);
+  });
+
+  test("PATCH maps PG duplicate-key (23505) failures to 409", async () => {
+    const skillId = crypto.randomUUID();
+    (getRequestRepository as unknown as Mock).mockResolvedValue({
+      async updateSkillMetadata() {
+        throw new Error(
+          'duplicate key value violates unique constraint "skills_user_id_normalized_name_key"',
+        );
+      },
+    });
+    const res = await patchSkill(new Request(`http://localhost:3000/api/skills/${skillId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Conflict" }),
+    }), { params: Promise.resolve({ id: skillId }) });
+    expect(res.status).toBe(409);
+  });
+
+  test("PATCH maps PG foreign-key/domain (23503) failures to 400", async () => {
+    const skillId = crypto.randomUUID();
+    (getRequestRepository as unknown as Mock).mockResolvedValue({
+      async updateSkillMetadata() {
+        throw new Error("insert or update on table \"skills\" violates foreign key constraint \"fk_skills_domain_tenant_safe\"");
+      },
+    });
+    const res = await patchSkill(new Request(`http://localhost:3000/api/skills/${skillId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ domainId: crypto.randomUUID() }),
+    }), { params: Promise.resolve({ id: skillId }) });
+    expect(res.status).toBe(400);
+  });
+
+  test("PATCH maps ownership denial (Skill not found or access denied) to 404", async () => {
+    const skillId = crypto.randomUUID();
+    (getRequestRepository as unknown as Mock).mockResolvedValue({
+      async updateSkillMetadata() {
+        throw new Error("Skill not found or access denied");
+      },
+    });
+    const res = await patchSkill(new Request(`http://localhost:3000/api/skills/${skillId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Whatever" }),
+    }), { params: Promise.resolve({ id: skillId }) });
+    expect(res.status).toBe(404);
+  });
+});
