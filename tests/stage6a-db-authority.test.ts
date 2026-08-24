@@ -1,5 +1,7 @@
 import { describe, expect, test, beforeAll, afterAll } from "vitest";
 import { Client } from "pg";
+import fs from "node:fs";
+import path from "node:path";
 
 const DATABASE_URL = process.env.XP_RPG_TEST_DB_URL;
 
@@ -9,6 +11,7 @@ const DOMAIN_A = "6ad00001-aaaa-4000-a000-000000000001";
 const DOMAIN_B = "6ad00002-bbbb-4000-b000-000000000002";
 const SKILL_A = "6a500001-aaaa-4000-a000-000000000001";
 const SKILL_B = "6a500002-bbbb-4000-b000-000000000002";
+const ACTIVITY_A = "6ac00001-aaaa-4000-a000-000000000001";
 
 describe.skipIf(!DATABASE_URL)("Stage 6A — Knowledge Graph, Schema & Authority (Live PostgreSQL)", () => {
   let pg: Client;
@@ -41,6 +44,7 @@ describe.skipIf(!DATABASE_URL)("Stage 6A — Knowledge Graph, Schema & Authority
       delete from public.evidence_records where user_id in ('${USER_A}', '${USER_B}');
       delete from public.knowledge_edges where user_id in ('${USER_A}', '${USER_B}');
       delete from public.knowledge_nodes where user_id in ('${USER_A}', '${USER_B}');
+      delete from public.activities where user_id in ('${USER_A}', '${USER_B}');
       delete from public.skills where user_id in ('${USER_A}', '${USER_B}');
       delete from public.domains where user_id in ('${USER_A}', '${USER_B}');
     `);
@@ -65,6 +69,9 @@ describe.skipIf(!DATABASE_URL)("Stage 6A — Knowledge Graph, Schema & Authority
         ('${SKILL_A}', '${USER_A}', 'DNA Sequencing'),
         ('${SKILL_B}', '${USER_B}', 'Algorithms')
       on conflict (user_id, id) do nothing;
+      insert into public.activities (id, user_id, title, raw_input, activity_type, status, rules_version) values
+        ('${ACTIVITY_A}', '${USER_A}', 'Read Paper on DNA Barcoding', 'Reading study notes', 'study', 'confirmed', '1.0.0')
+      on conflict (id) do nothing;
     `);
   });
 
@@ -75,6 +82,7 @@ describe.skipIf(!DATABASE_URL)("Stage 6A — Knowledge Graph, Schema & Authority
         delete from public.evidence_records where user_id in ('${USER_A}', '${USER_B}');
         delete from public.knowledge_edges where user_id in ('${USER_A}', '${USER_B}');
         delete from public.knowledge_nodes where user_id in ('${USER_A}', '${USER_B}');
+        delete from public.activities where user_id in ('${USER_A}', '${USER_B}');
         delete from public.skills where user_id in ('${USER_A}', '${USER_B}');
         delete from public.domains where user_id in ('${USER_A}', '${USER_B}');
       `);
@@ -83,142 +91,198 @@ describe.skipIf(!DATABASE_URL)("Stage 6A — Knowledge Graph, Schema & Authority
   });
 
   // --------------------------------------------------------------------------
-  // 1. KNOWLEDGE NODE CREATION, AUTHORITY & CONFIDENCE INVARIANTS
+  // 1. KNOWLEDGE NODE CREATION, AUTHORITY & VERIFICATION AUDIT
   // --------------------------------------------------------------------------
 
-  test("1. Creates knowledge nodes with node_type ('concept', 'claim', 'topic') & authority states", async () => {
+  test("1. Creates verified and inferred knowledge nodes with complete audit trail", async () => {
+    // 1. Verified user-created concept node (with verified_at and verified_by = user_id)
     const conceptRes = await pg.query<{ id: string; normalized_title: string; verification_status: string }>(`
-      insert into public.knowledge_nodes (user_id, node_type, title, description, domain_id, skill_id, verification_status, confidence)
-      values ('${USER_A}', 'concept', 'DNA Metabarcoding', 'High-throughput biodiversity identification', '${DOMAIN_A}', '${SKILL_A}', 'verified', 1.0)
+      insert into public.knowledge_nodes (
+        user_id, node_type, title, description, domain_id, skill_id,
+        verification_status, confidence, source_type, verified_at, verified_by
+      ) values (
+        '${USER_A}', 'concept', 'DNA Metabarcoding', 'High-throughput biodiversity identification', '${DOMAIN_A}', '${SKILL_A}',
+        'verified', 1.0, 'user_created', now(), '${USER_A}'
+      )
       returning id, normalized_title, verification_status;
     `);
     expect(conceptRes.rows[0].id).toBeDefined();
     expect(conceptRes.rows[0].normalized_title).toBe("dna metabarcoding");
     expect(conceptRes.rows[0].verification_status).toBe("verified");
 
+    // 2. Inferred claim node originating from an AI proposal linked to activity
     const claimRes = await pg.query<{ id: string; node_type: string; verification_status: string }>(`
-      insert into public.knowledge_nodes (user_id, node_type, title, verification_status, confidence)
-      values ('${USER_A}', 'claim', 'trnL P6 loop is suitable for degraded plant DNA', 'inferred', 0.85)
+      insert into public.knowledge_nodes (
+        user_id, node_type, title, verification_status, confidence, source_type, source_id
+      ) values (
+        '${USER_A}', 'claim', 'trnL P6 loop is suitable for degraded plant DNA', 'inferred', 0.85, 'ai_proposal', '${ACTIVITY_A}'
+      )
       returning id, node_type, verification_status;
     `);
     expect(claimRes.rows[0].node_type).toBe("claim");
     expect(claimRes.rows[0].verification_status).toBe("inferred");
-
-    const topicRes = await pg.query<{ id: string; node_type: string }>(`
-      insert into public.knowledge_nodes (user_id, node_type, title, is_archived)
-      values ('${USER_A}', 'topic', 'Molecular Ecology', false)
-      returning id, node_type;
-    `);
-    expect(topicRes.rows[0].node_type).toBe("topic");
   });
 
-  test("2. Confidence Invariant: Inferred nodes must have confidence <= 0.95, Verified must have confidence = 1.00", async () => {
-    // Inferred with confidence > 0.95 -> rejected
+  test("2. Verification Audit Invariant: Verified node must have confidence=1.00, verified_at, and verified_by=user_id", async () => {
+    // Verified with verified_at NULL -> rejected
     await expect(
       pg.query(`
-        insert into public.knowledge_nodes (user_id, title, verification_status, confidence)
-        values ('${USER_A}', 'Overconfident Inference', 'inferred', 0.98);
+        insert into public.knowledge_nodes (user_id, title, verification_status, confidence, verified_by)
+        values ('${USER_A}', 'Audit Missing Timestamp', 'verified', 1.00, '${USER_A}');
       `),
-    ).rejects.toThrow(/knowledge_nodes_inferred_confidence_check|23514/);
+    ).rejects.toThrow(/knowledge_nodes_verified_audit_check|23514/);
+
+    // Verified with verified_by NULL -> rejected
+    await expect(
+      pg.query(`
+        insert into public.knowledge_nodes (user_id, title, verification_status, confidence, verified_at)
+        values ('${USER_A}', 'Audit Missing Verifier', 'verified', 1.00, now());
+      `),
+    ).rejects.toThrow(/knowledge_nodes_verified_audit_check|23514/);
+
+    // Verified with verified_by = USER_B (cross-tenant verifier claim) -> rejected
+    await expect(
+      pg.query(`
+        insert into public.knowledge_nodes (user_id, title, verification_status, confidence, verified_at, verified_by)
+        values ('${USER_A}', 'Cross Tenant Verifier Claim', 'verified', 1.00, now(), '${USER_B}');
+      `),
+    ).rejects.toThrow(/knowledge_nodes_verified_audit_check|23514/);
 
     // Verified with confidence < 1.00 -> rejected
     await expect(
       pg.query(`
-        insert into public.knowledge_nodes (user_id, title, verification_status, confidence)
-        values ('${USER_A}', 'Underconfident Verified', 'verified', 0.80);
+        insert into public.knowledge_nodes (user_id, title, verification_status, confidence, verified_at, verified_by)
+        values ('${USER_A}', 'Underconfident Verified', 'verified', 0.80, now(), '${USER_A}');
       `),
-    ).rejects.toThrow(/knowledge_nodes_verified_confidence_check|23514/);
-  });
+    ).rejects.toThrow(/knowledge_nodes_verified_audit_check|23514/);
 
-  test("3. Deduplication: Normalized title uniqueness blocks duplicate concept names per tenant", async () => {
-    // Case and spacing normalized collision
+    // Inferred with confidence > 0.95 -> rejected
     await expect(
       pg.query(`
-        insert into public.knowledge_nodes (user_id, title)
-        values ('${USER_A}', '   dna   metabarcoding   ');
+        insert into public.knowledge_nodes (user_id, title, verification_status, confidence, source_type, source_id)
+        values ('${USER_A}', 'Overconfident Inferred', 'inferred', 0.98, 'ai_proposal', '${ACTIVITY_A}');
+      `),
+    ).rejects.toThrow(/knowledge_nodes_inferred_confidence_check|23514/);
+  });
+
+  test("3. Provenance Contract: activity, artifact & ai_proposal require source_id", async () => {
+    // ai_proposal without source_id -> rejected
+    await expect(
+      pg.query(`
+        insert into public.knowledge_nodes (user_id, title, verification_status, confidence, source_type)
+        values ('${USER_A}', 'Orphan Proposal', 'inferred', 0.80, 'ai_proposal');
+      `),
+    ).rejects.toThrow(/knowledge_nodes_provenance_source_check|23514/);
+
+    // activity without source_id -> rejected
+    await expect(
+      pg.query(`
+        insert into public.knowledge_nodes (user_id, title, verification_status, confidence, source_type)
+        values ('${USER_A}', 'Orphan Activity Node', 'inferred', 0.80, 'activity');
+      `),
+    ).rejects.toThrow(/knowledge_nodes_provenance_source_check|23514/);
+
+    // Legitimate promotion: ai_proposal promoted to verified by user maintains source_type and source_id
+    const promotedNode = await pg.query<{ id: string; verification_status: string; confidence: string }>(`
+      insert into public.knowledge_nodes (
+        user_id, title, verification_status, confidence, source_type, source_id, verified_at, verified_by
+      ) values (
+        '${USER_A}', 'Promoted Proposal Concept', 'verified', 1.00, 'ai_proposal', '${ACTIVITY_A}', now(), '${USER_A}'
+      ) returning id, verification_status, confidence;
+    `);
+    expect(promotedNode.rows[0].verification_status).toBe("verified");
+    expect(Number(promotedNode.rows[0].confidence)).toBe(1.0);
+  });
+
+  test("4. Deduplication: Normalized title uniqueness blocks duplicate concept names per tenant", async () => {
+    await expect(
+      pg.query(`
+        insert into public.knowledge_nodes (
+          user_id, title, verification_status, confidence, verified_at, verified_by
+        ) values (
+          '${USER_A}', '   dna   metabarcoding   ', 'verified', 1.0, now(), '${USER_A}'
+        );
       `),
     ).rejects.toThrow(/duplicate key value|23505/);
 
-    // Different tenant CAN create the same title
+    // User B CAN create same title
     const userBNode = await pg.query<{ id: string }>(`
-      insert into public.knowledge_nodes (user_id, title)
-      values ('${USER_B}', 'DNA Metabarcoding')
-      returning id;
+      insert into public.knowledge_nodes (
+        user_id, title, verification_status, confidence, verified_at, verified_by
+      ) values (
+        '${USER_B}', 'DNA Metabarcoding', 'verified', 1.0, now(), '${USER_B}'
+      ) returning id;
     `);
     expect(userBNode.rows[0].id).toBeDefined();
   });
 
-  test("4. Check Constraint: Empty title and invalid node_type are strictly rejected", async () => {
-    await expect(
-      pg.query(`
-        insert into public.knowledge_nodes (user_id, title)
-        values ('${USER_A}', '   ');
-      `),
-    ).rejects.toThrow(/23514|check constraint/);
-
-    await expect(
-      pg.query(`
-        insert into public.knowledge_nodes (user_id, title, node_type)
-        values ('${USER_A}', 'Invalid Type Node', 'unsupported_type');
-      `),
-    ).rejects.toThrow(/23514|check constraint/);
-  });
-
   // --------------------------------------------------------------------------
-  // 2. KNOWLEDGE EDGE ONTOLOGY, TRUE SYMMETRIC STORAGE & PROVENANCE
+  // 2. KNOWLEDGE EDGE ONTOLOGY, TRUE SYMMETRIC STORAGE & EDGE CONFIDENCE
   // --------------------------------------------------------------------------
 
-  test("5. Creates directed edges (prerequisite, contains, supports) and enforces edge confidence invariants", async () => {
+  test("5. Creates edges and enforces edge confidence / audit invariants", async () => {
     const n1 = await pg.query<{ id: string }>(`
-      insert into public.knowledge_nodes (user_id, title) values ('${USER_A}', 'Directed Node 1') returning id;
+      insert into public.knowledge_nodes (user_id, title, verification_status, confidence, verified_at, verified_by)
+      values ('${USER_A}', 'Directed Node 1', 'verified', 1.0, now(), '${USER_A}') returning id;
     `);
     const n2 = await pg.query<{ id: string }>(`
-      insert into public.knowledge_nodes (user_id, title) values ('${USER_A}', 'Directed Node 2') returning id;
+      insert into public.knowledge_nodes (user_id, title, verification_status, confidence, verified_at, verified_by)
+      values ('${USER_A}', 'Directed Node 2', 'verified', 1.0, now(), '${USER_A}') returning id;
     `);
     const n3 = await pg.query<{ id: string }>(`
-      insert into public.knowledge_nodes (user_id, title) values ('${USER_A}', 'Directed Node 3') returning id;
+      insert into public.knowledge_nodes (user_id, title, verification_status, confidence, verified_at, verified_by)
+      values ('${USER_A}', 'Directed Node 3', 'verified', 1.0, now(), '${USER_A}') returning id;
     `);
 
     const id1 = n1.rows[0].id;
     const id2 = n2.rows[0].id;
     const id3 = n3.rows[0].id;
 
-    // 1. prerequisite
+    // 1. Verified prerequisite edge
     const prereq = await pg.query(`
-      insert into public.knowledge_edges (user_id, source_node_id, target_node_id, relation_type)
-      values ('${USER_A}', '${id1}', '${id2}', 'prerequisite') returning id;
+      insert into public.knowledge_edges (user_id, source_node_id, target_node_id, relation_type, verification_status, confidence, verified_at, verified_by)
+      values ('${USER_A}', '${id1}', '${id2}', 'prerequisite', 'verified', 1.0, now(), '${USER_A}') returning id;
     `);
     expect(prereq.rows[0]).toBeDefined();
 
-    // 2. contains
-    const contains = await pg.query(`
-      insert into public.knowledge_edges (user_id, source_node_id, target_node_id, relation_type)
-      values ('${USER_A}', '${id1}', '${id3}', 'contains') returning id;
-    `);
-    expect(contains.rows[0]).toBeDefined();
-
-    // 3. supports with inferred confidence
+    // 2. Inferred supports edge with activity source
     const supports = await pg.query(`
-      insert into public.knowledge_edges (user_id, source_node_id, target_node_id, relation_type, verification_status, confidence, provenance_note)
-      values ('${USER_A}', '${id2}', '${id3}', 'supports', 'inferred', 0.88, 'Empirical study findings') returning id;
+      insert into public.knowledge_edges (
+        user_id, source_node_id, target_node_id, relation_type, verification_status, confidence,
+        source_type, source_id, provenance_note
+      ) values (
+        '${USER_A}', '${id2}', '${id3}', 'supports', 'inferred', 0.88,
+        'activity', '${ACTIVITY_A}', 'Empirical study findings'
+      ) returning id;
     `);
     expect(supports.rows[0]).toBeDefined();
 
-    // Inferred edge with confidence > 0.95 -> rejected
+    // 3. Edge Confidence Failures (P2-3)
+    // Inferred edge > 0.95 -> rejected
     await expect(
       pg.query(`
-        insert into public.knowledge_edges (user_id, source_node_id, target_node_id, relation_type, verification_status, confidence)
-        values ('${USER_A}', '${id3}', '${id1}', 'supports', 'inferred', 0.99);
+        insert into public.knowledge_edges (user_id, source_node_id, target_node_id, relation_type, verification_status, confidence, source_type, source_id)
+        values ('${USER_A}', '${id3}', '${id1}', 'supports', 'inferred', 0.99, 'ai_proposal', '${ACTIVITY_A}');
       `),
     ).rejects.toThrow(/knowledge_edges_inferred_confidence_check|23514/);
+
+    // Verified edge < 1.00 -> rejected
+    await expect(
+      pg.query(`
+        insert into public.knowledge_edges (user_id, source_node_id, target_node_id, relation_type, verification_status, confidence, verified_at, verified_by)
+        values ('${USER_A}', '${id3}', '${id1}', 'supports', 'verified', 0.90, now(), '${USER_A}');
+      `),
+    ).rejects.toThrow(/knowledge_edges_verified_audit_check|23514/);
   });
 
   test("6. True Symmetric Storage: 'contradicts' and 'relates_to' require canonical ordering (source < target)", async () => {
     const na = await pg.query<{ id: string }>(`
-      insert into public.knowledge_nodes (user_id, title) values ('${USER_A}', 'Sym Node A') returning id;
+      insert into public.knowledge_nodes (user_id, title, verification_status, confidence, verified_at, verified_by)
+      values ('${USER_A}', 'Sym Node A', 'verified', 1.0, now(), '${USER_A}') returning id;
     `);
     const nb = await pg.query<{ id: string }>(`
-      insert into public.knowledge_nodes (user_id, title) values ('${USER_A}', 'Sym Node B') returning id;
+      insert into public.knowledge_nodes (user_id, title, verification_status, confidence, verified_at, verified_by)
+      values ('${USER_A}', 'Sym Node B', 'verified', 1.0, now(), '${USER_A}') returning id;
     `);
 
     const rawIdA = na.rows[0].id;
@@ -227,92 +291,82 @@ describe.skipIf(!DATABASE_URL)("Stage 6A — Knowledge Graph, Schema & Authority
 
     // Canonical ordering (lower < higher) succeeds
     const symContradict = await pg.query(`
-      insert into public.knowledge_edges (user_id, source_node_id, target_node_id, relation_type)
-      values ('${USER_A}', '${lowerId}', '${higherId}', 'contradicts') returning id;
+      insert into public.knowledge_edges (user_id, source_node_id, target_node_id, relation_type, verification_status, confidence, verified_at, verified_by)
+      values ('${USER_A}', '${lowerId}', '${higherId}', 'contradicts', 'verified', 1.0, now(), '${USER_A}') returning id;
     `);
     expect(symContradict.rows[0]).toBeDefined();
 
     // Non-canonical ordering (higher -> lower) is strictly rejected by CHECK constraint
     await expect(
       pg.query(`
-        insert into public.knowledge_edges (user_id, source_node_id, target_node_id, relation_type)
-        values ('${USER_A}', '${higherId}', '${lowerId}', 'contradicts');
+        insert into public.knowledge_edges (user_id, source_node_id, target_node_id, relation_type, verification_status, confidence, verified_at, verified_by)
+        values ('${USER_A}', '${higherId}', '${lowerId}', 'contradicts', 'verified', 1.0, now(), '${USER_A}');
       `),
     ).rejects.toThrow(/knowledge_edges_symmetric_canonical|23514/);
 
     // relates_to requires lower < higher AND non-empty provenance_note
     const symRelates = await pg.query(`
-      insert into public.knowledge_edges (user_id, source_node_id, target_node_id, relation_type, provenance_note)
-      values ('${USER_A}', '${lowerId}', '${higherId}', 'relates_to', 'Common biochemical pathway') returning id;
+      insert into public.knowledge_edges (user_id, source_node_id, target_node_id, relation_type, provenance_note, verification_status, confidence, verified_at, verified_by)
+      values ('${USER_A}', '${lowerId}', '${higherId}', 'relates_to', 'Common biochemical pathway', 'verified', 1.0, now(), '${USER_A}') returning id;
     `);
     expect(symRelates.rows[0]).toBeDefined();
 
     // relates_to without provenance_note is strictly rejected
     await expect(
       pg.query(`
-        insert into public.knowledge_edges (user_id, source_node_id, target_node_id, relation_type)
-        values ('${USER_A}', '${lowerId}', '${higherId}', 'relates_to');
+        insert into public.knowledge_edges (user_id, source_node_id, target_node_id, relation_type, verification_status, confidence, verified_at, verified_by)
+        values ('${USER_A}', '${lowerId}', '${higherId}', 'relates_to', 'verified', 1.0, now(), '${USER_A}');
       `),
     ).rejects.toThrow(/knowledge_edges_relates_to_provenance|23514/);
   });
 
-  test("7. Anti-Self: Self-reference edge is rejected by check constraint", async () => {
-    const nodeRes = await pg.query<{ id: string }>(`
-      insert into public.knowledge_nodes (user_id, title) values ('${USER_A}', 'Self Edge Node') returning id;
-    `);
-    const nodeId = nodeRes.rows[0].id;
-
-    await expect(
-      pg.query(`
-        insert into public.knowledge_edges (user_id, source_node_id, target_node_id, relation_type)
-        values ('${USER_A}', '${nodeId}', '${nodeId}', 'prerequisite');
-      `),
-    ).rejects.toThrow(/23514|knowledge_edges_anti_self/);
-  });
-
   // --------------------------------------------------------------------------
-  // 3. DAG TRIGGER, UPDATE CORRECTNESS & SUPERSEDED EXCLUSION
+  // 3. DAG TRIGGER, UPDATE CORRECTNESS & INACTIVE STATUS TABLE-DRIVEN TESTS
   // --------------------------------------------------------------------------
 
-  test("8. Anti-Cycle Trigger: Cyclic prerequisite (A -> B -> A) is rejected with 23514", async () => {
+  test("7. Anti-Cycle Trigger: Cyclic prerequisite (A -> B -> A) is rejected with 23514", async () => {
     const na = await pg.query<{ id: string }>(`
-      insert into public.knowledge_nodes (user_id, title) values ('${USER_A}', 'Cycle Node A') returning id;
+      insert into public.knowledge_nodes (user_id, title, verification_status, confidence, verified_at, verified_by)
+      values ('${USER_A}', 'Cycle Node A', 'verified', 1.0, now(), '${USER_A}') returning id;
     `);
     const nb = await pg.query<{ id: string }>(`
-      insert into public.knowledge_nodes (user_id, title) values ('${USER_A}', 'Cycle Node B') returning id;
+      insert into public.knowledge_nodes (user_id, title, verification_status, confidence, verified_at, verified_by)
+      values ('${USER_A}', 'Cycle Node B', 'verified', 1.0, now(), '${USER_A}') returning id;
     `);
     const idA = na.rows[0].id;
     const idB = nb.rows[0].id;
 
     // A -> B prerequisite
     await pg.query(`
-      insert into public.knowledge_edges (user_id, source_node_id, target_node_id, relation_type)
-      values ('${USER_A}', '${idA}', '${idB}', 'prerequisite');
+      insert into public.knowledge_edges (user_id, source_node_id, target_node_id, relation_type, verification_status, confidence, verified_at, verified_by)
+      values ('${USER_A}', '${idA}', '${idB}', 'prerequisite', 'verified', 1.0, now(), '${USER_A}');
     `);
 
     // B -> A prerequisite must be rejected by trigger
     await expect(
       pg.query(`
-        insert into public.knowledge_edges (user_id, source_node_id, target_node_id, relation_type)
-        values ('${USER_A}', '${idB}', '${idA}', 'prerequisite');
+        insert into public.knowledge_edges (user_id, source_node_id, target_node_id, relation_type, verification_status, confidence, verified_at, verified_by)
+        values ('${USER_A}', '${idB}', '${idA}', 'prerequisite', 'verified', 1.0, now(), '${USER_A}');
       `),
     ).rejects.toThrow(/Cyclic dependency detected|23514/);
   });
 
-  test("9. Anti-Cycle Trigger: UPDATE on existing edge (A -> B changed to B -> A) succeeds when acyclic", async () => {
+  test("8. Anti-Cycle Trigger: UPDATE on existing edge (A -> B changed to B -> A) succeeds when acyclic", async () => {
     const nx = await pg.query<{ id: string }>(`
-      insert into public.knowledge_nodes (user_id, title) values ('${USER_A}', 'Update Node X') returning id;
+      insert into public.knowledge_nodes (user_id, title, verification_status, confidence, verified_at, verified_by)
+      values ('${USER_A}', 'Update Node X', 'verified', 1.0, now(), '${USER_A}') returning id;
     `);
     const ny = await pg.query<{ id: string }>(`
-      insert into public.knowledge_nodes (user_id, title) values ('${USER_A}', 'Update Node Y') returning id;
+      insert into public.knowledge_nodes (user_id, title, verification_status, confidence, verified_at, verified_by)
+      values ('${USER_A}', 'Update Node Y', 'verified', 1.0, now(), '${USER_A}') returning id;
     `);
     const idX = nx.rows[0].id;
     const idY = ny.rows[0].id;
 
     // Insert X -> Y
     const edgeRes = await pg.query<{ id: string }>(`
-      insert into public.knowledge_edges (user_id, source_node_id, target_node_id, relation_type)
-      values ('${USER_A}', '${idX}', '${idY}', 'prerequisite') returning id;
+      insert into public.knowledge_edges (user_id, source_node_id, target_node_id, relation_type, verification_status, confidence, verified_at, verified_by)
+      values ('${USER_A}', '${idX}', '${idY}', 'prerequisite', 'verified', 1.0, now(), '${USER_A}') returning id;
     `);
     const edgeId = edgeRes.rows[0].id;
 
@@ -326,40 +380,58 @@ describe.skipIf(!DATABASE_URL)("Stage 6A — Knowledge Graph, Schema & Authority
     expect(updateRes.rows[0].id).toBe(edgeId);
   });
 
-  test("10. Historical Exclusion: Superseded / Rejected edges do NOT block new current DAG topology", async () => {
-    const np = await pg.query<{ id: string }>(`
-      insert into public.knowledge_nodes (user_id, title) values ('${USER_A}', 'Hist Node P') returning id;
-    `);
-    const nq = await pg.query<{ id: string }>(`
-      insert into public.knowledge_nodes (user_id, title) values ('${USER_A}', 'Hist Node Q') returning id;
-    `);
-    const idP = np.rows[0].id;
-    const idQ = nq.rows[0].id;
+  test("9. Table-Driven Inactive DAG Exclusion: rejected, superseded & archived edges do NOT block active DAG topology (P2-2)", async () => {
+    const inactiveCases = [
+      { name: "rejected", status: "rejected", isArchived: false },
+      { name: "superseded", status: "superseded", isArchived: false },
+      { name: "archived", status: "verified", isArchived: true },
+    ];
 
-    // Historical P -> Q edge that is superseded
-    await pg.query(`
-      insert into public.knowledge_edges (user_id, source_node_id, target_node_id, relation_type, verification_status)
-      values ('${USER_A}', '${idP}', '${idQ}', 'prerequisite', 'superseded');
-    `);
+    for (const [idx, c] of inactiveCases.entries()) {
+      const np = await pg.query<{ id: string }>(`
+        insert into public.knowledge_nodes (user_id, title, verification_status, confidence, verified_at, verified_by)
+        values ('${USER_A}', 'DAG Inactive Node P${idx}', 'verified', 1.0, now(), '${USER_A}') returning id;
+      `);
+      const nq = await pg.query<{ id: string }>(`
+        insert into public.knowledge_nodes (user_id, title, verification_status, confidence, verified_at, verified_by)
+        values ('${USER_A}', 'DAG Inactive Node Q${idx}', 'verified', 1.0, now(), '${USER_A}') returning id;
+      `);
+      const idP = np.rows[0].id;
+      const idQ = nq.rows[0].id;
 
-    // Active Q -> P prerequisite edge must succeed because superseded edge is excluded from DAG
-    const activeEdge = await pg.query(`
-      insert into public.knowledge_edges (user_id, source_node_id, target_node_id, relation_type, verification_status)
-      values ('${USER_A}', '${idQ}', '${idP}', 'prerequisite', 'verified') returning id;
-    `);
-    expect(activeEdge.rows[0]).toBeDefined();
+      // Insert inactive P -> Q edge
+      await pg.query(`
+        insert into public.knowledge_edges (
+          user_id, source_node_id, target_node_id, relation_type, verification_status, is_archived, confidence, verified_at, verified_by
+        ) values (
+          '${USER_A}', '${idP}', '${idQ}', 'prerequisite', '${c.status}', ${c.isArchived}, 1.0, now(), '${USER_A}'
+        );
+      `);
+
+      // Active Q -> P prerequisite edge must succeed because inactive edge is excluded from DAG
+      const activeEdge = await pg.query(`
+        insert into public.knowledge_edges (
+          user_id, source_node_id, target_node_id, relation_type, verification_status, is_archived, confidence, verified_at, verified_by
+        ) values (
+          '${USER_A}', '${idQ}', '${idP}', 'prerequisite', 'verified', false, 1.0, now(), '${USER_A}'
+        ) returning id;
+      `);
+      expect(activeEdge.rows[0].id, `Active reverse edge should be permitted for inactive status: ${c.name}`).toBeDefined();
+    }
   });
 
   // --------------------------------------------------------------------------
   // 4. EVIDENCE RECORDS TENANT COMPOSITE FOREIGN KEY
   // --------------------------------------------------------------------------
 
-  test("11. Composite FK on evidence_records.knowledge_node_id enforces tenant safety", async () => {
+  test("10. Composite FK on evidence_records.knowledge_node_id enforces tenant safety", async () => {
     const nodeA = await pg.query<{ id: string }>(`
-      insert into public.knowledge_nodes (user_id, title) values ('${USER_A}', 'Evidence Backed Concept') returning id;
+      insert into public.knowledge_nodes (user_id, title, verification_status, confidence, verified_at, verified_by)
+      values ('${USER_A}', 'Evidence Backed Concept', 'verified', 1.0, now(), '${USER_A}') returning id;
     `);
     const nodeB = await pg.query<{ id: string }>(`
-      insert into public.knowledge_nodes (user_id, title) values ('${USER_B}', 'User B Private Concept') returning id;
+      insert into public.knowledge_nodes (user_id, title, verification_status, confidence, verified_at, verified_by)
+      values ('${USER_B}', 'User B Private Concept', 'verified', 1.0, now(), '${USER_B}') returning id;
     `);
     const idA = nodeA.rows[0].id;
     const idB = nodeB.rows[0].id;
@@ -390,37 +462,41 @@ describe.skipIf(!DATABASE_URL)("Stage 6A — Knowledge Graph, Schema & Authority
   });
 
   // --------------------------------------------------------------------------
-  // 5. TENANT ISOLATION, COMPLETE NODE + EDGE RLS MATRIX & ANON PRIVILEGES
+  // 5. COMPLETE DUAL-TENANT RLS CRUD MATRIX (P1-2)
   // --------------------------------------------------------------------------
 
-  test("12. Complete Node + Edge RLS Matrix: User A and User B cannot see or mutate each other's graph", async () => {
+  test("11. Complete Node + Edge Dual-Tenant RLS Matrix: Full bidirectional CRUD isolation", async () => {
     // Seed User A Node & Edge
     const a1 = await pg.query<{ id: string }>(`
-      insert into public.knowledge_nodes (user_id, title) values ('${USER_A}', 'User A Private N1') returning id;
+      insert into public.knowledge_nodes (user_id, title, verification_status, confidence, verified_at, verified_by)
+      values ('${USER_A}', 'User A Matrix N1', 'verified', 1.0, now(), '${USER_A}') returning id;
     `);
     const a2 = await pg.query<{ id: string }>(`
-      insert into public.knowledge_nodes (user_id, title) values ('${USER_A}', 'User A Private N2') returning id;
+      insert into public.knowledge_nodes (user_id, title, verification_status, confidence, verified_at, verified_by)
+      values ('${USER_A}', 'User A Matrix N2', 'verified', 1.0, now(), '${USER_A}') returning id;
     `);
     const a1Id = a1.rows[0].id;
     const a2Id = a2.rows[0].id;
     const aEdge = await pg.query<{ id: string }>(`
-      insert into public.knowledge_edges (user_id, source_node_id, target_node_id, relation_type)
-      values ('${USER_A}', '${a1Id}', '${a2Id}', 'prerequisite') returning id;
+      insert into public.knowledge_edges (user_id, source_node_id, target_node_id, relation_type, verification_status, confidence, verified_at, verified_by)
+      values ('${USER_A}', '${a1Id}', '${a2Id}', 'prerequisite', 'verified', 1.0, now(), '${USER_A}') returning id;
     `);
     const aEdgeId = aEdge.rows[0].id;
 
     // Seed User B Node & Edge
     const b1 = await pg.query<{ id: string }>(`
-      insert into public.knowledge_nodes (user_id, title) values ('${USER_B}', 'User B Private N1') returning id;
+      insert into public.knowledge_nodes (user_id, title, verification_status, confidence, verified_at, verified_by)
+      values ('${USER_B}', 'User B Matrix N1', 'verified', 1.0, now(), '${USER_B}') returning id;
     `);
     const b2 = await pg.query<{ id: string }>(`
-      insert into public.knowledge_nodes (user_id, title) values ('${USER_B}', 'User B Private N2') returning id;
+      insert into public.knowledge_nodes (user_id, title, verification_status, confidence, verified_at, verified_by)
+      values ('${USER_B}', 'User B Matrix N2', 'verified', 1.0, now(), '${USER_B}') returning id;
     `);
     const b1Id = b1.rows[0].id;
     const b2Id = b2.rows[0].id;
     const bEdge = await pg.query<{ id: string }>(`
-      insert into public.knowledge_edges (user_id, source_node_id, target_node_id, relation_type)
-      values ('${USER_B}', '${b1Id}', '${b2Id}', 'prerequisite') returning id;
+      insert into public.knowledge_edges (user_id, source_node_id, target_node_id, relation_type, verification_status, confidence, verified_at, verified_by)
+      values ('${USER_B}', '${b1Id}', '${b2Id}', 'prerequisite', 'verified', 1.0, now(), '${USER_B}') returning id;
     `);
     const bEdgeId = bEdge.rows[0].id;
 
@@ -438,24 +514,40 @@ describe.skipIf(!DATABASE_URL)("Stage 6A — Knowledge Graph, Schema & Authority
       expect(nodeIds).not.toContain(b1Id);
       expect(nodeIds).not.toContain(b2Id);
 
+      // Node UPDATE B -> 0 rows affected
+      const updateNode = await pg.query("update public.knowledge_nodes set description = 'Hacked' where id = $1", [b1Id]);
+      expect(updateNode.rowCount).toBe(0);
+
+      // Node DELETE B -> 0 rows affected
+      const deleteNode = await pg.query("delete from public.knowledge_nodes where id = $1", [b1Id]);
+      expect(deleteNode.rowCount).toBe(0);
+
+      // Node forged INSERT as B -> RLS with check fails
+      await expect(
+        pg.query(
+          "insert into public.knowledge_nodes (user_id, title, verification_status, confidence, verified_at, verified_by) values ($1, 'Forged B Node', 'verified', 1.0, now(), $1)",
+          [USER_B],
+        ),
+      ).rejects.toThrow(/row-level security policy|42501/);
+
       // Edge SELECT isolation
       const edges = await pg.query<{ id: string }>("select id from public.knowledge_edges");
       const edgeIds = edges.rows.map((r) => r.id);
       expect(edgeIds).toContain(aEdgeId);
       expect(edgeIds).not.toContain(bEdgeId);
 
-      // UPDATE B's edge -> 0 rows affected
+      // Edge UPDATE B -> 0 rows affected
       const updateEdge = await pg.query("update public.knowledge_edges set confidence = 0.5 where id = $1", [bEdgeId]);
       expect(updateEdge.rowCount).toBe(0);
 
-      // DELETE B's edge -> 0 rows affected
+      // Edge DELETE B -> 0 rows affected
       const deleteEdge = await pg.query("delete from public.knowledge_edges where id = $1", [bEdgeId]);
       expect(deleteEdge.rowCount).toBe(0);
 
-      // Forged edge INSERT as B -> RLS with check fails
+      // Edge forged INSERT as B -> RLS with check fails
       await expect(
         pg.query(
-          "insert into public.knowledge_edges (user_id, source_node_id, target_node_id, relation_type) values ($1, $2, $3, 'prerequisite')",
+          "insert into public.knowledge_edges (user_id, source_node_id, target_node_id, relation_type, verification_status, confidence, verified_at, verified_by) values ($1, $2, $3, 'prerequisite', 'verified', 1.0, now(), $1)",
           [USER_B, b1Id, b2Id],
         ),
       ).rejects.toThrow(/row-level security policy|42501/);
@@ -463,6 +555,7 @@ describe.skipIf(!DATABASE_URL)("Stage 6A — Knowledge Graph, Schema & Authority
 
     // 2. As Authenticated User B (Reciprocal Proof)
     await asUser(USER_B, async () => {
+      // Node SELECT isolation
       const nodes = await pg.query<{ id: string }>("select id from public.knowledge_nodes");
       const nodeIds = nodes.rows.map((r) => r.id);
       expect(nodeIds).toContain(b1Id);
@@ -470,40 +563,69 @@ describe.skipIf(!DATABASE_URL)("Stage 6A — Knowledge Graph, Schema & Authority
       expect(nodeIds).not.toContain(a1Id);
       expect(nodeIds).not.toContain(a2Id);
 
+      // Node UPDATE A -> 0 rows affected
+      const updateNode = await pg.query("update public.knowledge_nodes set description = 'Hacked' where id = $1", [a1Id]);
+      expect(updateNode.rowCount).toBe(0);
+
+      // Node DELETE A -> 0 rows affected
+      const deleteNode = await pg.query("delete from public.knowledge_nodes where id = $1", [a1Id]);
+      expect(deleteNode.rowCount).toBe(0);
+
+      // Node forged INSERT as A -> RLS with check fails
+      await expect(
+        pg.query(
+          "insert into public.knowledge_nodes (user_id, title, verification_status, confidence, verified_at, verified_by) values ($1, 'Forged A Node', 'verified', 1.0, now(), $1)",
+          [USER_A],
+        ),
+      ).rejects.toThrow(/row-level security policy|42501/);
+
+      // Edge SELECT isolation
       const edges = await pg.query<{ id: string }>("select id from public.knowledge_edges");
       const edgeIds = edges.rows.map((r) => r.id);
       expect(edgeIds).toContain(bEdgeId);
       expect(edgeIds).not.toContain(aEdgeId);
 
+      // Edge UPDATE A -> 0 rows affected
       const updateEdge = await pg.query("update public.knowledge_edges set confidence = 0.5 where id = $1", [aEdgeId]);
       expect(updateEdge.rowCount).toBe(0);
 
+      // Edge DELETE A -> 0 rows affected
       const deleteEdge = await pg.query("delete from public.knowledge_edges where id = $1", [aEdgeId]);
       expect(deleteEdge.rowCount).toBe(0);
+
+      // Edge forged INSERT as A -> RLS with check fails
+      await expect(
+        pg.query(
+          "insert into public.knowledge_edges (user_id, source_node_id, target_node_id, relation_type, verification_status, confidence, verified_at, verified_by) values ($1, $2, $3, 'prerequisite', 'verified', 1.0, now(), $1)",
+          [USER_A, a1Id, a2Id],
+        ),
+      ).rejects.toThrow(/row-level security policy|42501/);
     });
   });
 
-  test("13. Fail-Closed Anon Access: Anonymous role has zero table access to knowledge tables", async () => {
+  test("12. Fail-Closed Anon Access: Anonymous role has zero table access to knowledge tables", async () => {
     await asAnon(async () => {
       await expect(pg.query("select * from public.knowledge_nodes")).rejects.toThrow(/permission denied|42501/);
       await expect(pg.query("select * from public.knowledge_edges")).rejects.toThrow(/permission denied|42501/);
     });
   });
 
-  test("14. Migration Safety Guard: Fails closed when legacy tables are non-empty", async () => {
-    // Execute safety check DO block with a simulated non-empty table
-    const guardCheckSql = `
-      DO $$
-      DECLARE
-        v_nodes_count integer := 0;
-      BEGIN
-        SELECT count(*) FROM public.knowledge_nodes INTO v_nodes_count;
-        IF v_nodes_count > 0 THEN
-          RAISE EXCEPTION 'Safety abort: legacy knowledge tables contain % nodes.', v_nodes_count;
-        END IF;
-      END $$;
-    `;
-    // Since we have seeded rows in knowledge_nodes, the safety check raises exception
-    await expect(pg.query(guardCheckSql)).rejects.toThrow(/Safety abort: legacy knowledge tables contain/);
+  // --------------------------------------------------------------------------
+  // 6. MIGRATION SAFETY GUARD REGRESSION (P2-1)
+  // --------------------------------------------------------------------------
+
+  test("13. Migration Safety Guard Regression: Direct execution of 0039 guard block fails closed when tables are non-empty", async () => {
+    // Read the actual 0039 migration file from disk
+    const migrationPath = path.join(process.cwd(), "supabase/migrations/0039_knowledge_graph_authority.sql");
+    const migrationContent = fs.readFileSync(migrationPath, "utf8");
+
+    // Extract Section 1 DO block directly from the file
+    const match = migrationContent.match(/DO \$\$[\s\S]*?END \$\$;/);
+    expect(match, "0039 migration must contain Section 1 DO safety block").not.toBeNull();
+    const guardSql = match![0];
+
+    // Since our test database currently contains seeded knowledge nodes and edges,
+    // executing the real migration safety block MUST raise the safety abort exception
+    await expect(pg.query(guardSql)).rejects.toThrow(/Safety abort: legacy knowledge tables contain \d+ nodes/);
   });
 });

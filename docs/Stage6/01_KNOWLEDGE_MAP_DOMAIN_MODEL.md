@@ -1,6 +1,6 @@
 # Stage 6 — Knowledge Map Domain Model
 
-> **Status**: FINAL FROZEN (STAGE 6A DESIGN CLOSURE)  
+> **Status**: FINAL FROZEN (STAGE 6A ROUND 2 CLOSURE)  
 > **Target Milestone**: Stage 6 (Knowledge Map)  
 > **Related Rules**: `docs/Design ChatGPT/01_SYSTEM_RULES.md`, `docs/Design ChatGPT/02_PRODUCT_DESIGN.md`, `docs/Design ChatGPT/04_MVP_ROADMAP_AND_ACCEPTANCE.md`, `docs/Design ChatGPT/06_DATABASE_SCHEMA_AND_DATA_DICTIONARY.md`
 
@@ -27,7 +27,7 @@ The AI Personal Growth RPG enforces a fundamental structural distinction between
 │  Core Question                │ “我知道什么，以及它们如何连接？” (What do I KNOW?)        │
 │  Atomic Unit                  │ Knowledge Node (概念 Concept, 命题 Claim, 理论 Topic)   │
 │  Epistemic State              │ Inferred (AI 推理假设) vs Verified (已验证事实)         │
-│  Validation Base              │ 来源追溯 (Provenance: Activity / Artifact / User Entry)  │
+│  Validation Base              │ 来源追溯 (Provenance: Activity / Artifact / User / Import)│
 │  Graph Topology               │ 语义概念网: prerequisite (DAG), contains (DAG),          │
 │                               │ supports (Network), contradicts (Symmetric Canonical),   │
 │                               │ relates_to (Symmetric Canonical with Note)               │
@@ -37,11 +37,11 @@ The AI Personal Growth RPG enforces a fundamental structural distinction between
 ### 1.1 Non-Negotiable Invariants for Stage 6
 
 1. **AI Inference is NOT Verified Truth**:  
-   AI Game Master (LLM) may propose concepts and inferred connections between them (`verification_status = 'inferred'`, confidence $\le$ 0.95), but **AI inference alone must NEVER silently become permanent verified truth**. Only explicit user verification or approved authority action can promote to `verification_status = 'verified'` (confidence = 1.00).
+   AI Game Master (LLM) may propose concepts and inferred connections between them (`verification_status = 'inferred'`, confidence $\le$ 0.95), but **AI inference alone must NEVER silently become permanent verified truth**. Only explicit user verification or approved authority action can promote to `verification_status = 'verified'` (confidence = 1.00, `verified_at` timestamp recorded, `verified_by = user_id`).
 2. **Skill != Knowledge Node**:  
    A `Skill` (e.g. "Polymerase Chain Reaction") represents actionable skill; a `KnowledgeNode` (e.g. "Taq Polymerase Heat Resistance Principle") represents the underlying concept or fact. A knowledge node may optionally link to a skill via `skill_id`, but the two entities never collapse.
 3. **High Mastery Requires Evidence; High Knowledge Requires Provenance**:  
-   Every knowledge node and edge must answer: *"Why does the system believe this?"* via traceable source IDs (`activity_id`, `artifact_id`, `user_created`, `ai_proposal`, `imported`).
+   Every knowledge node and edge must answer: *"Why does the system believe this?"* via traceable source IDs (`activity`, `artifact`, `ai_proposal` require `source_id`; `user_created` has identity provenance; `imported` requires `source_id` or description/note).
 4. **Tenant Isolation with Composite Foreign Keys**:  
    All tables (`knowledge_nodes`, `knowledge_edges`) are strictly scoped by `user_id` with composite unique constraints and foreign keys to prevent any cross-tenant leakage.
 
@@ -66,7 +66,7 @@ Domain (域：知识与技能分类，如 Computer Science, Bioinformatics)
   │           ├── verification_status: 'inferred' | 'verified' | 'rejected' | 'superseded'
   │           ├── is_archived: boolean
   │           ├── confidence: 0.0 – 1.0 (衡量 AI 推理不确定性，非玩家经验)
-  │           └── provenance: source_type, source_id, provenance_note
+  │           └── provenance: source_type, source_id, provenance_note, verified_at, verified_by
 ```
 
 ---
@@ -96,9 +96,9 @@ export interface KnowledgeNode {
   verificationStatus: "inferred" | "verified" | "rejected" | "superseded";
   confidence: number; // 0.00..0.95 for inferred; 1.00 for verified
   sourceType: "activity" | "artifact" | "user_created" | "ai_proposal" | "imported";
-  sourceId: string | null; // UUID of activity / artifact
+  sourceId: string | null; // Required for activity, artifact, ai_proposal
   verifiedAt: string | null;
-  verifiedBy: string | null;
+  verifiedBy: string | null; // Must equal userId when verified
   isArchived: boolean;
   archivedAt: string | null;
   metadata: Record<string, unknown>; // Extensible JSON metadata

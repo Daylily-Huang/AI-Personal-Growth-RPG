@@ -1,6 +1,6 @@
 # Stage 6 — Knowledge Map API & Read Model Specification
 
-> **Status**: FINAL FROZEN (STAGE 6A DESIGN CLOSURE)  
+> **Status**: FINAL FROZEN (STAGE 6A ROUND 2 CLOSURE)  
 > **Target Milestone**: Stage 6 (Knowledge Map)  
 > **Related Rules**: `docs/Design ChatGPT/03_TECHNICAL_IMPLEMENTATION.md`, `docs/Stage6/01_KNOWLEDGE_MAP_DOMAIN_MODEL.md`, `docs/Stage6/02_KNOWLEDGE_AUTHORITY_RULES.md`
 

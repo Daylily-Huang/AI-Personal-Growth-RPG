@@ -57,11 +57,24 @@ CREATE TABLE public.knowledge_nodes (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
 
     -- Epistemic Confidence Invariants:
-    -- Inferred AI proposals cannot exceed 0.95; Verified nodes must be 1.00
     CONSTRAINT knowledge_nodes_inferred_confidence_check
         CHECK (verification_status <> 'inferred' OR (confidence >= 0.00 AND confidence <= 0.95)),
-    CONSTRAINT knowledge_nodes_verified_confidence_check
-        CHECK (verification_status <> 'verified' OR confidence = 1.00),
+        
+    -- Verified Audit Invariant: must have confidence=1.00, non-null timestamp, and verified_by = user_id
+    CONSTRAINT knowledge_nodes_verified_audit_check
+        CHECK (verification_status <> 'verified' OR (confidence = 1.00 AND verified_at IS NOT NULL AND verified_by IS NOT NULL AND verified_by = user_id)),
+        
+    -- Verifier identity boundary: verified_by must either be null or match user_id
+    CONSTRAINT knowledge_nodes_verified_by_tenant_check
+        CHECK (verified_by IS NULL OR verified_by = user_id),
+
+    -- Provenance source integrity check:
+    CONSTRAINT knowledge_nodes_provenance_source_check
+        CHECK (
+          (source_type IN ('activity', 'artifact', 'ai_proposal') AND source_id IS NOT NULL) OR
+          (source_type = 'user_created') OR
+          (source_type = 'imported' AND (source_id IS NOT NULL OR (description IS NOT NULL AND length(trim(description)) > 0)))
+        ),
 
     -- Composite key for tenant-safe foreign key references
     CONSTRAINT knowledge_nodes_user_id_composite_key UNIQUE (user_id, id),
@@ -95,8 +108,8 @@ CREATE TABLE public.knowledge_edges (
         CHECK (verification_status IN ('inferred', 'verified', 'rejected', 'superseded')),
     confidence NUMERIC NOT NULL DEFAULT 1.0
         CHECK (confidence >= 0.0 AND confidence <= 1.0),
-    source_type TEXT
-        CHECK (source_type IS NULL OR source_type IN ('activity', 'artifact', 'user_created', 'ai_proposal', 'imported')),
+    source_type TEXT NOT NULL DEFAULT 'user_created'
+        CHECK (source_type IN ('activity', 'artifact', 'user_created', 'ai_proposal', 'imported')),
     source_id UUID,
     provenance_note TEXT,
     verified_at TIMESTAMPTZ,
@@ -121,8 +134,22 @@ CREATE TABLE public.knowledge_edges (
     -- Epistemic Confidence Invariants:
     CONSTRAINT knowledge_edges_inferred_confidence_check
         CHECK (verification_status <> 'inferred' OR (confidence >= 0.00 AND confidence <= 0.95)),
-    CONSTRAINT knowledge_edges_verified_confidence_check
-        CHECK (verification_status <> 'verified' OR confidence = 1.00),
+        
+    -- Verified Audit Invariant: must have confidence=1.00, non-null timestamp, and verified_by = user_id
+    CONSTRAINT knowledge_edges_verified_audit_check
+        CHECK (verification_status <> 'verified' OR (confidence = 1.00 AND verified_at IS NOT NULL AND verified_by IS NOT NULL AND verified_by = user_id)),
+
+    -- Verifier identity boundary: verified_by must either be null or match user_id
+    CONSTRAINT knowledge_edges_verified_by_tenant_check
+        CHECK (verified_by IS NULL OR verified_by = user_id),
+
+    -- Provenance source integrity check:
+    CONSTRAINT knowledge_edges_provenance_source_check
+        CHECK (
+          (source_type IN ('activity', 'artifact', 'ai_proposal') AND source_id IS NOT NULL) OR
+          (source_type = 'user_created') OR
+          (source_type = 'imported' AND (source_id IS NOT NULL OR (provenance_note IS NOT NULL AND length(trim(provenance_note)) > 0)))
+        ),
 
     -- Composite key for tenant uniqueness
     CONSTRAINT knowledge_edges_user_id_composite_key UNIQUE (user_id, id),

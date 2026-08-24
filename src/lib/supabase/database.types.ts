@@ -358,7 +358,7 @@ export type Database = {
           relation_type: string
           source_id: string | null
           source_node_id: string
-          source_type: string | null
+          source_type: string
           target_node_id: string
           updated_at: string
           user_id: string
@@ -377,7 +377,7 @@ export type Database = {
           relation_type: string
           source_id?: string | null
           source_node_id: string
-          source_type?: string | null
+          source_type?: string
           target_node_id: string
           updated_at?: string
           user_id: string
@@ -396,7 +396,7 @@ export type Database = {
           relation_type?: string
           source_id?: string | null
           source_node_id?: string
-          source_type?: string | null
+          source_type?: string
           target_node_id?: string
           updated_at?: string
           user_id?: string
