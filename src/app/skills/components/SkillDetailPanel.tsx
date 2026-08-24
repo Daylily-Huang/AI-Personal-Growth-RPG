@@ -19,6 +19,7 @@ import type {
   SkillDerivedState,
 } from "@/lib/store/types";
 import EvidenceTimeline from "./EvidenceTimeline";
+import { buildMetadataPatch, nextArchiveStatus, type SkillMetadataPatch } from "./controller";
 import { formatConfidence, formatTimestamp, getSkillStateVisual } from "./presentation";
 
 const MASTERY_LADDER = Array.from({ length: 11 }, (_, i) => i);
@@ -116,7 +117,7 @@ export default function SkillDetailPanel({
     setEditing(true);
   }
 
-  async function patchSkill(body: Record<string, unknown>): Promise<boolean> {
+  async function patchSkill(body: SkillMetadataPatch | Record<string, unknown>): Promise<boolean> {
     setSaving(true);
     setSaveError(null);
     try {
@@ -145,26 +146,23 @@ export default function SkillDetailPanel({
   }
 
   async function handleSave() {
-    if (form.name.trim() === "") {
-      setSaveError("名称不能为空");
+    const result = buildMetadataPatch({
+      name: form.name,
+      aliasesRaw: form.aliases,
+      description: form.description,
+      domainId: form.domainId,
+    });
+    if (!result.ok) {
+      setSaveError(result.error);
       return;
     }
-    const ok = await patchSkill({
-      name: form.name,
-      aliases: form.aliases
-        .split(/[,，]/)
-        .map((a) => a.trim())
-        .filter(Boolean),
-      description: form.description.trim() === "" ? null : form.description,
-      domainId: form.domainId === "" ? null : form.domainId,
-    });
+    const ok = await patchSkill(result.patch);
     if (ok) setEditing(false);
   }
 
   async function toggleArchive() {
     if (!detail) return;
-    const next = detail.skill.derivedState === "archived" ? "active" : "archived";
-    await patchSkill({ status: next });
+    await patchSkill({ status: nextArchiveStatus(detail.skill.derivedState) });
   }
 
   const stateVisual: ReturnType<typeof getSkillStateVisual> | null = detail

@@ -67,8 +67,8 @@ jobs:
         with:
           version: 2.114.0
 
-      - name: Start local Supabase stack
-        run: supabase start
+      - name: Start local Supabase stack (output sanitized, Gate 5D)
+        run: node scripts/run-supabase-start-ci.cjs
 
       - name: Export local Supabase credentials
         run: supabase status -o env | node scripts/export-supabase-ci-env.cjs
@@ -78,6 +78,9 @@ jobs:
 
       - name: Run database-backed tests
         run: pnpm test
+
+      - name: Deterministic growth-engine harness (Gate 5D)
+        run: pnpm harness:deterministic
 
       - name: Run E2E tests
         run: pnpm test:e2e

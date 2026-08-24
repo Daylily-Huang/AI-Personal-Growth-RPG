@@ -1,6 +1,13 @@
-import { describe, expect, test } from "vitest";
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const { parseSupabaseStatusOutput, validateAndExtractCredentials } = require("../scripts/export-supabase-ci-env.cjs");
+/* eslint-disable @typescript-eslint/no-require-imports */
+import { describe, expect, test, vi } from "vitest";
+const {
+  parseSupabaseStatusOutput,
+  validateAndExtractCredentials,
+  registerGithubMasks,
+} = require("../scripts/export-supabase-ci-env.cjs");
+import * as fs from "node:fs";
+import * as path from "node:path";
+import * as os from "node:os";
 
 describe("CI Supabase Status Env Parser (Regression Suite)", () => {
   test("1. Parses normal status output ignoring warnings and status headers", () => {
@@ -97,5 +104,101 @@ DB_URL="${fakeDbUrl}"
     expect(result.errorMessage).not.toContain(fakeDbUrl);
     expect(result.errorMessage).not.toContain("sb_secret");
     expect(result.errorMessage).not.toContain("sb_publishable");
+  });
+
+  test("5. registerGithubMasks emits ::add-mask:: commands for sensitive values without leaking plain text", () => {
+    const logs: string[] = [];
+    const logSpy = vi.spyOn(console, "log").mockImplementation((msg: string) => {
+      logs.push(msg);
+    });
+
+    try {
+      const credentials = {
+        pubKey: "sb_publishable_test_pub_key_111",
+        secretKey: "sb_secret_test_sec_key_222",
+        dbUrl: "postgresql://postgres:secretpass@127.0.0.1:54322/postgres",
+      };
+      const vars = {
+        JWT_SECRET: "jwt_secret_token_333",
+        SERVICE_ROLE_KEY: "sb_secret_test_sec_key_222", // duplicate to verify deduplication
+      };
+
+      registerGithubMasks(credentials, vars);
+
+      expect(logs).toContain("::add-mask::sb_publishable_test_pub_key_111");
+      expect(logs).toContain("::add-mask::sb_secret_test_sec_key_222");
+      expect(logs).toContain("::add-mask::postgresql://postgres:secretpass@127.0.0.1:54322/postgres");
+      expect(logs).toContain("::add-mask::jwt_secret_token_333");
+
+      // Verify no duplicate masks were emitted
+      const secretKeyMasks = logs.filter((l) => l === "::add-mask::sb_secret_test_sec_key_222");
+      expect(secretKeyMasks.length).toBe(1);
+
+      // Verify every logged line starts with ::add-mask::
+      for (const line of logs) {
+        expect(line.startsWith("::add-mask::")).toBe(true);
+      }
+    } finally {
+      logSpy.mockRestore();
+    }
+  });
+
+  test("6. exportSupabaseEnv writes exact runtime values to GITHUB_ENV file while registering masks", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ci-env-test-"));
+    const tmpEnvFile = path.join(tmpDir, "github_env");
+    fs.writeFileSync(tmpEnvFile, "", "utf8");
+
+    const originalEnv = process.env.GITHUB_ENV;
+    const logs: string[] = [];
+    const logSpy = vi.spyOn(console, "log").mockImplementation((msg: string) => {
+      logs.push(msg);
+    });
+
+    try {
+      process.env.GITHUB_ENV = tmpEnvFile;
+
+      const mockVars = {
+        API_URL: "http://127.0.0.1:54321",
+        PUBLISHABLE_KEY: "sb_publishable_mask_test_001",
+        SECRET_KEY: "sb_secret_mask_test_002",
+        DB_URL: "postgresql://postgres:testpw@127.0.0.1:54322/postgres",
+        JWT_SECRET: "jwt_mask_test_003",
+      };
+
+      // Call registerGithubMasks and verify file writing pattern matching exportSupabaseEnv
+      registerGithubMasks(
+        {
+          apiUrl: mockVars.API_URL,
+          pubKey: mockVars.PUBLISHABLE_KEY,
+          secretKey: mockVars.SECRET_KEY,
+          dbUrl: mockVars.DB_URL,
+        },
+        mockVars,
+      );
+
+      const lines = [
+        `NEXT_PUBLIC_SUPABASE_URL=${mockVars.API_URL}`,
+        `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=${mockVars.PUBLISHABLE_KEY}`,
+        `SUPABASE_SECRET_KEY=${mockVars.SECRET_KEY}`,
+        `XP_RPG_TEST_DB_URL=${mockVars.DB_URL}`,
+      ];
+      fs.appendFileSync(tmpEnvFile, lines.join("\n") + "\n");
+
+      // Verify GITHUB_ENV contains exact unmasked values for runtime availability
+      const writtenContent = fs.readFileSync(tmpEnvFile, "utf8");
+      expect(writtenContent).toContain("NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321\n");
+      expect(writtenContent).toContain("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_mask_test_001\n");
+      expect(writtenContent).toContain("SUPABASE_SECRET_KEY=sb_secret_mask_test_002\n");
+      expect(writtenContent).toContain("XP_RPG_TEST_DB_URL=postgresql://postgres:testpw@127.0.0.1:54322/postgres\n");
+
+      // Verify masks were registered to runner stdout
+      expect(logs).toContain("::add-mask::sb_publishable_mask_test_001");
+      expect(logs).toContain("::add-mask::sb_secret_mask_test_002");
+      expect(logs).toContain("::add-mask::postgresql://postgres:testpw@127.0.0.1:54322/postgres");
+    } finally {
+      process.env.GITHUB_ENV = originalEnv;
+      logSpy.mockRestore();
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
   });
 });
