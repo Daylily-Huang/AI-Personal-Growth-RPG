@@ -331,6 +331,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "fk_evidence_records_knowledge_node_tenant_safe"
+            columns: ["user_id", "knowledge_node_id"]
+            isOneToOne: false
+            referencedRelation: "knowledge_nodes"
+            referencedColumns: ["user_id", "id"]
+          },
+          {
             foreignKeyName: "fk_evidence_records_skill_tenant_safe"
             columns: ["user_id", "skill_id"]
             isOneToOne: false
@@ -341,9 +348,11 @@ export type Database = {
       }
       knowledge_edges: {
         Row: {
+          archived_at: string | null
           confidence: number
           created_at: string
           id: string
+          is_archived: boolean
           metadata: Json
           provenance_note: string | null
           relation_type: string
@@ -354,11 +363,15 @@ export type Database = {
           updated_at: string
           user_id: string
           verification_status: string
+          verified_at: string | null
+          verified_by: string | null
         }
         Insert: {
+          archived_at?: string | null
           confidence?: number
           created_at?: string
           id?: string
+          is_archived?: boolean
           metadata?: Json
           provenance_note?: string | null
           relation_type: string
@@ -369,11 +382,15 @@ export type Database = {
           updated_at?: string
           user_id: string
           verification_status?: string
+          verified_at?: string | null
+          verified_by?: string | null
         }
         Update: {
+          archived_at?: string | null
           confidence?: number
           created_at?: string
           id?: string
+          is_archived?: boolean
           metadata?: Json
           provenance_note?: string | null
           relation_type?: string
@@ -384,6 +401,8 @@ export type Database = {
           updated_at?: string
           user_id?: string
           verification_status?: string
+          verified_at?: string | null
+          verified_by?: string | null
         }
         Relationships: [
           {
@@ -404,11 +423,13 @@ export type Database = {
       }
       knowledge_nodes: {
         Row: {
+          archived_at: string | null
           confidence: number
           created_at: string
           description: string | null
           domain_id: string | null
           id: string
+          is_archived: boolean
           last_reviewed_at: string | null
           metadata: Json
           node_type: string
@@ -420,13 +441,17 @@ export type Database = {
           updated_at: string
           user_id: string
           verification_status: string
+          verified_at: string | null
+          verified_by: string | null
         }
         Insert: {
+          archived_at?: string | null
           confidence?: number
           created_at?: string
           description?: string | null
           domain_id?: string | null
           id?: string
+          is_archived?: boolean
           last_reviewed_at?: string | null
           metadata?: Json
           node_type?: string
@@ -438,13 +463,17 @@ export type Database = {
           updated_at?: string
           user_id: string
           verification_status?: string
+          verified_at?: string | null
+          verified_by?: string | null
         }
         Update: {
+          archived_at?: string | null
           confidence?: number
           created_at?: string
           description?: string | null
           domain_id?: string | null
           id?: string
+          is_archived?: boolean
           last_reviewed_at?: string | null
           metadata?: Json
           node_type?: string
@@ -456,6 +485,8 @@ export type Database = {
           updated_at?: string
           user_id?: string
           verification_status?: string
+          verified_at?: string | null
+          verified_by?: string | null
         }
         Relationships: [
           {

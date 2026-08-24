@@ -1,6 +1,6 @@
 # Stage 6 — Knowledge Map UI & Visual Specification
 
-> **Status**: PROPOSED / DESIGN FREEZE (ROUND 1)  
+> **Status**: FINAL FROZEN (STAGE 6A DESIGN CLOSURE)  
 > **Target Milestone**: Stage 6 (Knowledge Map)  
 > **Related Rules**: `docs/Design ChatGPT/07_UI_DESIGN_SYSTEM.md`, `docs/Stage6/01_KNOWLEDGE_MAP_DOMAIN_MODEL.md`, `docs/Stage6/02_KNOWLEDGE_AUTHORITY_RULES.md`
 
@@ -90,12 +90,12 @@ Verified Prerequisite Edge:
 Inferred Supporting Edge:
   Node A - - - - - - [ AI 82% ✓ ✗ ] - - - - - -► Node B (Dashed Amber-400, Quick Action Pill)
 
-Contradicting Edge:
+Contradicting Edge (Symmetric):
   Node A ─── ─── ─── [ ⚡ CONTRADICTS ] ─── ─── ─── Node B (Zigzag Rose-500, Lightning Marker)
 ```
 
 ### 4.1 Interactive Edge Actions
-- 当鼠标悬停在 `inferred` 边上时，边中央弹出快速决策气泡：
+- 当鼠标悬停在 `inferred` 边上时，中央弹出快速决策气泡：
   - **✓ Verify 按钮**：一键调用 `POST /api/knowledge/edges/[id]/verify`，边动画立即变为实线，置信度变为 100%。
   - **✗ Reject 按钮**：一键调用 `POST /api/knowledge/edges/[id]/reject`，边渐隐消失。
 
@@ -106,7 +106,7 @@ Contradicting Edge:
 When a node is selected, the right drawer answers the 5 core questions:
 
 1. **What is this?**
-   - 完整标题、详细描述、实体类型 (`Concept` / `Claim` / `Topic`)。
+   - 完整标题、详细描述、实体类型 (`Concept` / `Claim` / `Topic`)、生命周期状态 (`Active` / `Archived`)。
 2. **Where does it belong?**
    - 所属 Domain（带面包屑导航）、关联的实用 Skill（点击可联动切换至技能树）。
 3. **Why does the system believe this? (Provenance Box)**

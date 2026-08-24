@@ -1,6 +1,6 @@
 # Stage 6 — Implementation Plan & Milestone Breakdown
 
-> **Status**: PROPOSED / DESIGN FREEZE (ROUND 1)  
+> **Status**: FINAL FROZEN (STAGE 6A DESIGN CLOSURE)  
 > **Target Milestone**: Stage 6 (Knowledge Map)  
 > **Base Commit**: `main @ 09fb707` (Stage 5 Final Freeze Merge)  
 > **Related Documents**: `docs/Stage6/01_KNOWLEDGE_MAP_DOMAIN_MODEL.md` through `04_KNOWLEDGE_MAP_UI_SPEC.md`
@@ -33,10 +33,12 @@ Stage 6D: Security Matrix, Multi-Tenant E2E & Final Freeze
 - **Branch**: `feature/stage6a-knowledge-authority`
 - **Scope**:
   - Migration `0039_knowledge_graph_authority.sql`:
-    - `knowledge_nodes`: `node_type` (`concept`/`claim`/`topic`), `verification_status` (`verified`/`inferred`/`archived`), `confidence`, `normalized_title` trigger, composite key `UNIQUE (user_id, id)`.
-    - `knowledge_edges`: `relation_type` (`prerequisite`/`contains`/`supports`/`contradicts`/`relates_to`), `verification_status` (`verified`/`inferred`/`rejected`/`superseded`), composite tenant FKs.
-    - Anti-cycle DAG trigger on `prerequisite` and `contains` relations.
-    - Strict Row Level Security (RLS) policies on `knowledge_nodes` and `knowledge_edges`.
+    - Legacy table data safety guard.
+    - `knowledge_nodes`: `node_type` (`concept`/`claim`/`topic`), `verification_status` (`inferred`/`verified`/`rejected`/`superseded`), `confidence` (inferred $\le$ 0.95, verified = 1.00), `is_archived`, `verified_at`, `verified_by`, `normalized_title` trigger, composite key `UNIQUE (user_id, id)`.
+    - `knowledge_edges`: `relation_type` (`prerequisite`/`contains`/`supports`/`contradicts`/`relates_to`), `verification_status`, True Symmetric storage check constraint (`source < target` for `contradicts`/`relates_to`), `relates_to` mandatory provenance note, composite tenant FKs.
+    - Tenant-safe composite FK on `evidence_records.knowledge_node_id`.
+    - Anti-cycle DAG trigger on `prerequisite` and `contains` (active in DAG: `inferred` and `verified`, excluding current row on UPDATE).
+    - Strict Row Level Security (RLS) policies and privilege grants (fail-closed, authenticated-only).
   - Database types regeneration (`src/lib/supabase/database.types.ts`).
   - Unit & DB authority test suite (`tests/stage6a-db-authority.test.ts`).
 - **Gate 6A Target**: `supabase db reset` replay 0001→0039 PASS, vitest authority suite 100% PASS.
@@ -86,14 +88,3 @@ Stage 6D: Security Matrix, Multi-Tenant E2E & Final Freeze
   - GitHub Actions CI credential masking validation.
   - 全门禁 (Vitest, Deterministic Harness, E2E, tsc, lint, build) 100% GREEN.
 - **Gate 6D Target**: Formal Stage 6 Final Freeze and merge to `main`.
-
----
-
-## 3. Branch & PR Strategy
-
-Each sub-stage follows the strict PR & review protocol:
-1. Branch created from updated `main`.
-2. Implementation + comprehensive test suite.
-3. Local verification (reset, vitest, harness, e2e, tsc, lint, build).
-4. Push to origin and open PR.
-5. Reviewer Audit -> `PASS` -> Merge to `main`.
