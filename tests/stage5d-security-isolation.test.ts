@@ -62,31 +62,36 @@ describe.skipIf(!DATABASE_URL)("Stage 5D — RLS Tenant Isolation as authenticat
       insert into public.skills (id, user_id, domain_id, name, aliases, xp, level, mastery_level, mastery_confidence) values
         ('5d777777-0000-4000-a000-00000000000a', '${USER_A}', '${DOMAIN_A}', '5D Skill A', '{}', 40, 1, 3, 0.8),
         ('5d777777-0000-4000-a000-00000000000c', '${USER_A}', '${DOMAIN_A}', '5D Skill A2', '{}', 5, 1, 1, 0.5),
-        ('5d777777-0000-4000-b000-00000000000b', '${USER_B}', '${DOMAIN_B}', '5D Skill B', '{}', 10, 1, 1, 0.4)
+        ('5d777777-0000-4000-b000-00000000000b', '${USER_B}', '${DOMAIN_B}', '5D Skill B', '{}', 10, 1, 1, 0.4),
+        ('5d777777-0000-4000-b000-00000000000d', '${USER_B}', '${DOMAIN_B}', '5D Skill B2', '{}', 3, 1, 1, 0.5)
       on conflict (id) do nothing;
       insert into public.skill_edges (id, user_id, source_skill_id, target_skill_id, relation_type) values
-        ('5d888888-0000-4000-a000-00000000000a', '${USER_A}', '5d777777-0000-4000-a000-00000000000a', '5d777777-0000-4000-a000-00000000000c', 'supports')
+        ('5d888888-0000-4000-a000-00000000000a', '${USER_A}', '5d777777-0000-4000-a000-00000000000a', '5d777777-0000-4000-a000-00000000000c', 'supports'),
+        ('5d888888-0000-4000-b000-00000000000b', '${USER_B}', '5d777777-0000-4000-b000-00000000000b', '5d777777-0000-4000-b000-00000000000d', 'supports')
       on conflict (id) do nothing;
-    `);
-
-    await pg.query(`
       insert into public.activities (id, user_id, raw_input, title, status, rules_version) values
-        ('5d999999-0000-4000-a000-00000000000a', '${USER_A}', '5D seed activity', '5D seed activity', 'confirmed', 'v1')
+        ('5d999999-0000-4000-a000-00000000000a', '${USER_A}', '5D seed activity A', '5D seed activity A', 'confirmed', 'v1'),
+        ('5d999999-0000-4000-b000-00000000000b', '${USER_B}', '5D seed activity B', '5D seed activity B', 'confirmed', 'v1')
       on conflict (id) do nothing;
       insert into public.ai_assessments (id, user_id, activity_id, status, assessment_json, rules_version) values
-        ('5d999999-0000-4000-b000-00000000000a', '${USER_A}', '5d999999-0000-4000-a000-00000000000a', 'confirmed', '{}', 'v1')
+        ('5d999999-0000-4000-a000-0000000000aa', '${USER_A}', '5d999999-0000-4000-a000-00000000000a', 'confirmed', '{}', 'v1'),
+        ('5d999999-0000-4000-b000-0000000000bb', '${USER_B}', '5d999999-0000-4000-b000-00000000000b', 'confirmed', '{}', 'v1')
       on conflict (id) do nothing;
       insert into public.evidence_records (id, user_id, activity_id, skill_id, evidence_level, evidence_type, description, verified) values
-        ('5daaaaaa-0000-4000-a000-00000000000a', '${USER_A}', '5d999999-0000-4000-a000-00000000000a', '5d777777-0000-4000-a000-00000000000a', 3, 'production', '5D evidence', true)
+        ('5daaaaaa-0000-4000-a000-00000000000a', '${USER_A}', '5d999999-0000-4000-a000-00000000000a', '5d777777-0000-4000-a000-00000000000a', 3, 'production', '5D evidence A', true),
+        ('5daaaaaa-0000-4000-b000-00000000000b', '${USER_B}', '5d999999-0000-4000-b000-00000000000b', '5d777777-0000-4000-b000-00000000000b', 2, 'practice', '5D evidence B', false)
       on conflict (id) do nothing;
       insert into public.mastery_events (id, user_id, activity_id, skill_id, evidence_id, from_level, to_level, confidence, event_type, reason) values
-        ('5dbbbbbb-0000-4000-a000-00000000000a', '${USER_A}', '5d999999-0000-4000-a000-00000000000a', '5d777777-0000-4000-a000-00000000000a', '5daaaaaa-0000-4000-a000-00000000000a', 2, 3, 0.8, 'upgrade', '5D upgrade')
+        ('5dbbbbbb-0000-4000-a000-00000000000a', '${USER_A}', '5d999999-0000-4000-a000-00000000000a', '5d777777-0000-4000-a000-00000000000a', '5daaaaaa-0000-4000-a000-00000000000a', 2, 3, 0.8, 'upgrade', '5D upgrade A'),
+        ('5dbbbbbb-0000-4000-b000-00000000000b', '${USER_B}', '5d999999-0000-4000-b000-00000000000b', '5d777777-0000-4000-b000-00000000000b', '5daaaaaa-0000-4000-b000-00000000000b', 0, 1, 0.4, 'confidence_refresh', '5D initial B')
       on conflict (id) do nothing;
       insert into public.mastery_verifications (id, user_id, skill_id, skill_name, from_level, to_level, evidence_level, status, proposal_assessment_id) values
-        ('5dcccccc-0000-4000-a000-00000000000a', '${USER_A}', '5d777777-0000-4000-a000-00000000000a', '5D Skill A', 4, 5, 4, 'pending', '5d999999-0000-4000-b000-00000000000a')
+        ('5dcccccc-0000-4000-a000-00000000000a', '${USER_A}', '5d777777-0000-4000-a000-00000000000a', '5D Skill A', 4, 5, 4, 'pending', '5d999999-0000-4000-a000-0000000000aa'),
+        ('5dcccccc-0000-4000-b000-00000000000b', '${USER_B}', '5d777777-0000-4000-b000-00000000000b', '5D Skill B', 1, 2, 2, 'pending', '5d999999-0000-4000-b000-0000000000bb')
       on conflict (id) do nothing;
       insert into public.xp_transactions (id, user_id, activity_id, assessment_id, skill_id, skill_name_snapshot, amount, base_amount, reason, rules_version) values
-        ('5ddddddd-0000-4000-a000-00000000000a', '${USER_A}', '5d999999-0000-4000-a000-00000000000a', '5d999999-0000-4000-b000-00000000000a', '5d777777-0000-4000-a000-00000000000a', '5D Skill A', 25, 25, '5D xp', 'v1')
+        ('5ddddddd-0000-4000-a000-00000000000a', '${USER_A}', '5d999999-0000-4000-a000-00000000000a', '5d999999-0000-4000-a000-0000000000aa', '5d777777-0000-4000-a000-00000000000a', '5D Skill A', 25, 25, '5D xp A', 'v1'),
+        ('5ddddddd-0000-4000-b000-00000000000b', '${USER_B}', '5d999999-0000-4000-b000-00000000000b', '5d999999-0000-4000-b000-0000000000bb', '5d777777-0000-4000-b000-00000000000b', '5D Skill B', 12, 12, '5D xp B', 'v1')
       on conflict (id) do nothing;
     `);
 
@@ -94,7 +99,7 @@ describe.skipIf(!DATABASE_URL)("Stage 5D — RLS Tenant Isolation as authenticat
     skillBId = "5d777777-0000-4000-b000-00000000000b";
     edgeAId = "5d888888-0000-4000-a000-00000000000a";
     activityAId = "5d999999-0000-4000-a000-00000000000a";
-    assessmentAId = "5d999999-0000-4000-b000-00000000000a";
+    assessmentAId = "5d999999-0000-4000-a000-0000000000aa";
   });
 
   afterAll(async () => {
@@ -128,14 +133,27 @@ describe.skipIf(!DATABASE_URL)("Stage 5D — RLS Tenant Isolation as authenticat
   ] as const;
 
   for (const table of PRIVATE_TABLES) {
-    test(`RLS SELECT on ${table}: authenticated A sees own rows, zero of B's`, async () => {
+    test(`RLS SELECT on ${table}: two-direction — A sees only A rows, B sees only B rows`, async () => {
+      const counts = {
+        A: (await pg.query(`select count(*)::int as n from public.${table} where user_id = $1`, [USER_A])).rows[0].n,
+        B: (await pg.query(`select count(*)::int as n from public.${table} where user_id = $1`, [USER_B])).rows[0].n,
+      };
+      // both tenants must physically own rows, otherwise the RLS assertion is vacuous
+      expect(counts.A, `fixture must seed ${table} rows for User A`).toBeGreaterThan(0);
+      expect(counts.B, `fixture must seed ${table} rows for User B`).toBeGreaterThan(0);
+
       await asUser(USER_A, async () => {
-        const own = await pg.query(`select count(*)::int as n from public.${table} where user_id = $1`, [USER_A]);
-        expect(own.rows[0].n).toBeGreaterThan(0);
+        const visible = await pg.query(`select count(*)::int as n from public.${table}`);
+        expect(visible.rows[0].n).toBe(counts.A);
         const foreign = await pg.query(`select count(*)::int as n from public.${table} where user_id = $1`, [USER_B]);
         expect(foreign.rows[0].n).toBe(0);
-        const total = await pg.query(`select count(*)::int as n from public.${table}`);
-        expect(total.rows[0].n).toBe(own.rows[0].n);
+      });
+
+      await asUser(USER_B, async () => {
+        const visible = await pg.query(`select count(*)::int as n from public.${table}`);
+        expect(visible.rows[0].n).toBe(counts.B);
+        const foreign = await pg.query(`select count(*)::int as n from public.${table} where user_id = $1`, [USER_A]);
+        expect(foreign.rows[0].n).toBe(0);
       });
     });
   }

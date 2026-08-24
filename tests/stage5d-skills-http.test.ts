@@ -3,6 +3,7 @@ import crypto from "node:crypto";
 import next from "next";
 import { describe, expect, test, beforeAll, afterAll } from "vitest";
 import { createServerClient } from "@supabase/ssr";
+import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
 
 const DATABASE_URL = process.env.XP_RPG_TEST_DB_URL;
@@ -19,6 +20,10 @@ const SUPABASE_PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KE
 process.env.NEXT_PUBLIC_SUPABASE_URL = SUPABASE_URL;
 process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = SUPABASE_PUBLISHABLE_KEY;
 process.env.SUPABASE_SECRET_KEY = process.env.SUPABASE_SECRET_KEY || DEFAULT_LOCAL_SERVICE_KEY;
+
+// Trusted test setup only (seeding cross-tenant domain fixtures); never used for
+// the assertions themselves, which go through the real HTTP API.
+const adminClient = createClient<Database>(SUPABASE_URL, process.env.SUPABASE_SECRET_KEY!);
 
 function createCookieJar() {
   const store = new Map<string, string>();
@@ -277,6 +282,28 @@ describe.skipIf(!DATABASE_URL)("Stage 5D — Skills HTTP Integration, Tenant Iso
     // A deletes own edge -> 204; repeat -> 404
     expect((await api(userA, `/api/skills/edges/${edgeAId}`, { method: "DELETE" })).status).toBe(204);
     expect((await api(userA, `/api/skills/edges/${edgeAId}`, { method: "DELETE" })).status).toBe(404);
+  });
+
+  test("P2-1: User B PATCHing own skill with User A's domainId -> 400, domain unchanged", async () => {
+    const domainId = crypto.randomUUID();
+    const ins = await adminClient.from("domains").insert({
+      id: domainId,
+      user_id: (await userA.client.auth.getUser()).data.user!.id,
+      name: "5D Foreign Domain A",
+      slug: `stage5d-foreign-${Date.now()}`,
+    });
+    expect(ins.error).toBeNull();
+
+    const before = await (await api(userB, `/api/skills/${skillB1.id}`)).json();
+
+    const res = await api(userB, `/api/skills/${skillB1.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ domainId }),
+    });
+    expect(res.status).toBe(400);
+
+    const after = await (await api(userB, `/api/skills/${skillB1.id}`)).json();
+    expect(after.skill.domainId).toBe(before.skill.domainId);
   });
 
   test("5C production path: PATCH metadata -> refreshed detail; 409 normalized-name conflict; archive/unarchive keeps graph coherent", async () => {
