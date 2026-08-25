@@ -1,6 +1,6 @@
 # Stage 6 — Knowledge Map API & Read Model Specification
 
-> **Status**: FINAL FROZEN (STAGE 6A ROUND 3 CLOSURE)  
+> **Status**: FINAL FROZEN (STAGE 6A ROUND 4 CLOSURE)  
 > **Target Milestone**: Stage 6 (Knowledge Map)  
 > **Related Rules**: `docs/Design ChatGPT/03_TECHNICAL_IMPLEMENTATION.md`, `docs/Stage6/01_KNOWLEDGE_MAP_DOMAIN_MODEL.md`, `docs/Stage6/02_KNOWLEDGE_AUTHORITY_RULES.md`
 
@@ -48,14 +48,21 @@ To support large knowledge graphs without client DOM saturation, `GET /api/knowl
 | **`depth`** | integer | `1` (若有 root) | 展开深度，严格约束在 `1 <= depth <= 3`。若传入 $< 1$ 或 $> 3$ 返回 **`400 Bad Request (invalid_depth)`** |
 | **`limit`** | integer | `60` | 单次返回最大节点数，硬性上限 `100`。超过上限截断并标记 `isTruncated: true` |
 
-### 2.2 Execution Semantics
-1. **Initial Viewport (Without `rootNodeId`)**:
-   - 确定性加载顶层主题 (Topic) 及各领域核心节点（最多 `limit` 个节点，按更新时间/度数排序）；
-   - 返回包含的节点和节点间的所有边。
-2. **Progressive Expansion (With `rootNodeId`)**:
-   - 从 `rootNodeId` 开始递归遍历入边与出边，展开至指定 `depth` 层（$k$-hop ego graph）；
-   - 若 `rootNodeId` 不存在或属于其他租户，直接返回 **`404 Not Found`**；
-   - 结果严格去重，最多包含 `limit` 个相关节点。
+### 2.2 Progressive Active-Edge Traversal Rule (P2-1)
+- **默认图谱遍历仅沿着活跃边展开 (Active Relations Only)**:
+  `verification_status IN ('inferred', 'verified') AND is_archived = false`
+- **历史/非活跃关系绝对不参与遍历**:
+  `rejected`、`superseded` 以及 `is_archived = true` 的边在图谱展开和 $k$-hop 遍历时被严格忽略。
+
+### 2.3 Initial Deterministic Ordering & Truncation (P2-2)
+当未指定 `rootNodeId`（加载全局初始视口）时，节点必须遵循严格确定性的排序准则：
+```sql
+ORDER BY
+  (inbound_edge_count + outbound_edge_count) DESC,
+  updated_at DESC,
+  id ASC
+```
+- **截断语义**：若活跃节点总数大于 `limit`（默认 60，上限 100），仅截取该确定性排序前 `limit` 个节点及其相互之间的活跃边，并在响应体 `stats.isTruncated` 中返回 `true`。
 
 ---
 

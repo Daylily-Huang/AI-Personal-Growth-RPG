@@ -192,24 +192,94 @@ describe.skipIf(!DATABASE_URL)("Stage 6A — Knowledge Graph, Schema & Authority
         values ('${USER_A}', 'Orphan Activity Node', 'inferred', 0.80, 'activity');
       `),
     ).rejects.toThrow(/source_id is required|knowledge_nodes_provenance_source_check|23514/);
-
-    // Legitimate promotion: ai_proposal promoted to verified by user maintains source_type and source_id
-    const promotedNode = await pg.query<{ id: string; verification_status: string; confidence: string }>(`
-      insert into public.knowledge_nodes (
-        user_id, title, verification_status, confidence, source_type, source_id, verified_at, verified_by
-      ) values (
-        '${USER_A}', 'Promoted Proposal Concept', 'verified', 1.00, 'ai_proposal', '${ACTIVITY_A}', now(), '${USER_A}'
-      ) returning id, verification_status, confidence;
-    `);
-    expect(promotedNode.rows[0].verification_status).toBe("verified");
-    expect(Number(promotedNode.rows[0].confidence)).toBe(1.0);
   });
 
   // --------------------------------------------------------------------------
-  // 1.1 PROVENANCE TARGET INTEGRITY TRIGGER (P1-1)
+  // 1.1 AI PROPOSAL INITIAL INSERTION INVARIANT & REAL TRANSITION (P1-1)
   // --------------------------------------------------------------------------
 
-  test("3.1 Provenance Target Integrity: Node source_id must exist and belong to the same tenant", async () => {
+  test("3.1 AI-Proposal Insertion Invariant & Real Inferred -> Verified Transition (P1-1)", async () => {
+    // 1. Node: direct INSERT with ai_proposal + verified MUST be rejected
+    await expect(
+      pg.query(`
+        insert into public.knowledge_nodes (
+          user_id, title, verification_status, confidence, source_type, source_id, verified_at, verified_by
+        ) values (
+          '${USER_A}', 'Sneaky Direct Verified Proposal Node', 'verified', 1.00, 'ai_proposal', '${ACTIVITY_A}', now(), '${USER_A}'
+        );
+      `),
+    ).rejects.toThrow(/AI proposal must initially be inserted with verification_status = inferred|23514/);
+
+    // 2. Node: initial INSERT with ai_proposal + inferred MUST succeed
+    const propNodeRes = await pg.query<{ id: string; verification_status: string; confidence: string }>(`
+      insert into public.knowledge_nodes (
+        user_id, title, verification_status, confidence, source_type, source_id
+      ) values (
+        '${USER_A}', 'Legitimate Inferred Proposal Node', 'inferred', 0.82, 'ai_proposal', '${ACTIVITY_A}'
+      ) returning id, verification_status, confidence;
+    `);
+    const propNodeId = propNodeRes.rows[0].id;
+    expect(propNodeRes.rows[0].verification_status).toBe("inferred");
+    expect(Number(propNodeRes.rows[0].confidence)).toBe(0.82);
+
+    // 3. Node: real UPDATE transition from inferred -> verified MUST succeed
+    const verifiedNodeRes = await pg.query<{ id: string; verification_status: string; confidence: string; verified_by: string }>(`
+      update public.knowledge_nodes
+      set verification_status = 'verified', confidence = 1.00, verified_at = now(), verified_by = '${USER_A}'
+      where id = '${propNodeId}'
+      returning id, verification_status, confidence, verified_by;
+    `);
+    expect(verifiedNodeRes.rows[0].verification_status).toBe("verified");
+    expect(Number(verifiedNodeRes.rows[0].confidence)).toBe(1.0);
+    expect(verifiedNodeRes.rows[0].verified_by).toBe(USER_A);
+
+    // Seed target node for edge test
+    const targetNodeRes = await pg.query<{ id: string }>(`
+      insert into public.knowledge_nodes (user_id, title, verification_status, confidence, verified_at, verified_by)
+      values ('${USER_A}', 'Edge Transition Target Node', 'verified', 1.0, now(), '${USER_A}') returning id;
+    `);
+    const targetNodeId = targetNodeRes.rows[0].id;
+
+    // 4. Edge: direct INSERT with ai_proposal + verified MUST be rejected
+    await expect(
+      pg.query(`
+        insert into public.knowledge_edges (
+          user_id, source_node_id, target_node_id, relation_type, verification_status, confidence, source_type, source_id, verified_at, verified_by
+        ) values (
+          '${USER_A}', '${propNodeId}', '${targetNodeId}', 'supports', 'verified', 1.00, 'ai_proposal', '${ACTIVITY_A}', now(), '${USER_A}'
+        );
+      `),
+    ).rejects.toThrow(/AI proposal must initially be inserted with verification_status = inferred|23514/);
+
+    // 5. Edge: initial INSERT with ai_proposal + inferred MUST succeed
+    const propEdgeRes = await pg.query<{ id: string; verification_status: string; confidence: string }>(`
+      insert into public.knowledge_edges (
+        user_id, source_node_id, target_node_id, relation_type, verification_status, confidence, source_type, source_id
+      ) values (
+        '${USER_A}', '${propNodeId}', '${targetNodeId}', 'supports', 'inferred', 0.85, 'ai_proposal', '${ACTIVITY_A}'
+      ) returning id, verification_status, confidence;
+    `);
+    const propEdgeId = propEdgeRes.rows[0].id;
+    expect(propEdgeRes.rows[0].verification_status).toBe("inferred");
+    expect(Number(propEdgeRes.rows[0].confidence)).toBe(0.85);
+
+    // 6. Edge: real UPDATE transition from inferred -> verified MUST succeed
+    const verifiedEdgeRes = await pg.query<{ id: string; verification_status: string; confidence: string; verified_by: string }>(`
+      update public.knowledge_edges
+      set verification_status = 'verified', confidence = 1.00, verified_at = now(), verified_by = '${USER_A}'
+      where id = '${propEdgeId}'
+      returning id, verification_status, confidence, verified_by;
+    `);
+    expect(verifiedEdgeRes.rows[0].verification_status).toBe("verified");
+    expect(Number(verifiedEdgeRes.rows[0].confidence)).toBe(1.0);
+    expect(verifiedEdgeRes.rows[0].verified_by).toBe(USER_A);
+  });
+
+  // --------------------------------------------------------------------------
+  // 1.2 PROVENANCE TARGET INTEGRITY TRIGGER (P1-1)
+  // --------------------------------------------------------------------------
+
+  test("3.2 Provenance Target Integrity: Node source_id must exist and belong to the same tenant", async () => {
     // 1. activity source: nonexistent UUID -> rejected
     await expect(
       pg.query(`
@@ -737,10 +807,77 @@ describe.skipIf(!DATABASE_URL)("Stage 6A — Knowledge Graph, Schema & Authority
   });
 
   // --------------------------------------------------------------------------
-  // 6. MIGRATION SAFETY GUARD REGRESSION (P2-1)
+  // 6. SOURCE DELETE GUARDS (P1-2)
   // --------------------------------------------------------------------------
 
-  test("13. Migration Safety Guard Regression: Direct execution of 0039 guard block fails closed when tables are non-empty", async () => {
+  test("13. Source Delete Guards: Referenced Activity & Artifact deletion is rejected with 23503 (P1-2)", async () => {
+    // 1. Seed unreferenced activity & artifact for User A
+    const freeActId = "6ac00099-aaaa-4000-a000-000000000099";
+    const freeArtId = "6aa00099-aaaa-4000-a000-000000000099";
+    await pg.query(`
+      insert into public.activities (id, user_id, title, raw_input, activity_type, status, rules_version)
+      values ('${freeActId}', '${USER_A}', 'Free Activity', 'Notes', 'study', 'confirmed', '1.0.0');
+      insert into public.artifacts (id, user_id, title, artifact_type)
+      values ('${freeArtId}', '${USER_A}', 'Free Artifact', 'document');
+    `);
+
+    // 2. Unreferenced Activity DELETE -> allowed
+    const delFreeAct = await pg.query(`delete from public.activities where id = '${freeActId}' returning id;`);
+    expect(delFreeAct.rows[0].id).toBe(freeActId);
+
+    // 3. Unreferenced Artifact DELETE -> allowed
+    const delFreeArt = await pg.query(`delete from public.artifacts where id = '${freeArtId}' returning id;`);
+    expect(delFreeArt.rows[0].id).toBe(freeArtId);
+
+    // 4. Seed guarded activity & artifact referenced by knowledge node and edge
+    const guardedActId = "6ac00088-aaaa-4000-a000-000000000088";
+    const guardedArtId = "6aa00088-aaaa-4000-a000-000000000088";
+    await pg.query(`
+      insert into public.activities (id, user_id, title, raw_input, activity_type, status, rules_version)
+      values ('${guardedActId}', '${USER_A}', 'Guarded Activity', 'Notes', 'study', 'confirmed', '1.0.0');
+      insert into public.artifacts (id, user_id, title, artifact_type)
+      values ('${guardedArtId}', '${USER_A}', 'Guarded Artifact', 'document');
+    `);
+
+    const gNode = await pg.query<{ id: string }>(`
+      insert into public.knowledge_nodes (user_id, title, verification_status, confidence, source_type, source_id)
+      values ('${USER_A}', 'Guarded Ref Node', 'inferred', 0.80, 'activity', '${guardedActId}')
+      returning id;
+    `);
+    const gNodeId = gNode.rows[0].id;
+
+    const gArtNode = await pg.query<{ id: string }>(`
+      insert into public.knowledge_nodes (user_id, title, verification_status, confidence, source_type, source_id)
+      values ('${USER_A}', 'Guarded Art Node', 'inferred', 0.80, 'artifact', '${guardedArtId}')
+      returning id;
+    `);
+    const gArtNodeId = gArtNode.rows[0].id;
+
+    // 5. Referenced Activity DELETE -> rejected with 23503
+    await expect(
+      pg.query(`delete from public.activities where id = '${guardedActId}';`),
+    ).rejects.toThrow(/Cannot delete activity|23503/);
+
+    // 6. Referenced Artifact DELETE -> rejected with 23503
+    await expect(
+      pg.query(`delete from public.artifacts where id = '${guardedArtId}';`),
+    ).rejects.toThrow(/Cannot delete artifact|23503/);
+
+    // 7. Removing the referencing Knowledge nodes allows subsequent deletion of source entities
+    await pg.query(`delete from public.knowledge_nodes where id in ('${gNodeId}', '${gArtNodeId}');`);
+    
+    const delGuardedAct = await pg.query(`delete from public.activities where id = '${guardedActId}' returning id;`);
+    expect(delGuardedAct.rows[0].id).toBe(guardedActId);
+
+    const delGuardedArt = await pg.query(`delete from public.artifacts where id = '${guardedArtId}' returning id;`);
+    expect(delGuardedArt.rows[0].id).toBe(guardedArtId);
+  });
+
+  // --------------------------------------------------------------------------
+  // 7. MIGRATION SAFETY GUARD REGRESSION (P2-1)
+  // --------------------------------------------------------------------------
+
+  test("14. Migration Safety Guard Regression: Direct execution of 0039 guard block fails closed when tables are non-empty", async () => {
     // Read the actual 0039 migration file from disk
     const migrationPath = path.join(process.cwd(), "supabase/migrations/0039_knowledge_graph_authority.sql");
     const migrationContent = fs.readFileSync(migrationPath, "utf8");

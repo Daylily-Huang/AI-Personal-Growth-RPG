@@ -261,13 +261,19 @@ CREATE TRIGGER trigger_prevent_knowledge_edge_cycle
     EXECUTE FUNCTION public.prevent_knowledge_edge_cycle();
 
 -- ==============================================================================
--- 7. PROVENANCE TARGET INTEGRITY TRIGGER (TENANT-SAFE RESOLUTION)
+-- 7. PROVENANCE TARGET INTEGRITY & AI-PROPOSAL INSERTION INVARIANT TRIGGERS
 -- ==============================================================================
 CREATE OR REPLACE FUNCTION public.validate_knowledge_provenance_target()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 AS $$
 BEGIN
+  -- Authority Invariant (P1-1): AI proposals MUST initially be inserted as 'inferred'
+  IF TG_OP = 'INSERT' AND NEW.source_type = 'ai_proposal' AND NEW.verification_status <> 'inferred' THEN
+    RAISE EXCEPTION 'AI proposal must initially be inserted with verification_status = inferred'
+      USING ERRCODE = '23514';
+  END IF;
+
   -- 1. If source_type is 'activity' or 'ai_proposal', source_id MUST resolve to public.activities owned by NEW.user_id
   IF NEW.source_type IN ('activity', 'ai_proposal') THEN
     IF NEW.source_id IS NULL THEN
@@ -306,20 +312,73 @@ $$;
 
 DROP TRIGGER IF EXISTS trigger_validate_knowledge_nodes_provenance ON public.knowledge_nodes;
 CREATE TRIGGER trigger_validate_knowledge_nodes_provenance
-  BEFORE INSERT OR UPDATE OF source_type, source_id, user_id
+  BEFORE INSERT OR UPDATE OF source_type, source_id, verification_status, user_id
   ON public.knowledge_nodes
   FOR EACH ROW
   EXECUTE FUNCTION public.validate_knowledge_provenance_target();
 
 DROP TRIGGER IF EXISTS trigger_validate_knowledge_edges_provenance ON public.knowledge_edges;
 CREATE TRIGGER trigger_validate_knowledge_edges_provenance
-  BEFORE INSERT OR UPDATE OF source_type, source_id, user_id
+  BEFORE INSERT OR UPDATE OF source_type, source_id, verification_status, user_id
   ON public.knowledge_edges
   FOR EACH ROW
   EXECUTE FUNCTION public.validate_knowledge_provenance_target();
 
 -- ==============================================================================
--- 8. ROW LEVEL SECURITY (RLS) POLICIES
+-- 8. SOURCE-SIDE DELETE GUARDS (PREVENT DANGLING AUDIT TRAILS - P1-2)
+-- ==============================================================================
+CREATE OR REPLACE FUNCTION public.prevent_activity_delete_if_referenced_by_knowledge()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM public.knowledge_nodes
+    WHERE user_id = OLD.user_id AND source_type IN ('activity', 'ai_proposal') AND source_id = OLD.id
+  ) OR EXISTS (
+    SELECT 1 FROM public.knowledge_edges
+    WHERE user_id = OLD.user_id AND source_type IN ('activity', 'ai_proposal') AND source_id = OLD.id
+  ) THEN
+    RAISE EXCEPTION 'Cannot delete activity %: referenced by knowledge provenance records', OLD.id
+      USING ERRCODE = '23503';
+  END IF;
+  RETURN OLD;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trigger_prevent_activity_delete_if_referenced_by_knowledge ON public.activities;
+CREATE TRIGGER trigger_prevent_activity_delete_if_referenced_by_knowledge
+  BEFORE DELETE ON public.activities
+  FOR EACH ROW
+  EXECUTE FUNCTION public.prevent_activity_delete_if_referenced_by_knowledge();
+
+CREATE OR REPLACE FUNCTION public.prevent_artifact_delete_if_referenced_by_knowledge()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM public.knowledge_nodes
+    WHERE user_id = OLD.user_id AND source_type = 'artifact' AND source_id = OLD.id
+  ) OR EXISTS (
+    SELECT 1 FROM public.knowledge_edges
+    WHERE user_id = OLD.user_id AND source_type = 'artifact' AND source_id = OLD.id
+  ) THEN
+    RAISE EXCEPTION 'Cannot delete artifact %: referenced by knowledge provenance records', OLD.id
+      USING ERRCODE = '23503';
+  END IF;
+  RETURN OLD;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trigger_prevent_artifact_delete_if_referenced_by_knowledge ON public.artifacts;
+CREATE TRIGGER trigger_prevent_artifact_delete_if_referenced_by_knowledge
+  BEFORE DELETE ON public.artifacts
+  FOR EACH ROW
+  EXECUTE FUNCTION public.prevent_artifact_delete_if_referenced_by_knowledge();
+
+-- ==============================================================================
+-- 9. ROW LEVEL SECURITY (RLS) POLICIES
 -- ==============================================================================
 ALTER TABLE public.knowledge_nodes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.knowledge_edges ENABLE ROW LEVEL SECURITY;
@@ -367,7 +426,7 @@ CREATE POLICY knowledge_edges_delete ON public.knowledge_edges
     USING (auth.uid() = user_id);
 
 -- ==============================================================================
--- 9. EXPLICIT PRIVILEGE GRANTS (Fail-closed: No anon table grants)
+-- 10. EXPLICIT PRIVILEGE GRANTS (Fail-closed: No anon table grants)
 -- ==============================================================================
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.knowledge_nodes TO authenticated, service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.knowledge_edges TO authenticated, service_role;
