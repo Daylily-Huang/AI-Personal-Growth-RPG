@@ -331,6 +331,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "fk_evidence_records_knowledge_node_tenant_safe"
+            columns: ["user_id", "knowledge_node_id"]
+            isOneToOne: false
+            referencedRelation: "knowledge_nodes"
+            referencedColumns: ["user_id", "id"]
+          },
+          {
             foreignKeyName: "fk_evidence_records_skill_tenant_safe"
             columns: ["user_id", "skill_id"]
             isOneToOne: false
@@ -341,121 +348,160 @@ export type Database = {
       }
       knowledge_edges: {
         Row: {
-          ai_inferred: boolean
+          archived_at: string | null
           confidence: number
           created_at: string
           id: string
+          is_archived: boolean
+          metadata: Json
+          provenance_note: string | null
           relation_type: string
+          source_id: string | null
           source_node_id: string
-          source_reference: string | null
-          source_type: string | null
+          source_type: string
           target_node_id: string
           updated_at: string
           user_id: string
+          verification_status: string
+          verified_at: string | null
+          verified_by: string | null
         }
         Insert: {
-          ai_inferred?: boolean
+          archived_at?: string | null
           confidence?: number
           created_at?: string
           id?: string
+          is_archived?: boolean
+          metadata?: Json
+          provenance_note?: string | null
           relation_type: string
+          source_id?: string | null
           source_node_id: string
-          source_reference?: string | null
-          source_type?: string | null
+          source_type?: string
           target_node_id: string
           updated_at?: string
           user_id: string
+          verification_status?: string
+          verified_at?: string | null
+          verified_by?: string | null
         }
         Update: {
-          ai_inferred?: boolean
+          archived_at?: string | null
           confidence?: number
           created_at?: string
           id?: string
+          is_archived?: boolean
+          metadata?: Json
+          provenance_note?: string | null
           relation_type?: string
+          source_id?: string | null
           source_node_id?: string
-          source_reference?: string | null
-          source_type?: string | null
+          source_type?: string
           target_node_id?: string
           updated_at?: string
           user_id?: string
+          verification_status?: string
+          verified_at?: string | null
+          verified_by?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "knowledge_edges_source_node_id_fkey"
-            columns: ["source_node_id"]
+            foreignKeyName: "fk_knowledge_edges_source_tenant_safe"
+            columns: ["user_id", "source_node_id"]
             isOneToOne: false
             referencedRelation: "knowledge_nodes"
-            referencedColumns: ["id"]
+            referencedColumns: ["user_id", "id"]
           },
           {
-            foreignKeyName: "knowledge_edges_target_node_id_fkey"
-            columns: ["target_node_id"]
+            foreignKeyName: "fk_knowledge_edges_target_tenant_safe"
+            columns: ["user_id", "target_node_id"]
             isOneToOne: false
             referencedRelation: "knowledge_nodes"
-            referencedColumns: ["id"]
+            referencedColumns: ["user_id", "id"]
           },
         ]
       }
       knowledge_nodes: {
         Row: {
+          archived_at: string | null
           confidence: number
           created_at: string
           description: string | null
           domain_id: string | null
           id: string
+          is_archived: boolean
           last_reviewed_at: string | null
-          last_used_at: string | null
-          mastery_level: number
+          metadata: Json
+          node_type: string
+          normalized_title: string | null
           skill_id: string | null
-          status: string
+          source_id: string | null
+          source_type: string
           title: string
           updated_at: string
           user_id: string
+          verification_status: string
+          verified_at: string | null
+          verified_by: string | null
         }
         Insert: {
+          archived_at?: string | null
           confidence?: number
           created_at?: string
           description?: string | null
           domain_id?: string | null
           id?: string
+          is_archived?: boolean
           last_reviewed_at?: string | null
-          last_used_at?: string | null
-          mastery_level?: number
+          metadata?: Json
+          node_type?: string
+          normalized_title?: string | null
           skill_id?: string | null
-          status?: string
+          source_id?: string | null
+          source_type?: string
           title: string
           updated_at?: string
           user_id: string
+          verification_status?: string
+          verified_at?: string | null
+          verified_by?: string | null
         }
         Update: {
+          archived_at?: string | null
           confidence?: number
           created_at?: string
           description?: string | null
           domain_id?: string | null
           id?: string
+          is_archived?: boolean
           last_reviewed_at?: string | null
-          last_used_at?: string | null
-          mastery_level?: number
+          metadata?: Json
+          node_type?: string
+          normalized_title?: string | null
           skill_id?: string | null
-          status?: string
+          source_id?: string | null
+          source_type?: string
           title?: string
           updated_at?: string
           user_id?: string
+          verification_status?: string
+          verified_at?: string | null
+          verified_by?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "knowledge_nodes_domain_id_fkey"
-            columns: ["domain_id"]
+            foreignKeyName: "fk_knowledge_nodes_domain_tenant_safe"
+            columns: ["user_id", "domain_id"]
             isOneToOne: false
             referencedRelation: "domains"
-            referencedColumns: ["id"]
+            referencedColumns: ["user_id", "id"]
           },
           {
-            foreignKeyName: "knowledge_nodes_skill_id_fkey"
-            columns: ["skill_id"]
+            foreignKeyName: "fk_knowledge_nodes_skill_tenant_safe"
+            columns: ["user_id", "skill_id"]
             isOneToOne: false
             referencedRelation: "skills"
-            referencedColumns: ["id"]
+            referencedColumns: ["user_id", "id"]
           },
         ]
       }
