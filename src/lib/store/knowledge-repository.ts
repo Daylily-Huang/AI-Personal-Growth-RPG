@@ -1,11 +1,15 @@
 // src/lib/store/knowledge-repository.ts
-// Stage 6B Knowledge Map Repository Implementation with strict tenant isolation
+// Stage 6B Knowledge Map Repository Implementation with strict tenant isolation & DB RPC authority
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database, Tables, TablesInsert, TablesUpdate } from "@/lib/supabase/database.types";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { AuthRequiredError } from "./request-repository";
+import {
+  NotFoundError,
+  InvalidAuthorityTransitionError,
+} from "@/lib/knowledge/authority-service";
 import type {
   KnowledgeNode,
   KnowledgeEdge,
@@ -169,6 +173,8 @@ export class SupabaseKnowledgeRepository implements KnowledgeRepository {
       query = query.eq("verification_status", "verified").eq("is_archived", false);
     } else if (filter?.status === "inferred") {
       query = query.eq("verification_status", "inferred").eq("is_archived", false);
+    } else if (filter?.status === "any") {
+      // Fetch entire tenant node universe (e.g. for root ego-graph traversal)
     } else if (filter?.status === "all" || !filter?.status) {
       query = query
         .in("verification_status", ["inferred", "verified"])
@@ -242,7 +248,7 @@ export class SupabaseKnowledgeRepository implements KnowledgeRepository {
       .maybeSingle();
 
     if (error) throw new Error(error.message);
-    if (!data) throw new Error("Knowledge node not found");
+    if (!data) throw new NotFoundError("Knowledge node not found");
     return this.mapNodeRow(data);
   }
 
@@ -290,6 +296,8 @@ export class SupabaseKnowledgeRepository implements KnowledgeRepository {
       query = query.eq("verification_status", "verified").eq("is_archived", false);
     } else if (filter?.status === "inferred") {
       query = query.eq("verification_status", "inferred").eq("is_archived", false);
+    } else if (filter?.status === "any") {
+      // Fetch entire tenant edge universe
     } else if (filter?.status === "all" || !filter?.status) {
       query = query
         .in("verification_status", ["inferred", "verified"])
@@ -610,66 +618,60 @@ export class SupabaseKnowledgeRepository implements KnowledgeRepository {
     nodeId: string,
     transition: "verify" | "reject",
   ): Promise<KnowledgeNode> {
-    const now = new Date().toISOString();
-    const updatePayload: TablesUpdate<"knowledge_nodes"> =
-      transition === "verify"
-        ? {
-            verification_status: "verified",
-            confidence: 1.0,
-            verified_at: now,
-            verified_by: this.userId,
-            updated_at: now,
-          }
-        : {
-            verification_status: "rejected",
-            updated_at: now,
-          };
+    const rpcName = transition === "verify" ? "verify_knowledge_node" : "reject_knowledge_node";
+    const { data, error } = await this.client.rpc(rpcName, { p_node_id: nodeId });
 
-    const { data, error } = await this.client
-      .from("knowledge_nodes")
-      .update(updatePayload)
-      .eq("id", nodeId)
-      .eq("user_id", this.userId)
-      .eq("verification_status", "inferred") // Atomic guard against race conditions
-      .select()
-      .maybeSingle();
+    if (error) {
+      const msg = error.message || "";
+      if (msg.includes("node_not_found") || error.code === "P0002") {
+        throw new NotFoundError(`Knowledge node ${nodeId} not found`);
+      }
+      if (msg.includes("invalid_authority_transition") || error.code === "22000") {
+        throw new InvalidAuthorityTransitionError(
+          `Cannot ${transition} node: node is not in inferred state or transition lost concurrent race`,
+        );
+      }
+      if (msg.includes("auth_required") || error.code === "28000") {
+        throw new AuthRequiredError();
+      }
+      throw new Error(error.message);
+    }
 
-    if (error) throw new Error(error.message);
-    if (!data) throw new Error("Knowledge node transition failed: node not found or not in inferred state");
-    return this.mapNodeRow(data);
+    if (!data) {
+      throw new NotFoundError(`Knowledge node ${nodeId} not found`);
+    }
+
+    return this.mapNodeRow(data as unknown as Tables<"knowledge_nodes">);
   }
 
   async applyEdgeAuthorityTransition(
     edgeId: string,
     transition: "verify" | "reject",
   ): Promise<KnowledgeEdge> {
-    const now = new Date().toISOString();
-    const updatePayload: TablesUpdate<"knowledge_edges"> =
-      transition === "verify"
-        ? {
-            verification_status: "verified",
-            confidence: 1.0,
-            verified_at: now,
-            verified_by: this.userId,
-            updated_at: now,
-          }
-        : {
-            verification_status: "rejected",
-            updated_at: now,
-          };
+    const rpcName = transition === "verify" ? "verify_knowledge_edge" : "reject_knowledge_edge";
+    const { data, error } = await this.client.rpc(rpcName, { p_edge_id: edgeId });
 
-    const { data, error } = await this.client
-      .from("knowledge_edges")
-      .update(updatePayload)
-      .eq("id", edgeId)
-      .eq("user_id", this.userId)
-      .eq("verification_status", "inferred") // Atomic guard against race conditions
-      .select()
-      .maybeSingle();
+    if (error) {
+      const msg = error.message || "";
+      if (msg.includes("edge_not_found") || error.code === "P0002") {
+        throw new NotFoundError(`Knowledge edge ${edgeId} not found`);
+      }
+      if (msg.includes("invalid_authority_transition") || error.code === "22000") {
+        throw new InvalidAuthorityTransitionError(
+          `Cannot ${transition} edge: edge is not in inferred state or transition lost concurrent race`,
+        );
+      }
+      if (msg.includes("auth_required") || error.code === "28000") {
+        throw new AuthRequiredError();
+      }
+      throw new Error(error.message);
+    }
 
-    if (error) throw new Error(error.message);
-    if (!data) throw new Error("Knowledge edge transition failed: edge not found or not in inferred state");
-    return this.mapEdgeRow(data);
+    if (!data) {
+      throw new NotFoundError(`Knowledge edge ${edgeId} not found`);
+    }
+
+    return this.mapEdgeRow(data as unknown as Tables<"knowledge_edges">);
   }
 }
 
@@ -703,6 +705,8 @@ export class DemoKnowledgeRepository implements KnowledgeRepository {
       list = list.filter((n) => n.verificationStatus === "verified" && !n.isArchived);
     } else if (filter?.status === "inferred") {
       list = list.filter((n) => n.verificationStatus === "inferred" && !n.isArchived);
+    } else if (filter?.status === "any") {
+      // Entire universe
     } else {
       list = list.filter(
         (n) => (n.verificationStatus === "inferred" || n.verificationStatus === "verified") && !n.isArchived,
@@ -746,7 +750,7 @@ export class DemoKnowledgeRepository implements KnowledgeRepository {
     updates: UpdateKnowledgeNodeInput,
   ): Promise<KnowledgeNode> {
     const existing = await this.getNode(nodeId);
-    if (!existing) throw new Error("Knowledge node not found");
+    if (!existing) throw new NotFoundError("Knowledge node not found");
     const updated: KnowledgeNode = {
       ...existing,
       title: updates.title ?? existing.title,
@@ -784,6 +788,8 @@ export class DemoKnowledgeRepository implements KnowledgeRepository {
       list = list.filter((e) => e.verificationStatus === "verified" && !e.isArchived);
     } else if (filter?.status === "inferred") {
       list = list.filter((e) => e.verificationStatus === "inferred" && !e.isArchived);
+    } else if (filter?.status === "any") {
+      // Entire universe
     } else {
       list = list.filter(
         (e) => (e.verificationStatus === "inferred" || e.verificationStatus === "verified") && !e.isArchived,
@@ -875,8 +881,13 @@ export class DemoKnowledgeRepository implements KnowledgeRepository {
     transition: "verify" | "reject",
   ): Promise<KnowledgeNode> {
     const node = await this.getNode(nodeId);
-    if (!node || node.verificationStatus !== "inferred") {
-      throw new Error("Knowledge node transition failed: node not found or not in inferred state");
+    if (!node) {
+      throw new NotFoundError(`Knowledge node ${nodeId} not found`);
+    }
+    if (node.verificationStatus !== "inferred") {
+      throw new InvalidAuthorityTransitionError(
+        `Cannot ${transition} node with status '${node.verificationStatus}': only 'inferred' nodes may be transitioned`,
+      );
     }
     const updated: KnowledgeNode = {
       ...node,
@@ -895,8 +906,13 @@ export class DemoKnowledgeRepository implements KnowledgeRepository {
     transition: "verify" | "reject",
   ): Promise<KnowledgeEdge> {
     const edge = await this.getEdge(edgeId);
-    if (!edge || edge.verificationStatus !== "inferred") {
-      throw new Error("Knowledge edge transition failed: edge not found or not in inferred state");
+    if (!edge) {
+      throw new NotFoundError(`Knowledge edge ${edgeId} not found`);
+    }
+    if (edge.verificationStatus !== "inferred") {
+      throw new InvalidAuthorityTransitionError(
+        `Cannot ${transition} edge with status '${edge.verificationStatus}': only 'inferred' edges may be transitioned`,
+      );
     }
     const updated: KnowledgeEdge = {
       ...edge,

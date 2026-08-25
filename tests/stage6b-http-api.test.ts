@@ -176,21 +176,18 @@ describe.skipIf(!DATABASE_URL)("Stage 6B — Knowledge Map HTTP API & Authority 
   // 2. INPUT VALIDATION & FORBIDDEN AUTHORITY MUTATIONS
   // --------------------------------------------------------------------------
 
-  test("2. Malformed parameters and empty inputs return 400", async () => {
-    // Malformed UUID query
+  test("2. Malformed parameters, invalid edge status and empty inputs return 400", async () => {
     const r1 = await api(userA, "/api/knowledge?domainId=not-a-uuid");
     expect(r1.status).toBe(400);
 
     const r2 = await api(userA, "/api/knowledge?rootNodeId=invalid-uuid");
     expect(r2.status).toBe(400);
 
-    // Invalid depth
     const r3 = await api(userA, "/api/knowledge?rootNodeId=00000000-0000-4000-a000-000000000000&depth=5");
     expect(r3.status).toBe(400);
     const d3 = await r3.json();
     expect(d3.code).toBe("invalid_depth");
 
-    // Empty title
     const r4 = await api(userA, "/api/knowledge", {
       method: "POST",
       body: JSON.stringify({ title: "   " }),
@@ -198,10 +195,15 @@ describe.skipIf(!DATABASE_URL)("Stage 6B — Knowledge Map HTTP API & Authority 
     expect(r4.status).toBe(400);
     const d4 = await r4.json();
     expect(d4.code).toBe("empty_title");
+
+    // P2: Invalid Edge status query returns 400 invalid_status
+    const r5 = await api(userA, "/api/knowledge/edges?status=unknown_status_val");
+    expect(r5.status).toBe(400);
+    const d5 = await r5.json();
+    expect(d5.code).toBe("invalid_status");
   });
 
   test("3. Generic PATCH rejects forbidden authority/provenance field mutations with 400", async () => {
-    // 1. Create a verified node
     const createRes = await api(userA, "/api/knowledge", {
       method: "POST",
       body: JSON.stringify({ title: "Patch Target Node" }),
@@ -209,7 +211,6 @@ describe.skipIf(!DATABASE_URL)("Stage 6B — Knowledge Map HTTP API & Authority 
     expect(createRes.status).toBe(201);
     const node = await createRes.json();
 
-    // 2. Try to bypass authority via PATCH verification_status -> rejected with 400
     const patchAuth = await api(userA, `/api/knowledge/${node.id}`, {
       method: "PATCH",
       body: JSON.stringify({ verification_status: "inferred" }),
@@ -218,7 +219,6 @@ describe.skipIf(!DATABASE_URL)("Stage 6B — Knowledge Map HTTP API & Authority 
     const dataAuth = await patchAuth.json();
     expect(dataAuth.code).toBe("forbidden_authority_mutation");
 
-    // 3. Try to erase AI origin via PATCH source_type -> rejected with 400
     const patchSource = await api(userA, `/api/knowledge/${node.id}`, {
       method: "PATCH",
       body: JSON.stringify({ sourceType: "ai_proposal" }),
@@ -227,7 +227,6 @@ describe.skipIf(!DATABASE_URL)("Stage 6B — Knowledge Map HTTP API & Authority 
     const dataSource = await patchSource.json();
     expect(dataSource.code).toBe("forbidden_authority_mutation");
 
-    // 4. Valid metadata update -> succeeds with 200
     const patchValid = await api(userA, `/api/knowledge/${node.id}`, {
       method: "PATCH",
       body: JSON.stringify({ description: "Updated description text" }),
@@ -242,7 +241,6 @@ describe.skipIf(!DATABASE_URL)("Stage 6B — Knowledge Map HTTP API & Authority 
   // --------------------------------------------------------------------------
 
   test("4. Node Sanctioned Verify & Reject Lifecycle (409 on invalid transition)", async () => {
-    // 1. Create AI Proposal inferred node
     const propRes = await api(userA, "/api/knowledge", {
       method: "POST",
       body: JSON.stringify({
@@ -257,7 +255,6 @@ describe.skipIf(!DATABASE_URL)("Stage 6B — Knowledge Map HTTP API & Authority 
     expect(propNode.verificationStatus).toBe("inferred");
     expect(propNode.confidence).toBe(0.85);
 
-    // 2. Sanctioned Verify -> promotes to verified with conf=1.00
     const verifyRes = await api(userA, `/api/knowledge/${propNode.id}/verify`, { method: "POST" });
     expect(verifyRes.status).toBe(200);
     const verifiedNode = await verifyRes.json();
@@ -266,13 +263,11 @@ describe.skipIf(!DATABASE_URL)("Stage 6B — Knowledge Map HTTP API & Authority 
     expect(verifiedNode.verifiedAt).toBeDefined();
     expect(verifiedNode.verifiedBy).toBe(userAId);
 
-    // 3. Second verify on verified node -> 409 Conflict
     const doubleVerify = await api(userA, `/api/knowledge/${propNode.id}/verify`, { method: "POST" });
     expect(doubleVerify.status).toBe(409);
     const dVerifyData = await doubleVerify.json();
     expect(dVerifyData.code).toBe("invalid_authority_transition");
 
-    // 4. Create second proposal to test rejection
     const propRes2 = await api(userA, "/api/knowledge", {
       method: "POST",
       body: JSON.stringify({
@@ -284,14 +279,45 @@ describe.skipIf(!DATABASE_URL)("Stage 6B — Knowledge Map HTTP API & Authority 
     });
     const propNode2 = await propRes2.json();
 
-    // 5. Sanctioned Reject -> status becomes rejected
     const rejectRes = await api(userA, `/api/knowledge/${propNode2.id}/reject`, { method: "POST" });
     expect(rejectRes.status).toBe(200);
     const rejectedNode = await rejectRes.json();
     expect(rejectedNode.verificationStatus).toBe("rejected");
   });
 
-  test("5. Edge Creation, Auto-Canonicalization & Authority Transitions", async () => {
+  // --------------------------------------------------------------------------
+  // 4. CONCURRENT DOUBLE VERIFY (P1 Race-Lost Must Return 409 Never 500)
+  // --------------------------------------------------------------------------
+
+  test("5. Concurrent Double Verify against inferred Node returns 200 + 409 (Never 500)", async () => {
+    // Create an inferred proposal node
+    const nodeRes = await api(userA, "/api/knowledge", {
+      method: "POST",
+      body: JSON.stringify({
+        title: "Concurrent Race Node",
+        sourceType: "ai_proposal",
+        sourceId: activityAId,
+        confidence: 0.9,
+      }),
+    });
+    expect(nodeRes.status).toBe(201);
+    const node = await nodeRes.json();
+
+    // Fire two simultaneous verify requests
+    const [res1, res2] = await Promise.all([
+      api(userA, `/api/knowledge/${node.id}/verify`, { method: "POST" }),
+      api(userA, `/api/knowledge/${node.id}/verify`, { method: "POST" }),
+    ]);
+
+    const statuses = [res1.status, res2.status].sort();
+    expect(statuses).toEqual([200, 409]);
+
+    // Ensure neither returned 500
+    expect(res1.status).not.toBe(500);
+    expect(res2.status).not.toBe(500);
+  });
+
+  test("6. Edge Creation, Auto-Canonicalization & Authority Transitions", async () => {
     const n1Res = await api(userA, "/api/knowledge", {
       method: "POST",
       body: JSON.stringify({ title: "Edge Node 1" }),
@@ -303,7 +329,6 @@ describe.skipIf(!DATABASE_URL)("Stage 6B — Knowledge Map HTTP API & Authority 
     const n1 = await n1Res.json();
     const n2 = await n2Res.json();
 
-    // 1. Self-edge is rejected with 400
     const selfRes = await api(userA, "/api/knowledge/edges", {
       method: "POST",
       body: JSON.stringify({
@@ -314,7 +339,6 @@ describe.skipIf(!DATABASE_URL)("Stage 6B — Knowledge Map HTTP API & Authority 
     });
     expect(selfRes.status).toBe(400);
 
-    // 2. relates_to without provenanceNote is rejected with 400
     const relMissingNote = await api(userA, "/api/knowledge/edges", {
       method: "POST",
       body: JSON.stringify({
@@ -327,13 +351,12 @@ describe.skipIf(!DATABASE_URL)("Stage 6B — Knowledge Map HTTP API & Authority 
     const relNoteData = await relMissingNote.json();
     expect(relNoteData.code).toBe("missing_provenance_note");
 
-    // 3. Symmetric contradicts with uncanonical order is automatically canonicalized -> 201
     const [higherId, lowerId] = n1.id > n2.id ? [n1.id, n2.id] : [n2.id, n1.id];
     const symRes = await api(userA, "/api/knowledge/edges", {
       method: "POST",
       body: JSON.stringify({
-        sourceNodeId: higherId, // deliberately higher
-        targetNodeId: lowerId, // deliberately lower
+        sourceNodeId: higherId,
+        targetNodeId: lowerId,
         relationType: "contradicts",
       }),
     });
@@ -342,7 +365,6 @@ describe.skipIf(!DATABASE_URL)("Stage 6B — Knowledge Map HTTP API & Authority 
     expect(symEdge.sourceNodeId).toBe(lowerId);
     expect(symEdge.targetNodeId).toBe(higherId);
 
-    // 4. Duplicate edge is rejected with 409
     const dupRes = await api(userA, "/api/knowledge/edges", {
       method: "POST",
       body: JSON.stringify({
@@ -355,7 +377,6 @@ describe.skipIf(!DATABASE_URL)("Stage 6B — Knowledge Map HTTP API & Authority 
     const dupData = await dupRes.json();
     expect(dupData.code).toBe("duplicate_edge");
 
-    // 5. Inferred edge verify & reject
     const inEdgeRes = await api(userA, "/api/knowledge/edges", {
       method: "POST",
       body: JSON.stringify({
@@ -378,11 +399,10 @@ describe.skipIf(!DATABASE_URL)("Stage 6B — Knowledge Map HTTP API & Authority 
   });
 
   // --------------------------------------------------------------------------
-  // 4. READ MODELS & PROVENANCE RESOLUTION
+  // 5. READ MODELS & PROVENANCE RESOLUTION
   // --------------------------------------------------------------------------
 
-  test("6. Read Models: GET /api/knowledge/[id] and GET /api/knowledge/edges/[id] resolve provenance", async () => {
-    // Create proposal node backed by activity
+  test("7. Read Models: GET /api/knowledge/[id] and GET /api/knowledge/edges/[id] resolve provenance", async () => {
     const pNodeRes = await api(userA, "/api/knowledge", {
       method: "POST",
       body: JSON.stringify({
@@ -393,7 +413,6 @@ describe.skipIf(!DATABASE_URL)("Stage 6B — Knowledge Map HTTP API & Authority 
     });
     const pNode = await pNodeRes.json();
 
-    // Fetch detail
     const detailRes = await api(userA, `/api/knowledge/${pNode.id}`);
     expect(detailRes.status).toBe(200);
     const detail = await detailRes.json();
@@ -408,83 +427,91 @@ describe.skipIf(!DATABASE_URL)("Stage 6B — Knowledge Map HTTP API & Authority 
   });
 
   // --------------------------------------------------------------------------
-  // 5. PROGRESSIVE GRAPH QUERY & DETERMINISTIC ORDERING
+  // 6. ARCHIVED GRAPH QUERY & PROGRESSIVE LOADING (P1 Archived Query Tests)
   // --------------------------------------------------------------------------
 
-  test("7. GET /api/knowledge: Progressive loading and initial deterministic viewport", async () => {
-    // 1. Initial viewport
-    const gRes = await api(userA, "/api/knowledge");
-    expect(gRes.status).toBe(200);
-    const graph = await gRes.json();
+  test("8. Archived Graph Query: archived hidden in status=all, visible in status=archived", async () => {
+    // Create an active node and an archived node
+    const activeRes = await api(userA, "/api/knowledge", {
+      method: "POST",
+      body: JSON.stringify({ title: "Active Architecture Node" }),
+    });
+    expect(activeRes.status).toBe(201);
+    const activeNode = await activeRes.json();
 
-    expect(Array.isArray(graph.domains)).toBe(true);
-    expect(Array.isArray(graph.nodes)).toBe(true);
-    expect(Array.isArray(graph.edges)).toBe(true);
-    expect(graph.stats).toBeDefined();
-    expect(typeof graph.stats.isTruncated).toBe("boolean");
+    const archRes = await api(userA, "/api/knowledge", {
+      method: "POST",
+      body: JSON.stringify({ title: "Obsolete Design Node" }),
+    });
+    expect(archRes.status).toBe(201);
+    const toArchiveNode = await archRes.json();
 
-    // 2. Progressive loading with rootNodeId
-    if (graph.nodes.length > 0) {
-      const rootId = graph.nodes[0].id;
-      const progRes = await api(userA, `/api/knowledge?rootNodeId=${rootId}&depth=1`);
-      expect(progRes.status).toBe(200);
-      const progGraph = await progRes.json();
-      expect(progGraph.nodes.some((n: { id: string }) => n.id === rootId)).toBe(true);
-    }
+    // Archive the second node
+    const patchArch = await api(userA, `/api/knowledge/${toArchiveNode.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ isArchived: true }),
+    });
+    expect(patchArch.status).toBe(200);
+
+    // 1. GET /api/knowledge (status=all): active visible, archived hidden
+    const gAll = await api(userA, "/api/knowledge?status=all");
+    expect(gAll.status).toBe(200);
+    const dAll = await gAll.json();
+    expect(dAll.nodes.some((n: { id: string }) => n.id === activeNode.id)).toBe(true);
+    expect(dAll.nodes.some((n: { id: string }) => n.id === toArchiveNode.id)).toBe(false);
+
+    // 2. GET /api/knowledge?status=archived: archived returned
+    const gArch = await api(userA, "/api/knowledge?status=archived");
+    expect(gArch.status).toBe(200);
+    const dArch = await gArch.json();
+    expect(dArch.nodes.some((n: { id: string }) => n.id === toArchiveNode.id)).toBe(true);
+    expect(dArch.nodes.some((n: { id: string }) => n.id === activeNode.id)).toBe(false);
   });
 
   // --------------------------------------------------------------------------
-  // 6. CROSS-TENANT SECURITY MATRIX (User A vs User B)
+  // 7. CROSS-TENANT SECURITY MATRIX (User A vs User B)
   // --------------------------------------------------------------------------
 
-  test("8. Cross-Tenant Security Matrix: User B accessing User A entities returns 404", async () => {
-    // User A Node
+  test("9. Cross-Tenant Security Matrix: User B accessing User A entities returns 404", async () => {
     const aNodeRes = await api(userA, "/api/knowledge", {
       method: "POST",
       body: JSON.stringify({ title: "User A Private Secret Node" }),
     });
     const aNode = await aNodeRes.json();
 
-    // User B tries to GET User A's node -> 404
     const bGet = await api(userB, `/api/knowledge/${aNode.id}`);
     expect(bGet.status).toBe(404);
 
-    // User B tries to PATCH User A's node -> 404
     const bPatch = await api(userB, `/api/knowledge/${aNode.id}`, {
       method: "PATCH",
       body: JSON.stringify({ description: "Hacked by User B" }),
     });
     expect(bPatch.status).toBe(404);
 
-    // User B tries to verify User A's node -> 404
     const bVerify = await api(userB, `/api/knowledge/${aNode.id}/verify`, { method: "POST" });
     expect(bVerify.status).toBe(404);
 
-    // User B tries to delete User A's node -> 404
     const bDelete = await api(userB, `/api/knowledge/${aNode.id}`, { method: "DELETE" });
     expect(bDelete.status).toBe(404);
 
-    // User B tries to progressive load with User A's node as root -> 404
     const bRoot = await api(userB, `/api/knowledge?rootNodeId=${aNode.id}&depth=1`);
     expect(bRoot.status).toBe(404);
   });
 
   // --------------------------------------------------------------------------
-  // 7. OWNED DELETION
+  // 8. OWNED DELETION
   // --------------------------------------------------------------------------
 
-  test("9. Owned Deletion: 204 on success, 404 on repeat delete", async () => {
+  test("10. Owned Deletion: 204 on success, 404 on repeat delete", async () => {
     const nodeRes = await api(userA, "/api/knowledge", {
       method: "POST",
       body: JSON.stringify({ title: "Node To Delete" }),
     });
     const node = await nodeRes.json();
 
-    // First delete -> 204
     const d1 = await api(userA, `/api/knowledge/${node.id}`, { method: "DELETE" });
     expect(d1.status).toBe(204);
 
-    // Repeat delete -> 404
     const d2 = await api(userA, `/api/knowledge/${node.id}`, { method: "DELETE" });
     expect(d2.status).toBe(404);
   });

@@ -26,6 +26,8 @@ const VALID_SOURCE_TYPES: KnowledgeSourceType[] = [
   "imported",
 ];
 
+const VALID_STATUSES = ["all", "verified", "inferred", "archived"];
+
 export async function GET(request: Request) {
   try {
     const repo = await getRequestKnowledgeRepository();
@@ -37,6 +39,13 @@ export async function GET(request: Request) {
     if (relationType !== null && !VALID_RELATIONS.includes(relationType as KnowledgeRelationType)) {
       return NextResponse.json(
         { error: `relationType must be one of: ${VALID_RELATIONS.join(", ")}` },
+        { status: 400 },
+      );
+    }
+
+    if (status !== null && !VALID_STATUSES.includes(status)) {
+      return NextResponse.json(
+        { error: `status must be one of: ${VALID_STATUSES.join(", ")}`, code: "invalid_status" },
         { status: 400 },
       );
     }

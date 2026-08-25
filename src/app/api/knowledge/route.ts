@@ -44,7 +44,7 @@ export async function GET(request: Request) {
 
     if (statusParam !== null && !VALID_STATUSES.includes(statusParam)) {
       return NextResponse.json(
-        { error: `status must be one of: ${VALID_STATUSES.join(", ")}` },
+        { error: `status must be one of: ${VALID_STATUSES.join(", ")}`, code: "invalid_status" },
         { status: 400 },
       );
     }
@@ -80,12 +80,17 @@ export async function GET(request: Request) {
       limit = Math.min(parsedLimit, 100);
     }
 
-    // 2. Fetch Graph Data concurrently
+    // 2. Fetch Graph Data
+    // If rootNodeId is specified, fetch entire tenant universe to enable k-hop traversal
+    // Otherwise fetch nodes matching the requested status (P1-archived query fix)
+    const nodeFetchStatus = rootNodeId ? "any" : (statusParam ?? "all");
+    const edgeFetchStatus = rootNodeId ? "any" : (statusParam ?? "all");
+
     const [domains, skills, allNodes, allEdges] = await Promise.all([
       sRepo.listDomains(),
       sRepo.listSkills(),
-      kRepo.listNodes({ status: "all" }),
-      kRepo.listEdges({ status: "all" }),
+      kRepo.listNodes({ status: nodeFetchStatus }),
+      kRepo.listEdges({ status: edgeFetchStatus }),
     ]);
 
     // 3. Compute Progressive Layout & Metrics

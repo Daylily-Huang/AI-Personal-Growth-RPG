@@ -20,7 +20,7 @@ export class InvalidDepthError extends Error {
 
 /**
  * Pure function to compute progressive sub-graph, deterministic layout coordinates,
- * and exact epistemic counts.
+ * and exact epistemic counts. Completely invariant to input array ordering/shuffling.
  */
 export function computeKnowledgeGraph(
   domains: Domain[],
@@ -32,7 +32,7 @@ export function computeKnowledgeGraph(
   const statusFilter = options.status ?? "all";
   const limit = Math.min(Math.max(options.limit ?? 60, 1), 100);
 
-  // 1. Initial filter on raw nodes
+  // 1. Initial filter on raw nodes (Candidate Universe)
   let candidateNodes = allNodes;
 
   if (statusFilter === "archived") {
@@ -67,6 +67,9 @@ export function computeKnowledgeGraph(
     candidateNodes = candidateNodes.filter((n) => n.title.toLowerCase().includes(q));
   }
 
+  const candidateNodeIdSet = new Set(candidateNodes.map((n) => n.id));
+  const allNodesMap = new Map(allNodes.map((n) => [n.id, n]));
+
   // 2. Filter Active Edges for Traversal (P2-1)
   // Progressive graph traversal follows ONLY active edges (inferred/verified and NOT archived)
   const activeEdges = allEdges.filter(
@@ -75,7 +78,29 @@ export function computeKnowledgeGraph(
       !e.isArchived,
   );
 
-  const allNodesMap = new Map(allNodes.map((n) => [n.id, n]));
+  // Pre-calculate active degree for all nodes across activeEdges
+  const degreeMap = new Map<string, number>();
+  for (const n of allNodes) {
+    degreeMap.set(n.id, 0);
+  }
+  for (const e of activeEdges) {
+    if (degreeMap.has(e.sourceNodeId)) {
+      degreeMap.set(e.sourceNodeId, (degreeMap.get(e.sourceNodeId) ?? 0) + 1);
+    }
+    if (degreeMap.has(e.targetNodeId)) {
+      degreeMap.set(e.targetNodeId, (degreeMap.get(e.targetNodeId) ?? 0) + 1);
+    }
+  }
+
+  // Build deterministic adjacency mapping: nodeId -> sorted list of neighborIds
+  const adjMap = new Map<string, Set<string>>();
+  for (const n of allNodes) {
+    adjMap.set(n.id, new Set<string>());
+  }
+  for (const e of activeEdges) {
+    adjMap.get(e.sourceNodeId)?.add(e.targetNodeId);
+    adjMap.get(e.targetNodeId)?.add(e.sourceNodeId);
+  }
 
   let finalNodes: KnowledgeNode[] = [];
   let isTruncated = false;
@@ -92,52 +117,58 @@ export function computeKnowledgeGraph(
       throw new InvalidDepthError("depth must be an integer between 1 and 3");
     }
 
-    // BFS active-edge traversal starting from rootNodeId
+    // Deterministic BFS active-edge traversal starting from rootNodeId
     const visited = new Set<string>([rootNode.id]);
     let currentLevel = [rootNode.id];
 
     for (let d = 0; d < depth; d++) {
-      const nextLevel: string[] = [];
-      for (const nodeId of currentLevel) {
-        for (const edge of activeEdges) {
-          if (edge.sourceNodeId === nodeId && !visited.has(edge.targetNodeId)) {
-            visited.add(edge.targetNodeId);
-            nextLevel.push(edge.targetNodeId);
-          } else if (edge.targetNodeId === nodeId && !visited.has(edge.sourceNodeId)) {
-            visited.add(edge.sourceNodeId);
-            nextLevel.push(edge.sourceNodeId);
+      const nextLevelSet = new Set<string>();
+      // Sort current level to maintain absolute determinism
+      const sortedCurrentLevel = [...currentLevel].sort((a, b) => a.localeCompare(b));
+
+      for (const nodeId of sortedCurrentLevel) {
+        const neighbors = Array.from(adjMap.get(nodeId) ?? []).sort((a, b) =>
+          a.localeCompare(b),
+        );
+        for (const neighborId of neighbors) {
+          if (!visited.has(neighborId)) {
+            visited.add(neighborId);
+            nextLevelSet.add(neighborId);
           }
         }
       }
-      currentLevel = nextLevel;
+      currentLevel = Array.from(nextLevelSet).sort((a, b) => a.localeCompare(b));
       if (currentLevel.length === 0) break;
     }
 
-    // Collect visited nodes that match status filter
-    finalNodes = Array.from(visited)
+    // Filter visited nodes to only those matching ALL supplied filters (Candidate Universe)
+    const matchedVisitedNodes = Array.from(visited)
+      .filter((id) => candidateNodeIdSet.has(id))
       .map((id) => allNodesMap.get(id)!)
-      .filter((n) => n && (statusFilter === "all" ? !n.isArchived : true));
+      .filter(Boolean);
 
-    if (finalNodes.length > limit) {
-      finalNodes = finalNodes.slice(0, limit);
+    // Deterministic sort: degree DESC, updated_at DESC, id ASC
+    const sorted = matchedVisitedNodes.sort((a, b) => {
+      const degA = degreeMap.get(a.id) ?? 0;
+      const degB = degreeMap.get(b.id) ?? 0;
+      if (degB !== degA) return degB - degA;
+
+      const timeA = new Date(a.updatedAt).getTime();
+      const timeB = new Date(b.updatedAt).getTime();
+      if (timeB !== timeA) return timeB - timeA;
+
+      return a.id.localeCompare(b.id);
+    });
+
+    if (sorted.length > limit) {
+      finalNodes = sorted.slice(0, limit);
       isTruncated = true;
+    } else {
+      finalNodes = sorted;
+      isTruncated = false;
     }
   } else {
-    // 4. Initial viewport deterministic ordering & truncation (P2-2)
-    // Compute active degree for each candidate node
-    const degreeMap = new Map<string, number>();
-    for (const n of candidateNodes) {
-      degreeMap.set(n.id, 0);
-    }
-    for (const e of activeEdges) {
-      if (degreeMap.has(e.sourceNodeId)) {
-        degreeMap.set(e.sourceNodeId, (degreeMap.get(e.sourceNodeId) ?? 0) + 1);
-      }
-      if (degreeMap.has(e.targetNodeId)) {
-        degreeMap.set(e.targetNodeId, (degreeMap.get(e.targetNodeId) ?? 0) + 1);
-      }
-    }
-
+    // 4. Initial viewport deterministic ordering & truncation
     // Deterministic sort: degree DESC, updated_at DESC, id ASC
     const sorted = [...candidateNodes].sort((a, b) => {
       const degA = degreeMap.get(a.id) ?? 0;
@@ -162,10 +193,15 @@ export function computeKnowledgeGraph(
 
   const finalNodeIds = new Set(finalNodes.map((n) => n.id));
 
-  // 5. Filter Edges between final visible nodes
-  const visibleEdges = activeEdges.filter(
-    (e) => finalNodeIds.has(e.sourceNodeId) && finalNodeIds.has(e.targetNodeId),
-  );
+  // 5. Filter Edges between final visible nodes and sort deterministically
+  const visibleEdges = activeEdges
+    .filter((e) => finalNodeIds.has(e.sourceNodeId) && finalNodeIds.has(e.targetNodeId))
+    .sort((a, b) => {
+      if (a.sourceNodeId !== b.sourceNodeId) return a.sourceNodeId.localeCompare(b.sourceNodeId);
+      if (a.targetNodeId !== b.targetNodeId) return a.targetNodeId.localeCompare(b.targetNodeId);
+      if (a.relationType !== b.relationType) return a.relationType.localeCompare(b.relationType);
+      return a.id.localeCompare(b.id);
+    });
 
   // 6. Compute edge counts for visible nodes
   const inboundMap = new Map<string, number>();
@@ -180,9 +216,7 @@ export function computeKnowledgeGraph(
   }
 
   // 7. Deterministic Positioning (Zero Math.random / Zero Date.now)
-  // Simple deterministic radial-layer layout around center
   const nodes = finalNodes.map((node, index) => {
-    // Deterministic golden ratio spiral / grid
     const angle = index * 2.399963229728653; // golden angle
     const radius = 60 * Math.sqrt(index);
     const x = Math.round(radius * Math.cos(angle));
