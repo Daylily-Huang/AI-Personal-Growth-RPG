@@ -12,6 +12,10 @@ const DOMAIN_B = "6ad00002-bbbb-4000-b000-000000000002";
 const SKILL_A = "6a500001-aaaa-4000-a000-000000000001";
 const SKILL_B = "6a500002-bbbb-4000-b000-000000000002";
 const ACTIVITY_A = "6ac00001-aaaa-4000-a000-000000000001";
+const ACTIVITY_B = "6ac00002-bbbb-4000-b000-000000000002";
+const ARTIFACT_A = "6aa00001-aaaa-4000-a000-000000000001";
+const ARTIFACT_B = "6aa00002-bbbb-4000-b000-000000000002";
+const FAKE_UUID = "6af00000-dead-4000-f000-000000000000";
 
 describe.skipIf(!DATABASE_URL)("Stage 6A — Knowledge Graph, Schema & Authority (Live PostgreSQL)", () => {
   let pg: Client;
@@ -44,12 +48,13 @@ describe.skipIf(!DATABASE_URL)("Stage 6A — Knowledge Graph, Schema & Authority
       delete from public.evidence_records where user_id in ('${USER_A}', '${USER_B}');
       delete from public.knowledge_edges where user_id in ('${USER_A}', '${USER_B}');
       delete from public.knowledge_nodes where user_id in ('${USER_A}', '${USER_B}');
+      delete from public.artifacts where user_id in ('${USER_A}', '${USER_B}');
       delete from public.activities where user_id in ('${USER_A}', '${USER_B}');
       delete from public.skills where user_id in ('${USER_A}', '${USER_B}');
       delete from public.domains where user_id in ('${USER_A}', '${USER_B}');
     `);
 
-    // Seed test users, profiles, player states, domains and skills
+    // Seed test users, profiles, player states, domains, skills, activities, and artifacts
     await pg.query(`
       insert into auth.users (id, email) values
         ('${USER_A}', 'stage6a_user_a@growth.rpg'),
@@ -70,7 +75,12 @@ describe.skipIf(!DATABASE_URL)("Stage 6A — Knowledge Graph, Schema & Authority
         ('${SKILL_B}', '${USER_B}', 'Algorithms')
       on conflict (user_id, id) do nothing;
       insert into public.activities (id, user_id, title, raw_input, activity_type, status, rules_version) values
-        ('${ACTIVITY_A}', '${USER_A}', 'Read Paper on DNA Barcoding', 'Reading study notes', 'study', 'confirmed', '1.0.0')
+        ('${ACTIVITY_A}', '${USER_A}', 'Read Paper on DNA Barcoding', 'Reading study notes', 'study', 'confirmed', '1.0.0'),
+        ('${ACTIVITY_B}', '${USER_B}', 'Read Paper on Graph Neural Networks', 'Study notes', 'study', 'confirmed', '1.0.0')
+      on conflict (id) do nothing;
+      insert into public.artifacts (id, user_id, title, artifact_type) values
+        ('${ARTIFACT_A}', '${USER_A}', 'PCR Protocol PDF', 'document'),
+        ('${ARTIFACT_B}', '${USER_B}', 'GNN Benchmark Code', 'code')
       on conflict (id) do nothing;
     `);
   });
@@ -82,6 +92,7 @@ describe.skipIf(!DATABASE_URL)("Stage 6A — Knowledge Graph, Schema & Authority
         delete from public.evidence_records where user_id in ('${USER_A}', '${USER_B}');
         delete from public.knowledge_edges where user_id in ('${USER_A}', '${USER_B}');
         delete from public.knowledge_nodes where user_id in ('${USER_A}', '${USER_B}');
+        delete from public.artifacts where user_id in ('${USER_A}', '${USER_B}');
         delete from public.activities where user_id in ('${USER_A}', '${USER_B}');
         delete from public.skills where user_id in ('${USER_A}', '${USER_B}');
         delete from public.domains where user_id in ('${USER_A}', '${USER_B}');
@@ -172,7 +183,7 @@ describe.skipIf(!DATABASE_URL)("Stage 6A — Knowledge Graph, Schema & Authority
         insert into public.knowledge_nodes (user_id, title, verification_status, confidence, source_type)
         values ('${USER_A}', 'Orphan Proposal', 'inferred', 0.80, 'ai_proposal');
       `),
-    ).rejects.toThrow(/knowledge_nodes_provenance_source_check|23514/);
+    ).rejects.toThrow(/source_id is required|knowledge_nodes_provenance_source_check|23514/);
 
     // activity without source_id -> rejected
     await expect(
@@ -180,7 +191,7 @@ describe.skipIf(!DATABASE_URL)("Stage 6A — Knowledge Graph, Schema & Authority
         insert into public.knowledge_nodes (user_id, title, verification_status, confidence, source_type)
         values ('${USER_A}', 'Orphan Activity Node', 'inferred', 0.80, 'activity');
       `),
-    ).rejects.toThrow(/knowledge_nodes_provenance_source_check|23514/);
+    ).rejects.toThrow(/source_id is required|knowledge_nodes_provenance_source_check|23514/);
 
     // Legitimate promotion: ai_proposal promoted to verified by user maintains source_type and source_id
     const promotedNode = await pg.query<{ id: string; verification_status: string; confidence: string }>(`
@@ -192,6 +203,68 @@ describe.skipIf(!DATABASE_URL)("Stage 6A — Knowledge Graph, Schema & Authority
     `);
     expect(promotedNode.rows[0].verification_status).toBe("verified");
     expect(Number(promotedNode.rows[0].confidence)).toBe(1.0);
+  });
+
+  // --------------------------------------------------------------------------
+  // 1.1 PROVENANCE TARGET INTEGRITY TRIGGER (P1-1)
+  // --------------------------------------------------------------------------
+
+  test("3.1 Provenance Target Integrity: Node source_id must exist and belong to the same tenant", async () => {
+    // 1. activity source: nonexistent UUID -> rejected
+    await expect(
+      pg.query(`
+        insert into public.knowledge_nodes (user_id, title, verification_status, confidence, source_type, source_id)
+        values ('${USER_A}', 'Fake Activity Node', 'inferred', 0.80, 'activity', '${FAKE_UUID}');
+      `),
+    ).rejects.toThrow(/Invalid provenance target: activity|23503/);
+
+    // 2. activity source: foreign-tenant (User B) activity -> rejected
+    await expect(
+      pg.query(`
+        insert into public.knowledge_nodes (user_id, title, verification_status, confidence, source_type, source_id)
+        values ('${USER_A}', 'Cross Activity Node', 'inferred', 0.80, 'activity', '${ACTIVITY_B}');
+      `),
+    ).rejects.toThrow(/Invalid provenance target: activity|23503/);
+
+    // 3. activity source: own (User A) activity -> accepted
+    const actNode = await pg.query<{ id: string }>(`
+      insert into public.knowledge_nodes (user_id, title, verification_status, confidence, source_type, source_id)
+      values ('${USER_A}', 'Valid Activity Node', 'inferred', 0.80, 'activity', '${ACTIVITY_A}')
+      returning id;
+    `);
+    expect(actNode.rows[0].id).toBeDefined();
+
+    // 4. artifact source: nonexistent UUID -> rejected
+    await expect(
+      pg.query(`
+        insert into public.knowledge_nodes (user_id, title, verification_status, confidence, source_type, source_id)
+        values ('${USER_A}', 'Fake Artifact Node', 'inferred', 0.80, 'artifact', '${FAKE_UUID}');
+      `),
+    ).rejects.toThrow(/Invalid provenance target: artifact|23503/);
+
+    // 5. artifact source: foreign-tenant (User B) artifact -> rejected
+    await expect(
+      pg.query(`
+        insert into public.knowledge_nodes (user_id, title, verification_status, confidence, source_type, source_id)
+        values ('${USER_A}', 'Cross Artifact Node', 'inferred', 0.80, 'artifact', '${ARTIFACT_B}');
+      `),
+    ).rejects.toThrow(/Invalid provenance target: artifact|23503/);
+
+    // 6. artifact source: own (User A) artifact -> accepted
+    const artNode = await pg.query<{ id: string }>(`
+      insert into public.knowledge_nodes (user_id, title, verification_status, confidence, source_type, source_id)
+      values ('${USER_A}', 'Valid Artifact Node', 'inferred', 0.80, 'artifact', '${ARTIFACT_A}')
+      returning id;
+    `);
+    expect(artNode.rows[0].id).toBeDefined();
+
+    // 7. ai_proposal source: foreign-tenant activity -> rejected
+    await expect(
+      pg.query(`
+        insert into public.knowledge_nodes (user_id, title, verification_status, confidence, source_type, source_id)
+        values ('${USER_A}', 'Cross Proposal Node', 'inferred', 0.80, 'ai_proposal', '${ACTIVITY_B}');
+      `),
+    ).rejects.toThrow(/Invalid provenance target: activity|23503/);
   });
 
   test("4. Deduplication: Normalized title uniqueness blocks duplicate concept names per tenant", async () => {
@@ -273,6 +346,59 @@ describe.skipIf(!DATABASE_URL)("Stage 6A — Knowledge Graph, Schema & Authority
         values ('${USER_A}', '${id3}', '${id1}', 'supports', 'verified', 0.90, now(), '${USER_A}');
       `),
     ).rejects.toThrow(/knowledge_edges_verified_audit_check|23514/);
+  });
+
+  test("5.1 Provenance Target Integrity: Edge source_id must exist and belong to the same tenant", async () => {
+    const na = await pg.query<{ id: string }>(`
+      insert into public.knowledge_nodes (user_id, title, verification_status, confidence, verified_at, verified_by)
+      values ('${USER_A}', 'Edge Target N1', 'verified', 1.0, now(), '${USER_A}') returning id;
+    `);
+    const nb = await pg.query<{ id: string }>(`
+      insert into public.knowledge_nodes (user_id, title, verification_status, confidence, verified_at, verified_by)
+      values ('${USER_A}', 'Edge Target N2', 'verified', 1.0, now(), '${USER_A}') returning id;
+    `);
+    const idA = na.rows[0].id;
+    const idB = nb.rows[0].id;
+
+    // 1. activity source: nonexistent UUID -> rejected
+    await expect(
+      pg.query(`
+        insert into public.knowledge_edges (user_id, source_node_id, target_node_id, relation_type, verification_status, confidence, source_type, source_id)
+        values ('${USER_A}', '${idA}', '${idB}', 'supports', 'inferred', 0.80, 'activity', '${FAKE_UUID}');
+      `),
+    ).rejects.toThrow(/Invalid provenance target: activity|23503/);
+
+    // 2. activity source: foreign-tenant activity -> rejected
+    await expect(
+      pg.query(`
+        insert into public.knowledge_edges (user_id, source_node_id, target_node_id, relation_type, verification_status, confidence, source_type, source_id)
+        values ('${USER_A}', '${idA}', '${idB}', 'supports', 'inferred', 0.80, 'activity', '${ACTIVITY_B}');
+      `),
+    ).rejects.toThrow(/Invalid provenance target: activity|23503/);
+
+    // 3. artifact source: nonexistent UUID -> rejected
+    await expect(
+      pg.query(`
+        insert into public.knowledge_edges (user_id, source_node_id, target_node_id, relation_type, verification_status, confidence, source_type, source_id)
+        values ('${USER_A}', '${idA}', '${idB}', 'supports', 'inferred', 0.80, 'artifact', '${FAKE_UUID}');
+      `),
+    ).rejects.toThrow(/Invalid provenance target: artifact|23503/);
+
+    // 4. artifact source: foreign-tenant artifact -> rejected
+    await expect(
+      pg.query(`
+        insert into public.knowledge_edges (user_id, source_node_id, target_node_id, relation_type, verification_status, confidence, source_type, source_id)
+        values ('${USER_A}', '${idA}', '${idB}', 'supports', 'inferred', 0.80, 'artifact', '${ARTIFACT_B}');
+      `),
+    ).rejects.toThrow(/Invalid provenance target: artifact|23503/);
+
+    // 5. artifact source: own artifact -> accepted
+    const validArtEdge = await pg.query<{ id: string }>(`
+      insert into public.knowledge_edges (user_id, source_node_id, target_node_id, relation_type, verification_status, confidence, source_type, source_id)
+      values ('${USER_A}', '${idA}', '${idB}', 'supports', 'inferred', 0.80, 'artifact', '${ARTIFACT_A}')
+      returning id;
+    `);
+    expect(validArtEdge.rows[0].id).toBeDefined();
   });
 
   test("6. True Symmetric Storage: 'contradicts' and 'relates_to' require canonical ordering (source < target)", async () => {

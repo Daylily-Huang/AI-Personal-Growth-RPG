@@ -68,7 +68,7 @@ CREATE TABLE public.knowledge_nodes (
     CONSTRAINT knowledge_nodes_verified_by_tenant_check
         CHECK (verified_by IS NULL OR verified_by = user_id),
 
-    -- Provenance source integrity check:
+    -- Provenance source format integrity check:
     CONSTRAINT knowledge_nodes_provenance_source_check
         CHECK (
           (source_type IN ('activity', 'artifact', 'ai_proposal') AND source_id IS NOT NULL) OR
@@ -143,7 +143,7 @@ CREATE TABLE public.knowledge_edges (
     CONSTRAINT knowledge_edges_verified_by_tenant_check
         CHECK (verified_by IS NULL OR verified_by = user_id),
 
-    -- Provenance source integrity check:
+    -- Provenance source format integrity check:
     CONSTRAINT knowledge_edges_provenance_source_check
         CHECK (
           (source_type IN ('activity', 'artifact', 'ai_proposal') AND source_id IS NOT NULL) OR
@@ -261,7 +261,65 @@ CREATE TRIGGER trigger_prevent_knowledge_edge_cycle
     EXECUTE FUNCTION public.prevent_knowledge_edge_cycle();
 
 -- ==============================================================================
--- 7. ROW LEVEL SECURITY (RLS) POLICIES
+-- 7. PROVENANCE TARGET INTEGRITY TRIGGER (TENANT-SAFE RESOLUTION)
+-- ==============================================================================
+CREATE OR REPLACE FUNCTION public.validate_knowledge_provenance_target()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  -- 1. If source_type is 'activity' or 'ai_proposal', source_id MUST resolve to public.activities owned by NEW.user_id
+  IF NEW.source_type IN ('activity', 'ai_proposal') THEN
+    IF NEW.source_id IS NULL THEN
+      RAISE EXCEPTION 'source_id is required for source_type %', NEW.source_type
+        USING ERRCODE = '23514';
+    END IF;
+    IF NOT EXISTS (
+      SELECT 1 FROM public.activities
+      WHERE id = NEW.source_id AND user_id = NEW.user_id
+    ) THEN
+      RAISE EXCEPTION 'Invalid provenance target: activity % does not exist for tenant %',
+        NEW.source_id, NEW.user_id
+        USING ERRCODE = '23503';
+    END IF;
+  END IF;
+
+  -- 2. If source_type is 'artifact', source_id MUST resolve to public.artifacts owned by NEW.user_id
+  IF NEW.source_type = 'artifact' THEN
+    IF NEW.source_id IS NULL THEN
+      RAISE EXCEPTION 'source_id is required for source_type %', NEW.source_type
+        USING ERRCODE = '23514';
+    END IF;
+    IF NOT EXISTS (
+      SELECT 1 FROM public.artifacts
+      WHERE id = NEW.source_id AND user_id = NEW.user_id
+    ) THEN
+      RAISE EXCEPTION 'Invalid provenance target: artifact % does not exist for tenant %',
+        NEW.source_id, NEW.user_id
+        USING ERRCODE = '23503';
+    END IF;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trigger_validate_knowledge_nodes_provenance ON public.knowledge_nodes;
+CREATE TRIGGER trigger_validate_knowledge_nodes_provenance
+  BEFORE INSERT OR UPDATE OF source_type, source_id, user_id
+  ON public.knowledge_nodes
+  FOR EACH ROW
+  EXECUTE FUNCTION public.validate_knowledge_provenance_target();
+
+DROP TRIGGER IF EXISTS trigger_validate_knowledge_edges_provenance ON public.knowledge_edges;
+CREATE TRIGGER trigger_validate_knowledge_edges_provenance
+  BEFORE INSERT OR UPDATE OF source_type, source_id, user_id
+  ON public.knowledge_edges
+  FOR EACH ROW
+  EXECUTE FUNCTION public.validate_knowledge_provenance_target();
+
+-- ==============================================================================
+-- 8. ROW LEVEL SECURITY (RLS) POLICIES
 -- ==============================================================================
 ALTER TABLE public.knowledge_nodes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.knowledge_edges ENABLE ROW LEVEL SECURITY;
@@ -309,7 +367,7 @@ CREATE POLICY knowledge_edges_delete ON public.knowledge_edges
     USING (auth.uid() = user_id);
 
 -- ==============================================================================
--- 8. EXPLICIT PRIVILEGE GRANTS (Fail-closed: No anon table grants)
+-- 9. EXPLICIT PRIVILEGE GRANTS (Fail-closed: No anon table grants)
 -- ==============================================================================
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.knowledge_nodes TO authenticated, service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.knowledge_edges TO authenticated, service_role;
