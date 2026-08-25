@@ -261,14 +261,22 @@ CREATE TRIGGER trigger_prevent_knowledge_edge_cycle
     EXECUTE FUNCTION public.prevent_knowledge_edge_cycle();
 
 -- ==============================================================================
--- 7. PROVENANCE TARGET INTEGRITY & AI-PROPOSAL INSERTION INVARIANT TRIGGERS
+-- 7. PROVENANCE IMMUTABILITY & TARGET INTEGRITY TRIGGERS
 -- ==============================================================================
 CREATE OR REPLACE FUNCTION public.validate_knowledge_provenance_target()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 AS $$
 BEGIN
-  -- Authority Invariant (P1-1): AI proposals MUST initially be inserted as 'inferred'
+  -- Provenance Immutability Invariant (P1-1): source_type and source_id cannot be modified after creation
+  IF TG_OP = 'UPDATE' THEN
+    IF NEW.source_type IS DISTINCT FROM OLD.source_type OR NEW.source_id IS DISTINCT FROM OLD.source_id THEN
+      RAISE EXCEPTION 'Provenance identity (source_type and source_id) is immutable after creation'
+        USING ERRCODE = '23514';
+    END IF;
+  END IF;
+
+  -- Authority Invariant: AI proposals MUST initially be inserted as 'inferred'
   IF TG_OP = 'INSERT' AND NEW.source_type = 'ai_proposal' AND NEW.verification_status <> 'inferred' THEN
     RAISE EXCEPTION 'AI proposal must initially be inserted with verification_status = inferred'
       USING ERRCODE = '23514';
@@ -325,7 +333,7 @@ CREATE TRIGGER trigger_validate_knowledge_edges_provenance
   EXECUTE FUNCTION public.validate_knowledge_provenance_target();
 
 -- ==============================================================================
--- 8. SOURCE-SIDE DELETE GUARDS (PREVENT DANGLING AUDIT TRAILS - P1-2)
+-- 8. SOURCE-SIDE DELETE GUARDS (PREVENT DANGLING AUDIT TRAILS)
 -- ==============================================================================
 CREATE OR REPLACE FUNCTION public.prevent_activity_delete_if_referenced_by_knowledge()
 RETURNS TRIGGER

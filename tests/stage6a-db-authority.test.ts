@@ -276,10 +276,98 @@ describe.skipIf(!DATABASE_URL)("Stage 6A — Knowledge Graph, Schema & Authority
   });
 
   // --------------------------------------------------------------------------
-  // 1.2 PROVENANCE TARGET INTEGRITY TRIGGER (P1-1)
+  // 1.2 PROVENANCE IMMUTABILITY: RECLASSIFICATION & ERASURE PREVENTION (P1-1)
   // --------------------------------------------------------------------------
 
-  test("3.2 Provenance Target Integrity: Node source_id must exist and belong to the same tenant", async () => {
+  test("3.2 Provenance Identity Immutability on UPDATE (Nodes & Edges - P1-1)", async () => {
+    // 1. Node Reclassification Attack: verified user_created -> UPDATE source_type=ai_proposal MUST be rejected
+    const userNode = await pg.query<{ id: string }>(`
+      insert into public.knowledge_nodes (user_id, title, verification_status, confidence, source_type, verified_at, verified_by)
+      values ('${USER_A}', 'Immutable Source Node 1', 'verified', 1.0, 'user_created', now(), '${USER_A}')
+      returning id;
+    `);
+    const userNodeId = userNode.rows[0].id;
+
+    await expect(
+      pg.query(`
+        update public.knowledge_nodes
+        set source_type = 'ai_proposal', source_id = '${ACTIVITY_A}'
+        where id = '${userNodeId}';
+      `),
+    ).rejects.toThrow(/Provenance identity \(source_type and source_id\) is immutable after creation|23514/);
+
+    // 2. Node Origin Erasure Attack: inferred ai_proposal -> UPDATE source_type=user_created MUST be rejected
+    const aiNode = await pg.query<{ id: string }>(`
+      insert into public.knowledge_nodes (user_id, title, verification_status, confidence, source_type, source_id)
+      values ('${USER_A}', 'Immutable AI Node 2', 'inferred', 0.80, 'ai_proposal', '${ACTIVITY_A}')
+      returning id;
+    `);
+    const aiNodeId = aiNode.rows[0].id;
+
+    await expect(
+      pg.query(`
+        update public.knowledge_nodes
+        set source_type = 'user_created', source_id = null
+        where id = '${aiNodeId}';
+      `),
+    ).rejects.toThrow(/Provenance identity \(source_type and source_id\) is immutable after creation|23514/);
+
+    // 3. Node Legitimate Promotion: updating verification_status while source_type/source_id remain unchanged MUST succeed
+    const promoNode = await pg.query<{ id: string; verification_status: string }>(`
+      update public.knowledge_nodes
+      set verification_status = 'verified', confidence = 1.00, verified_at = now(), verified_by = '${USER_A}'
+      where id = '${aiNodeId}'
+      returning id, verification_status;
+    `);
+    expect(promoNode.rows[0].verification_status).toBe("verified");
+
+    // 4. Edge Reclassification Attack: verified user_created -> UPDATE source_type=ai_proposal MUST be rejected
+    const userEdge = await pg.query<{ id: string }>(`
+      insert into public.knowledge_edges (user_id, source_node_id, target_node_id, relation_type, verification_status, confidence, source_type, verified_at, verified_by)
+      values ('${USER_A}', '${userNodeId}', '${aiNodeId}', 'prerequisite', 'verified', 1.0, 'user_created', now(), '${USER_A}')
+      returning id;
+    `);
+    const userEdgeId = userEdge.rows[0].id;
+
+    await expect(
+      pg.query(`
+        update public.knowledge_edges
+        set source_type = 'ai_proposal', source_id = '${ACTIVITY_A}'
+        where id = '${userEdgeId}';
+      `),
+    ).rejects.toThrow(/Provenance identity \(source_type and source_id\) is immutable after creation|23514/);
+
+    // 5. Edge Origin Erasure Attack: inferred ai_proposal -> UPDATE source_type=user_created MUST be rejected
+    const aiEdge = await pg.query<{ id: string }>(`
+      insert into public.knowledge_edges (user_id, source_node_id, target_node_id, relation_type, verification_status, confidence, source_type, source_id)
+      values ('${USER_A}', '${userNodeId}', '${aiNodeId}', 'supports', 'inferred', 0.85, 'ai_proposal', '${ACTIVITY_A}')
+      returning id;
+    `);
+    const aiEdgeId = aiEdge.rows[0].id;
+
+    await expect(
+      pg.query(`
+        update public.knowledge_edges
+        set source_type = 'user_created', source_id = null
+        where id = '${aiEdgeId}';
+      `),
+    ).rejects.toThrow(/Provenance identity \(source_type and source_id\) is immutable after creation|23514/);
+
+    // 6. Edge Legitimate Promotion: updating verification_status while source_type/source_id remain unchanged MUST succeed
+    const promoEdge = await pg.query<{ id: string; verification_status: string }>(`
+      update public.knowledge_edges
+      set verification_status = 'verified', confidence = 1.00, verified_at = now(), verified_by = '${USER_A}'
+      where id = '${aiEdgeId}'
+      returning id, verification_status;
+    `);
+    expect(promoEdge.rows[0].verification_status).toBe("verified");
+  });
+
+  // --------------------------------------------------------------------------
+  // 1.3 PROVENANCE TARGET INTEGRITY TRIGGER (P1-1)
+  // --------------------------------------------------------------------------
+
+  test("3.3 Provenance Target Integrity: Node source_id must exist and belong to the same tenant", async () => {
     // 1. activity source: nonexistent UUID -> rejected
     await expect(
       pg.query(`
@@ -807,10 +895,10 @@ describe.skipIf(!DATABASE_URL)("Stage 6A — Knowledge Graph, Schema & Authority
   });
 
   // --------------------------------------------------------------------------
-  // 6. SOURCE DELETE GUARDS (P1-2)
+  // 6. SOURCE DELETE GUARDS (NODE & EDGE REFERENCES - P1-2 & P2-1)
   // --------------------------------------------------------------------------
 
-  test("13. Source Delete Guards: Referenced Activity & Artifact deletion is rejected with 23503 (P1-2)", async () => {
+  test("13. Source Delete Guards: Referenced Activity & Artifact deletion is rejected with 23503 (P1-2 & P2-1)", async () => {
     // 1. Seed unreferenced activity & artifact for User A
     const freeActId = "6ac00099-aaaa-4000-a000-000000000099";
     const freeArtId = "6aa00099-aaaa-4000-a000-000000000099";
@@ -829,7 +917,7 @@ describe.skipIf(!DATABASE_URL)("Stage 6A — Knowledge Graph, Schema & Authority
     const delFreeArt = await pg.query(`delete from public.artifacts where id = '${freeArtId}' returning id;`);
     expect(delFreeArt.rows[0].id).toBe(freeArtId);
 
-    // 4. Seed guarded activity & artifact referenced by knowledge node and edge
+    // 4. Seed guarded activity & artifact referenced by knowledge node
     const guardedActId = "6ac00088-aaaa-4000-a000-000000000088";
     const guardedArtId = "6aa00088-aaaa-4000-a000-000000000088";
     await pg.query(`
@@ -853,28 +941,84 @@ describe.skipIf(!DATABASE_URL)("Stage 6A — Knowledge Graph, Schema & Authority
     `);
     const gArtNodeId = gArtNode.rows[0].id;
 
-    // 5. Referenced Activity DELETE -> rejected with 23503
+    // 5. Node-Referenced Activity DELETE -> rejected with 23503
     await expect(
       pg.query(`delete from public.activities where id = '${guardedActId}';`),
     ).rejects.toThrow(/Cannot delete activity|23503/);
 
-    // 6. Referenced Artifact DELETE -> rejected with 23503
+    // 6. Node-Referenced Artifact DELETE -> rejected with 23503
     await expect(
       pg.query(`delete from public.artifacts where id = '${guardedArtId}';`),
     ).rejects.toThrow(/Cannot delete artifact|23503/);
 
-    // 7. Removing the referencing Knowledge nodes allows subsequent deletion of source entities
+    // 7. Clean node references and verify deletion succeeds
     await pg.query(`delete from public.knowledge_nodes where id in ('${gNodeId}', '${gArtNodeId}');`);
-    
     const delGuardedAct = await pg.query(`delete from public.activities where id = '${guardedActId}' returning id;`);
     expect(delGuardedAct.rows[0].id).toBe(guardedActId);
-
     const delGuardedArt = await pg.query(`delete from public.artifacts where id = '${guardedArtId}' returning id;`);
     expect(delGuardedArt.rows[0].id).toBe(guardedArtId);
+
+    // ------------------------------------------------------------------------
+    // Edge-Only Delete Guard Fixtures (P2-1)
+    // ------------------------------------------------------------------------
+    const edgeOnlyActId = "6ac00077-aaaa-4000-a000-000000000077";
+    const edgeOnlyArtId = "6aa00077-aaaa-4000-a000-000000000077";
+    await pg.query(`
+      insert into public.activities (id, user_id, title, raw_input, activity_type, status, rules_version)
+      values ('${edgeOnlyActId}', '${USER_A}', 'Edge-Only Activity', 'Notes', 'study', 'confirmed', '1.0.0');
+      insert into public.artifacts (id, user_id, title, artifact_type)
+      values ('${edgeOnlyArtId}', '${USER_A}', 'Edge-Only Artifact', 'document');
+    `);
+
+    // Create 2 independent knowledge nodes for edges
+    const eNode1 = await pg.query<{ id: string }>(`
+      insert into public.knowledge_nodes (user_id, title, verification_status, confidence, source_type, verified_at, verified_by)
+      values ('${USER_A}', 'Edge Delete Guard N1', 'verified', 1.0, 'user_created', now(), '${USER_A}') returning id;
+    `);
+    const eNode2 = await pg.query<{ id: string }>(`
+      insert into public.knowledge_nodes (user_id, title, verification_status, confidence, source_type, verified_at, verified_by)
+      values ('${USER_A}', 'Edge Delete Guard N2', 'verified', 1.0, 'user_created', now(), '${USER_A}') returning id;
+    `);
+    const enId1 = eNode1.rows[0].id;
+    const enId2 = eNode2.rows[0].id;
+
+    // Edge referencing edgeOnlyActId ONLY
+    const edgeActRef = await pg.query<{ id: string }>(`
+      insert into public.knowledge_edges (user_id, source_node_id, target_node_id, relation_type, verification_status, confidence, source_type, source_id)
+      values ('${USER_A}', '${enId1}', '${enId2}', 'supports', 'inferred', 0.80, 'activity', '${edgeOnlyActId}') returning id;
+    `);
+    const edgeActRefId = edgeActRef.rows[0].id;
+
+    // 8. Edge-Only Referenced Activity DELETE -> rejected with 23503
+    await expect(
+      pg.query(`delete from public.activities where id = '${edgeOnlyActId}';`),
+    ).rejects.toThrow(/Cannot delete activity|23503/);
+
+    // Delete referencing edge, now edgeOnlyActId CAN be deleted
+    await pg.query(`delete from public.knowledge_edges where id = '${edgeActRefId}';`);
+    const delEdgeAct = await pg.query(`delete from public.activities where id = '${edgeOnlyActId}' returning id;`);
+    expect(delEdgeAct.rows[0].id).toBe(edgeOnlyActId);
+
+    // Edge referencing edgeOnlyArtId ONLY
+    const edgeArtRef = await pg.query<{ id: string }>(`
+      insert into public.knowledge_edges (user_id, source_node_id, target_node_id, relation_type, verification_status, confidence, source_type, source_id)
+      values ('${USER_A}', '${enId1}', '${enId2}', 'supports', 'inferred', 0.80, 'artifact', '${edgeOnlyArtId}') returning id;
+    `);
+    const edgeArtRefId = edgeArtRef.rows[0].id;
+
+    // 9. Edge-Only Referenced Artifact DELETE -> rejected with 23503
+    await expect(
+      pg.query(`delete from public.artifacts where id = '${edgeOnlyArtId}';`),
+    ).rejects.toThrow(/Cannot delete artifact|23503/);
+
+    // Delete referencing edge, now edgeOnlyArtId CAN be deleted
+    await pg.query(`delete from public.knowledge_edges where id = '${edgeArtRefId}';`);
+    const delEdgeArt = await pg.query(`delete from public.artifacts where id = '${edgeOnlyArtId}' returning id;`);
+    expect(delEdgeArt.rows[0].id).toBe(edgeOnlyArtId);
   });
 
   // --------------------------------------------------------------------------
-  // 7. MIGRATION SAFETY GUARD REGRESSION (P2-1)
+  // 7. MIGRATION SAFETY GUARD REGRESSION
   // --------------------------------------------------------------------------
 
   test("14. Migration Safety Guard Regression: Direct execution of 0039 guard block fails closed when tables are non-empty", async () => {

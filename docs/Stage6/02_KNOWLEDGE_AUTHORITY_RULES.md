@@ -1,6 +1,6 @@
 # Stage 6 — Knowledge Map Authority & Provenance Rules
 
-> **Status**: FINAL FROZEN (STAGE 6A ROUND 3 CLOSURE)  
+> **Status**: FINAL FROZEN (STAGE 6A ROUND 5 CLOSURE)  
 > **Target Milestone**: Stage 6 (Knowledge Map)  
 > **Related Rules**: `docs/Design ChatGPT/01_SYSTEM_RULES.md`, `docs/Design ChatGPT/04_MVP_ROADMAP_AND_ACCEPTANCE.md`, `docs/Design ChatGPT/05_AI_GAME_MASTER_CONTRACT.md`, `docs/Design ChatGPT/06_DATABASE_SCHEMA_AND_DATA_DICTIONARY.md`
 
@@ -61,40 +61,44 @@ stateDiagram-v2
 | **`verifyKnowledgeEdge(userId, edgeId)`** | `status == 'inferred'` 且属于当前租户 | `verification_status = 'verified'`, `confidence = 1.00`, `verified_at = now()`, `verified_by = user_id` | **`200 OK`**；若非当前租户 $\rightarrow$ **`404`**；若当前非 `inferred` 状态 $\rightarrow$ **`409 Conflict`** |
 | **`rejectKnowledgeEdge(userId, edgeId)`** | `status == 'inferred'` 且属于当前租户 | `verification_status = 'rejected'` | **`200 OK`**；若非当前租户 $\rightarrow$ **`404`**；若当前非 `inferred` 状态 $\rightarrow$ **`409 Conflict`** |
 
+### 2.3 Stage 6B Sanctioned Authority Mutation Requirement (P2-2)
+- **权威状态变更禁止被客户端泛型 PATCH 随意篡改**：
+  知识权威跃迁（`verify`、`reject`、`supersede`）必须通过经过鉴权的专用服务端接口或安全存储过程执行。Stage 6B/6D 必须明确落地并强制执行该授权闭环路径。
+
 ---
 
-## 3. Provenance Target Integrity ("Why does the system believe this?")
+## 3. Provenance Target Integrity & Identity Immutability (P1-1)
 
-Every permanent or inferred knowledge fact must have an unforgeable, tenant-safe audit trail:
+Every permanent or inferred knowledge fact must have an unforgeable, immutable, tenant-safe audit trail:
 
 ```text
 ┌──────────────────────────────────────────────────────────────────────────┐
-│                         PROVENANCE TARGET INTEGRITY                      │
+│                   PROVENANCE IMMUTABILITY & TARGET INTEGRITY             │
 ├───────────────────┬──────────────────────────────────────────────────────┤
 │ source_type       │ activity | artifact | user_created | ai_proposal     │
-│                   │ | imported (NOT NULL on edges and nodes)             │
+│                   │ | imported (IMMUTABLE after creation)                │
 │ source_id         │ Valid UUID of backing source entity owned by tenant  │
+│                   │ (IMMUTABLE after creation)                           │
 ├───────────────────┼──────────────────────────────────────────────────────┤
 │ activity          │ source_id MUST exist in public.activities for user_id│
 │ artifact          │ source_id MUST exist in public.artifacts for user_id │
 │ ai_proposal       │ source_id MUST exist in public.activities for user_id│
+│                   │ MUST initially be inserted as verification_status=   │
+│                   │ 'inferred' (bypass attempt rejected with 23514)      │
 │ user_created      │ source_id may be NULL (user/verifier identity is auth│
 │ imported          │ source_id OR non-empty description/provenance_note   │
 └───────────────────┴──────────────────────────────────────────────────────┘
 ```
 
-### 3.1 Traceability Rules & Provenance Contract
-1. **Activity / AI Proposal Provenance**:
-   - `source_type = 'activity'` 或 `source_type = 'ai_proposal'`：`source_id` 必须指向当前租户名下真实存在的 `public.activities` 记录。
-   - 当用户在前端确认 AI 提议的节点/边时，记录保留 `source_type = 'ai_proposal'`、`source_id = activity_id`，而权威状态跃迁为 `verification_status = 'verified'`、`confidence = 1.00`、`verified_at = now()`、`verified_by = user_id`。
-2. **Artifact Provenance**:
-   - `source_type = 'artifact'`：`source_id` 必须指向当前租户名下真实存在的 `public.artifacts` 记录。
-3. **User Created**:
-   - `source_type = 'user_created'`：`source_id` 可为空，审计链由 `verified_by = user_id` 和 `verified_at` 保证。
-4. **Imported**:
-   - `source_type = 'imported'`：必须提供 `source_id` 或非空 `description` / `provenance_note`。
-5. **Evidence Linking**:
-   - `evidence_records.knowledge_node_id` 具备租户安全复合外键 `FOREIGN KEY (user_id, knowledge_node_id) REFERENCES public.knowledge_nodes(user_id, id) ON DELETE SET NULL`。
+### 3.1 Traceability Rules & Provenance Immutability Contract
+1. **Provenance Identity is Immutable after INSERT**:
+   - `source_type` 和 `source_id` 在创建后不可变更（数据库触发器在 UPDATE 时校验 `NEW.source_type IS NOT DISTINCT FROM OLD.source_type` 与 `NEW.source_id IS NOT DISTINCT FROM OLD.source_id`，违者抛出 `23514`）。
+   - 彻底杜绝**重分类攻击**（如创建 user_created 节点后强行 update 为 ai_proposal 假装为提议）与**抹除攻击**（如将 ai_proposal 节点 update 为 user_created 抹除 AI 生成起源）。若创建错误，必须删除该知识实体后重建。
+2. **AI Proposal Insertion Invariant**:
+   - `source_type = 'ai_proposal'` 在插入期必须具有 `verification_status = 'inferred'`。任何试图直接 INSERT 为 `verified` 的越权操作均会被数据库硬性拦截（`23514`）。
+   - 后续合法的用户确认（`inferred -> verified`, `confidence = 1.00`, `verified_at = now()`, `verified_by = user_id`）保持 `source_type` 与 `source_id` 不变，顺利通过并完成永久审计。
+3. **Source Delete Guards (Prevent Dangling References)**:
+   - 若 Activity 或 Artifact 被任何 `knowledge_nodes` 或 `knowledge_edges` 引用，删除源实体将被数据库抛出 `23503` 拦截，杜绝悬空溯源。
 
 ---
 
