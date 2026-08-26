@@ -54,7 +54,7 @@ beforeAll(() => {
     }
   }
   (globalThis as Record<string, unknown>).DOMMatrixReadOnly = DOMMatrixReadOnlyMock;
-  (window as Record<string, unknown>).DOMMatrixReadOnly = DOMMatrixReadOnlyMock;
+  (window as unknown as Record<string, unknown>).DOMMatrixReadOnly = DOMMatrixReadOnlyMock;
 
   class ResizeObserverMock {
     private cb: ResizeObserverCallback;
