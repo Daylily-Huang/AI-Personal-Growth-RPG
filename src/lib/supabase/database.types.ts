@@ -1091,6 +1091,65 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      reject_knowledge_edge: {
+        Args: { p_edge_id: string }
+        Returns: {
+          archived_at: string | null
+          confidence: number
+          created_at: string
+          id: string
+          is_archived: boolean
+          metadata: Json
+          provenance_note: string | null
+          relation_type: string
+          source_id: string | null
+          source_node_id: string
+          source_type: string
+          target_node_id: string
+          updated_at: string
+          user_id: string
+          verification_status: string
+          verified_at: string | null
+          verified_by: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "knowledge_edges"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      reject_knowledge_node: {
+        Args: { p_node_id: string }
+        Returns: {
+          archived_at: string | null
+          confidence: number
+          created_at: string
+          description: string | null
+          domain_id: string | null
+          id: string
+          is_archived: boolean
+          last_reviewed_at: string | null
+          metadata: Json
+          node_type: string
+          normalized_title: string | null
+          skill_id: string | null
+          source_id: string | null
+          source_type: string
+          title: string
+          updated_at: string
+          user_id: string
+          verification_status: string
+          verified_at: string | null
+          verified_by: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "knowledge_nodes"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       settle_activity: {
         Args: { p_settlement: Json; p_user_id: string }
         Returns: Json
@@ -1117,6 +1176,65 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "skills"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      verify_knowledge_edge: {
+        Args: { p_edge_id: string }
+        Returns: {
+          archived_at: string | null
+          confidence: number
+          created_at: string
+          id: string
+          is_archived: boolean
+          metadata: Json
+          provenance_note: string | null
+          relation_type: string
+          source_id: string | null
+          source_node_id: string
+          source_type: string
+          target_node_id: string
+          updated_at: string
+          user_id: string
+          verification_status: string
+          verified_at: string | null
+          verified_by: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "knowledge_edges"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      verify_knowledge_node: {
+        Args: { p_node_id: string }
+        Returns: {
+          archived_at: string | null
+          confidence: number
+          created_at: string
+          description: string | null
+          domain_id: string | null
+          id: string
+          is_archived: boolean
+          last_reviewed_at: string | null
+          metadata: Json
+          node_type: string
+          normalized_title: string | null
+          skill_id: string | null
+          source_id: string | null
+          source_type: string
+          title: string
+          updated_at: string
+          user_id: string
+          verification_status: string
+          verified_at: string | null
+          verified_by: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "knowledge_nodes"
           isOneToOne: true
           isSetofReturn: false
         }
