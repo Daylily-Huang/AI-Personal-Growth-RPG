@@ -1,0 +1,1247 @@
+// @vitest-environment jsdom
+// tests/stage6c-ui.test.tsx
+// Stage 6C Knowledge Map React/jsdom Component & Interaction Test Suite
+
+import { afterEach, beforeAll, describe, expect, test, vi } from "vitest";
+import React from "react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import type {
+  KnowledgeGraphResponse,
+  KnowledgeNodeDetailResponse,
+  KnowledgeEdgeDetailResponse,
+} from "@/lib/knowledge/types";
+import KnowledgeMapPage from "@/app/knowledge/page";
+import KnowledgeNodeView, { type KnowledgeNodeData } from "@/app/knowledge/components/KnowledgeNodeView";
+import KnowledgeDetailPanel from "@/app/knowledge/components/KnowledgeDetailPanel";
+import KnowledgeEdgeDetailPanel from "@/app/knowledge/components/KnowledgeEdgeDetailPanel";
+import KnowledgeFilterPanel from "@/app/knowledge/components/KnowledgeFilterPanel";
+import { toFlowEdges } from "@/app/knowledge/components/KnowledgeGraphCanvas";
+import EditNodeMetadataModal from "@/app/knowledge/components/EditNodeMetadataModal";
+import { DEFAULT_FILTERS } from "@/app/knowledge/components/controller";
+
+const pushMock = vi.hoisted(() => vi.fn());
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: pushMock, refresh: vi.fn() }),
+}));
+
+vi.mock("@xyflow/react", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@xyflow/react")>();
+  return {
+    ...actual,
+    Handle: () => null,
+  };
+});
+
+beforeAll(() => {
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    value: (query: string) => ({
+      matches: query.includes("min-width"),
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }),
+  });
+
+  class DOMMatrixReadOnlyMock {
+    m22 = 1;
+    constructor(transform?: string) {
+      const scale = transform?.match(/scale\(([0-9.]+)\)/)?.[1];
+      if (scale !== undefined) this.m22 = Number(scale);
+    }
+  }
+  (globalThis as Record<string, unknown>).DOMMatrixReadOnly = DOMMatrixReadOnlyMock;
+  (window as unknown as Record<string, unknown>).DOMMatrixReadOnly = DOMMatrixReadOnlyMock;
+
+  class ResizeObserverMock {
+    private cb: ResizeObserverCallback;
+    constructor(cb: ResizeObserverCallback) {
+      this.cb = cb;
+    }
+    observe(el: Element) {
+      this.cb(
+        [
+          {
+            target: el,
+            contentRect: { width: 400, height: 300, x: 0, y: 0, top: 0, left: 0, bottom: 300, right: 400 },
+            borderBoxSize: [{ inlineSize: 400, blockSize: 300 }],
+            contentBoxSize: [{ inlineSize: 400, blockSize: 300 }],
+            devicePixelContentBoxSize: [{ inlineSize: 400, blockSize: 300 }],
+          } as unknown as ResizeObserverEntry,
+        ],
+        {} as ResizeObserver,
+      );
+    }
+    unobserve() {}
+    disconnect() {}
+  }
+  globalThis.ResizeObserver = ResizeObserverMock as unknown as typeof ResizeObserver;
+  const svgProto = window.SVGElement.prototype as unknown as {
+    getBBox?: () => { x: number; y: number; width: number; height: number };
+  };
+  svgProto.getBBox =
+    svgProto.getBBox || (() => ({ x: 0, y: 0, width: 0, height: 0 }));
+});
+
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+  vi.clearAllMocks();
+});
+
+const mockGraphData: KnowledgeGraphResponse = {
+  domains: [
+    { id: "dom-1", name: "Neuroscience", slug: "neuro", nodeCount: 2 },
+    { id: "dom-2", name: "AI Systems", slug: "ai", nodeCount: 1 },
+  ],
+  nodes: [
+    {
+      id: "node-1",
+      title: "Long-Term Potentiation",
+      nodeType: "concept",
+      domainId: "dom-1",
+      domainName: "Neuroscience",
+      skillId: "sk-1",
+      skillName: "Synaptic Plasticity",
+      verificationStatus: "verified",
+      isArchived: false,
+      confidence: 1.0,
+      sourceType: "activity",
+      sourceId: "act-1",
+      inboundEdgeCount: 0,
+      outboundEdgeCount: 1,
+      position: { x: 0, y: 0 },
+    },
+    {
+      id: "node-2",
+      title: "NMDA Receptor Calcium Flux",
+      nodeType: "claim",
+      domainId: "dom-1",
+      domainName: "Neuroscience",
+      skillId: null,
+      skillName: null,
+      verificationStatus: "inferred",
+      isArchived: false,
+      confidence: 0.85,
+      sourceType: "ai_proposal",
+      sourceId: "act-1",
+      inboundEdgeCount: 1,
+      outboundEdgeCount: 0,
+      position: { x: 180, y: 0 },
+    },
+    {
+      id: "node-3",
+      title: "Cognitive Architectures",
+      nodeType: "topic",
+      domainId: "dom-2",
+      domainName: "AI Systems",
+      skillId: null,
+      skillName: null,
+      verificationStatus: "verified",
+      isArchived: true,
+      confidence: 1.0,
+      sourceType: "user_created",
+      sourceId: null,
+      inboundEdgeCount: 0,
+      outboundEdgeCount: 0,
+      position: { x: 0, y: 180 },
+    },
+  ],
+  edges: [
+    {
+      id: "edge-1",
+      source: "node-1",
+      target: "node-2",
+      relationType: "supports",
+      verificationStatus: "inferred",
+      isArchived: false,
+      confidence: 0.85,
+      sourceType: "ai_proposal",
+      sourceId: "act-1",
+      provenanceNote: "LTP induction activates NMDA receptors causing calcium influx",
+      verifiedAt: null,
+      verifiedBy: null,
+    },
+  ],
+  stats: {
+    totalNodes: 3,
+    verifiedNodes: 2,
+    inferredNodes: 1,
+    totalEdges: 1,
+    verifiedEdges: 0,
+    inferredEdges: 1,
+    isTruncated: false,
+  },
+};
+
+const mockNodeDetail: KnowledgeNodeDetailResponse = {
+  node: {
+    id: "node-2",
+    title: "NMDA Receptor Calcium Flux",
+    description: "NMDA receptors allow Ca2+ entry upon glutamate binding and membrane depolarization.",
+    nodeType: "claim",
+    domainId: "dom-1",
+    domainName: "Neuroscience",
+    skillId: null,
+    skillName: null,
+    verificationStatus: "inferred",
+    isArchived: false,
+    confidence: 0.85,
+    sourceType: "ai_proposal",
+    sourceId: "act-1",
+    verifiedAt: null,
+    verifiedBy: null,
+    metadata: {},
+    lastReviewedAt: null,
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
+  },
+  provenance: {
+    sourceActivity: {
+      id: "act-1",
+      title: "Read LTP Paper",
+      activityType: "study",
+      completedAt: "2026-01-01T00:00:00.000Z",
+    },
+    sourceArtifact: {
+      id: "art-1",
+      title: "LTP Summary Notes.md",
+      type: "document",
+    },
+    evidenceRecords: [
+      {
+        id: "ev-1",
+        type: "E1",
+        content: "Extracted passage detailing NMDA Ca2+ channel conductance",
+        verified: true,
+        createdAt: "2026-01-01T00:00:00.000Z",
+      },
+    ],
+  },
+  connections: {
+    inbound: [
+      {
+        edgeId: "edge-1",
+        sourceNodeId: "node-1",
+        sourceNodeTitle: "Long-Term Potentiation",
+        sourceNodeType: "concept",
+        relationType: "supports",
+        verificationStatus: "inferred",
+        confidence: 0.85,
+        sourceType: "ai_proposal",
+        sourceId: "act-1",
+        provenanceNote: "LTP induction activates NMDA receptors",
+      },
+    ],
+    outbound: [],
+  },
+};
+
+const mockEdgeDetail: KnowledgeEdgeDetailResponse = {
+  edge: {
+    id: "edge-1",
+    sourceNodeId: "node-1",
+    sourceNodeTitle: "Long-Term Potentiation",
+    targetNodeId: "node-2",
+    targetNodeTitle: "NMDA Receptor Calcium Flux",
+    relationType: "supports",
+    verificationStatus: "inferred",
+    confidence: 0.85,
+    isArchived: false,
+    sourceType: "ai_proposal",
+    sourceId: "act-1",
+    provenanceNote: "LTP induction activates NMDA receptors causing calcium influx",
+    verifiedAt: null,
+    verifiedBy: null,
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
+  },
+  provenance: {
+    sourceActivity: {
+      id: "act-1",
+      title: "Read LTP Paper",
+      completedAt: "2026-01-01T00:00:00.000Z",
+    },
+    sourceArtifact: null,
+  },
+};
+
+const mockSymmetricEdgeDetail: KnowledgeEdgeDetailResponse = {
+  edge: {
+    id: "edge-sym-1",
+    sourceNodeId: "node-1",
+    sourceNodeTitle: "Classical Hebbian Plasticity",
+    targetNodeId: "node-2",
+    targetNodeTitle: "Anti-Hebbian Synaptic Depression",
+    relationType: "contradicts",
+    verificationStatus: "verified",
+    confidence: 1.0,
+    isArchived: false,
+    sourceType: "user_created",
+    sourceId: null,
+    provenanceNote: "Opposing plasticity rules under identical stimulations",
+    verifiedAt: "2026-01-01T00:00:00.000Z",
+    verifiedBy: "user-1",
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
+  },
+  provenance: {
+    sourceActivity: null,
+    sourceArtifact: null,
+  },
+};
+
+describe("Stage 6C — Knowledge Map UI & Component Interaction Tests (Live React/jsdom)", () => {
+  test("1. Loading State: Displays spinner and loading text on initial mount", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockReturnValue(new Promise(() => {})), // never resolves
+    );
+
+    render(<KnowledgeMapPage />);
+    expect(screen.getByTestId("loading-indicator")).toBeDefined();
+    expect(screen.getByText("正在加载知识图谱与认知事实…")).toBeDefined();
+  });
+
+  test("2. Error State & Retry: Displays error message and allows retry", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 500,
+        json: async () => ({ error: "Database connection timeout" }),
+      }),
+    );
+
+    render(<KnowledgeMapPage />);
+    await waitFor(() => {
+      expect(screen.getByTestId("error-state")).toBeDefined();
+    });
+    expect(screen.getByText("Database connection timeout")).toBeDefined();
+
+    const retryBtn = screen.getByTestId("retry-btn");
+    fireEvent.click(retryBtn);
+    expect(globalThis.fetch).toHaveBeenCalled();
+  });
+
+  test("3. Empty State: Displays empty graph placeholder when zero total nodes exist", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          domains: [],
+          nodes: [],
+          edges: [],
+          stats: { totalNodes: 0, verifiedNodes: 0, inferredNodes: 0, totalEdges: 0, verifiedEdges: 0, inferredEdges: 0, isTruncated: false },
+        }),
+      }),
+    );
+
+    render(<KnowledgeMapPage />);
+    await waitFor(() => {
+      expect(screen.getByTestId("empty-graph-state")).toBeDefined();
+    });
+    expect(screen.getByText("知识图谱暂未生成")).toBeDefined();
+  });
+
+  test("4. 4-Channel Visual Encoding: Verified, Inferred (AI), Archived nodes", () => {
+    // 4.1 Verified Concept Node
+    const verifiedData: KnowledgeNodeData = {
+      id: "v-1",
+      title: "Cellular Mitosis",
+      nodeType: "concept",
+      domainId: "dom-1",
+      domainName: "Biology",
+      skillId: "sk-1",
+      skillName: "Cell Biology",
+      verificationStatus: "verified",
+      isArchived: false,
+      confidence: 1.0,
+      sourceType: "user_created",
+      sourceId: null,
+      inboundEdgeCount: 2,
+      outboundEdgeCount: 1,
+    };
+
+    const { unmount: unmount1 } = render(
+      <KnowledgeNodeView
+        id="v-1"
+        data={verifiedData}
+        type="knowledgeNode"
+        selected={false}
+        zIndex={1}
+        isConnectable={false}
+        positionAbsoluteX={0}
+        positionAbsoluteY={0}
+        dragging={false}
+        deletable={false}
+        selectable={true}
+        draggable={false}
+      />,
+    );
+
+    const nodeEl1 = screen.getByTestId("knowledge-node-v-1");
+    expect(nodeEl1.className).toContain("border-solid");
+    expect(screen.getByText("[VERIFIED]")).toBeDefined();
+    expect(screen.getByText("Concept")).toBeDefined();
+    expect(screen.getByText("Biology")).toBeDefined();
+    expect(screen.getByText("Cell Biology")).toBeDefined();
+    unmount1();
+
+    // 4.2 Inferred Claim Node (AI Proposed)
+    const inferredData: KnowledgeNodeData = {
+      id: "inf-1",
+      title: "Spindle Fibers Pull Chromosomes",
+      nodeType: "claim",
+      domainId: "dom-1",
+      domainName: "Biology",
+      skillId: null,
+      skillName: null,
+      verificationStatus: "inferred",
+      isArchived: false,
+      confidence: 0.88,
+      sourceType: "ai_proposal",
+      sourceId: "act-1",
+      inboundEdgeCount: 1,
+      outboundEdgeCount: 0,
+    };
+
+    const { unmount: unmount2 } = render(
+      <KnowledgeNodeView
+        id="inf-1"
+        data={inferredData}
+        type="knowledgeNode"
+        selected={false}
+        zIndex={1}
+        isConnectable={false}
+        positionAbsoluteX={0}
+        positionAbsoluteY={0}
+        dragging={false}
+        deletable={false}
+        selectable={true}
+        draggable={false}
+      />,
+    );
+
+    const nodeEl2 = screen.getByTestId("knowledge-node-inf-1");
+    expect(nodeEl2.className).toContain("border-dashed");
+    expect(screen.getByText("[AI PROPOSED 88%]")).toBeDefined();
+    expect(screen.getByText("Claim")).toBeDefined();
+    unmount2();
+
+    // 4.3 Archived Topic Node
+    const archivedData: KnowledgeNodeData = {
+      id: "arch-1",
+      title: "Ancient Cell Theory",
+      nodeType: "topic",
+      domainId: "dom-1",
+      domainName: "Biology",
+      skillId: null,
+      skillName: null,
+      verificationStatus: "verified",
+      isArchived: true,
+      confidence: 1.0,
+      sourceType: "user_created",
+      sourceId: null,
+      inboundEdgeCount: 0,
+      outboundEdgeCount: 0,
+    };
+
+    render(
+      <KnowledgeNodeView
+        id="arch-1"
+        data={archivedData}
+        type="knowledgeNode"
+        selected={false}
+        zIndex={1}
+        isConnectable={false}
+        positionAbsoluteX={0}
+        positionAbsoluteY={0}
+        dragging={false}
+        deletable={false}
+        selectable={true}
+        draggable={false}
+      />,
+    );
+
+    const nodeEl3 = screen.getByTestId("knowledge-node-arch-1");
+    expect(nodeEl3.className).toContain("border-dotted");
+    expect(screen.getByText("[ARCHIVED]")).toBeDefined();
+    expect(screen.getByText("Topic")).toBeDefined();
+  });
+
+  test("5. Filter Panel Interactions: Search, Domain, NodeType, Status, Progressive Depth", () => {
+    const onFilterChange = vi.fn();
+    const onResetFilters = vi.fn();
+
+    const { rerender } = render(
+      <KnowledgeFilterPanel
+        domains={[{ id: "d-1", name: "Neuroscience", slug: "neuro", nodeCount: 10 }]}
+        totalCandidateNodes={15}
+        filters={DEFAULT_FILTERS}
+        rootNodeTitle={null}
+        onFilterChange={onFilterChange}
+        onResetFilters={onResetFilters}
+      />,
+    );
+
+    // 5.1 Search Input
+    const searchInput = screen.getByTestId("search-input");
+    fireEvent.change(searchInput, { target: { value: "Plasticity" } });
+    expect(onFilterChange).toHaveBeenCalledWith({ search: "Plasticity" });
+
+    // 5.2 Domain Selection
+    const domBtn = screen.getByTestId("domain-btn-d-1");
+    fireEvent.click(domBtn);
+    expect(onFilterChange).toHaveBeenCalledWith({ domainId: "d-1" });
+
+    // 5.3 Node Type Selection
+    const claimBtn = screen.getByTestId("node-type-claim-btn");
+    fireEvent.click(claimBtn);
+    expect(onFilterChange).toHaveBeenCalledWith({ nodeType: "claim" });
+
+    // 5.4 Status Selection
+    const verifiedStatusBtn = screen.getByTestId("status-verified-btn");
+    fireEvent.click(verifiedStatusBtn);
+    expect(onFilterChange).toHaveBeenCalledWith({ status: "verified" });
+
+    // 5.5 Reset Filters CTA
+    const resetBtn = screen.getByTestId("reset-filters-btn");
+    fireEvent.click(resetBtn);
+    expect(onResetFilters).toHaveBeenCalled();
+
+    // 5.6 Progressive Root Active
+    rerender(
+      <KnowledgeFilterPanel
+        domains={[{ id: "d-1", name: "Neuroscience", slug: "neuro", nodeCount: 10 }]}
+        totalCandidateNodes={15}
+        filters={{ ...DEFAULT_FILTERS, rootNodeId: "root-1", depth: 2 }}
+        rootNodeTitle="LTP Root"
+        onFilterChange={onFilterChange}
+        onResetFilters={onResetFilters}
+      />,
+    );
+
+    expect(screen.getByTestId("progressive-root-box")).toBeDefined();
+    expect(screen.getByText("焦点展开: LTP Root")).toBeDefined();
+
+    // Click depth 3
+    const depth3Btn = screen.getByTestId("depth-btn-3");
+    fireEvent.click(depth3Btn);
+    expect(onFilterChange).toHaveBeenCalledWith({ depth: 3 });
+
+    // Click reset root
+    const resetRootBtn = screen.getByTestId("reset-root-btn");
+    fireEvent.click(resetRootBtn);
+    expect(onFilterChange).toHaveBeenCalledWith({ rootNodeId: null });
+  });
+
+  test("6. Node Detail Panel: Fetches GET /api/knowledge/[id], Renders Provenance & 5-Question Audit", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation((url: string) => {
+        if (url.includes("/api/knowledge/node-2")) {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: async () => mockNodeDetail,
+          });
+        }
+        return Promise.reject(new Error(`Unhandled URL: ${url}`));
+      }),
+    );
+
+    const onSelectNode = vi.fn();
+    const onFocusRoot = vi.fn();
+    const onDataChanged = vi.fn();
+    const onClose = vi.fn();
+
+    render(
+      <KnowledgeDetailPanel
+        nodeId="node-2"
+        domains={[{ id: "dom-1", name: "Neuroscience", slug: "neuro", nodeCount: 2 }]}
+        onClose={onClose}
+        onSelectNode={onSelectNode}
+        onFocusRoot={onFocusRoot}
+        onDataChanged={onDataChanged}
+      />,
+    );
+
+    // Verify 5 core questions rendered
+    await waitFor(() => {
+      expect(screen.getByTestId("detail-title")).toBeDefined();
+    });
+    expect(screen.getByText("NMDA Receptor Calcium Flux")).toBeDefined();
+    expect(screen.getByText("[AI PROPOSED 85%]")).toBeDefined();
+    expect(screen.getByText("Neuroscience")).toBeDefined();
+
+    // Provenance Cards with updated label
+    expect(screen.getByText("AI Proposal (backed by Activity)")).toBeDefined();
+    expect(screen.getByTestId("provenance-activity-card")).toBeDefined();
+    expect(screen.getByText("Read LTP Paper")).toBeDefined();
+    expect(screen.getByTestId("provenance-artifact-card")).toBeDefined();
+    expect(screen.getByText("LTP Summary Notes.md")).toBeDefined();
+    expect(screen.getByTestId("evidence-record-ev-1")).toBeDefined();
+    expect(screen.getByText("Extracted passage detailing NMDA Ca2+ channel conductance")).toBeDefined();
+
+    // Connections
+    expect(screen.getByText("Long-Term Potentiation")).toBeDefined();
+
+    // Expand as Root CTA
+    const expandBtn = screen.getByTestId("expand-as-root-btn");
+    fireEvent.click(expandBtn);
+    expect(onFocusRoot).toHaveBeenCalledWith("node-2");
+  });
+
+  test("7. Node Detail Panel: Explicit Empty State when node has no provenance", async () => {
+    const emptyProvenanceDetail: KnowledgeNodeDetailResponse = {
+      ...mockNodeDetail,
+      provenance: {
+        sourceActivity: null,
+        sourceArtifact: null,
+        evidenceRecords: [],
+      },
+    };
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => emptyProvenanceDetail,
+      }),
+    );
+
+    render(
+      <KnowledgeDetailPanel
+        nodeId="node-2"
+        domains={[]}
+        onClose={vi.fn()}
+        onSelectNode={vi.fn()}
+        onFocusRoot={vi.fn()}
+        onDataChanged={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("empty-provenance-box")).toBeDefined();
+    });
+    expect(screen.getByText("无直接关联的行为或产出物记录 (手动录入或无溯源)")).toBeDefined();
+  });
+
+  test("8. Node Verify & Reject with Confirmation Dialogs: Cancel (Zero Mutation) and Confirm Paths", async () => {
+    const fetchMock = vi.fn().mockImplementation((url: string, opts?: RequestInit) => {
+      if (url.includes("/api/knowledge/node-2/verify") && opts?.method === "POST") {
+        return Promise.resolve({ ok: true, status: 200, json: async () => ({ success: true }) });
+      }
+      if (url.includes("/api/knowledge/node-2/reject") && opts?.method === "POST") {
+        return Promise.resolve({ ok: true, status: 200, json: async () => ({ success: true }) });
+      }
+      if (url.includes("/api/knowledge/node-2")) {
+        return Promise.resolve({ ok: true, status: 200, json: async () => mockNodeDetail });
+      }
+      return Promise.reject(new Error(`Unhandled URL: ${url}`));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const onDataChanged = vi.fn();
+
+    render(
+      <KnowledgeDetailPanel
+        nodeId="node-2"
+        domains={[]}
+        onClose={vi.fn()}
+        onSelectNode={vi.fn()}
+        onFocusRoot={vi.fn()}
+        onDataChanged={onDataChanged}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("verify-node-btn")).toBeDefined();
+    });
+
+    // 8.1 Node Verify Cancel path: opens modal, cancels -> ZERO POST mutation
+    fireEvent.click(screen.getByTestId("verify-node-btn"));
+    expect(screen.getByTestId("node-verify-confirm-modal")).toBeDefined();
+    fireEvent.click(screen.getByTestId("cancel-verify-node-btn"));
+    expect(screen.queryByTestId("node-verify-confirm-modal")).toBeNull();
+    expect(fetchMock.mock.calls.some((c) => c[0].includes("/verify"))).toBe(false);
+
+    // 8.2 Node Verify Confirm path: opens modal, confirms -> triggers POST /verify
+    fireEvent.click(screen.getByTestId("verify-node-btn"));
+    fireEvent.click(screen.getByTestId("confirm-verify-node-btn"));
+    await waitFor(() => {
+      expect(screen.getByTestId("action-success-alert")).toBeDefined();
+    });
+    expect(screen.getByText("已成功将节点晋级为已验证事实 [VERIFIED]！")).toBeDefined();
+    expect(onDataChanged).toHaveBeenCalled();
+
+    // 8.3 Node Reject Cancel path: opens modal, cancels -> ZERO POST mutation
+    fireEvent.click(screen.getByTestId("reject-node-btn"));
+    expect(screen.getByTestId("node-reject-confirm-modal")).toBeDefined();
+    fireEvent.click(screen.getByTestId("cancel-reject-node-btn"));
+    expect(screen.queryByTestId("node-reject-confirm-modal")).toBeNull();
+    expect(fetchMock.mock.calls.some((c) => c[0].includes("/reject"))).toBe(false);
+
+    // 8.4 Node Reject Confirm path: opens modal, confirms -> triggers POST /reject
+    fireEvent.click(screen.getByTestId("reject-node-btn"));
+    fireEvent.click(screen.getByTestId("confirm-reject-node-btn"));
+    await waitFor(() => {
+      expect(screen.getByText("已成功否决该 AI 提案节点 [REJECTED]")).toBeDefined();
+    });
+  });
+
+  test("9. 409 Conflict UX: Verify on non-inferred returns 409 without crashing", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation((url: string, opts?: RequestInit) => {
+        if (url.includes("/api/knowledge/node-2/verify") && opts?.method === "POST") {
+          return Promise.resolve({
+            ok: false,
+            status: 409,
+            json: async () => ({ error: "invalid_authority_transition", message: "Node is already verified" }),
+          });
+        }
+        if (url.includes("/api/knowledge/node-2")) {
+          return Promise.resolve({ ok: true, status: 200, json: async () => mockNodeDetail });
+        }
+        return Promise.reject(new Error(`Unhandled URL: ${url}`));
+      }),
+    );
+
+    render(
+      <KnowledgeDetailPanel
+        nodeId="node-2"
+        domains={[]}
+        onClose={vi.fn()}
+        onSelectNode={vi.fn()}
+        onFocusRoot={vi.fn()}
+        onDataChanged={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("verify-node-btn")).toBeDefined();
+    });
+
+    fireEvent.click(screen.getByTestId("verify-node-btn"));
+    fireEvent.click(screen.getByTestId("confirm-verify-node-btn"));
+    await waitFor(() => {
+      expect(screen.getByTestId("action-error-alert")).toBeDefined();
+    });
+    expect(screen.getByText(/409 Conflict/)).toBeDefined();
+  });
+
+  test("10. Edge Detail Panel: Symmetric vs Directed Semantics, Confirmation Cancel/Confirm, and Reject Path", async () => {
+    const fetchMock = vi.fn().mockImplementation((url: string, opts?: RequestInit) => {
+      if (url.includes("/api/knowledge/edges/edge-1/verify") && opts?.method === "POST") {
+        return Promise.resolve({ ok: true, status: 200, json: async () => ({ success: true }) });
+      }
+      if (url.includes("/api/knowledge/edges/edge-1/reject") && opts?.method === "POST") {
+        return Promise.resolve({ ok: true, status: 200, json: async () => ({ success: true }) });
+      }
+      if (url.includes("/api/knowledge/edges/edge-1")) {
+        return Promise.resolve({ ok: true, status: 200, json: async () => mockEdgeDetail });
+      }
+      return Promise.reject(new Error(`Unhandled URL: ${url}`));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const onDataChanged = vi.fn();
+
+    const { unmount } = render(
+      <KnowledgeEdgeDetailPanel
+        edgeId="edge-1"
+        onClose={vi.fn()}
+        onSelectNode={vi.fn()}
+        onDataChanged={onDataChanged}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("knowledge-edge-detail-panel")).toBeDefined();
+    });
+
+    // 10.1 Directed Relation Presentation Check
+    expect(screen.getByText("起点 (Source)")).toBeDefined();
+    expect(screen.getByText("终点 (Target)")).toBeDefined();
+    expect(screen.getByText("SUPPORTS")).toBeDefined();
+
+    // 10.2 Edge Verify Cancel path
+    fireEvent.click(screen.getByTestId("verify-edge-btn"));
+    expect(screen.getByTestId("edge-verify-confirm-modal")).toBeDefined();
+    fireEvent.click(screen.getByTestId("cancel-verify-edge-btn"));
+    expect(screen.queryByTestId("edge-verify-confirm-modal")).toBeNull();
+    expect(fetchMock.mock.calls.some((c) => c[0].includes("/verify"))).toBe(false);
+
+    // 10.3 Edge Verify Confirm path
+    fireEvent.click(screen.getByTestId("verify-edge-btn"));
+    fireEvent.click(screen.getByTestId("confirm-verify-edge-btn"));
+    await waitFor(() => {
+      expect(screen.getByTestId("edge-action-success")).toBeDefined();
+    });
+    expect(screen.getByText("已成功将关系晋级为已验证事实 [VERIFIED]！")).toBeDefined();
+
+    // 10.4 Edge Reject Confirm path
+    fireEvent.click(screen.getByTestId("reject-edge-btn"));
+    expect(screen.getByTestId("edge-reject-confirm-modal")).toBeDefined();
+    fireEvent.click(screen.getByTestId("confirm-reject-edge-btn"));
+    await waitFor(() => {
+      expect(screen.getByText("已成功否决该 AI 提案关系 [REJECTED]")).toBeDefined();
+    });
+    unmount();
+
+    // 10.5 Symmetric Relation Presentation Check (Contradicts)
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation((url: string) => {
+        if (url.includes("/api/knowledge/edges/edge-sym-1")) {
+          return Promise.resolve({ ok: true, status: 200, json: async () => mockSymmetricEdgeDetail });
+        }
+        return Promise.reject(new Error(`Unhandled URL: ${url}`));
+      }),
+    );
+
+    render(
+      <KnowledgeEdgeDetailPanel
+        edgeId="edge-sym-1"
+        onClose={vi.fn()}
+        onSelectNode={vi.fn()}
+        onDataChanged={onDataChanged}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("对称知识关联")).toBeDefined();
+    });
+    expect(screen.getByText("节点 A")).toBeDefined();
+    expect(screen.getByText("节点 B")).toBeDefined();
+    expect(screen.queryByText("起点 (Source)")).toBeNull();
+    expect(screen.queryByText("终点 (Target)")).toBeNull();
+  });
+
+  test("11. toFlowEdges Mapping: Converts raw edges to 4-channel ReactFlow edges with custom markers", () => {
+    const raw = [
+      {
+        id: "e-prereq",
+        source: "n1",
+        target: "n2",
+        relationType: "prerequisite" as const,
+        verificationStatus: "verified" as const,
+        isArchived: false,
+        confidence: 1.0,
+        sourceType: "user_created" as const,
+        sourceId: null,
+        provenanceNote: null,
+        verifiedAt: null,
+        verifiedBy: null,
+      },
+      {
+        id: "e-contains",
+        source: "n1",
+        target: "n3",
+        relationType: "contains" as const,
+        verificationStatus: "verified" as const,
+        isArchived: false,
+        confidence: 1.0,
+        sourceType: "user_created" as const,
+        sourceId: null,
+        provenanceNote: null,
+        verifiedAt: null,
+        verifiedBy: null,
+      },
+      {
+        id: "e-contradicts",
+        source: "n2",
+        target: "n3",
+        relationType: "contradicts" as const,
+        verificationStatus: "inferred" as const,
+        isArchived: false,
+        confidence: 0.77,
+        sourceType: "ai_proposal" as const,
+        sourceId: "act-1",
+        provenanceNote: "Direct conflict",
+        verifiedAt: null,
+        verifiedBy: null,
+      },
+      {
+        id: "e-relates",
+        source: "n1",
+        target: "n4",
+        relationType: "relates_to" as const,
+        verificationStatus: "verified" as const,
+        isArchived: false,
+        confidence: 1.0,
+        sourceType: "user_created" as const,
+        sourceId: null,
+        provenanceNote: null,
+        verifiedAt: null,
+        verifiedBy: null,
+      },
+    ];
+
+    const flowEdges = toFlowEdges(raw, "e-contains");
+    expect(flowEdges).toHaveLength(4);
+
+    // Prerequisite -> Arrow
+    expect(flowEdges[0].label).toBe("PREREQUISITE");
+
+    // Contains -> Circle
+    expect(flowEdges[1].label).toBe("CONTAINS");
+    expect(flowEdges[1].markerEnd).toBe("url(#knowledge-marker-circle)");
+    expect(flowEdges[1].style?.strokeWidth).toBe(2.5); // selected edge
+
+    // Contradicts (Inferred) -> Lightning + Dashed + Animated
+    expect(flowEdges[2].label).toBe("CONTRADICTS · AI 77%");
+    expect(flowEdges[2].markerEnd).toBe("url(#knowledge-marker-lightning)");
+    expect(flowEdges[2].animated).toBe(true);
+    expect(flowEdges[2].style?.strokeDasharray).toBe("4 3");
+
+    // Relates_to -> markerEnd is undefined (no directional arrow)
+    expect(flowEdges[3].label).toBe("RELATES TO");
+    expect(flowEdges[3].markerEnd).toBeUndefined();
+  });
+
+  test("12. Truncation Banner: Displays banner when isTruncated is true", async () => {
+    const truncatedGraph: KnowledgeGraphResponse = {
+      ...mockGraphData,
+      stats: {
+        ...mockGraphData.stats,
+        isTruncated: true,
+        totalNodes: 85,
+      },
+    };
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => truncatedGraph,
+      }),
+    );
+
+    render(<KnowledgeMapPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("graph-truncated-banner")).toBeDefined();
+    });
+    expect(screen.getByText(/当前图谱节点较多，已截取前 3 个核心节点/)).toBeDefined();
+  });
+
+  test("13. P2-1 Stale Error Recovery: Initial failure cleared when filter changes and fetch succeeds", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation((url: string) => {
+        if (url.includes("search=Plasticity")) {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: async () => mockGraphData,
+          });
+        }
+        return Promise.resolve({
+          ok: false,
+          status: 500,
+          json: async () => ({ error: "Temporary server error" }),
+        });
+      }),
+    );
+
+    render(<KnowledgeMapPage />);
+
+    // First fetch displays error
+    await waitFor(() => {
+      expect(screen.getByTestId("error-state")).toBeDefined();
+    });
+    expect(screen.getByText("Temporary server error")).toBeDefined();
+
+    // User changes search filter
+    const searchInput = screen.getByTestId("header-search-input");
+    fireEvent.change(searchInput, { target: { value: "Plasticity" } });
+
+    // Second fetch succeeds -> error cleared, graph rendered
+    await waitFor(() => {
+      expect(screen.queryByTestId("error-state")).toBeNull();
+    });
+    expect(screen.getByTestId("domain-all-btn")).toBeDefined();
+  });
+
+  test("14. Detail Panel 404 UX & 401 Redirect Matrix", async () => {
+    // 14.1 Detail 404 UX
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 404,
+        json: async () => ({ error: "Entity not found" }),
+      }),
+    );
+
+    const onClose = vi.fn();
+    render(
+      <KnowledgeDetailPanel
+        nodeId="missing-node"
+        domains={[]}
+        onClose={onClose}
+        onSelectNode={vi.fn()}
+        onFocusRoot={vi.fn()}
+        onDataChanged={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Entity not found")).toBeDefined();
+    });
+    fireEvent.click(screen.getByText("关闭面板"));
+    expect(onClose).toHaveBeenCalled();
+
+    // 14.2 Page 401 Redirects to /login
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 401,
+        json: async () => ({ error: "Unauthorized" }),
+      }),
+    );
+
+    render(<KnowledgeMapPage />);
+    await waitFor(() => {
+      expect(pushMock).toHaveBeenCalledWith("/login");
+    });
+  });
+
+  test("15. Regression A — Cancel / Reopen: Discards uncommitted draft and restores latest server truth without PATCH mutation", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const domains = [
+      { id: "dom-1", name: "Neuroscience", slug: "neuro", nodeCount: 5 },
+      { id: "dom-2", name: "AI Systems", slug: "ai", nodeCount: 3 },
+    ];
+
+    const onClose = vi.fn();
+    const onSuccess = vi.fn();
+
+    const { rerender } = render(
+      <EditNodeMetadataModal
+        nodeId="node-test-1"
+        initialTitle="Server Title A"
+        initialDescription="Server Desc A"
+        initialDomainId="dom-1"
+        initialIsArchived={false}
+        domains={domains}
+        isOpen={true}
+        onClose={onClose}
+        onSuccess={onSuccess}
+      />,
+    );
+
+    // Initial check: modal shows server props
+    const titleInput = screen.getByTestId("edit-node-title-input") as HTMLInputElement;
+    const descInput = screen.getByTestId("edit-node-desc-input") as HTMLTextAreaElement;
+    const domainSelect = screen.getByTestId("edit-node-domain-select") as HTMLSelectElement;
+    const archiveCheckbox = screen.getByTestId("edit-node-archive-checkbox") as HTMLInputElement;
+
+    expect(titleInput.value).toBe("Server Title A");
+    expect(descInput.value).toBe("Server Desc A");
+    expect(domainSelect.value).toBe("dom-1");
+    expect(archiveCheckbox.checked).toBe(false);
+
+    // Step 2 & 3: User changes all editable fields to draft B
+    fireEvent.change(titleInput, { target: { value: "Draft Unsaved Title B" } });
+    fireEvent.change(descInput, { target: { value: "Draft Unsaved Desc B" } });
+    fireEvent.change(domainSelect, { target: { value: "dom-2" } });
+    fireEvent.click(archiveCheckbox); // changes checked to true
+
+    expect(titleInput.value).toBe("Draft Unsaved Title B");
+    expect(descInput.value).toBe("Draft Unsaved Desc B");
+    expect(domainSelect.value).toBe("dom-2");
+    expect(archiveCheckbox.checked).toBe(true);
+
+    // Step 4: User clicks Cancel
+    const cancelBtn = screen.getByTestId("cancel-edit-metadata-btn");
+    fireEvent.click(cancelBtn);
+    expect(onClose).toHaveBeenCalled();
+
+    // Step 5: Assert zero PATCH requests occurred
+    expect(fetchMock.mock.calls.some((c) => c[1]?.method === "PATCH")).toBe(false);
+
+    // Step 6: Close and Reopen the modal with unchanged server props
+    rerender(
+      <EditNodeMetadataModal
+        nodeId="node-test-1"
+        initialTitle="Server Title A"
+        initialDescription="Server Desc A"
+        initialDomainId="dom-1"
+        initialIsArchived={false}
+        domains={domains}
+        isOpen={false}
+        onClose={onClose}
+        onSuccess={onSuccess}
+      />,
+    );
+
+    rerender(
+      <EditNodeMetadataModal
+        nodeId="node-test-1"
+        initialTitle="Server Title A"
+        initialDescription="Server Desc A"
+        initialDomainId="dom-1"
+        initialIsArchived={false}
+        domains={domains}
+        isOpen={true}
+        onClose={onClose}
+        onSuccess={onSuccess}
+      />,
+    );
+
+    // Step 7: Assert fields equal latest server truth, NOT the abandoned unsaved draft
+    const reopenedTitle = screen.getByTestId("edit-node-title-input") as HTMLInputElement;
+    const reopenedDesc = screen.getByTestId("edit-node-desc-input") as HTMLTextAreaElement;
+    const reopenedDomain = screen.getByTestId("edit-node-domain-select") as HTMLSelectElement;
+    const reopenedArchive = screen.getByTestId("edit-node-archive-checkbox") as HTMLInputElement;
+
+    expect(reopenedTitle.value).toBe("Server Title A");
+    expect(reopenedDesc.value).toBe("Server Desc A");
+    expect(reopenedDomain.value).toBe("dom-1");
+    expect(reopenedArchive.checked).toBe(false);
+  });
+
+  test("16. Regression B — Save / Server Refresh / Reopen: Submits whitelisted PATCH payload, triggers server refresh, and editor displays canonical refreshed truth", async () => {
+    let patchPayload: unknown = null;
+    const fetchMock = vi.fn().mockImplementation((url: string, opts?: RequestInit) => {
+      if (url.includes("/api/knowledge/node-test-1") && opts?.method === "PATCH") {
+        patchPayload = JSON.parse(opts.body as string);
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({ success: true }),
+        });
+      }
+      return Promise.reject(new Error(`Unhandled URL: ${url}`));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const domains = [
+      { id: "dom-1", name: "Neuroscience", slug: "neuro", nodeCount: 5 },
+      { id: "dom-2", name: "AI Systems", slug: "ai", nodeCount: 3 },
+    ];
+
+    const onClose = vi.fn();
+    const onSuccess = vi.fn();
+
+    // 1. Open modal with initial props
+    const { rerender } = render(
+      <EditNodeMetadataModal
+        nodeId="node-test-1"
+        initialTitle="Original Title"
+        initialDescription="Original Desc"
+        initialDomainId="dom-1"
+        initialIsArchived={false}
+        domains={domains}
+        isOpen={true}
+        onClose={onClose}
+        onSuccess={onSuccess}
+      />,
+    );
+
+    // 2. Change metadata fields
+    const titleInput = screen.getByTestId("edit-node-title-input") as HTMLInputElement;
+    const descInput = screen.getByTestId("edit-node-desc-input") as HTMLTextAreaElement;
+    const domainSelect = screen.getByTestId("edit-node-domain-select") as HTMLSelectElement;
+    const archiveCheckbox = screen.getByTestId("edit-node-archive-checkbox") as HTMLInputElement;
+
+    fireEvent.change(titleInput, { target: { value: "Canonical Saved Title" } });
+    fireEvent.change(descInput, { target: { value: "Canonical Saved Desc" } });
+    fireEvent.change(domainSelect, { target: { value: "dom-2" } });
+    fireEvent.click(archiveCheckbox);
+
+    // 3. Save
+    const saveBtn = screen.getByTestId("save-node-metadata-btn");
+    fireEvent.click(saveBtn);
+
+    await waitFor(() => {
+      expect(onSuccess).toHaveBeenCalled();
+    });
+    expect(onClose).toHaveBeenCalled();
+
+    // 4. Assert PATCH contains ONLY sanctioned whitelisted metadata fields
+    expect(patchPayload).toEqual({
+      title: "Canonical Saved Title",
+      description: "Canonical Saved Desc",
+      domainId: "dom-2",
+      isArchived: true,
+    });
+
+    // 5. Parent performs server refresh and reopens modal with refreshed canonical values
+    rerender(
+      <EditNodeMetadataModal
+        nodeId="node-test-1"
+        initialTitle="Canonical Saved Title"
+        initialDescription="Canonical Saved Desc"
+        initialDomainId="dom-2"
+        initialIsArchived={true}
+        domains={domains}
+        isOpen={true}
+        onClose={onClose}
+        onSuccess={onSuccess}
+      />,
+    );
+
+    const refreshedTitle = screen.getByTestId("edit-node-title-input") as HTMLInputElement;
+    const refreshedDesc = screen.getByTestId("edit-node-desc-input") as HTMLTextAreaElement;
+    const refreshedDomain = screen.getByTestId("edit-node-domain-select") as HTMLSelectElement;
+    const refreshedArchive = screen.getByTestId("edit-node-archive-checkbox") as HTMLInputElement;
+
+    expect(refreshedTitle.value).toBe("Canonical Saved Title");
+    expect(refreshedDesc.value).toBe("Canonical Saved Desc");
+    expect(refreshedDomain.value).toBe("dom-2");
+    expect(refreshedArchive.checked).toBe(true);
+  });
+
+  test("17. Mutually Exclusive Confirmation Modals: Opening verify closes reject, and opening reject closes verify", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation((url: string) => {
+        if (url.includes("/api/knowledge/node-2")) {
+          return Promise.resolve({ ok: true, status: 200, json: async () => mockNodeDetail });
+        }
+        return Promise.reject(new Error(`Unhandled URL: ${url}`));
+      }),
+    );
+
+    render(
+      <KnowledgeDetailPanel
+        nodeId="node-2"
+        domains={[]}
+        onClose={vi.fn()}
+        onSelectNode={vi.fn()}
+        onFocusRoot={vi.fn()}
+        onDataChanged={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("verify-node-btn")).toBeDefined();
+    });
+
+    // Open Verify confirmation
+    fireEvent.click(screen.getByTestId("verify-node-btn"));
+    expect(screen.getByTestId("node-verify-confirm-modal")).toBeDefined();
+    expect(screen.queryByTestId("node-reject-confirm-modal")).toBeNull();
+
+    // Now click Reject -> verify closes, reject opens
+    fireEvent.click(screen.getByTestId("reject-node-btn"));
+    expect(screen.getByTestId("node-reject-confirm-modal")).toBeDefined();
+    expect(screen.queryByTestId("node-verify-confirm-modal")).toBeNull();
+  });
+});
