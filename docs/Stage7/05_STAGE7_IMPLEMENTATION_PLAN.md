@@ -1,0 +1,74 @@
+# Stage 7 — Artifact Implementation Plan
+
+> **Status**: DESIGN FREEZE  
+> **Milestone**: Stage 7 (Artifact Management & Synthesis System)  
+> **Dependencies**: Stage 0–6 (FROZEN)  
+> **Related Documents**: `01_ARTIFACT_DOMAIN_MODEL.md`, `02_ARTIFACT_AUTHORITY_RULES.md`, `03_ARTIFACT_API_AND_STATE.md`, `04_ARTIFACT_UI_SPEC.md`, `06_STAGE7_ACCEPTANCE_GATES.md`
+
+---
+
+## 1. Architectural Strategy & Sub-Stage Split
+
+```mermaid
+graph TD
+    subgraph Stage 7A: Schema & Authority [CURRENT TARGET]
+        A1[0041 Migration & Table Rebuild] --> A2[Normalized Relational Join Tables]
+        A2 --> A3[Composite Foreign Keys & RLS]
+        A3 --> A4[Fail-Closed Deletion Trigger]
+        A4 --> A5[Live PostgreSQL Authority Test Suite]
+    end
+
+    subgraph Stage 7B: API & Read-Model [NEXT]
+        B1[Artifact Repository & Link Service] --> B2[RESTful Endpoints /api/artifacts]
+        B2 --> B3[Batch Relationship Management]
+        B3 --> B4[HTTP Integration Tests]
+    end
+
+    subgraph Stage 7C: Interactive UI [FUTURE]
+        C0[Design-Sequence Checkpoint] --> C1[Artifacts Gallery & List View]
+        C1 --> C2[Detail Inspector Drawer]
+        C2 --> C3[Create / Edit / Archive Dialogs]
+    end
+
+    subgraph Stage 7D: E2E & Final Freeze [FUTURE]
+        D1[Full End-to-End Test Suite] --> D2[Cross-Tenant Security Audit]
+        D2 --> D3[Final Freeze Merge to main]
+    end
+
+    Stage 7A --> Stage 7B --> Stage 7C --> Stage 7D
+```
+
+---
+
+## 2. Sub-Stage Detailed Breakdown
+
+### 2.1 Stage 7A — Domain Model, Schema & Authority (Branch: `feature/stage7a-artifact-authority`)
+- **Migration `0041_artifact_management_authority.sql`**:
+  - Rebuild / upgrade `public.artifacts` with strict constraints (`artifact_type` enum, `lifecycle_status` enum, `reusability_score` 0.00..1.00, `is_archived`).
+  - Create normalized join tables:
+    - `public.artifact_activities`
+    - `public.artifact_skills`
+    - `public.artifact_knowledge_nodes`
+    - `public.artifact_quests`
+    - `public.artifact_evidence`
+  - Enforce composite foreign keys `(user_id, artifact_id)` and `(user_id, entity_id)` to guarantee tenant boundary at DB level.
+  - Implement fail-closed delete guard trigger `prevent_artifact_delete_if_referenced()` protecting Knowledge Provenance and Evidence.
+  - Row Level Security (RLS) policies on all tables (`auth.uid() = user_id`).
+  - Comprehensive live PostgreSQL test suite (`tests/stage7a-db-authority.test.ts`).
+
+### 2.2 Stage 7B — Repository, API Layer & Relationship Manager
+- Typed `SupabaseArtifactRepository` implementing CRUD, filtering, pagination, and multi-relational joins.
+- Next.js App Router API routes under `src/app/api/artifacts/**`.
+- Batch link management and HTTP integration tests with cross-tenant attack assertions (`tests/stage7b-http-api.test.ts`).
+
+### 2.3 Stage 7C — Artifacts Workspace UI
+- Pause at **Design-Sequence Checkpoint** to evaluate extracting global app shell, shared navigation, and drawer primitives.
+- Implement `/artifacts` page with Left filter bar, Center artifact gallery/list, and Right detail inspector.
+- Interactive Modals (Create, Edit, Archive/Delete confirmation).
+- UI component and interaction test suite (`tests/stage7c-ui.test.tsx`).
+
+### 2.4 Stage 7D — E2E Integration, Security Isolation & Final Freeze
+- Full browser/HTTP lifecycle E2E tests in `tests/e2e-http-browser.test.ts`.
+- Live PostgreSQL hostile-client and security isolation audit (`tests/stage7d-security-isolation.test.ts`).
+- Credential leak and CI log sanitization audit.
+- Final documentation synchronization and freeze.

@@ -75,7 +75,8 @@ describe.skipIf(!DATABASE_URL)("M3 Stage1.2 — empty-DB migration smoke", () =>
         "profiles", "player_states", "domains", "skills", "quests", "activities",
         "ai_assessments", "evidence_records", "xp_transactions",
         "mastery_verifications", "mastery_events", "knowledge_nodes",
-        "knowledge_edges", "artifacts", "artifact_links", "reviews",
+        "knowledge_edges", "artifacts", "artifact_activities", "artifact_skills",
+        "artifact_knowledge_nodes", "artifact_quests", "artifact_evidence", "reviews",
       ];
 
       // All private tables exist and have RLS enabled.
