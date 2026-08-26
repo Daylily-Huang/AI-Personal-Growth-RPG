@@ -431,7 +431,10 @@ export default function KnowledgeDetailPanel({
                 <button
                   type="button"
                   data-testid="verify-node-btn"
-                  onClick={() => setConfirmVerifyOpen(true)}
+                  onClick={() => {
+                    setConfirmVerifyOpen(true);
+                    setConfirmRejectOpen(false);
+                  }}
                   disabled={verifying || rejecting}
                   className="flex items-center justify-center gap-1.5 rounded-lg bg-emerald-600 py-2 font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
                 >
@@ -446,7 +449,10 @@ export default function KnowledgeDetailPanel({
                 <button
                   type="button"
                   data-testid="reject-node-btn"
-                  onClick={() => setConfirmRejectOpen(true)}
+                  onClick={() => {
+                    setConfirmRejectOpen(true);
+                    setConfirmVerifyOpen(false);
+                  }}
                   disabled={verifying || rejecting}
                   className="flex items-center justify-center gap-1.5 rounded-lg border border-rose-500/40 bg-rose-950/40 py-2 font-semibold text-rose-300 hover:bg-rose-900/60 disabled:opacity-50"
                 >

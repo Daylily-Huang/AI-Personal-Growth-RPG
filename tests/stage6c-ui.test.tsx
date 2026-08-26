@@ -16,6 +16,7 @@ import KnowledgeDetailPanel from "@/app/knowledge/components/KnowledgeDetailPane
 import KnowledgeEdgeDetailPanel from "@/app/knowledge/components/KnowledgeEdgeDetailPanel";
 import KnowledgeFilterPanel from "@/app/knowledge/components/KnowledgeFilterPanel";
 import { toFlowEdges } from "@/app/knowledge/components/KnowledgeGraphCanvas";
+import EditNodeMetadataModal from "@/app/knowledge/components/EditNodeMetadataModal";
 import { DEFAULT_FILTERS } from "@/app/knowledge/components/controller";
 
 const pushMock = vi.hoisted(() => vi.fn());
@@ -1016,5 +1017,231 @@ describe("Stage 6C — Knowledge Map UI & Component Interaction Tests (Live Reac
     await waitFor(() => {
       expect(pushMock).toHaveBeenCalledWith("/login");
     });
+  });
+
+  test("15. Regression A — Cancel / Reopen: Discards uncommitted draft and restores latest server truth without PATCH mutation", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const domains = [
+      { id: "dom-1", name: "Neuroscience", slug: "neuro", nodeCount: 5 },
+      { id: "dom-2", name: "AI Systems", slug: "ai", nodeCount: 3 },
+    ];
+
+    const onClose = vi.fn();
+    const onSuccess = vi.fn();
+
+    const { rerender } = render(
+      <EditNodeMetadataModal
+        nodeId="node-test-1"
+        initialTitle="Server Title A"
+        initialDescription="Server Desc A"
+        initialDomainId="dom-1"
+        initialIsArchived={false}
+        domains={domains}
+        isOpen={true}
+        onClose={onClose}
+        onSuccess={onSuccess}
+      />,
+    );
+
+    // Initial check: modal shows server props
+    const titleInput = screen.getByTestId("edit-node-title-input") as HTMLInputElement;
+    const descInput = screen.getByTestId("edit-node-desc-input") as HTMLTextAreaElement;
+    const domainSelect = screen.getByTestId("edit-node-domain-select") as HTMLSelectElement;
+    const archiveCheckbox = screen.getByTestId("edit-node-archive-checkbox") as HTMLInputElement;
+
+    expect(titleInput.value).toBe("Server Title A");
+    expect(descInput.value).toBe("Server Desc A");
+    expect(domainSelect.value).toBe("dom-1");
+    expect(archiveCheckbox.checked).toBe(false);
+
+    // Step 2 & 3: User changes all editable fields to draft B
+    fireEvent.change(titleInput, { target: { value: "Draft Unsaved Title B" } });
+    fireEvent.change(descInput, { target: { value: "Draft Unsaved Desc B" } });
+    fireEvent.change(domainSelect, { target: { value: "dom-2" } });
+    fireEvent.click(archiveCheckbox); // changes checked to true
+
+    expect(titleInput.value).toBe("Draft Unsaved Title B");
+    expect(descInput.value).toBe("Draft Unsaved Desc B");
+    expect(domainSelect.value).toBe("dom-2");
+    expect(archiveCheckbox.checked).toBe(true);
+
+    // Step 4: User clicks Cancel
+    const cancelBtn = screen.getByTestId("cancel-edit-metadata-btn");
+    fireEvent.click(cancelBtn);
+    expect(onClose).toHaveBeenCalled();
+
+    // Step 5: Assert zero PATCH requests occurred
+    expect(fetchMock.mock.calls.some((c) => c[1]?.method === "PATCH")).toBe(false);
+
+    // Step 6: Close and Reopen the modal with unchanged server props
+    rerender(
+      <EditNodeMetadataModal
+        nodeId="node-test-1"
+        initialTitle="Server Title A"
+        initialDescription="Server Desc A"
+        initialDomainId="dom-1"
+        initialIsArchived={false}
+        domains={domains}
+        isOpen={false}
+        onClose={onClose}
+        onSuccess={onSuccess}
+      />,
+    );
+
+    rerender(
+      <EditNodeMetadataModal
+        nodeId="node-test-1"
+        initialTitle="Server Title A"
+        initialDescription="Server Desc A"
+        initialDomainId="dom-1"
+        initialIsArchived={false}
+        domains={domains}
+        isOpen={true}
+        onClose={onClose}
+        onSuccess={onSuccess}
+      />,
+    );
+
+    // Step 7: Assert fields equal latest server truth, NOT the abandoned unsaved draft
+    const reopenedTitle = screen.getByTestId("edit-node-title-input") as HTMLInputElement;
+    const reopenedDesc = screen.getByTestId("edit-node-desc-input") as HTMLTextAreaElement;
+    const reopenedDomain = screen.getByTestId("edit-node-domain-select") as HTMLSelectElement;
+    const reopenedArchive = screen.getByTestId("edit-node-archive-checkbox") as HTMLInputElement;
+
+    expect(reopenedTitle.value).toBe("Server Title A");
+    expect(reopenedDesc.value).toBe("Server Desc A");
+    expect(reopenedDomain.value).toBe("dom-1");
+    expect(reopenedArchive.checked).toBe(false);
+  });
+
+  test("16. Regression B — Save / Server Refresh / Reopen: Submits whitelisted PATCH payload, triggers server refresh, and editor displays canonical refreshed truth", async () => {
+    let patchPayload: unknown = null;
+    const fetchMock = vi.fn().mockImplementation((url: string, opts?: RequestInit) => {
+      if (url.includes("/api/knowledge/node-test-1") && opts?.method === "PATCH") {
+        patchPayload = JSON.parse(opts.body as string);
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({ success: true }),
+        });
+      }
+      return Promise.reject(new Error(`Unhandled URL: ${url}`));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const domains = [
+      { id: "dom-1", name: "Neuroscience", slug: "neuro", nodeCount: 5 },
+      { id: "dom-2", name: "AI Systems", slug: "ai", nodeCount: 3 },
+    ];
+
+    const onClose = vi.fn();
+    const onSuccess = vi.fn();
+
+    // 1. Open modal with initial props
+    const { rerender } = render(
+      <EditNodeMetadataModal
+        nodeId="node-test-1"
+        initialTitle="Original Title"
+        initialDescription="Original Desc"
+        initialDomainId="dom-1"
+        initialIsArchived={false}
+        domains={domains}
+        isOpen={true}
+        onClose={onClose}
+        onSuccess={onSuccess}
+      />,
+    );
+
+    // 2. Change metadata fields
+    const titleInput = screen.getByTestId("edit-node-title-input") as HTMLInputElement;
+    const descInput = screen.getByTestId("edit-node-desc-input") as HTMLTextAreaElement;
+    const domainSelect = screen.getByTestId("edit-node-domain-select") as HTMLSelectElement;
+    const archiveCheckbox = screen.getByTestId("edit-node-archive-checkbox") as HTMLInputElement;
+
+    fireEvent.change(titleInput, { target: { value: "Canonical Saved Title" } });
+    fireEvent.change(descInput, { target: { value: "Canonical Saved Desc" } });
+    fireEvent.change(domainSelect, { target: { value: "dom-2" } });
+    fireEvent.click(archiveCheckbox);
+
+    // 3. Save
+    const saveBtn = screen.getByTestId("save-node-metadata-btn");
+    fireEvent.click(saveBtn);
+
+    await waitFor(() => {
+      expect(onSuccess).toHaveBeenCalled();
+    });
+    expect(onClose).toHaveBeenCalled();
+
+    // 4. Assert PATCH contains ONLY sanctioned whitelisted metadata fields
+    expect(patchPayload).toEqual({
+      title: "Canonical Saved Title",
+      description: "Canonical Saved Desc",
+      domainId: "dom-2",
+      isArchived: true,
+    });
+
+    // 5. Parent performs server refresh and reopens modal with refreshed canonical values
+    rerender(
+      <EditNodeMetadataModal
+        nodeId="node-test-1"
+        initialTitle="Canonical Saved Title"
+        initialDescription="Canonical Saved Desc"
+        initialDomainId="dom-2"
+        initialIsArchived={true}
+        domains={domains}
+        isOpen={true}
+        onClose={onClose}
+        onSuccess={onSuccess}
+      />,
+    );
+
+    const refreshedTitle = screen.getByTestId("edit-node-title-input") as HTMLInputElement;
+    const refreshedDesc = screen.getByTestId("edit-node-desc-input") as HTMLTextAreaElement;
+    const refreshedDomain = screen.getByTestId("edit-node-domain-select") as HTMLSelectElement;
+    const refreshedArchive = screen.getByTestId("edit-node-archive-checkbox") as HTMLInputElement;
+
+    expect(refreshedTitle.value).toBe("Canonical Saved Title");
+    expect(refreshedDesc.value).toBe("Canonical Saved Desc");
+    expect(refreshedDomain.value).toBe("dom-2");
+    expect(refreshedArchive.checked).toBe(true);
+  });
+
+  test("17. Mutually Exclusive Confirmation Modals: Opening verify closes reject, and opening reject closes verify", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation((url: string) => {
+        if (url.includes("/api/knowledge/node-2")) {
+          return Promise.resolve({ ok: true, status: 200, json: async () => mockNodeDetail });
+        }
+        return Promise.reject(new Error(`Unhandled URL: ${url}`));
+      }),
+    );
+
+    render(
+      <KnowledgeDetailPanel
+        nodeId="node-2"
+        domains={[]}
+        onClose={vi.fn()}
+        onSelectNode={vi.fn()}
+        onFocusRoot={vi.fn()}
+        onDataChanged={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("verify-node-btn")).toBeDefined();
+    });
+
+    // Open Verify confirmation
+    fireEvent.click(screen.getByTestId("verify-node-btn"));
+    expect(screen.getByTestId("node-verify-confirm-modal")).toBeDefined();
+    expect(screen.queryByTestId("node-reject-confirm-modal")).toBeNull();
+
+    // Now click Reject -> verify closes, reject opens
+    fireEvent.click(screen.getByTestId("reject-node-btn"));
+    expect(screen.getByTestId("node-reject-confirm-modal")).toBeDefined();
+    expect(screen.queryByTestId("node-verify-confirm-modal")).toBeNull();
   });
 });

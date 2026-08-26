@@ -37,6 +37,39 @@ export default function EditNodeMetadataModal({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Sync / reset editable state from latest props whenever modal opens or props refresh (React 19 render-phase sync)
+  const [prevProps, setPrevProps] = useState({
+    isOpen,
+    initialTitle,
+    initialDescription,
+    initialDomainId,
+    initialIsArchived,
+  });
+
+  if (
+    isOpen !== prevProps.isOpen ||
+    (isOpen &&
+      (initialTitle !== prevProps.initialTitle ||
+        initialDescription !== prevProps.initialDescription ||
+        initialDomainId !== prevProps.initialDomainId ||
+        initialIsArchived !== prevProps.initialIsArchived))
+  ) {
+    setPrevProps({
+      isOpen,
+      initialTitle,
+      initialDescription,
+      initialDomainId,
+      initialIsArchived,
+    });
+    if (isOpen) {
+      setTitle(initialTitle);
+      setDescription(initialDescription ?? "");
+      setDomainId(initialDomainId);
+      setIsArchived(initialIsArchived);
+      setError(null);
+    }
+  }
+
   if (!isOpen) return null;
 
   async function handleSave(e: React.FormEvent) {
@@ -170,6 +203,7 @@ export default function EditNodeMetadataModal({
           <div className="flex items-center justify-end gap-2 border-t border-white/10 pt-4">
             <button
               type="button"
+              data-testid="cancel-edit-metadata-btn"
               onClick={onClose}
               className="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-zinc-400 hover:bg-white/5 hover:text-zinc-200"
             >
