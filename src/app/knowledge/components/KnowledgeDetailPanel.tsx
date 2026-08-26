@@ -56,6 +56,10 @@ export default function KnowledgeDetailPanel({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Confirmation UX States (P1-3)
+  const [confirmVerifyOpen, setConfirmVerifyOpen] = useState(false);
+  const [confirmRejectOpen, setConfirmRejectOpen] = useState(false);
+
   // Authority Action States
   const [verifying, setVerifying] = useState(false);
   const [rejecting, setRejecting] = useState(false);
@@ -87,6 +91,7 @@ export default function KnowledgeDetailPanel({
     setVerifying(true);
     setActionError(null);
     setActionSuccess(null);
+    setConfirmVerifyOpen(false);
 
     const res = await verifyKnowledgeNode(nodeId);
     setVerifying(false);
@@ -113,6 +118,7 @@ export default function KnowledgeDetailPanel({
     setRejecting(true);
     setActionError(null);
     setActionSuccess(null);
+    setConfirmRejectOpen(false);
 
     const res = await rejectKnowledgeNode(nodeId);
     setRejecting(false);
@@ -418,38 +424,106 @@ export default function KnowledgeDetailPanel({
             节点管理与认识论决策
           </div>
 
-          {/* If Inferred -> Show Verify / Reject Actions */}
+          {/* If Inferred -> Show Verify / Reject Actions & Confirmation Modals */}
           {node.verificationStatus === "inferred" && (
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                data-testid="verify-node-btn"
-                onClick={handleVerify}
-                disabled={verifying || rejecting}
-                className="flex items-center justify-center gap-1.5 rounded-lg bg-emerald-600 py-2 font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
-              >
-                {verifying ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Check className="h-3.5 w-3.5" />
-                )}
-                验证该节点
-              </button>
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  data-testid="verify-node-btn"
+                  onClick={() => setConfirmVerifyOpen(true)}
+                  disabled={verifying || rejecting}
+                  className="flex items-center justify-center gap-1.5 rounded-lg bg-emerald-600 py-2 font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+                >
+                  {verifying ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Check className="h-3.5 w-3.5" />
+                  )}
+                  验证该节点
+                </button>
 
-              <button
-                type="button"
-                data-testid="reject-node-btn"
-                onClick={handleReject}
-                disabled={verifying || rejecting}
-                className="flex items-center justify-center gap-1.5 rounded-lg border border-rose-500/40 bg-rose-950/40 py-2 font-semibold text-rose-300 hover:bg-rose-900/60 disabled:opacity-50"
-              >
-                {rejecting ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <ThumbsDown className="h-3.5 w-3.5" />
-                )}
-                否决提案
-              </button>
+                <button
+                  type="button"
+                  data-testid="reject-node-btn"
+                  onClick={() => setConfirmRejectOpen(true)}
+                  disabled={verifying || rejecting}
+                  className="flex items-center justify-center gap-1.5 rounded-lg border border-rose-500/40 bg-rose-950/40 py-2 font-semibold text-rose-300 hover:bg-rose-900/60 disabled:opacity-50"
+                >
+                  {rejecting ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <ThumbsDown className="h-3.5 w-3.5" />
+                  )}
+                  否决提案
+                </button>
+              </div>
+
+              {/* Node Verify Confirmation Modal */}
+              {confirmVerifyOpen && (
+                <div
+                  data-testid="node-verify-confirm-modal"
+                  className="rounded-lg border border-emerald-500/50 bg-emerald-950/40 p-3"
+                >
+                  <div className="font-semibold text-emerald-300">
+                    确认将该 AI 提案节点晋级为已验证事实？
+                  </div>
+                  <div className="mt-1 text-[11px] text-zinc-300 leading-relaxed">
+                    置信度将提升至 100% [VERIFIED]，此认识论决策将记入永久系统审计。
+                  </div>
+                  <div className="mt-3 flex items-center justify-end gap-2">
+                    <button
+                      type="button"
+                      data-testid="cancel-verify-node-btn"
+                      onClick={() => setConfirmVerifyOpen(false)}
+                      className="rounded border border-white/10 bg-black/40 px-3 py-1 text-xs text-zinc-400 hover:text-zinc-200"
+                    >
+                      取消
+                    </button>
+                    <button
+                      type="button"
+                      data-testid="confirm-verify-node-btn"
+                      onClick={handleVerify}
+                      className="rounded bg-emerald-600 px-3 py-1 text-xs font-semibold text-white hover:bg-emerald-500"
+                    >
+                      确认验证
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Node Reject Confirmation Modal */}
+              {confirmRejectOpen && (
+                <div
+                  data-testid="node-reject-confirm-modal"
+                  className="rounded-lg border border-rose-500/50 bg-rose-950/40 p-3"
+                >
+                  <div className="font-semibold text-rose-300">
+                    确认否决该 AI 提案节点？
+                  </div>
+                  <div className="mt-1 text-[11px] text-zinc-300 leading-relaxed">
+                    否决后该节点将变更为 [REJECTED]，不再作为有效事实呈现在活跃图谱中。
+                  </div>
+                  <div className="mt-3 flex items-center justify-end gap-2">
+                    <button
+                      type="button"
+                      data-testid="cancel-reject-node-btn"
+                      onClick={() => setConfirmRejectOpen(false)}
+                      className="rounded border border-white/10 bg-black/40 px-3 py-1 text-xs text-zinc-400 hover:text-zinc-200"
+                    >
+                      取消
+                    </button>
+                    <button
+                      type="button"
+                      data-testid="confirm-reject-node-btn"
+                      onClick={handleReject}
+                      className="rounded bg-rose-600 px-3 py-1 text-xs font-semibold text-white hover:bg-rose-500"
+                    >
+                      确认否决
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

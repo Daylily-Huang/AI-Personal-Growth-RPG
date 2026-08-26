@@ -269,6 +269,31 @@ const mockEdgeDetail: KnowledgeEdgeDetailResponse = {
   },
 };
 
+const mockSymmetricEdgeDetail: KnowledgeEdgeDetailResponse = {
+  edge: {
+    id: "edge-sym-1",
+    sourceNodeId: "node-1",
+    sourceNodeTitle: "Classical Hebbian Plasticity",
+    targetNodeId: "node-2",
+    targetNodeTitle: "Anti-Hebbian Synaptic Depression",
+    relationType: "contradicts",
+    verificationStatus: "verified",
+    confidence: 1.0,
+    isArchived: false,
+    sourceType: "user_created",
+    sourceId: null,
+    provenanceNote: "Opposing plasticity rules under identical stimulations",
+    verifiedAt: "2026-01-01T00:00:00.000Z",
+    verifiedBy: "user-1",
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
+  },
+  provenance: {
+    sourceActivity: null,
+    sourceArtifact: null,
+  },
+};
+
 describe("Stage 6C — Knowledge Map UI & Component Interaction Tests (Live React/jsdom)", () => {
   test("1. Loading State: Displays spinner and loading text on initial mount", async () => {
     vi.stubGlobal(
@@ -297,7 +322,6 @@ describe("Stage 6C — Knowledge Map UI & Component Interaction Tests (Live Reac
     });
     expect(screen.getByText("Database connection timeout")).toBeDefined();
 
-    // Clicking retry calls fetch again
     const retryBtn = screen.getByTestId("retry-btn");
     fireEvent.click(retryBtn);
     expect(globalThis.fetch).toHaveBeenCalled();
@@ -556,7 +580,8 @@ describe("Stage 6C — Knowledge Map UI & Component Interaction Tests (Live Reac
     expect(screen.getByText("[AI PROPOSED 85%]")).toBeDefined();
     expect(screen.getByText("Neuroscience")).toBeDefined();
 
-    // Provenance Cards
+    // Provenance Cards with updated label
+    expect(screen.getByText("AI Proposal (backed by Activity)")).toBeDefined();
     expect(screen.getByTestId("provenance-activity-card")).toBeDefined();
     expect(screen.getByText("Read LTP Paper")).toBeDefined();
     expect(screen.getByTestId("provenance-artifact-card")).toBeDefined();
@@ -609,22 +634,20 @@ describe("Stage 6C — Knowledge Map UI & Component Interaction Tests (Live Reac
     expect(screen.getByText("无直接关联的行为或产出物记录 (手动录入或无溯源)")).toBeDefined();
   });
 
-  test("8. Node Verify & Reject Actions: Calls POST verify/reject and updates state", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockImplementation((url: string, opts?: RequestInit) => {
-        if (url.includes("/api/knowledge/node-2/verify") && opts?.method === "POST") {
-          return Promise.resolve({ ok: true, status: 200, json: async () => ({ success: true }) });
-        }
-        if (url.includes("/api/knowledge/node-2/reject") && opts?.method === "POST") {
-          return Promise.resolve({ ok: true, status: 200, json: async () => ({ success: true }) });
-        }
-        if (url.includes("/api/knowledge/node-2")) {
-          return Promise.resolve({ ok: true, status: 200, json: async () => mockNodeDetail });
-        }
-        return Promise.reject(new Error(`Unhandled URL: ${url}`));
-      }),
-    );
+  test("8. Node Verify & Reject with Confirmation Dialogs: Cancel (Zero Mutation) and Confirm Paths", async () => {
+    const fetchMock = vi.fn().mockImplementation((url: string, opts?: RequestInit) => {
+      if (url.includes("/api/knowledge/node-2/verify") && opts?.method === "POST") {
+        return Promise.resolve({ ok: true, status: 200, json: async () => ({ success: true }) });
+      }
+      if (url.includes("/api/knowledge/node-2/reject") && opts?.method === "POST") {
+        return Promise.resolve({ ok: true, status: 200, json: async () => ({ success: true }) });
+      }
+      if (url.includes("/api/knowledge/node-2")) {
+        return Promise.resolve({ ok: true, status: 200, json: async () => mockNodeDetail });
+      }
+      return Promise.reject(new Error(`Unhandled URL: ${url}`));
+    });
+    vi.stubGlobal("fetch", fetchMock);
 
     const onDataChanged = vi.fn();
 
@@ -643,16 +666,32 @@ describe("Stage 6C — Knowledge Map UI & Component Interaction Tests (Live Reac
       expect(screen.getByTestId("verify-node-btn")).toBeDefined();
     });
 
-    // 8.1 Click Verify
+    // 8.1 Node Verify Cancel path: opens modal, cancels -> ZERO POST mutation
     fireEvent.click(screen.getByTestId("verify-node-btn"));
+    expect(screen.getByTestId("node-verify-confirm-modal")).toBeDefined();
+    fireEvent.click(screen.getByTestId("cancel-verify-node-btn"));
+    expect(screen.queryByTestId("node-verify-confirm-modal")).toBeNull();
+    expect(fetchMock.mock.calls.some((c) => c[0].includes("/verify"))).toBe(false);
+
+    // 8.2 Node Verify Confirm path: opens modal, confirms -> triggers POST /verify
+    fireEvent.click(screen.getByTestId("verify-node-btn"));
+    fireEvent.click(screen.getByTestId("confirm-verify-node-btn"));
     await waitFor(() => {
       expect(screen.getByTestId("action-success-alert")).toBeDefined();
     });
     expect(screen.getByText("已成功将节点晋级为已验证事实 [VERIFIED]！")).toBeDefined();
     expect(onDataChanged).toHaveBeenCalled();
 
-    // 8.2 Click Reject
+    // 8.3 Node Reject Cancel path: opens modal, cancels -> ZERO POST mutation
     fireEvent.click(screen.getByTestId("reject-node-btn"));
+    expect(screen.getByTestId("node-reject-confirm-modal")).toBeDefined();
+    fireEvent.click(screen.getByTestId("cancel-reject-node-btn"));
+    expect(screen.queryByTestId("node-reject-confirm-modal")).toBeNull();
+    expect(fetchMock.mock.calls.some((c) => c[0].includes("/reject"))).toBe(false);
+
+    // 8.4 Node Reject Confirm path: opens modal, confirms -> triggers POST /reject
+    fireEvent.click(screen.getByTestId("reject-node-btn"));
+    fireEvent.click(screen.getByTestId("confirm-reject-node-btn"));
     await waitFor(() => {
       expect(screen.getByText("已成功否决该 AI 提案节点 [REJECTED]")).toBeDefined();
     });
@@ -692,29 +731,31 @@ describe("Stage 6C — Knowledge Map UI & Component Interaction Tests (Live Reac
     });
 
     fireEvent.click(screen.getByTestId("verify-node-btn"));
+    fireEvent.click(screen.getByTestId("confirm-verify-node-btn"));
     await waitFor(() => {
       expect(screen.getByTestId("action-error-alert")).toBeDefined();
     });
     expect(screen.getByText(/409 Conflict/)).toBeDefined();
   });
 
-  test("10. Edge Detail Panel: Fetches GET /api/knowledge/edges/[id], Renders Rationale and Handles Verify/Reject", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockImplementation((url: string, opts?: RequestInit) => {
-        if (url.includes("/api/knowledge/edges/edge-1/verify") && opts?.method === "POST") {
-          return Promise.resolve({ ok: true, status: 200, json: async () => ({ success: true }) });
-        }
-        if (url.includes("/api/knowledge/edges/edge-1")) {
-          return Promise.resolve({ ok: true, status: 200, json: async () => mockEdgeDetail });
-        }
-        return Promise.reject(new Error(`Unhandled URL: ${url}`));
-      }),
-    );
+  test("10. Edge Detail Panel: Symmetric vs Directed Semantics, Confirmation Cancel/Confirm, and Reject Path", async () => {
+    const fetchMock = vi.fn().mockImplementation((url: string, opts?: RequestInit) => {
+      if (url.includes("/api/knowledge/edges/edge-1/verify") && opts?.method === "POST") {
+        return Promise.resolve({ ok: true, status: 200, json: async () => ({ success: true }) });
+      }
+      if (url.includes("/api/knowledge/edges/edge-1/reject") && opts?.method === "POST") {
+        return Promise.resolve({ ok: true, status: 200, json: async () => ({ success: true }) });
+      }
+      if (url.includes("/api/knowledge/edges/edge-1")) {
+        return Promise.resolve({ ok: true, status: 200, json: async () => mockEdgeDetail });
+      }
+      return Promise.reject(new Error(`Unhandled URL: ${url}`));
+    });
+    vi.stubGlobal("fetch", fetchMock);
 
     const onDataChanged = vi.fn();
 
-    render(
+    const { unmount } = render(
       <KnowledgeEdgeDetailPanel
         edgeId="edge-1"
         onClose={vi.fn()}
@@ -727,20 +768,62 @@ describe("Stage 6C — Knowledge Map UI & Component Interaction Tests (Live Reac
       expect(screen.getByTestId("knowledge-edge-detail-panel")).toBeDefined();
     });
 
-    expect(screen.getByText("Long-Term Potentiation")).toBeDefined();
+    // 10.1 Directed Relation Presentation Check
+    expect(screen.getByText("起点 (Source)")).toBeDefined();
+    expect(screen.getByText("终点 (Target)")).toBeDefined();
     expect(screen.getByText("SUPPORTS")).toBeDefined();
-    expect(screen.getByText("NMDA Receptor Calcium Flux")).toBeDefined();
-    expect(screen.getByText("LTP induction activates NMDA receptors causing calcium influx")).toBeDefined();
 
-    // Verify Edge CTA
-    const verifyEdgeBtn = screen.getByTestId("verify-edge-btn");
-    fireEvent.click(verifyEdgeBtn);
+    // 10.2 Edge Verify Cancel path
+    fireEvent.click(screen.getByTestId("verify-edge-btn"));
+    expect(screen.getByTestId("edge-verify-confirm-modal")).toBeDefined();
+    fireEvent.click(screen.getByTestId("cancel-verify-edge-btn"));
+    expect(screen.queryByTestId("edge-verify-confirm-modal")).toBeNull();
+    expect(fetchMock.mock.calls.some((c) => c[0].includes("/verify"))).toBe(false);
 
+    // 10.3 Edge Verify Confirm path
+    fireEvent.click(screen.getByTestId("verify-edge-btn"));
+    fireEvent.click(screen.getByTestId("confirm-verify-edge-btn"));
     await waitFor(() => {
       expect(screen.getByTestId("edge-action-success")).toBeDefined();
     });
     expect(screen.getByText("已成功将关系晋级为已验证事实 [VERIFIED]！")).toBeDefined();
-    expect(onDataChanged).toHaveBeenCalled();
+
+    // 10.4 Edge Reject Confirm path
+    fireEvent.click(screen.getByTestId("reject-edge-btn"));
+    expect(screen.getByTestId("edge-reject-confirm-modal")).toBeDefined();
+    fireEvent.click(screen.getByTestId("confirm-reject-edge-btn"));
+    await waitFor(() => {
+      expect(screen.getByText("已成功否决该 AI 提案关系 [REJECTED]")).toBeDefined();
+    });
+    unmount();
+
+    // 10.5 Symmetric Relation Presentation Check (Contradicts)
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation((url: string) => {
+        if (url.includes("/api/knowledge/edges/edge-sym-1")) {
+          return Promise.resolve({ ok: true, status: 200, json: async () => mockSymmetricEdgeDetail });
+        }
+        return Promise.reject(new Error(`Unhandled URL: ${url}`));
+      }),
+    );
+
+    render(
+      <KnowledgeEdgeDetailPanel
+        edgeId="edge-sym-1"
+        onClose={vi.fn()}
+        onSelectNode={vi.fn()}
+        onDataChanged={onDataChanged}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("对称知识关联")).toBeDefined();
+    });
+    expect(screen.getByText("节点 A")).toBeDefined();
+    expect(screen.getByText("节点 B")).toBeDefined();
+    expect(screen.queryByText("起点 (Source)")).toBeNull();
+    expect(screen.queryByText("终点 (Target)")).toBeNull();
   });
 
   test("11. toFlowEdges Mapping: Converts raw edges to 4-channel ReactFlow edges with custom markers", () => {
@@ -778,31 +861,51 @@ describe("Stage 6C — Knowledge Map UI & Component Interaction Tests (Live Reac
         source: "n2",
         target: "n3",
         relationType: "contradicts" as const,
+        verificationStatus: "inferred" as const,
+        isArchived: false,
+        confidence: 0.77,
+        sourceType: "ai_proposal" as const,
+        sourceId: "act-1",
+        provenanceNote: "Direct conflict",
+        verifiedAt: null,
+        verifiedBy: null,
+      },
+      {
+        id: "e-relates",
+        source: "n1",
+        target: "n4",
+        relationType: "relates_to" as const,
         verificationStatus: "verified" as const,
         isArchived: false,
         confidence: 1.0,
         sourceType: "user_created" as const,
         sourceId: null,
-        provenanceNote: "Direct conflict",
+        provenanceNote: null,
         verifiedAt: null,
         verifiedBy: null,
       },
     ];
 
     const flowEdges = toFlowEdges(raw, "e-contains");
-    expect(flowEdges).toHaveLength(3);
+    expect(flowEdges).toHaveLength(4);
 
-    // Prerequisite
+    // Prerequisite -> Arrow
     expect(flowEdges[0].label).toBe("PREREQUISITE");
 
-    // Contains
+    // Contains -> Circle
     expect(flowEdges[1].label).toBe("CONTAINS");
     expect(flowEdges[1].markerEnd).toBe("url(#knowledge-marker-circle)");
     expect(flowEdges[1].style?.strokeWidth).toBe(2.5); // selected edge
 
-    // Contradicts
-    expect(flowEdges[2].label).toBe("CONTRADICTS");
+    // Contradicts (Inferred) -> Lightning + Dashed + Animated
+    expect(flowEdges[2].label).toBe("CONTRADICTS · AI 77%");
     expect(flowEdges[2].markerEnd).toBe("url(#knowledge-marker-lightning)");
+    expect(flowEdges[2].animated).toBe(true);
+    expect(flowEdges[2].style?.strokeDasharray).toBe("4 3");
+
+    // Relates_to -> markerEnd is undefined (no directional arrow)
+    expect(flowEdges[3].label).toBe("RELATES TO");
+    expect(flowEdges[3].markerEnd).toBeUndefined();
   });
 
   test("12. Truncation Banner: Displays banner when isTruncated is true", async () => {
@@ -830,5 +933,88 @@ describe("Stage 6C — Knowledge Map UI & Component Interaction Tests (Live Reac
       expect(screen.getByTestId("graph-truncated-banner")).toBeDefined();
     });
     expect(screen.getByText(/当前图谱节点较多，已截取前 3 个核心节点/)).toBeDefined();
+  });
+
+  test("13. P2-1 Stale Error Recovery: Initial failure cleared when filter changes and fetch succeeds", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation((url: string) => {
+        if (url.includes("search=Plasticity")) {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: async () => mockGraphData,
+          });
+        }
+        return Promise.resolve({
+          ok: false,
+          status: 500,
+          json: async () => ({ error: "Temporary server error" }),
+        });
+      }),
+    );
+
+    render(<KnowledgeMapPage />);
+
+    // First fetch displays error
+    await waitFor(() => {
+      expect(screen.getByTestId("error-state")).toBeDefined();
+    });
+    expect(screen.getByText("Temporary server error")).toBeDefined();
+
+    // User changes search filter
+    const searchInput = screen.getByTestId("header-search-input");
+    fireEvent.change(searchInput, { target: { value: "Plasticity" } });
+
+    // Second fetch succeeds -> error cleared, graph rendered
+    await waitFor(() => {
+      expect(screen.queryByTestId("error-state")).toBeNull();
+    });
+    expect(screen.getByTestId("domain-all-btn")).toBeDefined();
+  });
+
+  test("14. Detail Panel 404 UX & 401 Redirect Matrix", async () => {
+    // 14.1 Detail 404 UX
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 404,
+        json: async () => ({ error: "Entity not found" }),
+      }),
+    );
+
+    const onClose = vi.fn();
+    render(
+      <KnowledgeDetailPanel
+        nodeId="missing-node"
+        domains={[]}
+        onClose={onClose}
+        onSelectNode={vi.fn()}
+        onFocusRoot={vi.fn()}
+        onDataChanged={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Entity not found")).toBeDefined();
+    });
+    fireEvent.click(screen.getByText("关闭面板"));
+    expect(onClose).toHaveBeenCalled();
+
+    // 14.2 Page 401 Redirects to /login
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 401,
+        json: async () => ({ error: "Unauthorized" }),
+      }),
+    );
+
+    render(<KnowledgeMapPage />);
+    await waitFor(() => {
+      expect(pushMock).toHaveBeenCalledWith("/login");
+    });
   });
 });

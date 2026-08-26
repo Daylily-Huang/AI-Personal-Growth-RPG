@@ -127,7 +127,8 @@ export interface EdgeRelationVisual {
   color: string;
   strokeDasharray?: string;
   animated: boolean;
-  marker: "arrow" | "circle" | "lightning" | "hollow-arrow";
+  marker: "arrow" | "circle" | "lightning" | "hollow-arrow" | "none";
+  isSymmetric: boolean;
 }
 
 export function getEdgeVisual(
@@ -146,6 +147,7 @@ export function getEdgeVisual(
         strokeDasharray: isInferred ? "5 5" : undefined,
         animated: isInferred,
         marker: isInferred ? "hollow-arrow" : "arrow",
+        isSymmetric: false,
       };
     case "contains":
       return {
@@ -155,6 +157,7 @@ export function getEdgeVisual(
         strokeDasharray: "4 4",
         animated: isInferred,
         marker: "circle",
+        isSymmetric: false,
       };
     case "supports":
       return {
@@ -164,24 +167,32 @@ export function getEdgeVisual(
         strokeDasharray: isInferred ? "5 5" : undefined,
         animated: isInferred,
         marker: isInferred ? "hollow-arrow" : "arrow",
+        isSymmetric: false,
       };
     case "contradicts":
+      // P1-1: Multi-channel distinction for Inferred vs Verified Contradicts
+      // P1-2: Symmetric relation (neutral lightning marker, no directional arrow)
       return {
         relationType: "contradicts",
-        label: "CONTRADICTS",
-        color: "#f43f5e", // Rose-500
-        strokeDasharray: "3 3",
-        animated: false,
+        label: isInferred
+          ? `CONTRADICTS · AI ${Math.round(confidence * 100)}%`
+          : "CONTRADICTS [VERIFIED]",
+        color: isInferred ? "#fb7185" : "#f43f5e", // Rose-400 / Rose-500
+        strokeDasharray: isInferred ? "4 3" : undefined, // Inferred is dashed, Verified is solid
+        animated: isInferred,
         marker: "lightning",
+        isSymmetric: true,
       };
     case "relates_to":
+      // P1-2: Symmetric relation -> NO directional arrow!
       return {
         relationType: "relates_to",
         label: isInferred ? `RELATES (AI ${Math.round(confidence * 100)}%)` : "RELATES TO",
         color: "#60a5fa", // Blue-400
         strokeDasharray: "6 4",
         animated: isInferred,
-        marker: isInferred ? "hollow-arrow" : "arrow",
+        marker: "none",
+        isSymmetric: true,
       };
   }
 }
@@ -193,7 +204,7 @@ export function formatSourceType(sourceType: KnowledgeSourceType): string {
     case "artifact":
       return "Project Artifact";
     case "ai_proposal":
-      return "AI Growth Assessment";
+      return "AI Proposal (backed by Activity)";
     case "user_created":
       return "User Manual Entry";
     case "imported":

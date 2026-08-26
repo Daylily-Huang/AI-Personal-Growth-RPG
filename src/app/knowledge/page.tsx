@@ -73,7 +73,10 @@ export default function KnowledgeMapPage() {
     let ignore = false;
     doFetchGraph()
       .then((data) => {
-        if (!ignore && data) setGraph(data);
+        if (!ignore && data) {
+          setGraph(data);
+          setError(null);
+        }
       })
       .catch((e) => {
         if (!ignore) setError(e instanceof Error ? e.message : "未知错误");

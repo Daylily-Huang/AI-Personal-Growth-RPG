@@ -60,6 +60,8 @@ export function toFlowEdges(
       markerEnd = "url(#knowledge-marker-lightning)";
     } else if (visual.marker === "hollow-arrow") {
       markerEnd = "url(#knowledge-marker-hollow-arrow)";
+    } else if (visual.marker === "none") {
+      markerEnd = undefined;
     } else {
       markerEnd = {
         type: MarkerType.ArrowClosed,

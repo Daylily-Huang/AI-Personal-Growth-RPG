@@ -15,6 +15,8 @@ import {
   ThumbsDown,
   Activity,
   FileCode,
+  Zap,
+  Link2,
 } from "lucide-react";
 import type { KnowledgeEdgeDetailResponse } from "@/lib/knowledge/types";
 import {
@@ -24,6 +26,7 @@ import {
 } from "./controller";
 import {
   getAuthorityVisual,
+  getEdgeVisual,
   formatSourceType,
 } from "./presentation";
 
@@ -44,7 +47,11 @@ export default function KnowledgeEdgeDetailPanel({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Authority Actions
+  // Confirmation UX States (P1-3)
+  const [confirmVerifyOpen, setConfirmVerifyOpen] = useState(false);
+  const [confirmRejectOpen, setConfirmRejectOpen] = useState(false);
+
+  // Authority Action Execution States
   const [verifying, setVerifying] = useState(false);
   const [rejecting, setRejecting] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -72,6 +79,7 @@ export default function KnowledgeEdgeDetailPanel({
     setVerifying(true);
     setActionError(null);
     setActionSuccess(null);
+    setConfirmVerifyOpen(false);
 
     const res = await verifyKnowledgeEdge(edgeId);
     setVerifying(false);
@@ -97,6 +105,7 @@ export default function KnowledgeEdgeDetailPanel({
     setRejecting(true);
     setActionError(null);
     setActionSuccess(null);
+    setConfirmRejectOpen(false);
 
     const res = await rejectKnowledgeEdge(edgeId);
     setRejecting(false);
@@ -149,6 +158,12 @@ export default function KnowledgeEdgeDetailPanel({
     edge.isArchived,
     edge.confidence,
   );
+  const edgeVisual = getEdgeVisual(
+    edge.relationType,
+    edge.verificationStatus,
+    edge.confidence,
+  );
+  const isSymmetric = edgeVisual.isSymmetric;
 
   return (
     <div
@@ -159,7 +174,7 @@ export default function KnowledgeEdgeDetailPanel({
       <div className="sticky top-0 z-10 flex items-center justify-between border-b border-white/10 bg-[#0d1320]/95 px-4 py-3 backdrop-blur">
         <div className="flex items-center gap-2">
           <span className="font-mono text-xs uppercase tracking-wider text-zinc-400">
-            知识关联 (Edge)
+            {isSymmetric ? "对称知识关联" : "知识关联 (Edge)"}
           </span>
 
           <div
@@ -212,10 +227,10 @@ export default function KnowledgeEdgeDetailPanel({
           </div>
         )}
 
-        {/* Source -> Relation -> Target Display */}
+        {/* P1-2: Source / Target vs Node A / Node B Display */}
         <div className="rounded-xl border border-white/10 bg-black/40 p-4">
           <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 mb-2">
-            关联两端节点
+            {isSymmetric ? "对称关联节点 (双向无方向)" : "关联两端节点 (有向依赖)"}
           </div>
 
           <div className="flex flex-col gap-3">
@@ -227,14 +242,24 @@ export default function KnowledgeEdgeDetailPanel({
               <span className="font-semibold text-sky-200 truncate">
                 {edge.sourceNodeTitle}
               </span>
-              <span className="text-[9px] font-mono text-zinc-500 ml-2 shrink-0">起点 (Source)</span>
+              <span className="text-[9px] font-mono text-zinc-500 ml-2 shrink-0">
+                {isSymmetric ? "节点 A" : "起点 (Source)"}
+              </span>
             </button>
 
             <div className="flex items-center justify-center gap-2 py-1">
               <span className="rounded-full bg-purple-950 px-3 py-1 font-mono text-[10px] font-bold text-purple-300 border border-purple-500/30">
                 {edge.relationType.toUpperCase()}
               </span>
-              <ArrowRight className="h-3.5 w-3.5 text-zinc-500" />
+              {isSymmetric ? (
+                edge.relationType === "contradicts" ? (
+                  <Zap className="h-3.5 w-3.5 text-rose-400" />
+                ) : (
+                  <Link2 className="h-3.5 w-3.5 text-blue-400" />
+                )
+              ) : (
+                <ArrowRight className="h-3.5 w-3.5 text-zinc-500" />
+              )}
             </div>
 
             <button
@@ -245,7 +270,9 @@ export default function KnowledgeEdgeDetailPanel({
               <span className="font-semibold text-emerald-200 truncate">
                 {edge.targetNodeTitle}
               </span>
-              <span className="text-[9px] font-mono text-zinc-500 ml-2 shrink-0">终点 (Target)</span>
+              <span className="text-[9px] font-mono text-zinc-500 ml-2 shrink-0">
+                {isSymmetric ? "节点 B" : "终点 (Target)"}
+              </span>
             </button>
           </div>
         </div>
@@ -290,7 +317,7 @@ export default function KnowledgeEdgeDetailPanel({
           </div>
         )}
 
-        {/* Verify / Reject Actions for Inferred Edge */}
+        {/* P1-3: Verify / Reject Actions & Focused Confirmation Modal for Inferred Edge */}
         {edge.verificationStatus === "inferred" && (
           <div className="space-y-2 border-t border-white/10 pt-4">
             <div className="font-semibold uppercase tracking-wider text-[11px] text-zinc-400 mb-2">
@@ -301,7 +328,7 @@ export default function KnowledgeEdgeDetailPanel({
               <button
                 type="button"
                 data-testid="verify-edge-btn"
-                onClick={handleVerify}
+                onClick={() => setConfirmVerifyOpen(true)}
                 disabled={verifying || rejecting}
                 className="flex items-center justify-center gap-1.5 rounded-lg bg-emerald-600 py-2 font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
               >
@@ -316,7 +343,7 @@ export default function KnowledgeEdgeDetailPanel({
               <button
                 type="button"
                 data-testid="reject-edge-btn"
-                onClick={handleReject}
+                onClick={() => setConfirmRejectOpen(true)}
                 disabled={verifying || rejecting}
                 className="flex items-center justify-center gap-1.5 rounded-lg border border-rose-500/40 bg-rose-950/40 py-2 font-semibold text-rose-300 hover:bg-rose-900/60 disabled:opacity-50"
               >
@@ -328,6 +355,72 @@ export default function KnowledgeEdgeDetailPanel({
                 否决提案
               </button>
             </div>
+
+            {/* Edge Verify Confirmation Dialog */}
+            {confirmVerifyOpen && (
+              <div
+                data-testid="edge-verify-confirm-modal"
+                className="mt-3 rounded-lg border border-emerald-500/50 bg-emerald-950/40 p-3"
+              >
+                <div className="font-semibold text-emerald-300">
+                  确认将该推论关系晋级为已验证事实？
+                </div>
+                <div className="mt-1 text-[11px] text-zinc-300 leading-relaxed">
+                  置信度将提升至 100% [VERIFIED]，此认识论决策将记入永久系统审计。
+                </div>
+                <div className="mt-3 flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    data-testid="cancel-verify-edge-btn"
+                    onClick={() => setConfirmVerifyOpen(false)}
+                    className="rounded border border-white/10 bg-black/40 px-3 py-1 text-xs text-zinc-400 hover:text-zinc-200"
+                  >
+                    取消
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="confirm-verify-edge-btn"
+                    onClick={handleVerify}
+                    className="rounded bg-emerald-600 px-3 py-1 text-xs font-semibold text-white hover:bg-emerald-500"
+                  >
+                    确认验证
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Edge Reject Confirmation Dialog */}
+            {confirmRejectOpen && (
+              <div
+                data-testid="edge-reject-confirm-modal"
+                className="mt-3 rounded-lg border border-rose-500/50 bg-rose-950/40 p-3"
+              >
+                <div className="font-semibold text-rose-300">
+                  确认否决该 AI 提案关系？
+                </div>
+                <div className="mt-1 text-[11px] text-zinc-300 leading-relaxed">
+                  否决后该关系将变更为 [REJECTED]，不再作为有效事实呈现在活跃图谱中。
+                </div>
+                <div className="mt-3 flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    data-testid="cancel-reject-edge-btn"
+                    onClick={() => setConfirmRejectOpen(false)}
+                    className="rounded border border-white/10 bg-black/40 px-3 py-1 text-xs text-zinc-400 hover:text-zinc-200"
+                  >
+                    取消
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="confirm-reject-edge-btn"
+                    onClick={handleReject}
+                    className="rounded bg-rose-600 px-3 py-1 text-xs font-semibold text-white hover:bg-rose-500"
+                  >
+                    确认否决
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
