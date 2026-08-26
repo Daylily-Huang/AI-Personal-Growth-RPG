@@ -107,7 +107,7 @@ describe("Stage 6B — Knowledge Graph Layout & Progressive Query (Unit Tests)",
       rootNodeId: "n-a",
       depth: 1,
     });
-    expect(graphDepth1.nodes.map((n) => n.id).sort()).toEqual(["n-a", "n-b"]);
+    expect(graphDepth1.nodes.map((n) => n.id)).toEqual(["n-a", "n-b"]);
     expect(graphDepth1.edges.map((e) => e.id)).toEqual(["e-ab"]);
 
     // Depth 2 from n-a -> includes n-a, n-b, n-c
@@ -115,7 +115,7 @@ describe("Stage 6B — Knowledge Graph Layout & Progressive Query (Unit Tests)",
       rootNodeId: "n-a",
       depth: 2,
     });
-    expect(graphDepth2.nodes.map((n) => n.id).sort()).toEqual(["n-a", "n-b", "n-c"]);
+    expect(graphDepth2.nodes.map((n) => n.id)).toEqual(["n-a", "n-b", "n-c"]);
   });
 
   test("4. Progressive Active-Edge Rule: Strictly excludes rejected, superseded and archived edges during traversal", () => {
@@ -216,8 +216,8 @@ describe("Stage 6B — Knowledge Graph Layout & Progressive Query (Unit Tests)",
   test("6. Root Filter Mismatch Semantics: Root anchor remains visible while expanded neighbors strictly satisfy filters", () => {
     // Root is domain-2, Child is domain-1, Grandchild is domain-1
     const rootForeign = makeNode("r-foreign", "Foreign Root", { domainId: "dom-2" });
-    const childMatch = makeNode("c-match", "Matching Child", { domainId: "dom-1" });
-    const grandMatch = makeNode("g-match", "Matching Grandchild", { domainId: "dom-1" });
+    const childMatch = makeNode("c-match", "Matching Child", { domainId: "dom-1", updatedAt: "2026-01-05T00:00:00.000Z" });
+    const grandMatch = makeNode("g-match", "Matching Grandchild", { domainId: "dom-1", updatedAt: "2026-01-02T00:00:00.000Z" });
 
     const edges = [
       makeEdge("e-rc", "r-foreign", "c-match"),
@@ -230,12 +230,79 @@ describe("Stage 6B — Knowledge Graph Layout & Progressive Query (Unit Tests)",
       domainId: "dom-1",
     });
 
-    // Root is preserved as the focal anchor; expanded neighbors childMatch and grandMatch match domain-1
-    expect(graph.nodes.map((n) => n.id).sort()).toEqual(["c-match", "g-match", "r-foreign"]);
-    expect(graph.edges.map((e) => e.id).sort()).toEqual(["e-cg", "e-rc"]);
+    // Root is preserved as the focal anchor at index 0; expanded neighbors childMatch and grandMatch match domain-1
+    expect(graph.nodes.map((n) => n.id)).toEqual(["r-foreign", "c-match", "g-match"]);
+    expect(graph.nodes[0].position).toEqual({ x: 0, y: 0 });
+    expect(graph.edges.map((e) => e.id)).toEqual(["e-cg", "e-rc"]);
   });
 
-  test("7. Shuffled-Input Invariance & Absolute Determinism (P1 Determinism Proof)", () => {
+  test("7. P1 Root Anchor Survival Under Truncation & Low-Degree Root", () => {
+    // Construct root R with low degree (degree=1) and older updatedAt
+    const rootR = makeNode("root-r", "Root Low Rank R", {
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    });
+
+    // Multiple neighbors with higher degree and newer updatedAt
+    const highA = makeNode("high-a", "High Degree Neighbor A", {
+      updatedAt: "2026-01-10T00:00:00.000Z",
+    });
+    const highB = makeNode("high-b", "High Degree Neighbor B", {
+      updatedAt: "2026-01-08T00:00:00.000Z",
+    });
+    const highC = makeNode("high-c", "High Degree Neighbor C", {
+      updatedAt: "2026-01-06T00:00:00.000Z",
+    });
+    const extra1 = makeNode("extra-1", "Extra Connecting Node 1");
+    const extra2 = makeNode("extra-2", "Extra Connecting Node 2");
+
+    const edges = [
+      makeEdge("e-ra", "root-r", "high-a"),
+      makeEdge("e-rb", "root-r", "high-b"),
+      makeEdge("e-rc", "root-r", "high-c"),
+      // Add extra edges to high-a and high-b to elevate their degrees significantly
+      makeEdge("e-a1", "high-a", "extra-1"),
+      makeEdge("e-a2", "high-a", "extra-2"),
+      makeEdge("e-b1", "high-b", "extra-1"),
+    ];
+
+    // A. limit = 1: MUST return exactly [root-r] with position (0,0) and isTruncated = true
+    const gLim1 = computeKnowledgeGraph(
+      domains,
+      skills,
+      [rootR, highA, highB, highC, extra1, extra2],
+      edges,
+      { rootNodeId: "root-r", depth: 1, limit: 1 },
+    );
+    expect(gLim1.nodes.map((n) => n.id)).toEqual(["root-r"]);
+    expect(gLim1.nodes[0].position).toEqual({ x: 0, y: 0 });
+    expect(gLim1.stats.isTruncated).toBe(true);
+    expect(gLim1.stats.totalNodes).toBe(4); // root-r + 3 depth-1 neighbors
+
+    // B. limit = 2: MUST return [root-r, high-a] (highest ranked neighbor)
+    const gLim2 = computeKnowledgeGraph(
+      domains,
+      skills,
+      [rootR, highA, highB, highC, extra1, extra2],
+      edges,
+      { rootNodeId: "root-r", depth: 1, limit: 2 },
+    );
+    expect(gLim2.nodes.map((n) => n.id)).toEqual(["root-r", "high-a"]);
+    expect(gLim2.nodes[0].position).toEqual({ x: 0, y: 0 });
+    expect(gLim2.stats.isTruncated).toBe(true);
+
+    // C. limit = 4: returns all 4 reached nodes
+    const gLim4 = computeKnowledgeGraph(
+      domains,
+      skills,
+      [rootR, highA, highB, highC, extra1, extra2],
+      edges,
+      { rootNodeId: "root-r", depth: 1, limit: 4 },
+    );
+    expect(gLim4.nodes.map((n) => n.id)).toEqual(["root-r", "high-a", "high-b", "high-c"]);
+    expect(gLim4.stats.isTruncated).toBe(false);
+  });
+
+  test("8. Shuffled-Input Invariance & Absolute Determinism (P1 Determinism Proof)", () => {
     // Generate 20 interconnected nodes
     const nodes = Array.from({ length: 20 }, (_, i) =>
       makeNode(`node-${String(i).padStart(2, "0")}`, `Node ${i}`, {
@@ -288,7 +355,7 @@ describe("Stage 6B — Knowledge Graph Layout & Progressive Query (Unit Tests)",
     }
   });
 
-  test("8. Invalid Depth & Missing Root Validations", () => {
+  test("9. Invalid Depth & Missing Root Validations", () => {
     const nA = makeNode("n-a", "Root A");
 
     expect(() =>

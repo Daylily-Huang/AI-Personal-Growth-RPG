@@ -112,6 +112,7 @@ export function computeKnowledgeGraph(
   }
 
   let finalNodes: KnowledgeNode[] = [];
+  let totalReachedCount = 0;
   let isTruncated = false;
 
   // 3. Progressive k-hop ego-graph expansion (when rootNodeId is specified)
@@ -151,13 +152,15 @@ export function computeKnowledgeGraph(
       if (currentLevel.length === 0) break;
     }
 
-    // Root anchor is always visible; all reached neighbors strictly satisfy active filters.
-    const matchedVisitedNodes = Array.from(visited)
+    // P1 Root-Anchor Invariant: Explicit root ALWAYS occupies slot 0.
+    // Non-root reached candidate neighbors are sorted deterministically:
+    // degree DESC, updated_at DESC, id ASC
+    const nonRootReachedNodes = Array.from(visited)
+      .filter((id) => id !== rootNode.id)
       .map((id) => allNodesMap.get(id)!)
       .filter(Boolean);
 
-    // Deterministic sort: degree DESC, updated_at DESC, id ASC
-    const sorted = matchedVisitedNodes.sort((a, b) => {
+    const sortedNeighbors = nonRootReachedNodes.sort((a, b) => {
       const degA = degreeMap.get(a.id) ?? 0;
       const degB = degreeMap.get(b.id) ?? 0;
       if (degB !== degA) return degB - degA;
@@ -169,11 +172,16 @@ export function computeKnowledgeGraph(
       return a.id.localeCompare(b.id);
     });
 
-    if (sorted.length > limit) {
-      finalNodes = sorted.slice(0, limit);
-      isTruncated = true;
+    totalReachedCount = 1 + sortedNeighbors.length;
+
+    if (limit === 1) {
+      finalNodes = [rootNode];
+      isTruncated = totalReachedCount > 1;
     } else {
-      finalNodes = sorted;
+      const neighborSlots = limit - 1;
+      const selectedNeighbors = sortedNeighbors.slice(0, neighborSlots);
+      finalNodes = [rootNode, ...selectedNeighbors];
+      isTruncated = totalReachedCount > limit;
     }
   } else {
     // 4. Initial Viewport Query (Root-less): Return top-degree candidate nodes
@@ -190,6 +198,7 @@ export function computeKnowledgeGraph(
       return a.id.localeCompare(b.id);
     });
 
+    totalReachedCount = candidateNodes.length;
     if (sorted.length > limit) {
       finalNodes = sorted.slice(0, limit);
       isTruncated = true;
@@ -212,7 +221,7 @@ export function computeKnowledgeGraph(
     });
 
   // 6. Deterministic Spatial Layout Coordinates
-  // Arrange nodes deterministically on concentric rings based on degree rank
+  // Arrange nodes deterministically: root at center (0, 0); neighbors on concentric rings
   const layoutNodes = finalNodes.map((node, index) => {
     const total = finalNodes.length;
     let x = 0;
@@ -223,10 +232,12 @@ export function computeKnowledgeGraph(
       x = 0;
       y = 0;
     } else {
-      const ring = Math.floor(index / 12) + 1;
+      const nonRootIndex = options.rootNodeId ? index - 1 : index;
+      const nonRootTotal = options.rootNodeId ? total - 1 : total;
+      const ring = Math.floor(nonRootIndex / 12) + 1;
       const ringRadius = ring * 180;
-      const ringIndex = index % 12;
-      const ringCount = Math.min(12, total - (ring - 1) * 12);
+      const ringIndex = nonRootIndex % 12;
+      const ringCount = Math.min(12, Math.max(1, nonRootTotal - (ring - 1) * 12));
       const angle = (ringIndex / ringCount) * 2 * Math.PI;
 
       x = Math.round(ringRadius * Math.cos(angle));
@@ -277,7 +288,7 @@ export function computeKnowledgeGraph(
 
   // 8. Graph Statistics
   const stats = {
-    totalNodes: options.rootNodeId ? finalNodes.length : candidateNodes.length,
+    totalNodes: totalReachedCount,
     verifiedNodes: finalNodes.filter((n) => n.verificationStatus === "verified").length,
     inferredNodes: finalNodes.filter((n) => n.verificationStatus === "inferred").length,
     totalEdges: visibleEdges.length,
