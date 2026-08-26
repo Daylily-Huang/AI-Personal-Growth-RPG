@@ -62,14 +62,14 @@ graph TD
 ## 3. Sub-Stage Implementation Summary
 
 ### 3.1 Stage 6A (Database Authority & Invariants — FROZEN)
-- Migration `0039_knowledge_map_rebuild.sql` applied.
+- Migration `0039_knowledge_graph_authority.sql` applied.
 - Epistemic check constraints (`confidence <= 0.95` for `inferred`, `confidence = 1.00` with audit timestamp and `user_id` for `verified`).
 - Provenance immutability triggers and delete guards (`23503`) for referenced Activities/Artifacts.
 - Dynamic anti-cycle DAG triggers for `prerequisite` and `contains`.
 - Canonical storage constraint (`source_node_id < target_node_id`) for symmetric relations (`contradicts`, `relates_to`).
 
 ### 3.2 Stage 6B (API, Authority Boundary & Progressive Loading — FROZEN)
-- Migration `0040_knowledge_authority_rpc.sql` applied with PostgreSQL column-level permission revocations for raw authenticated updates on protected fields (`verification_status`, `confidence`, `verified_at`, `verified_by`, `source_type`, `source_id`, `provenance_note`).
+- Migration `0040_knowledge_authority_mutation.sql` applied with PostgreSQL column-level permission revocations for raw authenticated updates on protected fields (`verification_status`, `confidence`, `verified_at`, `verified_by`, `source_type`, `source_id`, `provenance_note`).
 - Atomic CAS `SECURITY DEFINER` authority RPCs (`verify_knowledge_node`, `reject_knowledge_node`, `verify_knowledge_edge`, `reject_knowledge_edge`).
 - Next.js RESTful routes under `/api/knowledge/**`.
 - Deterministic progressive ego-graph BFS layout (`degree DESC, updated_at DESC, id ASC`, depths 1..3, bounded limits).
