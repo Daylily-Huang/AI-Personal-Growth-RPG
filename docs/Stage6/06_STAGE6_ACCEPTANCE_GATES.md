@@ -1,14 +1,14 @@
 # Stage 6 — Acceptance Gates & Quality Checklist
 
-> **Status**: FINAL FROZEN (STAGE 6A ROUND 5 CLOSURE)  
+> **Status**: FINAL FROZEN (STAGE 6D CLOSURE)  
 > **Target Milestone**: Stage 6 (Knowledge Map)  
-> **Related Documents**: `01_KNOWLEDGE_MAP_DOMAIN_MODEL.md`, `02_KNOWLEDGE_AUTHORITY_RULES.md`, `03_KNOWLEDGE_API_AND_STATE.md`
+> **Related Documents**: `01_KNOWLEDGE_MAP_DOMAIN_MODEL.md`, `02_KNOWLEDGE_AUTHORITY_RULES.md`, `03_KNOWLEDGE_API_AND_STATE.md`, `04_KNOWLEDGE_MAP_UI_SPEC.md`, `05_STAGE6_IMPLEMENTATION_PLAN.md`, `07_STAGE6_FINAL_FROZEN_SUMMARY.md`
 
 ---
 
 ## 1. Acceptance Gates by Sub-Stage
 
-### Gate 6A: Schema, Authority & Graph Invariants (CURRENT TARGET)
+### Gate 6A: Schema, Authority & Graph Invariants (FINAL FROZEN)
 - [x] **0039 Migration Applied**: Replaces 0012 with fail-closed non-empty check guard;
 - [x] **Verified Audit Constraints**: `verification_status = 'verified'` requires `confidence = 1.00`, `verified_at IS NOT NULL`, `verified_by = user_id`;
 - [x] **Inferred Confidence Bounds**: `verification_status = 'inferred'` requires `confidence <= 0.95`;
@@ -24,22 +24,30 @@
 
 ---
 
-### Gate 6B: API & Progressive Loading (NEXT)
-- [ ] Complete RESTful endpoints under `/api/knowledge/**`;
-- [ ] Sanctioned Node & Edge verify/reject atomic authority transitions (generic raw client mutations strictly blocked);
-- [ ] Progressive loading query contract (`rootNodeId`, `depth` 1..3, bounded limits);
-- [ ] 100% HTTP integration tests with authenticated and cross-tenant attack assertions.
+### Gate 6B: API & Progressive Loading (FINAL FROZEN)
+- [x] Complete RESTful endpoints under `/api/knowledge/**`;
+- [x] Sanctioned Node & Edge verify/reject atomic authority transitions (`verify_knowledge_node`, `reject_knowledge_node`, `verify_knowledge_edge`, `reject_knowledge_edge`);
+- [x] Migration 0040 PostgreSQL column-level permission revocations blocking raw authenticated updates on protected columns;
+- [x] Progressive loading query contract (`rootNodeId`, `depth` 1..3, bounded limits with truncation banner metadata);
+- [x] 100% HTTP integration tests with authenticated and cross-tenant attack assertions (32/32 PASS).
 
 ---
 
-### Gate 6C: Interactive Canvas UI (FUTURE)
-- [ ] ReactFlow knowledge graph with 4-channel visual encoding;
-- [ ] Node & Edge detail drawer with provenance inspection;
-- [ ] Proposal verify/reject interactive confirmation modals.
+### Gate 6C: Interactive Canvas UI (FINAL FROZEN)
+- [x] ReactFlow knowledge graph with 4-channel visual encoding (stroke style, badge, confidence pill, background tint);
+- [x] Node & Edge detail drawer with full provenance inspection;
+- [x] Proposal verify/reject mutually exclusive interactive confirmation dialogs with 0 mutation on Cancel;
+- [x] Whitelisted metadata editor with render-phase state synchronization;
+- [x] Visual QA evidence and 100% UI interaction test suite (21/21 PASS).
 
 ---
 
-### Gate 6D: E2E Integration & Final Freeze (FUTURE)
-- [ ] Real browser/HTTP E2E tests for full knowledge lifecycle;
-- [ ] Zero credential leak & log sanitization audits;
-- [ ] Clean PR merge into main.
+### Gate 6D: E2E Integration & Final Freeze (FINAL FREEZE)
+- [x] Real Next.js HTTP server E2E test covering full knowledge lifecycle (`tests/e2e-http-browser.test.ts` Test 10);
+- [x] Live PostgreSQL RLS and Hostile-Client security audit (`tests/stage6d-security-isolation.test.ts` 14/14 PASS);
+- [x] Raw Data API authority bypass audit confirming column permission revocation;
+- [x] Provenance integrity regressions (foreign provenance rejection, delete guards, symmetric canonical constraints);
+- [x] Graph determinism & layout regression verification;
+- [x] Zero credential leak & CI log sanitization audits;
+- [x] Full regression test suite passing (43 test files / 487 tests PASS, 100%);
+- [ ] Clean PR #9 merge into main (Owner final action).

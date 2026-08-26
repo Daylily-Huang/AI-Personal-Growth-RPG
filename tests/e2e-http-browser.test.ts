@@ -459,4 +459,216 @@ describe.skipIf(!DATABASE_URL)("Stage 3.1 — Full Real HTTP / Browser Auth E2E 
     expect(parentInTree).toBeDefined();
     expect(parentInTree.progress).toBe(updatedChild.progress);
   });
+
+  test("10. Full Knowledge Map Lifecycle & Cross-Tenant Security Journey over HTTP", async () => {
+    const jarA = createCookieJar();
+    const { data: authA, error: errA } = await jarA.client.auth.signInWithPassword({
+      email: userAEmail,
+      password: testPassword,
+    });
+    expect(errA).toBeNull();
+    const cookieHeaderA = jarA.getCookieHeader();
+    const userAId = authA?.user?.id;
+    expect(userAId).toBeDefined();
+
+    const jarB = createCookieJar();
+    const { data: authB, error: errB } = await jarB.client.auth.signInWithPassword({
+      email: userBEmail,
+      password: testPassword,
+    });
+    expect(errB).toBeNull();
+    const cookieHeaderB = jarB.getCookieHeader();
+    const userBId = authB?.user?.id;
+    expect(userBId).toBeDefined();
+
+    // 1. User A creates Activity via HTTP
+    const actRes = await fetch(`${BASE_URL}/api/activities`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Cookie: cookieHeaderA },
+      body: JSON.stringify({
+        rawInput: "Researched Hebbian Plasticity and Long-Term Potentiation (LTP)",
+        totalMinutes: 45,
+        effectiveMinutes: 40,
+      }),
+    });
+    expect(actRes.status).toBe(201);
+    const actBody = await actRes.json();
+    expect(actBody.activity).toBeDefined();
+    const actA = actBody.activity;
+    expect(actA.id).toBeDefined();
+
+    // 2. User A creates Inferred Knowledge Node (AI proposal backed by Activity)
+    // Create direct Supabase service role client to seed inferred proposal
+    const { createClient } = await import("@supabase/supabase-js");
+    const supabaseAdmin = createClient<Database>(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+    // Create domain for User A
+    const domainId = crypto.randomUUID();
+    await supabaseAdmin.from("domains").insert({
+      id: domainId,
+      user_id: userAId!,
+      name: "E2E Neuroscience",
+      slug: `e2e-neuro-${Date.now()}`,
+    });
+
+    const nodeA1Id = crypto.randomUUID();
+    const nodeA2Id = crypto.randomUUID();
+
+    const { error: seedNode1Err } = await supabaseAdmin.from("knowledge_nodes").insert({
+      id: nodeA1Id,
+      user_id: userAId!,
+      domain_id: domainId,
+      title: "Long-Term Potentiation (LTP)",
+      description: "Persistent strengthening of synapses based on patterns of activity",
+      node_type: "concept",
+      verification_status: "inferred",
+      confidence: 0.85,
+      source_type: "ai_proposal",
+      source_id: actA.id,
+    });
+    expect(seedNode1Err).toBeNull();
+
+    const { error: seedNode2Err } = await supabaseAdmin.from("knowledge_nodes").insert({
+      id: nodeA2Id,
+      user_id: userAId!,
+      domain_id: domainId,
+      title: "NMDA Receptor Spine Growth",
+      node_type: "claim",
+      verification_status: "verified",
+      confidence: 1.00,
+      verified_at: new Date().toISOString(),
+      verified_by: userAId!,
+      source_type: "user_created",
+    });
+    expect(seedNode2Err).toBeNull();
+
+    // 3. User A queries Node 1 Detail over HTTP GET /api/knowledge/[id] -> provenance verification
+    const node1Res = await fetch(`${BASE_URL}/api/knowledge/${nodeA1Id}`, {
+      headers: { Cookie: cookieHeaderA },
+    });
+    expect(node1Res.status).toBe(200);
+    const node1Detail = await node1Res.json();
+    expect(node1Detail.node.id).toBe(nodeA1Id);
+    expect(node1Detail.node.verificationStatus).toBe("inferred");
+    expect(node1Detail.node.confidence).toBe(0.85);
+    expect(node1Detail.provenance.sourceActivity).toBeDefined();
+    expect(node1Detail.provenance.sourceActivity.id).toBe(actA.id);
+
+    // 4. User A verifies Node 1 via HTTP POST /api/knowledge/[id]/verify -> 200 + promoted to verified
+    const verifyNodeRes = await fetch(`${BASE_URL}/api/knowledge/${nodeA1Id}/verify`, {
+      method: "POST",
+      headers: { Cookie: cookieHeaderA },
+    });
+    expect(verifyNodeRes.status).toBe(200);
+
+    const recheckNode1 = await fetch(`${BASE_URL}/api/knowledge/${nodeA1Id}`, {
+      headers: { Cookie: cookieHeaderA },
+    });
+    const recheck1Detail = await recheckNode1.json();
+    expect(recheck1Detail.node.verificationStatus).toBe("verified");
+    expect(recheck1Detail.node.confidence).toBe(1.0);
+    expect(recheck1Detail.node.verifiedBy).toBe(userAId);
+
+    // 5. User A creates Inferred Edge over HTTP POST /api/knowledge/edges
+    const createEdgeRes = await fetch(`${BASE_URL}/api/knowledge/edges`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Cookie: cookieHeaderA },
+      body: JSON.stringify({
+        sourceNodeId: nodeA1Id,
+        targetNodeId: nodeA2Id,
+        relationType: "supports",
+        sourceType: "ai_proposal",
+        sourceId: actA.id,
+        confidence: 0.85,
+        provenanceNote: "LTP induction activates NMDA receptors causing structural spine growth",
+      }),
+    });
+    expect(createEdgeRes.status).toBe(201);
+    const createdEdge = await createEdgeRes.json();
+    expect(createdEdge.id).toBeDefined();
+    expect(createdEdge.verificationStatus).toBe("inferred");
+
+    // 6. User A verifies Edge over HTTP POST /api/knowledge/edges/[id]/verify
+    const verifyEdgeRes = await fetch(`${BASE_URL}/api/knowledge/edges/${createdEdge.id}/verify`, {
+      method: "POST",
+      headers: { Cookie: cookieHeaderA },
+    });
+    expect(verifyEdgeRes.status).toBe(200);
+
+    // 7. User A queries Active Knowledge Graph over HTTP GET /api/knowledge
+    const graphRes = await fetch(`${BASE_URL}/api/knowledge`, {
+      headers: { Cookie: cookieHeaderA },
+    });
+    expect(graphRes.status).toBe(200);
+    const graphData = await graphRes.json();
+    expect(graphData.nodes.some((n: { id: string }) => n.id === nodeA1Id)).toBe(true);
+    expect(graphData.nodes.some((n: { id: string }) => n.id === nodeA2Id)).toBe(true);
+    expect(graphData.edges.some((e: { id: string }) => e.id === createdEdge.id)).toBe(true);
+
+    // 8. User A archives Node 1 via HTTP PATCH /api/knowledge/[id]
+    const patchRes = await fetch(`${BASE_URL}/api/knowledge/${nodeA1Id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: cookieHeaderA },
+      body: JSON.stringify({ isArchived: true }),
+    });
+    expect(patchRes.status).toBe(200);
+
+    // 9. Active graph query hides archived node
+    const activeGraphAfterArchive = await fetch(`${BASE_URL}/api/knowledge`, {
+      headers: { Cookie: cookieHeaderA },
+    });
+    const activeData = await activeGraphAfterArchive.json();
+    expect(activeData.nodes.some((n: { id: string }) => n.id === nodeA1Id)).toBe(false);
+
+    // 10. Archived graph query retrieves archived node
+    const archivedGraphRes = await fetch(`${BASE_URL}/api/knowledge?status=archived`, {
+      headers: { Cookie: cookieHeaderA },
+    });
+    const archivedData = await archivedGraphRes.json();
+    expect(archivedData.nodes.some((n: { id: string }) => n.id === nodeA1Id)).toBe(true);
+
+    // 11. Cross-Tenant Security Attacks: User B attempts to access User A Knowledge facts -> 404 (non-disclosing)
+    const bGetA = await fetch(`${BASE_URL}/api/knowledge/${nodeA1Id}`, {
+      headers: { Cookie: cookieHeaderB },
+    });
+    expect(bGetA.status).toBe(404);
+
+    const bPatchA = await fetch(`${BASE_URL}/api/knowledge/${nodeA1Id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: cookieHeaderB },
+      body: JSON.stringify({ title: "Hacked by User B" }),
+    });
+    expect(bPatchA.status).toBe(404);
+
+    const bVerifyNodeA = await fetch(`${BASE_URL}/api/knowledge/${nodeA1Id}/verify`, {
+      method: "POST",
+      headers: { Cookie: cookieHeaderB },
+    });
+    expect(bVerifyNodeA.status).toBe(404);
+
+    const bGetEdgeA = await fetch(`${BASE_URL}/api/knowledge/edges/${createdEdge.id}`, {
+      headers: { Cookie: cookieHeaderB },
+    });
+    expect(bGetEdgeA.status).toBe(404);
+
+    const bVerifyEdgeA = await fetch(`${BASE_URL}/api/knowledge/edges/${createdEdge.id}/verify`, {
+      method: "POST",
+      headers: { Cookie: cookieHeaderB },
+    });
+    expect(bVerifyEdgeA.status).toBe(404);
+
+    // User B tries to create edge referencing User A node
+    const bCreateEdgeWithANode = await fetch(`${BASE_URL}/api/knowledge/edges`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Cookie: cookieHeaderB },
+      body: JSON.stringify({
+        sourceNodeId: nodeA1Id,
+        targetNodeId: nodeA2Id,
+        relationType: "supports",
+        sourceType: "user_created",
+      }),
+    });
+    expect([400, 404]).toContain(bCreateEdgeWithANode.status);
+  });
 });
+
