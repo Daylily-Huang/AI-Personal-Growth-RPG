@@ -28,8 +28,9 @@ GRANT UPDATE (
     last_reviewed_at
 ) ON public.knowledge_nodes TO authenticated;
 
+-- On knowledge_edges, provenance_note is epistemic provenance and CANNOT be rewritten by raw clients.
+-- Raw update is strictly restricted to non-authority metadata and lifecycle columns.
 GRANT UPDATE (
-    provenance_note,
     metadata,
     is_archived,
     archived_at,
@@ -226,8 +227,13 @@ END;
 $$;
 
 -- ==============================================================================
--- 3. FUNCTION EXECUTE PERMISSIONS
+-- 3. FUNCTION EXECUTE PERMISSIONS (Fail-Closed against PUBLIC)
 -- ==============================================================================
+REVOKE EXECUTE ON FUNCTION public.verify_knowledge_node(uuid) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.reject_knowledge_node(uuid) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.verify_knowledge_edge(uuid) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.reject_knowledge_edge(uuid) FROM PUBLIC;
+
 GRANT EXECUTE ON FUNCTION public.verify_knowledge_node(uuid) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.reject_knowledge_node(uuid) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.verify_knowledge_edge(uuid) TO authenticated, service_role;

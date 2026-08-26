@@ -25,6 +25,7 @@ describe.skipIf(!DATABASE_URL)("Stage 6B — SupabaseKnowledgeRepository & Raw A
   let repoA: SupabaseKnowledgeRepository;
   let repoB: SupabaseKnowledgeRepository;
   let authUserAClient: SupabaseClient<Database>;
+  let anonClient: SupabaseClient<Database>;
   let userAId: string;
   let userBId: string;
   const adminClient = createClient<Database>(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -41,6 +42,9 @@ describe.skipIf(!DATABASE_URL)("Stage 6B — SupabaseKnowledgeRepository & Raw A
       auth: { persistSession: false, autoRefreshToken: false },
     });
     const authUserBClient = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    anonClient = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
 
@@ -64,10 +68,10 @@ describe.skipIf(!DATABASE_URL)("Stage 6B — SupabaseKnowledgeRepository & Raw A
       on conflict (user_id) do nothing;
       insert into public.domains (id, user_id, name, slug) values
         ('${DOMAIN_A}', '${userAId}', 'Neuroscience', 'neuro')
-      on conflict (user_id, id) do nothing;
+      on conflict (id) do nothing;
       insert into public.skills (id, user_id, name) values
         ('${SKILL_A}', '${userAId}', 'Synaptic Plasticity')
-      on conflict (user_id, id) do nothing;
+      on conflict (id) do nothing;
       insert into public.activities (id, user_id, title, raw_input, activity_type, status, rules_version) values
         ('${ACTIVITY_A}', '${userAId}', 'Read LTP Paper', 'Study notes', 'study', 'confirmed', '1.0.0')
       on conflict (id) do nothing;
@@ -152,12 +156,26 @@ describe.skipIf(!DATABASE_URL)("Stage 6B — SupabaseKnowledgeRepository & Raw A
     expect(errEdgeStatus).not.toBeNull();
     expect(errEdgeStatus!.message.toLowerCase()).toContain("permission denied");
 
-    // 5. Legitimate client metadata update -> SUCCEEDS
-    const { error: errMeta } = await authUserAClient
+    // 5. P0: Direct raw UPDATE on edge provenance_note -> MUST BE DENIED (permission denied)
+    const { error: errEdgeProv } = await authUserAClient
+      .from("knowledge_edges")
+      .update({ provenance_note: "Hacked rationale rewrite" } as unknown as Database["public"]["Tables"]["knowledge_edges"]["Update"])
+      .eq("id", edge.id);
+    expect(errEdgeProv).not.toBeNull();
+    expect(errEdgeProv!.message.toLowerCase()).toContain("permission denied");
+
+    // 6. Legitimate client metadata update on node and edge -> SUCCEEDS
+    const { error: errNodeMeta } = await authUserAClient
       .from("knowledge_nodes")
       .update({ description: "Updated via authorized metadata column" })
       .eq("id", inferredNode.id);
-    expect(errMeta).toBeNull();
+    expect(errNodeMeta).toBeNull();
+
+    const { error: errEdgeMeta } = await authUserAClient
+      .from("knowledge_edges")
+      .update({ is_archived: true })
+      .eq("id", edge.id);
+    expect(errEdgeMeta).toBeNull();
   });
 
   // --------------------------------------------------------------------------
@@ -215,11 +233,19 @@ describe.skipIf(!DATABASE_URL)("Stage 6B — SupabaseKnowledgeRepository & Raw A
     expect(rejectedEdge.verificationStatus).toBe("rejected");
   });
 
+  test("3. P2 Fail-Closed RPC Privileges: Anonymous role cannot execute authority RPCs", async () => {
+    const node = await repoA.createNode({ title: "RPC Anon Call Target" });
+    const { error: anonError } = await anonClient.rpc("verify_knowledge_node", {
+      p_node_id: node.id,
+    });
+    expect(anonError).not.toBeNull();
+  });
+
   // --------------------------------------------------------------------------
-  // 3. CRUD & READ MODEL PROVENANCE RESOLUTION
+  // 4. CRUD & READ MODEL PROVENANCE RESOLUTION
   // --------------------------------------------------------------------------
 
-  test("3. updateNodeMetadata strictly updates whitelisted fields and sets updated_at", async () => {
+  test("4. updateNodeMetadata strictly updates whitelisted fields and sets updated_at", async () => {
     const node = await repoA.createNode({ title: "Spike Timing Dependent Plasticity" });
     const updated = await repoA.updateNodeMetadata(node.id, {
       description: "STDP learning window",
@@ -231,7 +257,7 @@ describe.skipIf(!DATABASE_URL)("Stage 6B — SupabaseKnowledgeRepository & Raw A
     expect(updated.archivedAt).not.toBeNull();
   });
 
-  test("4. createEdge and getEdge: handles prerequisite and symmetric auto-canonicalization", async () => {
+  test("5. createEdge and getEdge: handles prerequisite and symmetric auto-canonicalization", async () => {
     const n1 = await repoA.createNode({ title: "Presynaptic Spike" });
     const n2 = await repoA.createNode({ title: "Postsynaptic Spike" });
 
@@ -255,7 +281,7 @@ describe.skipIf(!DATABASE_URL)("Stage 6B — SupabaseKnowledgeRepository & Raw A
     expect(edgeRel.targetNodeId).toBe(higher);
   });
 
-  test("5. getNodeDetail and getEdgeDetail: resolves full provenance and connection graphs", async () => {
+  test("6. getNodeDetail and getEdgeDetail: resolves full provenance and connection graphs", async () => {
     const conceptNode = await repoA.createNode({
       title: "AMPA Receptor Trafficking",
       sourceType: "ai_proposal",
@@ -279,7 +305,7 @@ describe.skipIf(!DATABASE_URL)("Stage 6B — SupabaseKnowledgeRepository & Raw A
     expect(detail!.provenance.evidenceRecords[0].content).toBe("Staining confirmed insertion");
   });
 
-  test("6. Cross-Tenant Isolation: User B cannot access User A records through repository", async () => {
+  test("7. Cross-Tenant Isolation: User B cannot access User A records through repository", async () => {
     const nodeA = await repoA.createNode({ title: "User A Vault Node" });
 
     const bNode = await repoB.getNode(nodeA.id);

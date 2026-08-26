@@ -821,7 +821,7 @@ describe.skipIf(!DATABASE_URL)("Stage 6A — Knowledge Graph, Schema & Authority
       expect(edgeIds).not.toContain(bEdgeId);
 
       // Edge UPDATE B -> 0 rows affected
-      const updateEdge = await pg.query("update public.knowledge_edges set provenance_note = 'Hacked' where id = $1", [bEdgeId]);
+      const updateEdge = await pg.query("update public.knowledge_edges set is_archived = true where id = $1", [bEdgeId]);
       expect(updateEdge.rowCount).toBe(0);
 
       // Edge DELETE B -> 0 rows affected
@@ -870,7 +870,7 @@ describe.skipIf(!DATABASE_URL)("Stage 6A — Knowledge Graph, Schema & Authority
       expect(edgeIds).not.toContain(aEdgeId);
 
       // Edge UPDATE A -> 0 rows affected
-      const updateEdge = await pg.query("update public.knowledge_edges set provenance_note = 'Hacked' where id = $1", [aEdgeId]);
+      const updateEdge = await pg.query("update public.knowledge_edges set is_archived = true where id = $1", [aEdgeId]);
       expect(updateEdge.rowCount).toBe(0);
 
       // Edge DELETE A -> 0 rows affected

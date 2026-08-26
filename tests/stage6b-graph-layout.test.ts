@@ -139,82 +139,103 @@ describe("Stage 6B — Knowledge Graph Layout & Progressive Query (Unit Tests)",
     expect(graph.edges.map((e) => e.id)).toEqual(["e-ab"]);
   });
 
-  test("5. Root Ego Graph Filter Combinations (P1 Root Filter Tests)", () => {
-    const rootNode = makeNode("r-1", "Root Algorithm", {
-      domainId: "dom-1",
-      nodeType: "concept",
-      verificationStatus: "verified",
-    });
-
-    const inferredChild = makeNode("c-inferred", "Inferred Child", {
-      domainId: "dom-1",
-      nodeType: "claim",
-      verificationStatus: "inferred",
-    });
-
-    const foreignDomainChild = makeNode("c-foreign", "Foreign Domain Child", {
-      domainId: "dom-2", // Different domain
-      nodeType: "concept",
-      verificationStatus: "verified",
-    });
-
-    const topicChild = makeNode("c-topic", "Topic Child", {
-      domainId: "dom-1",
-      nodeType: "topic",
-      verificationStatus: "verified",
-    });
-
-    const searchMatchChild = makeNode("c-search", "Search Alpha Match", {
-      domainId: "dom-1",
-      nodeType: "concept",
-      verificationStatus: "verified",
-    });
-
-    const edges = [
-      makeEdge("e-1", "r-1", "c-inferred"),
-      makeEdge("e-2", "r-1", "c-foreign"),
-      makeEdge("e-3", "r-1", "c-topic"),
-      makeEdge("e-4", "r-1", "c-search"),
+  test("5. P1 Hidden-Bridge Elimination Regressions across all Filter Dimensions", () => {
+    // 5.1 Domain Hidden Bridge: A(dom-1) -> B(dom-2) -> C(dom-1)
+    const domA = makeNode("dom-a", "Domain Match A", { domainId: "dom-1" });
+    const domB = makeNode("dom-b", "Domain Bridge B", { domainId: "dom-2" });
+    const domC = makeNode("dom-c", "Domain Match C", { domainId: "dom-1" });
+    const domEdges = [
+      makeEdge("e-dom-ab", "dom-a", "dom-b"),
+      makeEdge("e-dom-bc", "dom-b", "dom-c"),
     ];
 
-    const allUniverse = [rootNode, inferredChild, foreignDomainChild, topicChild, searchMatchChild];
-
-    // 5.1 root + status=verified: inferred neighbor c-inferred excluded
-    const gStatus = computeKnowledgeGraph(domains, skills, allUniverse, edges, {
-      rootNodeId: "r-1",
-      depth: 1,
-      status: "verified",
-    });
-    expect(gStatus.nodes.map((n) => n.id)).not.toContain("c-inferred");
-    expect(gStatus.nodes.map((n) => n.id)).toContain("r-1");
-
-    // 5.2 root + domainId=dom-1: foreign domain neighbor c-foreign excluded
-    const gDomain = computeKnowledgeGraph(domains, skills, allUniverse, edges, {
-      rootNodeId: "r-1",
-      depth: 1,
+    const gDom = computeKnowledgeGraph(domains, skills, [domA, domB, domC], domEdges, {
+      rootNodeId: "dom-a",
+      depth: 2,
       domainId: "dom-1",
     });
-    expect(gDomain.nodes.map((n) => n.id)).not.toContain("c-foreign");
-    expect(gDomain.nodes.map((n) => n.id)).toContain("r-1");
+    // B is excluded by filter; C MUST NOT be reached through B!
+    expect(gDom.nodes.map((n) => n.id)).toEqual(["dom-a"]);
+    expect(gDom.edges).toHaveLength(0);
 
-    // 5.3 root + nodeType=claim: non-claim nodes (concept, topic) excluded
-    const gType = computeKnowledgeGraph(domains, skills, allUniverse, edges, {
-      rootNodeId: "r-1",
-      depth: 1,
+    // 5.2 Status Hidden Bridge: verified A -> inferred B -> verified C
+    const stA = makeNode("st-a", "Verified Node A", { verificationStatus: "verified" });
+    const stB = makeNode("st-b", "Inferred Node B", { verificationStatus: "inferred" });
+    const stC = makeNode("st-c", "Verified Node C", { verificationStatus: "verified" });
+    const stEdges = [
+      makeEdge("e-st-ab", "st-a", "st-b"),
+      makeEdge("e-st-bc", "st-b", "st-c"),
+    ];
+
+    const gStatus = computeKnowledgeGraph(domains, skills, [stA, stB, stC], stEdges, {
+      rootNodeId: "st-a",
+      depth: 2,
+      status: "verified",
+    });
+    // Inferred B is excluded; verified C MUST NOT be reached through inferred B!
+    expect(gStatus.nodes.map((n) => n.id)).toEqual(["st-a"]);
+    expect(gStatus.edges).toHaveLength(0);
+
+    // 5.3 NodeType Hidden Bridge: claim A -> concept B -> claim C
+    const typeA = makeNode("type-a", "Claim Node A", { nodeType: "claim" });
+    const typeB = makeNode("type-b", "Concept Bridge B", { nodeType: "concept" });
+    const typeC = makeNode("type-c", "Claim Node C", { nodeType: "claim" });
+    const typeEdges = [
+      makeEdge("e-type-ab", "type-a", "type-b"),
+      makeEdge("e-type-bc", "type-b", "type-c"),
+    ];
+
+    const gType = computeKnowledgeGraph(domains, skills, [typeA, typeB, typeC], typeEdges, {
+      rootNodeId: "type-a",
+      depth: 2,
       nodeType: "claim",
     });
-    expect(gType.nodes.map((n) => n.id)).toEqual(["c-inferred"]);
+    // Concept B is excluded; claim C MUST NOT be reached through concept B!
+    expect(gType.nodes.map((n) => n.id)).toEqual(["type-a"]);
+    expect(gType.edges).toHaveLength(0);
 
-    // 5.4 root + search="Alpha": nonmatching nodes excluded
-    const gSearch = computeKnowledgeGraph(domains, skills, allUniverse, edges, {
-      rootNodeId: "r-1",
-      depth: 1,
+    // 5.4 Search Hidden Bridge: Alpha A -> Beta B -> Alpha C
+    const srchA = makeNode("srch-a", "Alpha Concept A");
+    const srchB = makeNode("srch-b", "Beta Concept B");
+    const srchC = makeNode("srch-c", "Alpha Concept C");
+    const srchEdges = [
+      makeEdge("e-srch-ab", "srch-a", "srch-b"),
+      makeEdge("e-srch-bc", "srch-b", "srch-c"),
+    ];
+
+    const gSearch = computeKnowledgeGraph(domains, skills, [srchA, srchB, srchC], srchEdges, {
+      rootNodeId: "srch-a",
+      depth: 2,
       search: "Alpha",
     });
-    expect(gSearch.nodes.map((n) => n.id)).toEqual(["c-search"]);
+    // Beta B is excluded by search; Alpha C MUST NOT be reached through Beta B!
+    expect(gSearch.nodes.map((n) => n.id)).toEqual(["srch-a"]);
+    expect(gSearch.edges).toHaveLength(0);
   });
 
-  test("6. Shuffled-Input Invariance & Absolute Determinism (P1 Determinism Proof)", () => {
+  test("6. Root Filter Mismatch Semantics: Root anchor remains visible while expanded neighbors strictly satisfy filters", () => {
+    // Root is domain-2, Child is domain-1, Grandchild is domain-1
+    const rootForeign = makeNode("r-foreign", "Foreign Root", { domainId: "dom-2" });
+    const childMatch = makeNode("c-match", "Matching Child", { domainId: "dom-1" });
+    const grandMatch = makeNode("g-match", "Matching Grandchild", { domainId: "dom-1" });
+
+    const edges = [
+      makeEdge("e-rc", "r-foreign", "c-match"),
+      makeEdge("e-cg", "c-match", "g-match"),
+    ];
+
+    const graph = computeKnowledgeGraph(domains, skills, [rootForeign, childMatch, grandMatch], edges, {
+      rootNodeId: "r-foreign",
+      depth: 2,
+      domainId: "dom-1",
+    });
+
+    // Root is preserved as the focal anchor; expanded neighbors childMatch and grandMatch match domain-1
+    expect(graph.nodes.map((n) => n.id).sort()).toEqual(["c-match", "g-match", "r-foreign"]);
+    expect(graph.edges.map((e) => e.id).sort()).toEqual(["e-cg", "e-rc"]);
+  });
+
+  test("7. Shuffled-Input Invariance & Absolute Determinism (P1 Determinism Proof)", () => {
     // Generate 20 interconnected nodes
     const nodes = Array.from({ length: 20 }, (_, i) =>
       makeNode(`node-${String(i).padStart(2, "0")}`, `Node ${i}`, {
@@ -267,7 +288,7 @@ describe("Stage 6B — Knowledge Graph Layout & Progressive Query (Unit Tests)",
     }
   });
 
-  test("7. Invalid Depth & Missing Root Validations", () => {
+  test("8. Invalid Depth & Missing Root Validations", () => {
     const nA = makeNode("n-a", "Root A");
 
     expect(() =>

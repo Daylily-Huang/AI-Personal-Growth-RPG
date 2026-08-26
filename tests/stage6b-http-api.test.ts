@@ -286,7 +286,7 @@ describe.skipIf(!DATABASE_URL)("Stage 6B — Knowledge Map HTTP API & Authority 
   });
 
   // --------------------------------------------------------------------------
-  // 4. CONCURRENT DOUBLE VERIFY (P1 Race-Lost Must Return 409 Never 500)
+  // 4. CONCURRENT DOUBLE VERIFY (Node and Edge: 200 + 409, Never 500)
   // --------------------------------------------------------------------------
 
   test("5. Concurrent Double Verify against inferred Node returns 200 + 409 (Never 500)", async () => {
@@ -317,7 +317,48 @@ describe.skipIf(!DATABASE_URL)("Stage 6B — Knowledge Map HTTP API & Authority 
     expect(res2.status).not.toBe(500);
   });
 
-  test("6. Edge Creation, Auto-Canonicalization & Authority Transitions", async () => {
+  test("6. P2 Concurrent Double Verify against inferred Edge returns 200 + 409 (Never 500)", async () => {
+    const n1Res = await api(userA, "/api/knowledge", {
+      method: "POST",
+      body: JSON.stringify({ title: "Edge Concurrent Race Node 1" }),
+    });
+    const n2Res = await api(userA, "/api/knowledge", {
+      method: "POST",
+      body: JSON.stringify({ title: "Edge Concurrent Race Node 2" }),
+    });
+    const n1 = await n1Res.json();
+    const n2 = await n2Res.json();
+
+    const edgeRes = await api(userA, "/api/knowledge/edges", {
+      method: "POST",
+      body: JSON.stringify({
+        sourceNodeId: n1.id,
+        targetNodeId: n2.id,
+        relationType: "supports",
+        sourceType: "ai_proposal",
+        sourceId: activityAId,
+        confidence: 0.85,
+      }),
+    });
+    expect(edgeRes.status).toBe(201);
+    const edge = await edgeRes.json();
+    expect(edge.verificationStatus).toBe("inferred");
+
+    // Fire two simultaneous verify requests against the edge
+    const [res1, res2] = await Promise.all([
+      api(userA, `/api/knowledge/edges/${edge.id}/verify`, { method: "POST" }),
+      api(userA, `/api/knowledge/edges/${edge.id}/verify`, { method: "POST" }),
+    ]);
+
+    const statuses = [res1.status, res2.status].sort();
+    expect(statuses).toEqual([200, 409]);
+
+    // Ensure neither returned 500
+    expect(res1.status).not.toBe(500);
+    expect(res2.status).not.toBe(500);
+  });
+
+  test("7. Edge Creation, Auto-Canonicalization & Authority Transitions", async () => {
     const n1Res = await api(userA, "/api/knowledge", {
       method: "POST",
       body: JSON.stringify({ title: "Edge Node 1" }),
@@ -402,7 +443,7 @@ describe.skipIf(!DATABASE_URL)("Stage 6B — Knowledge Map HTTP API & Authority 
   // 5. READ MODELS & PROVENANCE RESOLUTION
   // --------------------------------------------------------------------------
 
-  test("7. Read Models: GET /api/knowledge/[id] and GET /api/knowledge/edges/[id] resolve provenance", async () => {
+  test("8. Read Models: GET /api/knowledge/[id] and GET /api/knowledge/edges/[id] resolve provenance", async () => {
     const pNodeRes = await api(userA, "/api/knowledge", {
       method: "POST",
       body: JSON.stringify({
@@ -430,7 +471,7 @@ describe.skipIf(!DATABASE_URL)("Stage 6B — Knowledge Map HTTP API & Authority 
   // 6. ARCHIVED GRAPH QUERY & PROGRESSIVE LOADING (P1 Archived Query Tests)
   // --------------------------------------------------------------------------
 
-  test("8. Archived Graph Query: archived hidden in status=all, visible in status=archived", async () => {
+  test("9. Archived Graph Query: archived hidden in status=all, visible in status=archived", async () => {
     // Create an active node and an archived node
     const activeRes = await api(userA, "/api/knowledge", {
       method: "POST",
@@ -472,7 +513,7 @@ describe.skipIf(!DATABASE_URL)("Stage 6B — Knowledge Map HTTP API & Authority 
   // 7. CROSS-TENANT SECURITY MATRIX (User A vs User B)
   // --------------------------------------------------------------------------
 
-  test("9. Cross-Tenant Security Matrix: User B accessing User A entities returns 404", async () => {
+  test("10. Cross-Tenant Security Matrix: User B accessing User A entities returns 404", async () => {
     const aNodeRes = await api(userA, "/api/knowledge", {
       method: "POST",
       body: JSON.stringify({ title: "User A Private Secret Node" }),
@@ -502,7 +543,7 @@ describe.skipIf(!DATABASE_URL)("Stage 6B — Knowledge Map HTTP API & Authority 
   // 8. OWNED DELETION
   // --------------------------------------------------------------------------
 
-  test("10. Owned Deletion: 204 on success, 404 on repeat delete", async () => {
+  test("11. Owned Deletion: 204 on success, 404 on repeat delete", async () => {
     const nodeRes = await api(userA, "/api/knowledge", {
       method: "POST",
       body: JSON.stringify({ title: "Node To Delete" }),
