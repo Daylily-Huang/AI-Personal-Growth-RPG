@@ -518,14 +518,14 @@ describe.skipIf(!DATABASE_URL)("Stage 7A — Artifact Schema, Composite FKs, RLS
   // ============================================================================
   describe("4. Child-Table RLS Isolation Matrix", () => {
     const childTables = [
-      { name: "artifact_activities", idCol: "activity_id", foreignVal: ACTIVITY_A },
-      { name: "artifact_skills", idCol: "skill_id", foreignVal: SKILL_A },
-      { name: "artifact_knowledge_nodes", idCol: "node_id", foreignVal: NODE_A1 },
-      { name: "artifact_quests", idCol: "quest_id", foreignVal: QUEST_A },
-      { name: "artifact_evidence", idCol: "evidence_id", foreignVal: EVIDENCE_A },
+      { name: "artifact_activities", updateSet: "activity_role = 'referenced'" },
+      { name: "artifact_skills", updateSet: "demonstration_level = 5" },
+      { name: "artifact_knowledge_nodes", updateSet: "relation_type = 'cites'" },
+      { name: "artifact_quests", updateSet: "is_primary_deliverable = false" },
+      { name: "artifact_evidence", updateSet: null },
     ];
 
-    childTables.forEach(({ name }) => {
+    childTables.forEach(({ name, updateSet }) => {
       test(`4.${name} RLS: User A reads own; User B SELECT/UPDATE/DELETE affects 0 rows`, async () => {
         // User A can select own link
         await asUser(USER_A, async () => {
@@ -539,11 +539,18 @@ describe.skipIf(!DATABASE_URL)("Stage 7A — Artifact Schema, Composite FKs, RLS
           const resB = await pg.query(`select * from public.${name} where artifact_id = '${ART_A1}'`);
           expect(resB.rows.length).toBe(0);
 
-          // User B cannot update User A link
-          const updRes = await pg.query(`update public.${name} set created_at = now() where artifact_id = '${ART_A1}'`);
-          expect(updRes.rowCount).toBe(0);
+          // User B cannot update User A link (affects 0 rows or denied)
+          if (updateSet) {
+            const updRes = await pg.query(`update public.${name} set ${updateSet} where artifact_id = '${ART_A1}'`);
+            expect(updRes.rowCount).toBe(0);
+          } else {
+            // Table with no update privilege (e.g. artifact_evidence)
+            await expect(
+              pg.query(`update public.${name} set created_at = now() where artifact_id = '${ART_A1}'`)
+            ).rejects.toThrow(/permission denied|42501/);
+          }
 
-          // User B cannot delete User A link
+          // User B cannot delete User A link (affects 0 rows)
           const delRes = await pg.query(`delete from public.${name} where artifact_id = '${ART_A1}'`);
           expect(delRes.rowCount).toBe(0);
         });
@@ -699,6 +706,148 @@ describe.skipIf(!DATABASE_URL)("Stage 7A — Artifact Schema, Composite FKs, RLS
         );
         expect(archRes.rows[0].is_archived).toBe(true);
         expect(archRes.rows[0].archived_at).not.toBeNull();
+      });
+    });
+  });
+
+  // ============================================================================
+  // 7. COLUMN-LEVEL UPDATE PRIVILEGE DENIAL & MUTATION AUTHORITY (P1-1)
+  // ============================================================================
+  describe("7. Column-Level UPDATE Privilege Denial & Mutation Authority", () => {
+    test("7.1 UPDATE own Artifact id is rejected with 42501 (permission denied)", async () => {
+      await asUser(USER_A, async () => {
+        await expect(
+          pg.query(`update public.artifacts set id = gen_random_uuid() where id = '${ART_A1}'`)
+        ).rejects.toThrow(/permission denied|42501/);
+      });
+    });
+
+    test("7.2 UPDATE own Artifact user_id is rejected with 42501", async () => {
+      await asUser(USER_A, async () => {
+        await expect(
+          pg.query(`update public.artifacts set user_id = '${USER_B}' where id = '${ART_A1}'`)
+        ).rejects.toThrow(/permission denied|42501/);
+      });
+    });
+
+    test("7.3 UPDATE own Artifact created_at is rejected with 42501", async () => {
+      await asUser(USER_A, async () => {
+        await expect(
+          pg.query(`update public.artifacts set created_at = now() where id = '${ART_A1}'`)
+        ).rejects.toThrow(/permission denied|42501/);
+      });
+    });
+
+    test("7.4 UPDATE own Artifact updated_at is rejected with 42501", async () => {
+      await asUser(USER_A, async () => {
+        await expect(
+          pg.query(`update public.artifacts set updated_at = now() where id = '${ART_A1}'`)
+        ).rejects.toThrow(/permission denied|42501/);
+      });
+    });
+
+    test("7.5 Direct archived_at fabrication is rejected with 42501", async () => {
+      await asUser(USER_A, async () => {
+        await expect(
+          pg.query(`update public.artifacts set archived_at = now() where id = '${ART_A1}'`)
+        ).rejects.toThrow(/permission denied|42501/);
+      });
+    });
+
+    test("7.6 Legitimate metadata updates succeed (title, summary, description, version, storage_path, external_url, reusability_score, metadata, artifact_type)", async () => {
+      await asUser(USER_A, async () => {
+        const res = await pg.query(
+          `update public.artifacts
+           set title = 'Updated Title by User A',
+               summary = 'Updated Summary by User A',
+               description = 'Updated Description',
+               version = '2.0',
+               storage_path = 'uploads/doc.pdf',
+               external_url = 'https://example.com/doc',
+               reusability_score = 0.95,
+               metadata = '{"custom_tag": "research"}',
+               artifact_type = 'design_spec'
+           where id = '${ART_A1}'
+           returning title, summary, version, reusability_score, artifact_type`
+        );
+        expect(res.rowCount).toBe(1);
+        expect(res.rows[0].title).toBe("Updated Title by User A");
+        expect(res.rows[0].version).toBe("2.0");
+        expect(Number(res.rows[0].reusability_score)).toBe(0.95);
+        expect(res.rows[0].artifact_type).toBe("design_spec");
+      });
+    });
+
+    test("7.7 Coherent lifecycle update succeeds and trigger automatically assigns archived_at", async () => {
+      await asUser(USER_A, async () => {
+        const res = await pg.query(
+          `update public.artifacts
+           set lifecycle_status = 'archived',
+               is_archived = true
+           where id = '${ART_A1}'
+           returning lifecycle_status, is_archived, archived_at`
+        );
+        expect(res.rowCount).toBe(1);
+        expect(res.rows[0].lifecycle_status).toBe("archived");
+        expect(res.rows[0].is_archived).toBe(true);
+        expect(res.rows[0].archived_at).not.toBeNull();
+      });
+    });
+
+    test("7.8 Child table identity-rewire attacks on foreign keys/id/user_id are rejected with 42501", async () => {
+      await asUser(USER_A, async () => {
+        // artifact_activities: cannot update artifact_id or activity_id
+        await expect(
+          pg.query(`update public.artifact_activities set artifact_id = gen_random_uuid() where artifact_id = '${ART_A1}'`)
+        ).rejects.toThrow(/permission denied|42501/);
+
+        // artifact_skills: cannot update skill_id
+        await expect(
+          pg.query(`update public.artifact_skills set skill_id = gen_random_uuid() where artifact_id = '${ART_A1}'`)
+        ).rejects.toThrow(/permission denied|42501/);
+
+        // artifact_knowledge_nodes: cannot update node_id
+        await expect(
+          pg.query(`update public.artifact_knowledge_nodes set node_id = gen_random_uuid() where artifact_id = '${ART_A1}'`)
+        ).rejects.toThrow(/permission denied|42501/);
+
+        // artifact_quests: cannot update quest_id
+        await expect(
+          pg.query(`update public.artifact_quests set quest_id = gen_random_uuid() where artifact_id = '${ART_A1}'`)
+        ).rejects.toThrow(/permission denied|42501/);
+
+        // artifact_evidence: raw UPDATE is completely denied
+        await expect(
+          pg.query(`update public.artifact_evidence set evidence_id = gen_random_uuid() where artifact_id = '${ART_A1}'`)
+        ).rejects.toThrow(/permission denied|42501/);
+      });
+    });
+
+    test("7.9 Child table semantic updates on whitelisted columns succeed", async () => {
+      await asUser(USER_A, async () => {
+        // artifact_activities: activity_role is mutable
+        const actRes = await pg.query(
+          `update public.artifact_activities set activity_role = 'referenced' where artifact_id = '${ART_A1}' returning activity_role`
+        );
+        expect(actRes.rows[0].activity_role).toBe("referenced");
+
+        // artifact_skills: demonstration_level is mutable
+        const skillRes = await pg.query(
+          `update public.artifact_skills set demonstration_level = 5 where artifact_id = '${ART_A1}' returning demonstration_level`
+        );
+        expect(skillRes.rows[0].demonstration_level).toBe(5);
+
+        // artifact_knowledge_nodes: relation_type is mutable
+        const nodeRes = await pg.query(
+          `update public.artifact_knowledge_nodes set relation_type = 'cites' where artifact_id = '${ART_A1}' returning relation_type`
+        );
+        expect(nodeRes.rows[0].relation_type).toBe("cites");
+
+        // artifact_quests: is_primary_deliverable is mutable
+        const questRes = await pg.query(
+          `update public.artifact_quests set is_primary_deliverable = false where artifact_id = '${ART_A1}' returning is_primary_deliverable`
+        );
+        expect(questRes.rows[0].is_primary_deliverable).toBe(false);
       });
     });
   });

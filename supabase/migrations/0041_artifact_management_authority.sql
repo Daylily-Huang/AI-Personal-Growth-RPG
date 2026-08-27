@@ -377,15 +377,44 @@ CREATE POLICY artifact_evidence_delete ON public.artifact_evidence
     FOR DELETE USING (auth.uid() = user_id);
 
 -- ==============================================================================
--- 9. ROLE PRIVILEGES & SECURITY GRANTS
+-- 9. ROLE PRIVILEGES & SECURITY GRANTS (COLUMN-LEVEL HARDENED)
 -- ==============================================================================
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.artifacts TO authenticated;
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.artifact_activities TO authenticated;
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.artifact_skills TO authenticated;
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.artifact_knowledge_nodes TO authenticated;
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.artifact_quests TO authenticated;
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.artifact_evidence TO authenticated;
+-- 9.1 artifacts: Full SELECT, INSERT, DELETE; UPDATE restricted to user-authoritative columns
+GRANT SELECT, INSERT, DELETE ON public.artifacts TO authenticated;
+GRANT UPDATE (
+    title,
+    artifact_type,
+    summary,
+    description,
+    lifecycle_status,
+    version,
+    storage_path,
+    external_url,
+    reusability_score,
+    is_archived,
+    metadata
+) ON public.artifacts TO authenticated;
 
+-- 9.2 artifact_activities: UPDATE restricted to activity_role
+GRANT SELECT, INSERT, DELETE ON public.artifact_activities TO authenticated;
+GRANT UPDATE (activity_role) ON public.artifact_activities TO authenticated;
+
+-- 9.3 artifact_skills: UPDATE restricted to demonstration_level
+GRANT SELECT, INSERT, DELETE ON public.artifact_skills TO authenticated;
+GRANT UPDATE (demonstration_level) ON public.artifact_skills TO authenticated;
+
+-- 9.4 artifact_knowledge_nodes: UPDATE restricted to relation_type
+GRANT SELECT, INSERT, DELETE ON public.artifact_knowledge_nodes TO authenticated;
+GRANT UPDATE (relation_type) ON public.artifact_knowledge_nodes TO authenticated;
+
+-- 9.5 artifact_quests: UPDATE restricted to is_primary_deliverable
+GRANT SELECT, INSERT, DELETE ON public.artifact_quests TO authenticated;
+GRANT UPDATE (is_primary_deliverable) ON public.artifact_quests TO authenticated;
+
+-- 9.6 artifact_evidence: SELECT, INSERT, DELETE only; NO raw UPDATE granted
+GRANT SELECT, INSERT, DELETE ON public.artifact_evidence TO authenticated;
+
+-- 9.7 Fail-Closed Anon Denial
 REVOKE ALL ON public.artifacts FROM anon;
 REVOKE ALL ON public.artifact_activities FROM anon;
 REVOKE ALL ON public.artifact_skills FROM anon;

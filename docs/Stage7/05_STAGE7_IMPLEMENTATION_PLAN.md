@@ -14,20 +14,22 @@ graph TD
     subgraph Stage 7A: Schema & Authority [CURRENT TARGET]
         A1[0041 Migration & Table Rebuild] --> A2[Normalized Relational Join Tables]
         A2 --> A3[Composite Foreign Keys & RLS]
-        A3 --> A4[Fail-Closed Deletion Trigger]
-        A4 --> A5[Live PostgreSQL Authority Test Suite]
+        A3 --> A4[Column-Level UPDATE Privileges]
+        A4 --> A5[Fail-Closed Deletion Trigger]
+        A5 --> A6[Live PostgreSQL Authority Test Suite]
     end
 
-    subgraph Stage 7B: API & Read-Model [NEXT]
+    subgraph Stage 7B: API, Read-Model & Settlement [NEXT]
         B1[Artifact Repository & Link Service] --> B2[RESTful Endpoints /api/artifacts]
-        B2 --> B3[Batch Relationship Management]
-        B3 --> B4[HTTP Integration Tests]
+        B2 --> B3[Batch Relationship Management: All 5 Entities]
+        B3 --> B4[0042 Migration: AI Proposal Atomic Settlement Integration]
+        B4 --> B5[HTTP Integration Tests]
     end
 
     subgraph Stage 7C: Interactive UI [FUTURE]
         C0[Design-Sequence Checkpoint] --> C1[Artifacts Gallery & List View]
-        C1 --> C2[Detail Inspector Drawer]
-        C2 --> C3[Create / Edit / Archive Dialogs]
+        C1 --> C2[Detail Inspector Drawer: 5 Relational Accordions]
+        C2 --> C3[Create / Edit / Archive / Superseded Dialogs]
     end
 
     subgraph Stage 7D: E2E & Final Freeze [FUTURE]
@@ -44,7 +46,7 @@ graph TD
 
 ### 2.1 Stage 7A — Domain Model, Schema & Authority (Branch: `feature/stage7a-artifact-authority`)
 - **Migration `0041_artifact_management_authority.sql`**:
-  - Rebuild / upgrade `public.artifacts` with strict constraints (`artifact_type` enum, `lifecycle_status` enum, `reusability_score` 0.00..1.00, `is_archived`).
+  - Rebuild / upgrade `public.artifacts` with strict constraints (`artifact_type` 8 canonical types, `lifecycle_status` enum, `reusability_score numeric(3,2)`, `check_artifact_lifecycle_coherence`).
   - Create normalized join tables:
     - `public.artifact_activities`
     - `public.artifact_skills`
@@ -52,19 +54,25 @@ graph TD
     - `public.artifact_quests`
     - `public.artifact_evidence`
   - Enforce composite foreign keys `(user_id, artifact_id)` and `(user_id, entity_id)` to guarantee tenant boundary at DB level.
+  - Implement column-level UPDATE privileges on `public.artifacts` (whitelisted user-authoritative columns) and child tables (semantic columns only); revoke raw UPDATE on immutable/audit columns.
   - Implement fail-closed delete guard trigger `prevent_artifact_delete_if_referenced()` protecting Knowledge Provenance and Evidence.
   - Row Level Security (RLS) policies on all tables (`auth.uid() = user_id`).
   - Comprehensive live PostgreSQL test suite (`tests/stage7a-db-authority.test.ts`).
 
-### 2.2 Stage 7B — Repository, API Layer & Relationship Manager
-- Typed `SupabaseArtifactRepository` implementing CRUD, filtering, pagination, and multi-relational joins.
+### 2.2 Stage 7B — Repository, API Layer & Settlement Integration
+- Typed `SupabaseArtifactRepository` implementing CRUD, filtering, pagination, and multi-relational joins across all 5 entity types.
 - Next.js App Router API routes under `src/app/api/artifacts/**`.
-- Batch link management and HTTP integration tests with cross-tenant attack assertions (`tests/stage7b-http-api.test.ts`).
+- Batch link management across activities, skills, knowledge nodes, quests, and evidence.
+- **Assessment Artifact Proposal + Atomic Settlement Integration**:
+  - Implement forward migration `0042_artifact_settlement_integration.sql`.
+  - Ensure `POST /api/activities/[id]/assess` generates `artifactProposal` without writing to DB.
+  - Ensure `POST /api/assessments/[id]/confirm` atomically commits settled XP and creates Artifact + relations.
+  - Verify atomicity, rollback, and idempotency in HTTP/DB integration test suite (`tests/stage7b-http-api.test.ts`).
 
 ### 2.3 Stage 7C — Artifacts Workspace UI
 - Pause at **Design-Sequence Checkpoint** to evaluate extracting global app shell, shared navigation, and drawer primitives.
-- Implement `/artifacts` page with Left filter bar, Center artifact gallery/list, and Right detail inspector.
-- Interactive Modals (Create, Edit, Archive/Delete confirmation).
+- Implement `/artifacts` page with Left filter bar (active, draft, archived, superseded, all), Center artifact gallery/list, and Right detail inspector with 5 relational accordions.
+- Interactive Modals (Create, Edit, Manage Links, Archive/Delete confirmation, Restore Superseded).
 - UI component and interaction test suite (`tests/stage7c-ui.test.tsx`).
 
 ### 2.4 Stage 7D — E2E Integration, Security Isolation & Final Freeze

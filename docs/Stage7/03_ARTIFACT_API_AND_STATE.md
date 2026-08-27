@@ -16,7 +16,7 @@
 | `GET` | `/api/artifacts/[id]` | Get detailed artifact record including all joined relationships. | Authenticated (`auth.uid() = user_id`) |
 | `PATCH` | `/api/artifacts/[id]` | Update artifact metadata, lifecycle status, and archive state. | Authenticated (`auth.uid() = user_id`) |
 | `DELETE` | `/api/artifacts/[id]` | Delete artifact (blocked if referenced by provenance/evidence). | Authenticated (`auth.uid() = user_id`) |
-| `POST` | `/api/artifacts/[id]/links` | Batch attach or detach relational links (skills/knowledge/quests/evidence). | Authenticated (`auth.uid() = user_id`) |
+| `POST` | `/api/artifacts/[id]/links` | Batch attach or detach relational links across all 5 entity types. | Authenticated (`auth.uid() = user_id`) |
 
 ---
 
@@ -199,3 +199,64 @@ Returns updated `artifact` object.
 ### 2.5 `DELETE /api/artifacts/[id]`
 - If referenced by knowledge provenance or evidence: Returns **`409 Conflict`** (`code: "referenced_by_provenance"`, `error: "Cannot delete artifact referenced by knowledge provenance or evidence records. Please archive instead."`).
 - If unreferenced: Deletes artifact and cascading joins $\rightarrow$ returns **`204 No Content`**.
+
+---
+
+### 2.6 `POST /api/artifacts/[id]/links` (Batch Link Management)
+#### Request Body (All 5 Entity Types)
+```json
+{
+  "activities": [
+    { "activityId": "act-1", "action": "attach", "activityRole": "produced" },
+    { "activityId": "act-2", "action": "detach" }
+  ],
+  "skills": [
+    { "skillId": "sk-1", "action": "attach", "demonstrationLevel": 4 },
+    { "skillId": "sk-2", "action": "detach" }
+  ],
+  "knowledgeNodes": [
+    { "nodeId": "kn-1", "action": "attach", "relationType": "synthesizes" },
+    { "nodeId": "kn-2", "action": "detach" }
+  ],
+  "quests": [
+    { "questId": "q-1", "action": "attach", "isPrimaryDeliverable": true },
+    { "questId": "q-2", "action": "detach" }
+  ],
+  "evidence": [
+    { "evidenceId": "ev-1", "action": "attach" },
+    { "evidenceId": "ev-2", "action": "detach" }
+  ]
+}
+```
+#### Response (200 OK)
+Returns refreshed relationship counts and links object.
+
+---
+
+## 3. AI Assessment Proposal Contract (Stage 7B Settlement Integration)
+
+### 3.1 `artifactProposal` Schema
+When the AI Game Master identifies a durable work product during `POST /api/activities/[id]/assess`, it returns an optional proposal object:
+```json
+{
+  "artifactProposal": {
+    "title": "Synaptic Plasticity Literature Review",
+    "artifactType": "document",
+    "summary": "12-page comprehensive review on LTP and synaptic scaling.",
+    "description": "Synthesized 24 papers on hippocampal plasticity mechanisms.",
+    "version": "1.0",
+    "externalUrl": "https://arxiv.org/abs/example",
+    "reusabilityScore": 0.85,
+    "metadata": { "pageCount": 12 },
+    "skillIds": ["skill-uuid-1"],
+    "knowledgeNodeIds": ["node-uuid-1", "node-uuid-2"],
+    "questIds": ["quest-uuid-1"]
+  }
+}
+```
+
+### 3.2 Atomicity & Idempotency Rules
+1. **Zero DB writes on Assess**: The proposal generates zero database rows prior to confirmation.
+2. **Atomic Settlement on Confirm**: On `POST /api/assessments/[id]/confirm`, the backend commits the XP ledger, writes `artifacts`, writes `artifact_activities(role='produced')`, and writes all valid links in a single database transaction.
+3. **Idempotency**: Confirming an already settled assessment returns the existing artifact without creating duplicates.
+4. **All-or-Nothing Rollback**: Any failure in artifact creation rolls back the entire settlement transaction.
