@@ -60,7 +60,7 @@ CREATE TABLE public.artifacts (
         CHECK (length(trim(title)) > 0),
     normalized_title TEXT GENERATED ALWAYS AS (lower(regexp_replace(trim(title), '\s+', ' ', 'g'))) STORED,
     artifact_type TEXT NOT NULL
-        CHECK (artifact_type IN ('document', 'code', 'code_repository', 'design_spec', 'data_analysis', 'presentation', 'synthesis_note', 'creative_work', 'other')),
+        CHECK (artifact_type IN ('document', 'code_repository', 'design_spec', 'data_analysis', 'presentation', 'synthesis_note', 'creative_work', 'other')),
     summary TEXT,
     description TEXT,
     lifecycle_status TEXT NOT NULL DEFAULT 'active'
@@ -68,7 +68,7 @@ CREATE TABLE public.artifacts (
     version TEXT DEFAULT '1.0',
     storage_path TEXT,
     external_url TEXT,
-    reusability_score NUMERIC NOT NULL DEFAULT 0.00
+    reusability_score NUMERIC(3,2) NOT NULL DEFAULT 0.00
         CHECK (reusability_score >= 0.00 AND reusability_score <= 1.00),
     is_archived BOOLEAN NOT NULL DEFAULT false,
     archived_at TIMESTAMPTZ,
@@ -80,7 +80,13 @@ CREATE TABLE public.artifacts (
     CONSTRAINT artifacts_user_id_composite_key UNIQUE (user_id, id),
     
     -- Unique title per tenant
-    CONSTRAINT artifacts_unique_user_normalized_title UNIQUE (user_id, normalized_title)
+    CONSTRAINT artifacts_unique_user_normalized_title UNIQUE (user_id, normalized_title),
+
+    -- Lifecycle coherence constraint
+    CONSTRAINT check_artifact_lifecycle_coherence CHECK (
+        (lifecycle_status = 'archived' AND is_archived = true AND archived_at IS NOT NULL) OR
+        (lifecycle_status IN ('draft', 'active', 'superseded') AND is_archived = false AND archived_at IS NULL)
+    )
 );
 
 -- ==============================================================================
@@ -132,6 +138,7 @@ CREATE TABLE public.artifact_skills (
 );
 
 -- 4.3 Artifact <-> Knowledge Node Join Table
+-- Cardinality: Exactly one semantic relation_type per (user_id, artifact_id, node_id) tuple.
 CREATE TABLE public.artifact_knowledge_nodes (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -175,6 +182,7 @@ CREATE TABLE public.artifact_quests (
 );
 
 -- 4.5 Artifact <-> Evidence Join Table
+-- Referenced artifacts are protected from deletion via ON DELETE RESTRICT and trigger.
 CREATE TABLE public.artifact_evidence (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -187,7 +195,7 @@ CREATE TABLE public.artifact_evidence (
     CONSTRAINT fk_artifact_evidence_artifact
         FOREIGN KEY (user_id, artifact_id)
         REFERENCES public.artifacts(user_id, id)
-        ON DELETE CASCADE,
+        ON DELETE RESTRICT,
     CONSTRAINT fk_artifact_evidence_evidence
         FOREIGN KEY (user_id, evidence_id)
         REFERENCES public.evidence_records(user_id, id)
@@ -222,6 +230,15 @@ BEGIN
       USING ERRCODE = '23503';
   END IF;
 
+  -- 3. Check artifact_evidence relationship
+  IF EXISTS (
+    SELECT 1 FROM public.artifact_evidence
+    WHERE user_id = OLD.user_id AND artifact_id = OLD.id
+  ) THEN
+    RAISE EXCEPTION 'Cannot delete artifact: referenced by evidence records'
+      USING ERRCODE = '23503';
+  END IF;
+
   RETURN OLD;
 END;
 $$;
@@ -233,28 +250,47 @@ CREATE TRIGGER trigger_prevent_artifact_delete_if_referenced
   EXECUTE FUNCTION public.prevent_artifact_delete_if_referenced();
 
 -- ==============================================================================
--- 6. AUTOMATIC UPDATED_AT TRIGGER
+-- 6. AUTOMATIC LIFECYCLE COHERENCE & TIMESTAMPS TRIGGER
 -- ==============================================================================
-CREATE OR REPLACE FUNCTION public.update_artifacts_updated_at()
+CREATE OR REPLACE FUNCTION public.handle_artifact_lifecycle_coherence()
 RETURNS trigger
 LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
 AS $$
 BEGIN
-  NEW.updated_at = now();
-  IF NEW.is_archived = true AND OLD.is_archived = false AND NEW.archived_at IS NULL THEN
-    NEW.archived_at = now();
-  ELSIF NEW.is_archived = false THEN
-    NEW.archived_at = NULL;
+  NEW.updated_at := now();
+
+  -- Fail-closed on explicit contradiction
+  IF (NEW.lifecycle_status = 'archived' AND NEW.is_archived = false) THEN
+    RAISE EXCEPTION 'Lifecycle status is archived but is_archived is false'
+      USING ERRCODE = '23514';
   END IF;
+
+  IF (NEW.lifecycle_status IN ('draft', 'active', 'superseded') AND NEW.is_archived = true) THEN
+    RAISE EXCEPTION 'Lifecycle status is % but is_archived is true', NEW.lifecycle_status
+      USING ERRCODE = '23514';
+  END IF;
+
+  -- Maintain timestamps and flag consistency
+  IF NEW.lifecycle_status = 'archived' AND NEW.is_archived = true THEN
+    IF NEW.archived_at IS NULL THEN
+      NEW.archived_at := now();
+    END IF;
+  ELSE
+    NEW.is_archived := false;
+    NEW.archived_at := NULL;
+  END IF;
+
   RETURN NEW;
 END;
 $$;
 
-DROP TRIGGER IF EXISTS trigger_update_artifacts_updated_at ON public.artifacts;
-CREATE TRIGGER trigger_update_artifacts_updated_at
-  BEFORE UPDATE ON public.artifacts
+DROP TRIGGER IF EXISTS trigger_handle_artifact_lifecycle_coherence ON public.artifacts;
+CREATE TRIGGER trigger_handle_artifact_lifecycle_coherence
+  BEFORE INSERT OR UPDATE ON public.artifacts
   FOR EACH ROW
-  EXECUTE FUNCTION public.update_artifacts_updated_at();
+  EXECUTE FUNCTION public.handle_artifact_lifecycle_coherence();
 
 -- ==============================================================================
 -- 7. PERFORMANCE & QUERY INDEXES

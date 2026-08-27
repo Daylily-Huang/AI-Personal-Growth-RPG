@@ -14,9 +14,9 @@
 | `GET` | `/api/artifacts` | List artifacts with filtering, search, and pagination. | Authenticated (`auth.uid() = user_id`) |
 | `POST` | `/api/artifacts` | Create a new user-authored artifact with optional links. | Authenticated (`auth.uid() = user_id`) |
 | `GET` | `/api/artifacts/[id]` | Get detailed artifact record including all joined relationships. | Authenticated (`auth.uid() = user_id`) |
-| `PATCH` | `/api/artifacts/[id]` | Update artifact metadata and archive status. | Authenticated (`auth.uid() = user_id`) |
-| `DELETE` | `/api/artifacts/[id]` | Delete artifact (blocked if referenced by provenance). | Authenticated (`auth.uid() = user_id`) |
-| `POST` | `/api/artifacts/[id]/links` | Batch attach or detach relational links (skills/knowledge/quests). | Authenticated (`auth.uid() = user_id`) |
+| `PATCH` | `/api/artifacts/[id]` | Update artifact metadata, lifecycle status, and archive state. | Authenticated (`auth.uid() = user_id`) |
+| `DELETE` | `/api/artifacts/[id]` | Delete artifact (blocked if referenced by provenance/evidence). | Authenticated (`auth.uid() = user_id`) |
+| `POST` | `/api/artifacts/[id]/links` | Batch attach or detach relational links (skills/knowledge/quests/evidence). | Authenticated (`auth.uid() = user_id`) |
 
 ---
 
@@ -24,8 +24,8 @@
 
 ### 2.1 `GET /api/artifacts`
 #### Query Parameters
-- `type` (optional): Filter by `artifact_type` (`document`, `code_repository`, `design_spec`, etc.).
-- `status` (optional, default `'active'`): Filter by archive/lifecycle state (`active`, `archived`, `all`, `draft`).
+- `type` (optional): Filter by `artifact_type` (`document`, `code_repository`, `design_spec`, `data_analysis`, `presentation`, `synthesis_note`, `creative_work`, `other`).
+- `status` (optional, default `'active'`): Filter by lifecycle state (`active`, `archived`, `all`, `draft`, `superseded`).
 - `skillId` (optional): Filter artifacts demonstrating a specific skill.
 - `questId` (optional): Filter artifacts produced for a specific quest.
 - `search` (optional): Case-insensitive text search matching `title` or `summary`.
@@ -52,7 +52,8 @@
         "skills": 2,
         "knowledgeNodes": 4,
         "quests": 1,
-        "activities": 3
+        "activities": 3,
+        "evidence": 1
       }
     }
   ],
@@ -82,7 +83,8 @@
   "skillIds": ["s1-uuid"],
   "knowledgeNodeIds": ["k1-uuid", "k2-uuid"],
   "questIds": ["q1-uuid"],
-  "activityIds": ["act1-uuid"]
+  "activityIds": ["act1-uuid"],
+  "evidenceIds": ["ev1-uuid"]
 }
 ```
 
@@ -163,6 +165,14 @@
         "activityRole": "produced",
         "completedAt": "2026-08-26T10:00:00Z"
       }
+    ],
+    "evidence": [
+      {
+        "id": "evidence-uuid-1",
+        "evidenceLevel": 4,
+        "description": "Published research paper draft on synaptic plasticity",
+        "verified": true
+      }
     ]
   }
 }
@@ -177,6 +187,7 @@
   "title": "Updated Title",
   "summary": "Updated summary",
   "reusabilityScore": 0.95,
+  "lifecycleStatus": "archived",
   "isArchived": true
 }
 ```
@@ -186,5 +197,5 @@ Returns updated `artifact` object.
 ---
 
 ### 2.5 `DELETE /api/artifacts/[id]`
-- If referenced by knowledge provenance or evidence: Returns **`409 Conflict`** (`code: "referenced_by_provenance"`, `error: "Cannot delete artifact referenced by knowledge provenance records. Please archive instead."`).
+- If referenced by knowledge provenance or evidence: Returns **`409 Conflict`** (`code: "referenced_by_provenance"`, `error: "Cannot delete artifact referenced by knowledge provenance or evidence records. Please archive instead."`).
 - If unreferenced: Deletes artifact and cascading joins $\rightarrow$ returns **`204 No Content`**.

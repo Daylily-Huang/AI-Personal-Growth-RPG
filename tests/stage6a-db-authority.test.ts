@@ -80,7 +80,7 @@ describe.skipIf(!DATABASE_URL)("Stage 6A — Knowledge Graph, Schema & Authority
       on conflict (id) do nothing;
       insert into public.artifacts (id, user_id, title, artifact_type) values
         ('${ARTIFACT_A}', '${USER_A}', 'PCR Protocol PDF', 'document'),
-        ('${ARTIFACT_B}', '${USER_B}', 'GNN Benchmark Code', 'code')
+        ('${ARTIFACT_B}', '${USER_B}', 'GNN Benchmark Code', 'code_repository')
       on conflict (id) do nothing;
     `);
   });

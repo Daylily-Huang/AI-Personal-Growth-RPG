@@ -13,8 +13,12 @@
 The player is the sovereign creator, curator, and owner of their deliverables:
 - **Direct Creation**: Players can manually create Artifacts at any time (e.g. cataloging an existing repository, thesis, or design).
 - **Metadata Curation**: Players have write authority over `title`, `summary`, `description`, `version`, `storage_path`, `external_url`, `reusability_score`, and `metadata`.
-- **Relationship Curation**: Players have write authority to attach or detach associated Skills, Knowledge Nodes, Quests, and Activities.
-- **Archival**: Players can archive (`is_archived = true`, `lifecycle_status = 'archived'`) or restore artifacts without breaking historical provenance.
+- **Relationship Curation**: Players have write authority to attach or detach associated Skills, Knowledge Nodes, Quests, Activities, and Evidence records.
+- **Archival & Lifecycle**: Players can transition artifacts between `draft`, `active`, `archived`, and `superseded`.
+- **Lifecycle Coherence Invariant**:
+  - `lifecycle_status = 'archived'` $\iff$ `is_archived = true` (and `archived_at IS NOT NULL`).
+  - `lifecycle_status IN ('draft', 'active', 'superseded')` $\iff$ `is_archived = false` (and `archived_at IS NULL`).
+  - Contradictory inputs (e.g. `active + true` or `archived + false`) **fail closed** (`PG 23514`).
 
 ### 1.2 AI Proposal Authority Boundary
 - **Proposals Only**: During Activity Assessment (`/api/activities/[id]/assess`), the AI Game Master may detect that a durable deliverable was created (e.g., "Wrote RFC on Cache Invalidation") and propose an Artifact creation in the assessment proposal JSON.
@@ -49,12 +53,12 @@ sequenceDiagram
 ### 2.1 The Immutability of Grounding Provenance
 In our growth RPG architecture, high skill mastery and verified knowledge facts require concrete evidence and traceable provenance:
 - **Knowledge Grounding**: Knowledge Nodes and Edges may use `source_type = 'artifact'` and `source_id = artifact_id` as their authoritative origin.
-- **Mastery Grounding**: Skill Evidence records may reference `artifact_id` as proof of high-tier capability.
+- **Mastery Grounding**: Skill Evidence records are linked to Artifacts via the normalized `public.artifact_evidence` join table (`artifact_id`, `evidence_id` $\rightarrow$ `public.evidence_records.id`).
 
 ### 2.2 Fail-Closed Deletion Guard (PostgreSQL Trigger)
 To prevent dangling references and historical erasure attacks:
-1. **Blocked Deletion**: If an Artifact is referenced as `source_id` by any `knowledge_nodes` or `knowledge_edges` row, or by any `evidence_records` row, PostgreSQL MUST raise an exception and **ABORT** the `DELETE` statement (`PG 23503 / 23514` fail-closed).
-2. **Safe Archival Alternative**: To decommission an artifact without breaking historical knowledge provenance or mastery evidence, the player must set `is_archived = true` (or `lifecycle_status = 'archived'`).
+1. **Blocked Deletion**: If an Artifact is referenced as `source_id` by any `knowledge_nodes` or `knowledge_edges` row, or attached to any `evidence_records` row via `artifact_evidence`, PostgreSQL MUST raise an exception and **ABORT** the `DELETE` statement (`PG 23503` fail-closed).
+2. **Safe Archival Alternative**: To decommission an artifact without breaking historical knowledge provenance or mastery evidence, the player must archive the artifact (`is_archived = true`, `lifecycle_status = 'archived'`).
 3. **Trigger Implementation**:
 ```sql
 CREATE OR REPLACE FUNCTION public.prevent_artifact_delete_if_referenced()
@@ -82,6 +86,15 @@ BEGIN
       USING ERRCODE = '23503';
   END IF;
 
+  -- 3. Check artifact_evidence relationship
+  IF EXISTS (
+    SELECT 1 FROM public.artifact_evidence
+    WHERE user_id = OLD.user_id AND artifact_id = OLD.id
+  ) THEN
+    RAISE EXCEPTION 'Cannot delete artifact: referenced by evidence records'
+      USING ERRCODE = '23503';
+  END IF;
+
   RETURN OLD;
 END;
 $$;
@@ -97,6 +110,6 @@ All tables in the Artifact subsystem (`artifacts`, `artifact_activities`, `artif
 ### 3.2 Hostile-Client & Cross-Tenant Attack Defenses
 - **SELECT Isolation**: User B queries for User A's Artifacts return 0 rows.
 - **Mutation Isolation**: User B attempts to UPDATE or DELETE User A's Artifact affect 0 rows.
-- **Cross-Tenant Attachment Denial**: User A attempting to link User B's Skill, Knowledge Node, Quest, or Activity to User A's Artifact is **BLOCKED** by composite foreign keys `(user_id, entity_id)` referencing `(user_id, id)`.
+- **Cross-Tenant Attachment Denial**: User A attempting to link User B's Skill, Knowledge Node, Quest, Activity, or Evidence to User A's Artifact is **BLOCKED** by composite foreign keys `(user_id, entity_id)` referencing `(user_id, id)`.
 - **Non-Disclosing API 404s**: The application layer returns `404 Not Found` (never `403 Forbidden`) when an entity ID does not belong to the requesting session, preventing tenant reconnaissance.
 - **Anonymous Denial**: The PostgreSQL `anon` role is granted zero permissions (`SELECT`, `INSERT`, `UPDATE`, `DELETE` revoked).

@@ -24,7 +24,7 @@ An **Artifact** is a first-class, tangible, durable deliverable resulting from d
 | **Knowledge Node** | "What atomic concept/claim is true?" | Epistemic truth graph fact (concept, claim, topic). | CAS state machine (`inferred` $\rightarrow$ `verified` / `rejected`). |
 | **Evidence** | "What proves my mastery level?" | Grounding proof point for skill capability tiers. | Immutable historical proof record. |
 | **Quest** | "What goal/milestone was I pursuing?" | Structured progression objective / journey. | Progress state machine (`pending` $\rightarrow$ `completed`). |
-| **Artifact** | **"What durable deliverable did I create?"** | **Tangible work product, synthesis, or deliverable.** | **Versioned lifecycle (`draft` $\rightarrow$ `active` $\rightarrow$ `archived`).** |
+| **Artifact** | **"What durable deliverable did I create?"** | **Tangible work product, synthesis, or deliverable.** | **Versioned lifecycle (`draft` $\rightarrow$ `active` $\rightarrow$ `archived` / `superseded`).** |
 
 ```mermaid
 graph TD
@@ -32,7 +32,7 @@ graph TD
     ART -->|Demonstrates Competence| S[Skill: Mastery Tree]
     ART -->|Synthesizes / Cites / Grounds| K[Knowledge Node: Epistemic Graph]
     ART -->|Fulfills Deliverable| Q[Quest: Objective Milestone]
-    ART -->|Provides Concrete Proof| E[Evidence: Mastery Level Audit]
+    ART -->|Attached via artifact_evidence| E[Evidence: Mastery Level Audit]
 ```
 
 ### 1.3 Anti-Patterns & Invariants
@@ -44,7 +44,7 @@ graph TD
 
 ## 2. Artifact Taxonomy & Types
 
-Artifacts are categorized by a strict, validated taxonomy (`artifact_type`):
+Artifacts are categorized by a strict, validated taxonomy (`artifact_type`). The 8 canonical types are:
 
 | Type Slug | Display Name | Definition & Examples | Typical Linked Entities |
 |:---|:---|:---|:---|
@@ -57,9 +57,28 @@ Artifacts are categorized by a strict, validated taxonomy (`artifact_type`):
 | `creative_work` | Creative / Media | Podcast episode, video essay, illustration, audio piece. | Skills, Quests |
 | `other` | Other Work Product | Custom durable deliverable not covered above. | Any |
 
+> [!NOTE]
+> `code_repository` is the sole canonical software/code artifact type. Generic `'code'` is not a valid taxonomy slug.
+
 ---
 
-## 3. Normalized Relational Architecture
+## 3. Versioning & Superseded Semantics (MVP Freeze)
+
+### 3.1 Version Semantics
+- **`Artifact.id`**: The stable, immutable identity of one durable logical work product.
+- **`version` (`text`, default `'1.0'`):** A user-editable revision/display label (e.g. `'v1.0'`, `'v2.1-draft'`) on that same Artifact identity.
+- **MVP Invariant**: Stage 7 does NOT maintain immutable historical revision rows. Version evolution is tracked on the single logical artifact record.
+
+### 3.2 Superseded Semantics
+- **`lifecycle_status = 'superseded'`**: An inactive historical lifecycle state indicating that this Artifact is no longer the preferred or current work product (e.g., replaced by a newer independent work product).
+- **Distinction from Archived**: `superseded` is **NOT** archived (`is_archived = false`, `archived_at = NULL`).
+- **Query Visibility**: Default active queries (`status=active`) exclude `superseded` artifacts. They are visible when querying `status=all` or `status=superseded`.
+- **Restoration**: A player can freely restore a `superseded` artifact back to `active` or `draft`.
+- **MVP Invariant**: No separate `supersedes_artifact_id` graph edge is required in Stage 7 MVP.
+
+---
+
+## 4. Normalized Relational Architecture & Cardinality
 
 To eliminate loose JSON string arrays and guarantee cross-tenant referential integrity, relationships between Artifacts and other domain entities are modeled via explicit, normalized relational join tables with tenant-safe composite foreign keys.
 
@@ -135,11 +154,18 @@ erDiagram
     }
 ```
 
+### 4.1 Relationship Cardinality Invariants
+1. **`artifact_activities`**: `UNIQUE (user_id, artifact_id, activity_id)` — One role (`produced`, `referenced`, `modified`) per artifact/activity pair.
+2. **`artifact_skills`**: `UNIQUE (user_id, artifact_id, skill_id)` — One demonstration level (1..5) per artifact/skill pair.
+3. **`artifact_knowledge_nodes`**: `UNIQUE (user_id, artifact_id, node_id)` — **Exactly one semantic relation** (`cites`, `implements`, `synthesizes`, `evaluates`) per artifact/node pair. (To change semantic role, update or replace the link row).
+4. **`artifact_quests`**: `UNIQUE (user_id, artifact_id, quest_id)` — One deliverable status per artifact/quest pair.
+5. **`artifact_evidence`**: `UNIQUE (user_id, artifact_id, evidence_id)` — Links artifact to `evidence_records`. `evidence_records` does NOT contain `artifact_id` directly.
+
 ---
 
-## 4. Entity Attributes & Constraints
+## 5. Entity Attributes & Constraints
 
-### 4.1 `artifacts` Table Specification
+### 5.1 `artifacts` Table Specification
 - `id` (`uuid`, PK, `default gen_random_uuid()`): Unique immutable artifact identifier.
 - `user_id` (`uuid`, FK `auth.users.id`, `on delete cascade`): Tenant owner.
 - `title` (`text`, NOT NULL, non-empty): Deliverable title.
@@ -147,7 +173,7 @@ erDiagram
 - `summary` (`text`, NULLABLE): High-level executive abstract (1-3 sentences).
 - `description` (`text`, NULLABLE): Detailed documentation, methodology, or notes.
 - `lifecycle_status` (`text`, NOT NULL, DEFAULT `'active'`): Must match enum constraint (`draft`, `active`, `archived`, `superseded`).
-- `version` (`text`, NULLABLE, DEFAULT `'1.0'`): Semantic version or revision label.
+- `version` (`text`, NULLABLE, DEFAULT `'1.0'`): User-editable semantic version or revision label.
 - `storage_path` (`text`, NULLABLE): Internal object storage pointer / relative path.
 - `external_url` (`text`, NULLABLE): Public URL (e.g. GitHub repo, arXiv link, Figma file).
 - `reusability_score` (`numeric(3,2)`, NOT NULL, DEFAULT `0.00`): Range `0.00` to `1.00` representing utility as a building block for future work.
@@ -157,9 +183,9 @@ erDiagram
 - `created_at` (`timestamptz`, NOT NULL, DEFAULT `now()`): Creation timestamp.
 - `updated_at` (`timestamptz`, NOT NULL, DEFAULT `now()`): Last modification timestamp.
 
-### 4.2 Composite Foreign Keys & Tenant Safety Invariant
+### 5.2 Composite Foreign Keys & Tenant Safety Invariant
 All child relationship tables MUST include `user_id` and use composite foreign keys:
 ```sql
 CONSTRAINT fk_artifact_user FOREIGN KEY (user_id, artifact_id) REFERENCES public.artifacts(user_id, id) ON DELETE CASCADE
 ```
-This guarantees at the PostgreSQL engine level that User A can NEVER link User B's Artifact, Activity, Skill, Knowledge Node, or Quest.
+This guarantees at the PostgreSQL engine level that User A can NEVER link User B's Artifact, Activity, Skill, Knowledge Node, Quest, or Evidence.
