@@ -23,7 +23,7 @@ graph TD
         B1[Artifact Repository & Link Service] --> B2[RESTful Endpoints /api/artifacts]
         B2 --> B3[Batch Relationship Management: All 5 Entities]
         B3 --> B4[0042 Migration: AI Proposal Resolution & Atomic Settlement]
-        B4 --> B5[HTTP Integration Tests: 14 Gate 7B Verification Cases]
+        B4 --> B5[HTTP Integration Tests: 15 Gate 7B Verification Cases]
     end
 
     subgraph Stage 7C: Interactive UI [FUTURE]

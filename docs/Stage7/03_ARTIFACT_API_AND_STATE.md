@@ -236,35 +236,37 @@ Returns refreshed relationship counts and links object.
 ## 3. AI Assessment & Settlement Contract (Stage 7B Integration)
 
 ### 3.1 Assessment Response: Plural `artifactProposals`
-During `POST /api/activities/[id]/assess`, the AI may return 0, 1, or N proposals in the assessment response:
+During `POST /api/activities/[id]/assess`, the AI may return 0, 1, or N proposals inside `assessment.proposal.artifactProposals`:
 ```json
 {
   "assessment": {
     "id": "assessment-uuid",
     "activityId": "activity-uuid",
-    "artifactProposals": [
-      {
-        "title": "Synaptic Plasticity Literature Review",
-        "artifactType": "document",
-        "summary": "12-page comprehensive review on LTP and synaptic scaling.",
-        "description": "Synthesized 24 papers on hippocampal plasticity mechanisms.",
-        "version": "1.0",
-        "externalUrl": "https://arxiv.org/abs/example",
-        "reusabilityScore": 0.85,
-        "metadata": { "pageCount": 12 },
-        "skillIds": ["skill-uuid-1"],
-        "knowledgeNodeIds": ["node-uuid-1", "node-uuid-2"],
-        "questIds": ["quest-uuid-1"]
-      },
-      {
-        "title": "Synaptic Plasticity Seminar Slides",
-        "artifactType": "presentation",
-        "summary": "Slide deck for 45-minute presentation.",
-        "version": "1.0",
-        "reusabilityScore": 0.70,
-        "skillIds": ["skill-uuid-1"]
-      }
-    ]
+    "proposal": {
+      "artifactProposals": [
+        {
+          "title": "Synaptic Plasticity Literature Review",
+          "artifactType": "document",
+          "summary": "12-page comprehensive review on LTP and synaptic scaling.",
+          "description": "Synthesized 24 papers on hippocampal plasticity mechanisms.",
+          "version": "1.0",
+          "externalUrl": "https://arxiv.org/abs/example",
+          "reusabilityScore": 0.85,
+          "metadata": { "pageCount": 12 },
+          "skillIds": ["skill-uuid-1"],
+          "knowledgeNodeIds": ["node-uuid-1", "node-uuid-2"],
+          "questIds": ["quest-uuid-1"]
+        },
+        {
+          "title": "Synaptic Plasticity Seminar Slides",
+          "artifactType": "presentation",
+          "summary": "Slide deck for 45-minute presentation.",
+          "version": "1.0",
+          "reusabilityScore": 0.70,
+          "skillIds": ["skill-uuid-1"]
+        }
+      ]
+    }
   }
 }
 ```

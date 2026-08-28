@@ -62,7 +62,7 @@ export type ArtifactResolutionInput =
 ```
 
 ### 2.3 Proposal Authority Source & Whitelist Validation
-1. **Persisted Proposal is Authoritative**: For `resolution: "create"`, the server reads the deliverable metadata strictly from the persisted database assessment column `public.ai_assessments.assessment_json` (accessible in domain as `assessment.proposal.artifactProposals[proposalIndex]`, or in SQL as `ai_assessments.assessment_json -> 'artifactProposals' ->> proposalIndex`).
+1. **Persisted Proposal is Authoritative**: For `resolution: "create"`, the server reads the deliverable metadata strictly from the persisted database assessment column `public.ai_assessments.assessment_json` (accessible in domain as `assessment.proposal.artifactProposals[proposalIndex]`, or in SQL as `ai_assessments.assessment_json -> 'artifactProposals' -> proposalIndex`).
 2. **Server Whitelist for `approvedOverrides`**: The confirm request body does NOT accept full unvetted `ArtifactProposal` replacement objects. If the player modified fields during review, only the explicit server-whitelisted fields (`title`, `artifactType`, `summary`, `description`, `version`, `externalUrl`, `storagePath`, `reusabilityScore`) are merged on top of the persisted proposal. (Note: While Stage 7C UI may initially expose only a subset like `title`, `artifactType`, `reusabilityScore`, the server whitelist securely validates the full set).
 
 ### 2.4 Exact Coverage Invariant
