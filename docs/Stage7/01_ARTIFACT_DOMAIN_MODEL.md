@@ -40,6 +40,10 @@ graph TD
 2. **Artifact Truth $\ne$ Knowledge Truth**: Artifacts do not use `inferred` / `verified` truth states. An artifact is a created object with authoring lifecycle (`draft`, `active`, `archived`, `superseded`).
 3. **Artifact Quality $\ne$ Skill Mastery $\ne$ Knowledge Confidence**: An artifact's reusability or completeness is distinct from player skill level or knowledge confidence.
 
+### 1.4 Plural Proposal Cardinality & Resolution Model
+- **Multiple Deliverables per Activity**: A single activity session can legitimately produce or touch multiple deliverables (e.g. source code repo, design RFC, slide deck).
+- **Proposals vs Canonical Identity**: AI Game Master outputs 0, 1, or N proposals (`artifactProposals: ArtifactProposal[]`). Proposals are purely advisory candidates; canonical identity assignment occurs strictly at confirm time via explicit user/server resolution (`ArtifactResolutionInput`: `CREATE`, `EXISTING`, or `IGNORE`).
+
 ---
 
 ## 2. Artifact Taxonomy & Types

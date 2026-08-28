@@ -233,30 +233,67 @@ Returns refreshed relationship counts and links object.
 
 ---
 
-## 3. AI Assessment Proposal Contract (Stage 7B Settlement Integration)
+## 3. AI Assessment & Settlement Contract (Stage 7B Integration)
 
-### 3.1 `artifactProposal` Schema
-When the AI Game Master identifies a durable work product during `POST /api/activities/[id]/assess`, it returns an optional proposal object:
+### 3.1 Assessment Response: Plural `artifactProposals`
+During `POST /api/activities/[id]/assess`, the AI may return 0, 1, or N proposals:
 ```json
 {
-  "artifactProposal": {
-    "title": "Synaptic Plasticity Literature Review",
-    "artifactType": "document",
-    "summary": "12-page comprehensive review on LTP and synaptic scaling.",
-    "description": "Synthesized 24 papers on hippocampal plasticity mechanisms.",
-    "version": "1.0",
-    "externalUrl": "https://arxiv.org/abs/example",
-    "reusabilityScore": 0.85,
-    "metadata": { "pageCount": 12 },
-    "skillIds": ["skill-uuid-1"],
-    "knowledgeNodeIds": ["node-uuid-1", "node-uuid-2"],
-    "questIds": ["quest-uuid-1"]
+  "assessment": {
+    "id": "assessment-uuid",
+    "activityId": "activity-uuid",
+    "artifactProposals": [
+      {
+        "title": "Synaptic Plasticity Literature Review",
+        "artifactType": "document",
+        "summary": "12-page comprehensive review on LTP and synaptic scaling.",
+        "description": "Synthesized 24 papers on hippocampal plasticity mechanisms.",
+        "version": "1.0",
+        "externalUrl": "https://arxiv.org/abs/example",
+        "reusabilityScore": 0.85,
+        "metadata": { "pageCount": 12 },
+        "skillIds": ["skill-uuid-1"],
+        "knowledgeNodeIds": ["node-uuid-1", "node-uuid-2"],
+        "questIds": ["quest-uuid-1"]
+      },
+      {
+        "title": "Synaptic Plasticity Seminar Slides",
+        "artifactType": "presentation",
+        "summary": "Slide deck for 45-minute presentation.",
+        "version": "1.0",
+        "reusabilityScore": 0.70,
+        "skillIds": ["skill-uuid-1"]
+      }
+    ]
   }
 }
 ```
 
-### 3.2 Atomicity & Idempotency Rules
-1. **Zero DB writes on Assess**: The proposal generates zero database rows prior to confirmation.
-2. **Atomic Settlement on Confirm**: On `POST /api/assessments/[id]/confirm`, the backend commits the XP ledger, writes `artifacts`, writes `artifact_activities(role='produced')`, and writes all valid links in a single database transaction.
-3. **Idempotency**: Confirming an already settled assessment returns the existing artifact without creating duplicates.
-4. **All-or-Nothing Rollback**: Any failure in artifact creation rolls back the entire settlement transaction.
+### 3.2 Confirmation Request: `artifactResolutions`
+On `POST /api/assessments/[id]/confirm`, the client submits resolution directives:
+```json
+{
+  "artifactResolutions": [
+    {
+      "resolution": "create",
+      "proposal": {
+        "title": "Synaptic Plasticity Literature Review",
+        "artifactType": "document",
+        "summary": "12-page comprehensive review on LTP and synaptic scaling.",
+        "reusabilityScore": 0.85,
+        "skillIds": ["skill-uuid-1"]
+      }
+    },
+    {
+      "resolution": "existing",
+      "artifactId": "existing-deck-artifact-uuid",
+      "activityRole": "modified"
+    }
+  ]
+}
+```
+
+### 3.3 Confirmation Response & Invariants
+- **200 OK**: On successful confirmation, returns settled growth state including created/linked artifact summaries.
+- **409 Conflict (`code: "already_confirmed"`)**: Repeat confirmation requests return `409 Conflict` without executing duplicate mutations.
+- **Atomic Rollback**: If any resolution fails (e.g. title collision on `create` or foreign `artifactId` on `existing`), the entire settlement transaction aborts.

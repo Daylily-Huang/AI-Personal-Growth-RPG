@@ -11,7 +11,7 @@
 
 ```mermaid
 graph TD
-    subgraph Stage 7A: Schema & Authority [CURRENT TARGET]
+    subgraph Stage 7A: Schema & Authority [CURRENT TARGET - CLOSURE]
         A1[0041 Migration & Table Rebuild] --> A2[Normalized Relational Join Tables]
         A2 --> A3[Composite Foreign Keys & RLS]
         A3 --> A4[Column-Level UPDATE Privileges]
@@ -22,14 +22,15 @@ graph TD
     subgraph Stage 7B: API, Read-Model & Settlement [NEXT]
         B1[Artifact Repository & Link Service] --> B2[RESTful Endpoints /api/artifacts]
         B2 --> B3[Batch Relationship Management: All 5 Entities]
-        B3 --> B4[0042 Migration: AI Proposal Atomic Settlement Integration]
-        B4 --> B5[HTTP Integration Tests]
+        B3 --> B4[0042 Migration: AI Proposal Resolution & Atomic Settlement]
+        B4 --> B5[HTTP Integration Tests: 10 Gate 7B Verification Cases]
     end
 
     subgraph Stage 7C: Interactive UI [FUTURE]
         C0[Design-Sequence Checkpoint] --> C1[Artifacts Gallery & List View]
         C1 --> C2[Detail Inspector Drawer: 5 Relational Accordions]
         C2 --> C3[Create / Edit / Archive / Superseded Dialogs]
+        C3 --> C4[Assessment Confirm Proposal Resolution Control]
     end
 
     subgraph Stage 7D: E2E & Final Freeze [FUTURE]
@@ -57,22 +58,24 @@ graph TD
   - Implement column-level UPDATE privileges on `public.artifacts` (whitelisted user-authoritative columns) and child tables (semantic columns only); revoke raw UPDATE on immutable/audit columns.
   - Implement fail-closed delete guard trigger `prevent_artifact_delete_if_referenced()` protecting Knowledge Provenance and Evidence.
   - Row Level Security (RLS) policies on all tables (`auth.uid() = user_id`).
-  - Comprehensive live PostgreSQL test suite (`tests/stage7a-db-authority.test.ts`).
+  - Comprehensive live PostgreSQL test suite (`tests/stage7a-db-authority.test.ts`, 42 tests).
 
 ### 2.2 Stage 7B — Repository, API Layer & Settlement Integration
 - Typed `SupabaseArtifactRepository` implementing CRUD, filtering, pagination, and multi-relational joins across all 5 entity types.
 - Next.js App Router API routes under `src/app/api/artifacts/**`.
 - Batch link management across activities, skills, knowledge nodes, quests, and evidence.
 - **Assessment Artifact Proposal + Atomic Settlement Integration**:
-  - Implement forward migration `0042_artifact_settlement_integration.sql`.
-  - Ensure `POST /api/activities/[id]/assess` generates `artifactProposal` without writing to DB.
-  - Ensure `POST /api/assessments/[id]/confirm` atomically commits settled XP and creates Artifact + relations.
-  - Verify atomicity, rollback, and idempotency in HTTP/DB integration test suite (`tests/stage7b-http-api.test.ts`).
+  - Forward migration `0042_artifact_settlement_integration.sql`.
+  - Migrate AI prompt and schema to plural `artifactProposals: ArtifactProposal[]`.
+  - Process confirm-time `artifactResolutions: ArtifactResolutionInput[]` (`CREATE`, `EXISTING`, `IGNORE`).
+  - Atomic, idempotent settlement execution (zero duplicate mutations, repeat confirm preserves `409 Conflict` `already_confirmed`).
+  - 10 required verification cases in HTTP integration test suite (`tests/stage7b-http-api.test.ts`).
 
 ### 2.3 Stage 7C — Artifacts Workspace UI
 - Pause at **Design-Sequence Checkpoint** to evaluate extracting global app shell, shared navigation, and drawer primitives.
 - Implement `/artifacts` page with Left filter bar (active, draft, archived, superseded, all), Center artifact gallery/list, and Right detail inspector with 5 relational accordions.
 - Interactive Modals (Create, Edit, Manage Links, Archive/Delete confirmation, Restore Superseded).
+- Assessment confirmation dialog resolution picker integration.
 - UI component and interaction test suite (`tests/stage7c-ui.test.tsx`).
 
 ### 2.4 Stage 7D — E2E Integration, Security Isolation & Final Freeze

@@ -25,16 +25,60 @@ The player is the sovereign creator, curator, and owner of their deliverables:
 
 ## 2. AI Artifact Proposal & Settlement Contract (Frozen for Stage 7B)
 
-### 2.1 AI Proposal Authority Boundary
-- **Proposals Only**: During Activity Assessment (`/api/activities/[id]/assess`), the AI Game Master may detect that a durable deliverable was created (e.g., "Wrote RFC on Cache Invalidation") and generate an `artifactProposal` object inside the assessment response.
-- **Zero Raw Persistence on Assess**: Before confirmation, the `public.artifacts` table and join tables receive **ZERO** rows from the proposal. The proposal exists solely in the assessment proposal JSON payload.
-- **Explicit Settlement Confirmation**: Artifacts from proposals are committed to permanent storage ONLY when the player confirms the assessment through `POST /api/assessments/[id]/confirm`.
+### 2.1 AI Proposal Authority Boundary & Cardinality
+- **Proposals Only**: During Activity Assessment (`/api/activities/[id]/assess`), the AI Game Master may detect that 0, 1, or N durable deliverables were created or touched and return an array: `artifactProposals: ArtifactProposal[]`.
+- **Zero Raw Persistence on Assess**: Before confirmation, the `public.artifacts` table and join tables receive **ZERO** rows from proposals. Proposals exist solely in the ephemeral assessment proposal JSON response.
+- **AI Does Not Decide Identity**: AI proposals MUST NOT assign canonical `Artifact.id` UUIDs or decide whether a deliverable is new vs existing. Canonical identity resolution is strictly user/server-governed.
 
-### 2.2 Settlement Atomicity & Idempotency Rules
-1. **Atomic Settlement**: On `POST /api/assessments/[id]/confirm`, the sanctioned settlement transaction commits the settled XP ledger AND creates the Artifact and its relationships (`artifact_activities` with `activity_role = 'produced'`, `artifact_evidence` when Evidence is generated, plus validated Skills/Knowledge/Quest links) within a single atomic database transaction.
-2. **Failure Rollback**: If Artifact creation or relationship linking fails, the entire settlement transaction rolls back. It is impossible to produce a state where XP is committed but Artifact failed, or Artifact is created but XP settlement failed.
-3. **Idempotency**: Repeat confirmation requests for an already confirmed assessment return the settled state and do NOT create duplicate Artifacts.
-4. **Implementation Scope**: This settlement integration is assigned to **Stage 7B** and will be implemented via forward migration `0042_artifact_settlement_integration.sql` without modifying frozen Stage 5/6 migrations.
+### 2.2 Confirm-Time Resolution Protocol (`ArtifactResolutionInput`)
+On `POST /api/assessments/[id]/confirm`, the client submits a list of resolution directives corresponding to the assessment proposals:
+
+```typescript
+export type ArtifactResolutionInput =
+  | {
+      resolution: "create";
+      proposal: ArtifactProposal;
+    }
+  | {
+      resolution: "existing";
+      artifactId: string; // Stable UUID of owned artifact
+      activityRole: "modified" | "referenced";
+    }
+  | {
+      resolution: "ignore";
+      proposalIndex?: number;
+    };
+```
+
+#### Resolution Semantics:
+1. **`resolution: "create"`**:
+   - The server generates a fresh stable `Artifact.id` UUID and inserts the new deliverable.
+   - Links the originating Activity via `artifact_activities` with `activity_role = 'produced'`.
+   - Validates that `normalized_title` is unique for this user; if duplicate exists, fails with conflict (`PG 23505`) and rolls back settlement.
+2. **`resolution: "existing"`**:
+   - Requires a valid `artifactId` UUID.
+   - Server validates tenant ownership (`user_id = auth.uid()`). If foreign, fails closed (non-disclosing `404/400`) and aborts settlement.
+   - Creates **ZERO** new rows in `public.artifacts`.
+   - Links the originating Activity via `artifact_activities` with `activity_role = 'modified'` or `'referenced'`.
+3. **`resolution: "ignore"`**:
+   - Creates no Artifact and no `artifact_activities` relationship.
+
+### 2.3 Multiple Artifacts & Atomicity Invariant
+- A single Activity may legitimately produce multiple distinct deliverables (e.g., a code repository, an RFC document, and a presentation slide deck).
+- Stage 7B atomic settlement supports **0, 1, or N Artifact resolutions** in a single confirmation.
+- **All-or-Nothing Atomicity**: All selected Artifact creations, existing links, XP ledger mutations, Evidence records, and Quest progress are committed within a **single atomic database transaction**.
+- If any resolution or relation fails (e.g. foreign tenant UUID, title collision, invalid enum constraint), the **entire settlement transaction rolls back**. It is impossible to commit XP without Artifacts or commit Artifacts without XP settlement.
+
+### 2.4 Idempotency & Frozen Settlement HTTP Compatibility
+- **Frozen HTTP Semantics**: Repeating `POST /api/assessments/[id]/confirm` for an already settled activity/assessment returns **`409 Conflict` (`code: "already_confirmed"`)**, preserving the frozen Stage 5/6 settlement contract.
+- **Mutation Invariant**: Repeat confirmation attempts execute **ZERO duplicate mutations** (zero XP transactions, zero Evidence rows, zero Mastery recalculations, zero Quest progress, zero Artifacts, and zero Artifact relations).
+
+### 2.5 Migration of Legacy Proposal Schema
+- **Legacy Schema**: In Stage 0–6, `AssessmentProposalSchema` contained `artifacts: [{ title, type, confirmed_existing }]`.
+- **Stage 7B Migration**:
+  - The AI prompt and assessment schema will migrate to typed `artifactProposals: ArtifactProposal[]`.
+  - The legacy `confirmed_existing` boolean is deprecated as an authority mechanism; stable UUID resolution via `ArtifactResolutionInput` is canonical. If legacy payloads supply `confirmed_existing`, it is treated strictly as non-authoritative advisory metadata.
+- **Forward Migration**: Stage 7B settlement integration will be implemented in forward migration `0042_artifact_settlement_integration.sql` without modifying frozen Stage 5/6 migrations.
 
 ```mermaid
 sequenceDiagram
@@ -45,15 +89,15 @@ sequenceDiagram
     participant API as Assessment Route
     participant DB as Supabase PostgreSQL
 
-    Player->>Web: Logs Activity ("Finished draft of research paper")
+    Player->>Web: Logs Activity ("Finished draft of research paper & deck")
     Web->>API: POST /api/activities/[id]/assess
-    API->>AI: Evaluate activity & generate proposal
-    AI-->>API: Returns proposal JSON (with artifactProposal)
-    API-->>Web: 200 Assessment Proposal (0 DB Artifact rows committed)
-    Note over Web,Player: Player reviews proposed Artifact & XP
+    API->>AI: Evaluate activity & generate proposals
+    AI-->>API: Returns proposals (artifactProposals: [docProposal, deckProposal])
+    API-->>Web: 200 Assessment Proposals (0 DB Artifact rows committed)
+    Note over Web,Player: Player reviews proposals & selects resolution (CREATE / EXISTING / IGNORE)
     Player->>Web: Clicks "Confirm & Settle"
-    Web->>API: POST /api/assessments/[id]/confirm
-    API->>DB: Settle XP ledger + commit Artifact & relations (Atomic TX)
+    Web->>API: POST /api/assessments/[id]/confirm (with artifactResolutions)
+    API->>DB: Settle XP ledger + execute resolutions atomically (Atomic TX)
     DB-->>Web: 200 Settled State
 ```
 
