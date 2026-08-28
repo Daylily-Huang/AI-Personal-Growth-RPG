@@ -27,7 +27,7 @@ The player is the sovereign creator, curator, and owner of their deliverables:
 
 ### 2.1 AI Proposal Authority Boundary & Cardinality
 - **Proposals Only**: During Activity Assessment (`/api/activities/[id]/assess`), the AI Game Master may detect that 0, 1, or N durable deliverables were created or touched and return an array: `artifactProposals: ArtifactProposal[]`.
-- **Zero Raw Persistence on Assess**: Before confirmation, the `public.artifacts` table and join tables receive **ZERO** rows from proposals. Proposals exist solely in the stored `ai_assessments.assessment_proposal` JSON document.
+- **Zero Raw Persistence on Assess**: Before confirmation, the `public.artifacts` table and join tables receive **ZERO** rows from proposals. Proposals exist solely in the database column `public.ai_assessments.assessment_json` (hydrated in domain as `Assessment.proposal`).
 - **AI Does Not Decide Identity**: AI proposals MUST NOT assign canonical `Artifact.id` UUIDs or decide whether a deliverable is new vs existing. Canonical identity resolution is strictly user/server-governed.
 
 ### 2.2 Confirm-Time Proposal Binding & Resolution Protocol (`ArtifactResolutionInput`)
@@ -61,9 +61,9 @@ export type ArtifactResolutionInput =
     };
 ```
 
-### 2.3 Proposal Authority Source & Tampering Protection
-1. **Persisted Proposal is Authoritative**: For `resolution: "create"`, the server reads the deliverable metadata strictly from the persisted database assessment proposal (`assessment.assessment_proposal.artifactProposals[proposalIndex]`).
-2. **No Arbitrary Payload Injection**: The confirm request body does NOT resend full unvetted `ArtifactProposal` JSON objects. If the player modified fields during the review modal, only explicit whitelisted `approvedOverrides` are applied on top of the stored proposal.
+### 2.3 Proposal Authority Source & Whitelist Validation
+1. **Persisted Proposal is Authoritative**: For `resolution: "create"`, the server reads the deliverable metadata strictly from the persisted database assessment column `public.ai_assessments.assessment_json` (accessible in domain as `assessment.proposal.artifactProposals[proposalIndex]`, or in SQL as `ai_assessments.assessment_json -> 'artifactProposals' ->> proposalIndex`).
+2. **Server Whitelist for `approvedOverrides`**: The confirm request body does NOT accept full unvetted `ArtifactProposal` replacement objects. If the player modified fields during review, only the explicit server-whitelisted fields (`title`, `artifactType`, `summary`, `description`, `version`, `externalUrl`, `storagePath`, `reusabilityScore`) are merged on top of the persisted proposal. (Note: While Stage 7C UI may initially expose only a subset like `title`, `artifactType`, `reusabilityScore`, the server whitelist securely validates the full set).
 
 ### 2.4 Exact Coverage Invariant
 For an assessment with $N$ proposals (`artifactProposals.length === N`):
@@ -90,10 +90,10 @@ For an assessment with $N$ proposals (`artifactProposals.length === N`):
 3. **`resolution: "ignore"`**:
    - Creates no Artifact and no `artifact_activities` relationship.
 
-### 2.6 Multi-Artifact Atomicity & Rollback Invariant
+### 2.6 Multi-Artifact Atomicity & Relation/FK Rollback Invariant
 - Stage 7B atomic settlement supports **0, 1, or N Artifact resolutions** in a single confirmation.
 - **All-or-Nothing Atomicity**: All selected Artifact creations, existing links, XP ledger mutations, Evidence records, and Quest progress are committed within a **single atomic database transaction**.
-- If any resolution or relation fails (e.g. foreign tenant UUID, title collision, invalid constraints, FK violation), the **entire settlement transaction rolls back**.
+- **Relation / FK Failure Rollback**: If any Artifact relationship persistence fails (e.g. invalid/foreign relation target, frozen FK constraint violation, title collision), the **ENTIRE settlement transaction rolls back**. Zero XP, zero Evidence, zero Mastery events, zero Quest progress, zero Artifacts, and zero Artifact relations are committed.
 
 ### 2.7 Idempotency & Frozen Settlement HTTP Compatibility
 - **Frozen HTTP Contract**: Repeating `POST /api/assessments/[id]/confirm` for an already settled activity/assessment returns **`409 Conflict` (`code: "already_confirmed"`)**, preserving the frozen Stage 5/6 settlement contract.
@@ -119,7 +119,7 @@ sequenceDiagram
     Web->>API: POST /api/activities/[id]/assess
     API->>AI: Evaluate activity & generate proposals
     AI-->>API: Returns proposals (artifactProposals: [docProposal, deckProposal])
-    API->>DB: Stores assessment_proposal JSON (0 Artifact rows committed)
+    API->>DB: Stores assessment_json (0 Artifact rows committed)
     API-->>Web: 200 Assessment Proposals
     Note over Web,Player: Player resolves each proposalIndex (CREATE / EXISTING / IGNORE)
     Player->>Web: Clicks "Confirm & Settle"

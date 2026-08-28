@@ -70,7 +70,7 @@ graph TD
   - Process confirm-time `artifactResolutions: ArtifactResolutionInput[]` (`CREATE`, `EXISTING`, `IGNORE`) bound strictly by `proposalIndex`.
   - Enforce exact $N$-of-$N$ resolution coverage and derive metadata strictly from stored assessment proposal (with optional `approvedOverrides`).
   - Atomic, idempotent settlement execution (zero duplicate mutations, repeat confirm preserves `409 Conflict` `already_confirmed`).
-  - 14 required verification cases in HTTP integration test suite (`tests/stage7b-http-api.test.ts`).
+  - 15 required verification cases in HTTP integration test suite (`tests/stage7b-http-api.test.ts`).
 
 ### 2.3 Stage 7C — Artifacts Workspace UI
 - Pause at **Design-Sequence Checkpoint** to evaluate extracting global app shell, shared navigation, and drawer primitives.
