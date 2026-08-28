@@ -95,10 +95,11 @@ The Artifact workspace lives at `/artifacts` and provides an intuitive, high-den
 - **Fail-Closed Warning**: If either condition is true, physical deletion is **BLOCKED** by PostgreSQL (`23503`). The dialog explicitly alerts the player to **Archive** rather than Delete to protect historical grounding integrity.
 
 ### 3.5 Assessment Confirmation: Artifact Resolution UX (Stage 7C Future)
-- When reviewing an Activity Assessment that proposes deliverables (`artifactProposals`), the confirmation dialog presents an interactive resolution control for each proposed item:
-  1. **Create New (`create`)**: Commits the proposal as a new Artifact deliverable (`role = 'produced'`).
+- When reviewing an Activity Assessment that proposes deliverables (`artifactProposals`), the confirmation dialog presents an interactive resolution control for each proposed item (bound by its `proposalIndex`):
+  1. **Create New (`create`)**: Commits the stored proposal as a new Artifact deliverable (`role = 'produced'`). Allows optional inline edits to whitelisted fields (`approvedOverrides`: title, artifactType, reusabilityScore).
   2. **Link Existing (`existing`)**: Opens a search dropdown of the player's existing Artifacts to link by stable UUID, selecting role (`modified` or `referenced`).
   3. **Ignore (`ignore`)**: Discards the proposal during settlement without creating or linking an Artifact.
+- Exact $N$-of-$N$ resolution coverage is validated before submission.
 
 ---
 

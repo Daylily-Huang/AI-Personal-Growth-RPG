@@ -236,7 +236,7 @@ Returns refreshed relationship counts and links object.
 ## 3. AI Assessment & Settlement Contract (Stage 7B Integration)
 
 ### 3.1 Assessment Response: Plural `artifactProposals`
-During `POST /api/activities/[id]/assess`, the AI may return 0, 1, or N proposals:
+During `POST /api/activities/[id]/assess`, the AI may return 0, 1, or N proposals in the assessment response:
 ```json
 {
   "assessment": {
@@ -269,22 +269,21 @@ During `POST /api/activities/[id]/assess`, the AI may return 0, 1, or N proposal
 }
 ```
 
-### 3.2 Confirmation Request: `artifactResolutions`
-On `POST /api/assessments/[id]/confirm`, the client submits resolution directives:
+### 3.2 Confirmation Request: `artifactResolutions` (Bound by `proposalIndex`)
+On `POST /api/assessments/[id]/confirm`, the client submits resolution directives explicitly bound to the proposal indices:
 ```json
 {
   "artifactResolutions": [
     {
+      "proposalIndex": 0,
       "resolution": "create",
-      "proposal": {
-        "title": "Synaptic Plasticity Literature Review",
-        "artifactType": "document",
-        "summary": "12-page comprehensive review on LTP and synaptic scaling.",
-        "reusabilityScore": 0.85,
-        "skillIds": ["skill-uuid-1"]
+      "approvedOverrides": {
+        "title": "Synaptic Plasticity Literature Review (Final Draft)",
+        "reusabilityScore": 0.90
       }
     },
     {
+      "proposalIndex": 1,
       "resolution": "existing",
       "artifactId": "existing-deck-artifact-uuid",
       "activityRole": "modified"
@@ -293,7 +292,10 @@ On `POST /api/assessments/[id]/confirm`, the client submits resolution directive
 }
 ```
 
-### 3.3 Confirmation Response & Invariants
-- **200 OK**: On successful confirmation, returns settled growth state including created/linked artifact summaries.
-- **409 Conflict (`code: "already_confirmed"`)**: Repeat confirmation requests return `409 Conflict` without executing duplicate mutations.
-- **Atomic Rollback**: If any resolution fails (e.g. title collision on `create` or foreign `artifactId` on `existing`), the entire settlement transaction aborts.
+### 3.3 Confirmation Validation & Response Codes
+- **Coverage Validation (HTTP 400)**: If `artifactResolutions` has duplicate indices, out-of-range indices, or missing indices relative to stored proposals, returns **`400 Bad Request`** with zero mutations.
+- **Malformed UUID (HTTP 400)**: If `artifactId` in an `existing` directive is not a valid UUID string, returns **`400 Bad Request`**.
+- **Foreign UUID (HTTP 404)**: If `artifactId` is well-formed but belongs to another tenant, returns **`404 Not Found`** (non-disclosing), aborting settlement.
+- **Normalized-Title Collision (HTTP 409)**: If `create` encounters an existing normalized title for the same user, returns **`409 Conflict`** (`code: "artifact_title_conflict"`), rolling back the entire settlement transaction.
+- **Repeat Confirmation (HTTP 409)**: If the assessment is already settled, returns **`409 Conflict`** (`code: "already_confirmed"`), guaranteeing zero duplicate mutations.
+- **Successful Settlement (HTTP 200)**: Commits the atomic transaction and returns the settled growth state.

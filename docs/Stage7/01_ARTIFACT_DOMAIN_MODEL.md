@@ -188,8 +188,11 @@ erDiagram
 - `updated_at` (`timestamptz`, NOT NULL, DEFAULT `now()`): Last modification timestamp.
 
 ### 5.2 Composite Foreign Keys & Tenant Safety Invariant
-All child relationship tables MUST include `user_id` and use composite foreign keys:
-```sql
-CONSTRAINT fk_artifact_user FOREIGN KEY (user_id, artifact_id) REFERENCES public.artifacts(user_id, id) ON DELETE CASCADE
-```
-This guarantees at the PostgreSQL engine level that User A can NEVER link User B's Artifact, Activity, Skill, Knowledge Node, Quest, or Evidence.
+All child relationship tables MUST include `user_id` and use composite foreign keys to guarantee at the PostgreSQL engine level that User A can NEVER link User B's Artifact, Activity, Skill, Knowledge Node, Quest, or Evidence:
+
+1. **`artifact_activities`, `artifact_skills`, `artifact_knowledge_nodes`, `artifact_quests`**:
+   - `(user_id, artifact_id)` references `public.artifacts(user_id, id) ON DELETE CASCADE`.
+   - When physical deletion of an unreferenced Artifact is permitted, its auxiliary activity, skill, knowledge, and quest link records are cascade cleaned.
+2. **`artifact_evidence`**:
+   - `(user_id, artifact_id)` references `public.artifacts(user_id, id) ON DELETE RESTRICT`.
+   - Mastery evidence records ground long-term player capability; silent cascading erasure of evidence links is strictly forbidden. Attempting to delete an Artifact attached to Evidence fails closed with `PG 23503`, enforced both by the `RESTRICT` constraint and the `prevent_artifact_delete_if_referenced()` trigger.
