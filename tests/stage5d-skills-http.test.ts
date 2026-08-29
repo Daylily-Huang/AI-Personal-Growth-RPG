@@ -85,11 +85,20 @@ async function settleSkill(jar: Jar, rawInput: string): Promise<{ id: string; na
   const r2 = await api(jar, `/api/activities/${activity.id}/assess`, { method: "POST" });
   expect(r2.status).toBe(200);
   const { assessment } = await r2.json();
-  const r3 = await api(jar, `/api/assessments/${assessment.id}/confirm`, { method: "POST" });
+  const artifactProposals = assessment.proposal?.artifactProposals ?? [];
+  const artifactResolutions = artifactProposals.map((_: unknown, index: number) => ({
+    proposalIndex: index,
+    resolution: "ignore",
+  }));
+  const r3 = await api(jar, `/api/assessments/${assessment.id}/confirm`, {
+    method: "POST",
+    body: JSON.stringify({ artifactResolutions }),
+  });
   expect(r3.status).toBe(200);
   const { transaction } = await r3.json();
   return { id: transaction.skillId, name: transaction.skillName ?? transaction.reason };
 }
+
 
 describe.skipIf(!DATABASE_URL)("Stage 5D — Skills HTTP Integration, Tenant Isolation & 5C Production Path (Live)", () => {
   let app: ReturnType<typeof next>;

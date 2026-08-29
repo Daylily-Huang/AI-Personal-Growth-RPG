@@ -158,79 +158,266 @@ export type Database = {
           },
         ]
       }
-      artifact_links: {
+      artifact_activities: {
+        Row: {
+          activity_id: string
+          activity_role: string
+          artifact_id: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          activity_id: string
+          activity_role?: string
+          artifact_id: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          activity_id?: string
+          activity_role?: string
+          artifact_id?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_artifact_activities_activity"
+            columns: ["user_id", "activity_id"]
+            isOneToOne: false
+            referencedRelation: "activities"
+            referencedColumns: ["user_id", "id"]
+          },
+          {
+            foreignKeyName: "fk_artifact_activities_artifact"
+            columns: ["user_id", "artifact_id"]
+            isOneToOne: false
+            referencedRelation: "artifacts"
+            referencedColumns: ["user_id", "id"]
+          },
+        ]
+      }
+      artifact_evidence: {
         Row: {
           artifact_id: string
           created_at: string
-          entity_id: string
-          entity_type: string
+          evidence_id: string
           id: string
-          relation_type: string | null
           user_id: string
         }
         Insert: {
           artifact_id: string
           created_at?: string
-          entity_id: string
-          entity_type: string
+          evidence_id: string
           id?: string
-          relation_type?: string | null
           user_id: string
         }
         Update: {
           artifact_id?: string
           created_at?: string
-          entity_id?: string
-          entity_type?: string
+          evidence_id?: string
           id?: string
-          relation_type?: string | null
           user_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "artifact_links_artifact_id_fkey"
-            columns: ["artifact_id"]
+            foreignKeyName: "fk_artifact_evidence_artifact"
+            columns: ["user_id", "artifact_id"]
             isOneToOne: false
             referencedRelation: "artifacts"
-            referencedColumns: ["id"]
+            referencedColumns: ["user_id", "id"]
+          },
+          {
+            foreignKeyName: "fk_artifact_evidence_evidence"
+            columns: ["user_id", "evidence_id"]
+            isOneToOne: false
+            referencedRelation: "evidence_records"
+            referencedColumns: ["user_id", "id"]
+          },
+        ]
+      }
+      artifact_knowledge_nodes: {
+        Row: {
+          artifact_id: string
+          created_at: string
+          id: string
+          node_id: string
+          relation_type: string
+          user_id: string
+        }
+        Insert: {
+          artifact_id: string
+          created_at?: string
+          id?: string
+          node_id: string
+          relation_type?: string
+          user_id: string
+        }
+        Update: {
+          artifact_id?: string
+          created_at?: string
+          id?: string
+          node_id?: string
+          relation_type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_artifact_knowledge_nodes_artifact"
+            columns: ["user_id", "artifact_id"]
+            isOneToOne: false
+            referencedRelation: "artifacts"
+            referencedColumns: ["user_id", "id"]
+          },
+          {
+            foreignKeyName: "fk_artifact_knowledge_nodes_node"
+            columns: ["user_id", "node_id"]
+            isOneToOne: false
+            referencedRelation: "knowledge_nodes"
+            referencedColumns: ["user_id", "id"]
+          },
+        ]
+      }
+      artifact_quests: {
+        Row: {
+          artifact_id: string
+          created_at: string
+          id: string
+          is_primary_deliverable: boolean
+          quest_id: string
+          user_id: string
+        }
+        Insert: {
+          artifact_id: string
+          created_at?: string
+          id?: string
+          is_primary_deliverable?: boolean
+          quest_id: string
+          user_id: string
+        }
+        Update: {
+          artifact_id?: string
+          created_at?: string
+          id?: string
+          is_primary_deliverable?: boolean
+          quest_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_artifact_quests_artifact"
+            columns: ["user_id", "artifact_id"]
+            isOneToOne: false
+            referencedRelation: "artifacts"
+            referencedColumns: ["user_id", "id"]
+          },
+          {
+            foreignKeyName: "fk_artifact_quests_quest"
+            columns: ["user_id", "quest_id"]
+            isOneToOne: false
+            referencedRelation: "quests"
+            referencedColumns: ["user_id", "id"]
+          },
+        ]
+      }
+      artifact_skills: {
+        Row: {
+          artifact_id: string
+          created_at: string
+          demonstration_level: number
+          id: string
+          skill_id: string
+          user_id: string
+        }
+        Insert: {
+          artifact_id: string
+          created_at?: string
+          demonstration_level?: number
+          id?: string
+          skill_id: string
+          user_id: string
+        }
+        Update: {
+          artifact_id?: string
+          created_at?: string
+          demonstration_level?: number
+          id?: string
+          skill_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_artifact_skills_artifact"
+            columns: ["user_id", "artifact_id"]
+            isOneToOne: false
+            referencedRelation: "artifacts"
+            referencedColumns: ["user_id", "id"]
+          },
+          {
+            foreignKeyName: "fk_artifact_skills_skill"
+            columns: ["user_id", "skill_id"]
+            isOneToOne: false
+            referencedRelation: "skills"
+            referencedColumns: ["user_id", "id"]
           },
         ]
       }
       artifacts: {
         Row: {
-          artifact_type: string | null
+          archived_at: string | null
+          artifact_type: string
           created_at: string
           description: string | null
           external_url: string | null
           id: string
+          is_archived: boolean
+          lifecycle_status: string
+          metadata: Json
+          normalized_title: string | null
           reusability_score: number
           storage_path: string | null
+          summary: string | null
           title: string
           updated_at: string
           user_id: string
           version: string | null
         }
         Insert: {
-          artifact_type?: string | null
+          archived_at?: string | null
+          artifact_type: string
           created_at?: string
           description?: string | null
           external_url?: string | null
           id?: string
+          is_archived?: boolean
+          lifecycle_status?: string
+          metadata?: Json
+          normalized_title?: string | null
           reusability_score?: number
           storage_path?: string | null
+          summary?: string | null
           title: string
           updated_at?: string
           user_id: string
           version?: string | null
         }
         Update: {
-          artifact_type?: string | null
+          archived_at?: string | null
+          artifact_type?: string
           created_at?: string
           description?: string | null
           external_url?: string | null
           id?: string
+          is_archived?: boolean
+          lifecycle_status?: string
+          metadata?: Json
+          normalized_title?: string | null
           reusability_score?: number
           storage_path?: string | null
+          summary?: string | null
           title?: string
           updated_at?: string
           user_id?: string

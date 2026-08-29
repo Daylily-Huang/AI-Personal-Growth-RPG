@@ -64,7 +64,9 @@ const EXPECTED_ORDER = [
   "0039_knowledge_graph_authority",
   "0040_knowledge_authority_mutation",
   "0041_artifact_management_authority",
+  "0042_artifact_settlement_integration",
 ];
+
 
 const STAGE1_PRIVATE_TABLES = [
   "profiles",

@@ -28,7 +28,7 @@ const OUTPUT_SHAPE = `{
   "knowledge_updates": { "proposed_nodes": [{ "title": "string", "domain": "string" }], "proposed_edges": [{ "source": "string", "target": "string", "relation": "string" }] },
   "mastery_changes": [{ "target_type": "skill|knowledge", "target_name": "string", "from_level": 0-10, "proposed_level": 0-10, "confidence": 0.0-1.0, "verification_required": true/false, "reason": "string" }],
   "xp_semantics": { "base_value": 1-100, "difficulty": 0.0-1.0, "mastery_gain": 0.0-1.0, "novelty": 0.0-1.0, "goal_alignment": 0.0-1.0, "repetition_risk": "low|medium|high" },
-  "artifacts": [{ "title": "string", "type": "string", "confirmed_existing": true/false }],
+  "artifactProposals": [{ "title": "string", "artifactType": "document|code_repository|design_spec|data_analysis|presentation|synthesis_note|creative_work|other", "summary": "string", "description": "string", "reusabilityScore": 0.0-1.0 }],
   "next_quest": { "title": "string", "reason": "string" },
   "confidence": 0.0-1.0,
   "uncertainty_notes": ["string"]
@@ -61,6 +61,7 @@ ${input.rawInput}
 - mastery_changes 只给保守提议；高 Mastery 必须 verification_required=true。
 - xp_semantics 是语义判断，不是最终 XP；最终 XP 由服务器 Growth Engine 计算。
 - repetition_risk 只是基于当前单条文字的 AI 估算（可能为 low/medium/high）；服务器会在 Confirm 时按最近相似行为重新计算权威 repetitionCount，并施加真正的重复惩罚。
+- artifactProposals 是对本次行为产生的持久交付物的提议（0、1或多个）；类型必须是 8 种严格类型之一。
 - 若信息不足，降低 confidence 并写入 uncertainty_notes。
 `.trim();
 }

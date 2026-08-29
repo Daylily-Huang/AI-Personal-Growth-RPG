@@ -5,12 +5,14 @@ import { calculateQuestProgressDelta } from "@/lib/growth-engine/quest-progressi
 import { countRecentSimilar } from "@/lib/store/similarity";
 import type { AssessmentProposal } from "@/lib/ai/schemas";
 import type { Repository } from "./repository";
+import { isValidUuid } from "@/lib/http/validation";
 import type {
   ConfirmResult,
   MasteryVerification,
   MasteryAction,
   SettlementToApply,
   SkillResolutionInput,
+  ArtifactResolutionInput,
   XpTransaction,
 } from "./types";
 
@@ -22,6 +24,10 @@ export const DEFAULT_QUEST_SIZE: QuestSize = "standard";
 const SIMILARITY_WINDOW_DAYS = 30;
 const MAX_REPETITION_CONFLICT_RETRIES = 3;
 
+export interface ConfirmAssessmentOptions {
+  artifactResolutions?: ArtifactResolutionInput[];
+}
+
 /**
  * Domain service for the Growth Loop — the SINGLE copy of settlement rules.
  *
@@ -29,20 +35,31 @@ const MAX_REPETITION_CONFLICT_RETRIES = 3;
  * - Skill resolution discriminated union (`existing` vs `create`);
  * - Authoritative evidence record persistence alongside activity settlement;
  * - Preservation of the native MasteryAction 3-state protocol (`none` / `upgrade` / `request_verification`).
+ *
+ * Stage 7B additions:
+ * - Artifact resolution discriminated union (`create` vs `existing` vs `ignore`);
+ * - Exact N-of-N proposal coverage validation;
+ * - Single atomic settlement transaction covering XP, Skills, Evidence, Quests, Artifacts.
  */
 export class SettlementService {
   constructor(private readonly repo: Repository) {}
 
-  async confirmAssessment(assessmentId: string): Promise<ConfirmResult> {
+  async confirmAssessment(
+    assessmentId: string,
+    options?: ConfirmAssessmentOptions,
+  ): Promise<ConfirmResult> {
     for (let attempt = 0; attempt < MAX_REPETITION_CONFLICT_RETRIES; attempt++) {
-      const { result, retry } = await this.trySettleOnce(assessmentId);
+      const { result, retry } = await this.trySettleOnce(assessmentId, options);
       if (retry) continue;
       return result;
     }
     return { ok: false, reason: "repetition_conflict_retry_exhausted" };
   }
 
-  private async trySettleOnce(assessmentId: string): Promise<{ result: ConfirmResult; retry: boolean }> {
+  private async trySettleOnce(
+    assessmentId: string,
+    options?: ConfirmAssessmentOptions,
+  ): Promise<{ result: ConfirmResult; retry: boolean }> {
     const assessment = await this.repo.getAssessment(assessmentId);
     if (!assessment) return { result: { ok: false, reason: "not_found" }, retry: false };
     if (assessment.status !== "pending") {
@@ -51,6 +68,42 @@ export class SettlementService {
 
     const activity = await this.repo.getActivity(assessment.activityId);
     if (!activity) return { result: { ok: false, reason: "activity_not_found" }, retry: false };
+
+    // Stage 7B Artifact resolution validation
+    const storedProposals = assessment.proposal.artifactProposals ?? [];
+    const proposalCount = storedProposals.length;
+    const resolutions = options?.artifactResolutions;
+
+    if (proposalCount > 0) {
+      if (!resolutions || !Array.isArray(resolutions) || resolutions.length !== proposalCount) {
+        return { result: { ok: false, reason: "incomplete_proposal_coverage" }, retry: false };
+      }
+
+      const seen = new Set<number>();
+      for (const res of resolutions) {
+        if (typeof res.proposalIndex !== "number" || !Number.isInteger(res.proposalIndex)) {
+          return { result: { ok: false, reason: "invalid_proposal_index" }, retry: false };
+        }
+        if (res.proposalIndex < 0 || res.proposalIndex >= proposalCount) {
+          return { result: { ok: false, reason: "out_of_range_proposal_index" }, retry: false };
+        }
+        if (seen.has(res.proposalIndex)) {
+          return { result: { ok: false, reason: "duplicate_proposal_index" }, retry: false };
+        }
+        seen.add(res.proposalIndex);
+
+        if (res.resolution === "existing") {
+          if (!res.artifactId || typeof res.artifactId !== "string" || !isValidUuid(res.artifactId)) {
+            return { result: { ok: false, reason: "invalid_existing_artifact_id" }, retry: false };
+          }
+        }
+      }
+    } else {
+      if (resolutions && Array.isArray(resolutions) && resolutions.length > 0) {
+        return { result: { ok: false, reason: "unexpected_artifact_resolutions" }, retry: false };
+      }
+    }
+
 
     const now = new Date().toISOString();
     const skillName = assessment.proposal.affected_skills[0]?.name ?? "General Growth";
@@ -188,7 +241,9 @@ export class SettlementService {
         type: activityType ?? "activity_output",
       },
       questProgressDelta,
+      artifactResolutions: resolutions,
     };
+
 
     const result = await this.repo.applySettlement(settlement);
     if (result.ok) {
