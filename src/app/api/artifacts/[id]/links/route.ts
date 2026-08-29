@@ -78,8 +78,8 @@ export async function POST(request: Request, ctx: { params: Promise<{ id: string
       evidence: evidenceInput,
     };
 
-    const updatedLinks = await repo.manageArtifactLinks(id, input);
-    return NextResponse.json({ links: updatedLinks }, { status: 200 });
+    const res = await repo.manageArtifactLinks(id, input);
+    return NextResponse.json({ counts: res.counts, links: res.links }, { status: 200 });
   } catch (error) {
     if (error instanceof AuthRequiredError) {
       return NextResponse.json({ error: error.message }, { status: 401 });
@@ -89,10 +89,16 @@ export async function POST(request: Request, ctx: { params: Promise<{ id: string
     const code = errObj?.code;
     const msg = error instanceof Error ? error.message : String(errObj?.message ?? error);
 
+    if (code === "P0002" || msg.includes("not_found_or_not_owned") || code === "not_found") {
+      return NextResponse.json(
+        { error: "Target entity does not exist or does not belong to tenant", code: "not_found" },
+        { status: 404 },
+      );
+    }
     if (code === "23503" || msg.includes("23503") || msg.includes("foreign key")) {
       return NextResponse.json(
-        { error: "Target entity does not exist or does not belong to tenant", code: "foreign_key_violation" },
-        { status: 400 },
+        { error: "Target entity does not exist or does not belong to tenant", code: "not_found" },
+        { status: 404 },
       );
     }
     if (code === "23505" || msg.includes("23505") || msg.includes("duplicate key")) {
@@ -104,6 +110,6 @@ export async function POST(request: Request, ctx: { params: Promise<{ id: string
 
     console.error("Failed to manage artifact links", error);
     return NextResponse.json({ error: "Failed to manage artifact links" }, { status: 500 });
-
   }
 }
+

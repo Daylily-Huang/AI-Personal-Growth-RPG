@@ -2,8 +2,9 @@
 // Stage 7B Supabase Artifact Repository with strict tenant isolation and full relational join support
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database, Tables, TablesInsert, TablesUpdate } from "@/lib/supabase/database.types";
+import type { Database, Tables, TablesUpdate, Json } from "@/lib/supabase/database.types";
 import type {
+
   Artifact,
   ArtifactType,
   ArtifactLifecycleStatus,
@@ -18,8 +19,10 @@ import {
   ArtifactRepository,
   ListArtifactsFilter,
   ListArtifactsResult,
+  ManageArtifactLinksResult,
   ReferencedByProvenanceError,
   ArtifactTitleConflictError,
+  TargetEntityNotFoundError,
 } from "./artifact-repository";
 
 interface SkillJoinedRow {
@@ -47,7 +50,6 @@ interface EvidenceJoinedRow {
 }
 
 export class SupabaseArtifactRepository implements ArtifactRepository {
-
   constructor(
     private readonly client: SupabaseClient<Database>,
     readonly userId: string,
@@ -60,7 +62,6 @@ export class SupabaseArtifactRepository implements ArtifactRepository {
       title: row.title,
       normalizedTitle: row.normalized_title ?? "",
       artifactType: row.artifact_type as ArtifactType,
-
       summary: row.summary,
       description: row.description,
       lifecycleStatus: row.lifecycle_status as ArtifactLifecycleStatus,
@@ -102,28 +103,32 @@ export class SupabaseArtifactRepository implements ArtifactRepository {
 
     // Filter by skillId via artifact_skills join if requested
     if (filter?.skillId) {
-      const { data: skillArtifacts } = await this.client
+      const { data: skillArtifacts, error: skErr } = await this.client
         .from("artifact_skills")
         .select("artifact_id")
         .eq("user_id", this.userId)
         .eq("skill_id", filter.skillId);
+      if (skErr) throw skErr;
       const artifactIds = (skillArtifacts ?? []).map((r) => r.artifact_id);
       query = query.in("id", artifactIds.length > 0 ? artifactIds : ["00000000-0000-0000-0000-000000000000"]);
     }
 
     // Filter by questId via artifact_quests join if requested
     if (filter?.questId) {
-      const { data: questArtifacts } = await this.client
+      const { data: questArtifacts, error: qErr } = await this.client
         .from("artifact_quests")
         .select("artifact_id")
         .eq("user_id", this.userId)
         .eq("quest_id", filter.questId);
+      if (qErr) throw qErr;
       const artifactIds = (questArtifacts ?? []).map((r) => r.artifact_id);
       query = query.in("id", artifactIds.length > 0 ? artifactIds : ["00000000-0000-0000-0000-000000000000"]);
     }
 
+    // Stable total ordering: created_at DESC, id ASC
     query = query
       .order("created_at", { ascending: false })
+      .order("id", { ascending: true })
       .range(offset, offset + limit - 1);
 
     const { data, count, error } = await query;
@@ -137,7 +142,7 @@ export class SupabaseArtifactRepository implements ArtifactRepository {
 
     const artifactIds = rows.map((r) => r.id);
 
-    // Fetch relationship counts in parallel
+    // Fetch relationship counts in parallel (with explicit error checking)
     const [actRes, skRes, knRes, qRes, evRes] = await Promise.all([
       this.client.from("artifact_activities").select("artifact_id").eq("user_id", this.userId).in("artifact_id", artifactIds),
       this.client.from("artifact_skills").select("artifact_id").eq("user_id", this.userId).in("artifact_id", artifactIds),
@@ -145,6 +150,12 @@ export class SupabaseArtifactRepository implements ArtifactRepository {
       this.client.from("artifact_quests").select("artifact_id").eq("user_id", this.userId).in("artifact_id", artifactIds),
       this.client.from("artifact_evidence").select("artifact_id").eq("user_id", this.userId).in("artifact_id", artifactIds),
     ]);
+
+    if (actRes.error) throw actRes.error;
+    if (skRes.error) throw skRes.error;
+    if (knRes.error) throw knRes.error;
+    if (qRes.error) throw qRes.error;
+    if (evRes.error) throw evRes.error;
 
     const actCounts = countBy(actRes.data ?? [], "artifact_id");
     const skCounts = countBy(skRes.data ?? [], "artifact_id");
@@ -224,6 +235,12 @@ export class SupabaseArtifactRepository implements ArtifactRepository {
         .eq("artifact_id", artifactId),
     ]);
 
+    if (skRes.error) throw skRes.error;
+    if (knRes.error) throw knRes.error;
+    if (qRes.error) throw qRes.error;
+    if (actRes.error) throw actRes.error;
+    if (evRes.error) throw evRes.error;
+
     const skills = ((skRes.data ?? []) as unknown as SkillJoinedRow[])
       .map((r) => {
         if (!r.skills) return null;
@@ -285,7 +302,6 @@ export class SupabaseArtifactRepository implements ArtifactRepository {
       })
       .filter((e): e is NonNullable<typeof e> => e !== null);
 
-
     return {
       skills,
       knowledgeNodes,
@@ -301,95 +317,65 @@ export class SupabaseArtifactRepository implements ArtifactRepository {
       throw new Error("Artifact title cannot be empty");
     }
 
-    const payload: TablesInsert<"artifacts"> = {
-      user_id: this.userId,
-      title,
-      artifact_type: input.artifactType,
-      summary: input.summary ?? null,
-      description: input.description ?? null,
-      lifecycle_status: input.lifecycleStatus ?? "active",
-      version: input.version ?? "1.0",
-      storage_path: input.storagePath ?? null,
-      external_url: input.externalUrl ?? null,
-      reusability_score: input.reusabilityScore ?? 0.0,
-      metadata: (input.metadata as unknown as TablesInsert<"artifacts">["metadata"]) ?? {},
-      is_archived: input.lifecycleStatus === "archived",
+    // Contradictory lifecycle check
+    if (input.lifecycleStatus !== undefined && input.isArchived !== undefined) {
+      if (input.isArchived === true && input.lifecycleStatus !== "archived") {
+        throw new Error("Contradictory lifecycle status: isArchived=true requires lifecycleStatus='archived'");
+      }
+      if (input.isArchived === false && input.lifecycleStatus === "archived") {
+        throw new Error("Contradictory lifecycle status: isArchived=false cannot have lifecycleStatus='archived'");
+      }
+    }
 
-      archived_at: input.lifecycleStatus === "archived" ? new Date().toISOString() : null,
-    };
+    const { data, error } = await this.client.rpc("create_artifact_with_links", {
+      p_user_id: this.userId,
+      p_payload: {
+        title,
+        artifactType: input.artifactType,
+        summary: input.summary ?? null,
+        description: input.description ?? null,
+        lifecycleStatus: input.lifecycleStatus ?? (input.isArchived ? "archived" : "active"),
+        version: input.version ?? "1.0",
+        storagePath: input.storagePath ?? null,
+        externalUrl: input.externalUrl ?? null,
+        reusabilityScore: input.reusabilityScore ?? 0.0,
+        metadata: input.metadata ?? {},
+        activityIds: input.activityIds ?? [],
+        skillIds: input.skillIds ?? [],
+        knowledgeNodeIds: input.knowledgeNodeIds ?? [],
+        questIds: input.questIds ?? [],
+        evidenceIds: input.evidenceIds ?? [],
+      } as unknown as Json,
+    });
 
-    const { data, error } = await this.client
-      .from("artifacts")
-      .insert(payload)
-      .select()
-      .single();
 
     if (error) {
-      if (error.code === "23505") {
+      if (error.code === "23505" || error.message.includes("artifact_title_conflict")) {
         throw new ArtifactTitleConflictError();
+      }
+      if (error.code === "P0002" || error.message.includes("not_found_or_not_owned")) {
+        throw new TargetEntityNotFoundError();
       }
       throw error;
     }
 
-    const artifact = this.mapArtifactRow(data);
-
-    // Attach initial relations if provided
-    if (input.skillIds && input.skillIds.length > 0) {
-      const inserts = input.skillIds.map((skillId) => ({
-        user_id: this.userId,
-        artifact_id: artifact.id,
-        skill_id: skillId,
-        demonstration_level: 1,
-      }));
-      await this.client.from("artifact_skills").insert(inserts);
-    }
-
-    if (input.knowledgeNodeIds && input.knowledgeNodeIds.length > 0) {
-      const inserts = input.knowledgeNodeIds.map((nodeId) => ({
-        user_id: this.userId,
-        artifact_id: artifact.id,
-        node_id: nodeId,
-        relation_type: "synthesizes" as const,
-      }));
-      await this.client.from("artifact_knowledge_nodes").insert(inserts);
-    }
-
-    if (input.questIds && input.questIds.length > 0) {
-      const inserts = input.questIds.map((questId) => ({
-        user_id: this.userId,
-        artifact_id: artifact.id,
-        quest_id: questId,
-        is_primary_deliverable: false,
-      }));
-      await this.client.from("artifact_quests").insert(inserts);
-    }
-
-    if (input.activityIds && input.activityIds.length > 0) {
-      const inserts = input.activityIds.map((activityId) => ({
-        user_id: this.userId,
-        artifact_id: artifact.id,
-        activity_id: activityId,
-        activity_role: "produced" as const,
-      }));
-      await this.client.from("artifact_activities").insert(inserts);
-    }
-
-    if (input.evidenceIds && input.evidenceIds.length > 0) {
-      const inserts = input.evidenceIds.map((evidenceId) => ({
-        user_id: this.userId,
-        artifact_id: artifact.id,
-        evidence_id: evidenceId,
-      }));
-      await this.client.from("artifact_evidence").insert(inserts);
-    }
-
-    return artifact;
+    return this.mapArtifactRow(data as unknown as Tables<"artifacts">);
   }
 
   async updateArtifact(id: string, input: UpdateArtifactInput): Promise<Artifact> {
     const existing = await this.getArtifact(id);
     if (!existing) {
       throw new Error("Artifact not found");
+    }
+
+    // Fail-closed lifecycle contradiction validation
+    if (input.lifecycleStatus !== undefined && input.isArchived !== undefined) {
+      if (input.isArchived === true && input.lifecycleStatus !== "archived") {
+        throw new Error("Contradictory lifecycle status: isArchived=true requires lifecycleStatus='archived'");
+      }
+      if (input.isArchived === false && input.lifecycleStatus === "archived") {
+        throw new Error("Contradictory lifecycle status: isArchived=false cannot have lifecycleStatus='archived'");
+      }
     }
 
     const updates: TablesUpdate<"artifacts"> = {};
@@ -423,7 +409,7 @@ export class SupabaseArtifactRepository implements ArtifactRepository {
       .single();
 
     if (error) {
-      if (error.code === "23505") {
+      if (error.code === "23505" || error.message.includes("artifact_title_conflict")) {
         throw new ArtifactTitleConflictError();
       }
       throw error;
@@ -440,7 +426,7 @@ export class SupabaseArtifactRepository implements ArtifactRepository {
       .eq("user_id", this.userId);
 
     if (error) {
-      if (error.code === "23503") {
+      if (error.code === "23503" || error.message.includes("referenced by")) {
         throw new ReferencedByProvenanceError();
       }
       throw error;
@@ -449,194 +435,44 @@ export class SupabaseArtifactRepository implements ArtifactRepository {
     return true;
   }
 
-  async manageArtifactLinks(id: string, input: ManageArtifactLinksInput): Promise<ArtifactLinks> {
+  async manageArtifactLinks(id: string, input: ManageArtifactLinksInput): Promise<ManageArtifactLinksResult> {
     const existing = await this.getArtifact(id);
     if (!existing) {
-      throw new Error("Artifact not found");
+      throw new TargetEntityNotFoundError("Artifact not found");
     }
 
-    // Process activities
-    if (input.activities && input.activities.length > 0) {
-      for (const act of input.activities) {
-        if (act.action === "attach") {
-          const role = act.activityRole ?? "produced";
-          const { error: insErr } = await this.client
-            .from("artifact_activities")
-            .insert({
-              user_id: this.userId,
-              artifact_id: id,
-              activity_id: act.activityId,
-              activity_role: role,
-            });
-          if (insErr) {
-            if (insErr.code === "23505") {
-              const { error: updErr } = await this.client
-                .from("artifact_activities")
-                .update({ activity_role: role })
-                .eq("user_id", this.userId)
-                .eq("artifact_id", id)
-                .eq("activity_id", act.activityId);
-              if (updErr) throw updErr;
-            } else {
-              throw insErr;
-            }
-          }
-        } else if (act.action === "detach") {
-          const { error } = await this.client
-            .from("artifact_activities")
-            .delete()
-            .eq("user_id", this.userId)
-            .eq("artifact_id", id)
-            .eq("activity_id", act.activityId);
-          if (error) throw error;
-        }
+    const { error } = await this.client.rpc("manage_artifact_links", {
+      p_user_id: this.userId,
+      p_artifact_id: id,
+      p_payload: {
+        activities: input.activities ?? [],
+        skills: input.skills ?? [],
+        knowledgeNodes: input.knowledgeNodes ?? [],
+        quests: input.quests ?? [],
+        evidence: input.evidence ?? [],
+      } as unknown as Json,
+    });
+
+
+    if (error) {
+      if (error.code === "P0002" || error.message.includes("not_found_or_not_owned")) {
+        throw new TargetEntityNotFoundError();
       }
+      throw error;
     }
 
-    // Process skills
-    if (input.skills && input.skills.length > 0) {
-      for (const sk of input.skills) {
-        if (sk.action === "attach") {
-          const level = sk.demonstrationLevel ?? 1;
-          const { error: insErr } = await this.client
-            .from("artifact_skills")
-            .insert({
-              user_id: this.userId,
-              artifact_id: id,
-              skill_id: sk.skillId,
-              demonstration_level: level,
-            });
-          if (insErr) {
-            if (insErr.code === "23505") {
-              const { error: updErr } = await this.client
-                .from("artifact_skills")
-                .update({ demonstration_level: level })
-                .eq("user_id", this.userId)
-                .eq("artifact_id", id)
-                .eq("skill_id", sk.skillId);
-              if (updErr) throw updErr;
-            } else {
-              throw insErr;
-            }
-          }
-        } else if (sk.action === "detach") {
-          const { error } = await this.client
-            .from("artifact_skills")
-            .delete()
-            .eq("user_id", this.userId)
-            .eq("artifact_id", id)
-            .eq("skill_id", sk.skillId);
-          if (error) throw error;
-        }
-      }
-    }
+    const links = await this.getArtifactLinks(id);
+    const counts = {
+      activities: links.activities.length,
+      skills: links.skills.length,
+      knowledgeNodes: links.knowledgeNodes.length,
+      quests: links.quests.length,
+      evidence: links.evidence.length,
+    };
 
-    // Process knowledgeNodes
-    if (input.knowledgeNodes && input.knowledgeNodes.length > 0) {
-      for (const kn of input.knowledgeNodes) {
-        if (kn.action === "attach") {
-          const rel = kn.relationType ?? "synthesizes";
-          const { error: insErr } = await this.client
-            .from("artifact_knowledge_nodes")
-            .insert({
-              user_id: this.userId,
-              artifact_id: id,
-              node_id: kn.nodeId,
-              relation_type: rel,
-            });
-          if (insErr) {
-            if (insErr.code === "23505") {
-              const { error: updErr } = await this.client
-                .from("artifact_knowledge_nodes")
-                .update({ relation_type: rel })
-                .eq("user_id", this.userId)
-                .eq("artifact_id", id)
-                .eq("node_id", kn.nodeId);
-              if (updErr) throw updErr;
-            } else {
-              throw insErr;
-            }
-          }
-        } else if (kn.action === "detach") {
-          const { error } = await this.client
-            .from("artifact_knowledge_nodes")
-            .delete()
-            .eq("user_id", this.userId)
-            .eq("artifact_id", id)
-            .eq("node_id", kn.nodeId);
-          if (error) throw error;
-        }
-      }
-    }
-
-    // Process quests
-    if (input.quests && input.quests.length > 0) {
-      for (const q of input.quests) {
-        if (q.action === "attach") {
-          const primary = q.isPrimaryDeliverable ?? false;
-          const { error: insErr } = await this.client
-            .from("artifact_quests")
-            .insert({
-              user_id: this.userId,
-              artifact_id: id,
-              quest_id: q.questId,
-              is_primary_deliverable: primary,
-            });
-          if (insErr) {
-            if (insErr.code === "23505") {
-              const { error: updErr } = await this.client
-                .from("artifact_quests")
-                .update({ is_primary_deliverable: primary })
-                .eq("user_id", this.userId)
-                .eq("artifact_id", id)
-                .eq("quest_id", q.questId);
-              if (updErr) throw updErr;
-            } else {
-              throw insErr;
-            }
-          }
-        } else if (q.action === "detach") {
-          const { error } = await this.client
-            .from("artifact_quests")
-            .delete()
-            .eq("user_id", this.userId)
-            .eq("artifact_id", id)
-            .eq("quest_id", q.questId);
-          if (error) throw error;
-        }
-      }
-    }
-
-    // Process evidence
-    if (input.evidence && input.evidence.length > 0) {
-      for (const ev of input.evidence) {
-        if (ev.action === "attach") {
-          const { error: insErr } = await this.client
-            .from("artifact_evidence")
-            .insert({
-              user_id: this.userId,
-              artifact_id: id,
-              evidence_id: ev.evidenceId,
-            });
-          if (insErr && insErr.code !== "23505") {
-            throw insErr;
-          }
-        } else if (ev.action === "detach") {
-          const { error } = await this.client
-            .from("artifact_evidence")
-            .delete()
-            .eq("user_id", this.userId)
-            .eq("artifact_id", id)
-            .eq("evidence_id", ev.evidenceId);
-          if (error) throw error;
-        }
-      }
-    }
-
-    return this.getArtifactLinks(id);
+    return { counts, links };
   }
 }
-
 
 function countBy<T>(arr: T[], key: keyof T): Record<string, number> {
   const counts: Record<string, number> = {};
@@ -646,3 +482,4 @@ function countBy<T>(arr: T[], key: keyof T): Record<string, number> {
   }
   return counts;
 }
+

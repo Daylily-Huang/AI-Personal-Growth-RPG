@@ -126,6 +126,27 @@ export async function PATCH(request: Request, ctx: { params: Promise<{ id: strin
       updates.metadata = b.metadata as Record<string, unknown>;
     }
 
+    if (b.lifecycleStatus !== undefined && b.isArchived !== undefined) {
+      if (b.isArchived === true && b.lifecycleStatus !== "archived") {
+        return NextResponse.json(
+          {
+            error: "Contradictory lifecycle status: isArchived=true requires lifecycleStatus='archived'",
+            code: "invalid_lifecycle_combination",
+          },
+          { status: 400 },
+        );
+      }
+      if (b.isArchived === false && b.lifecycleStatus === "archived") {
+        return NextResponse.json(
+          {
+            error: "Contradictory lifecycle status: isArchived=false cannot have lifecycleStatus='archived'",
+            code: "invalid_lifecycle_combination",
+          },
+          { status: 400 },
+        );
+      }
+    }
+
     if (b.lifecycleStatus !== undefined) {
       if (!VALID_STATUSES.includes(b.lifecycleStatus as string)) {
         return NextResponse.json(
@@ -134,6 +155,9 @@ export async function PATCH(request: Request, ctx: { params: Promise<{ id: strin
         );
       }
       updates.lifecycleStatus = b.lifecycleStatus as ArtifactLifecycleStatus;
+      if (b.isArchived === undefined) {
+        updates.isArchived = b.lifecycleStatus === "archived";
+      }
     }
 
     if (b.isArchived !== undefined) {
@@ -141,7 +165,11 @@ export async function PATCH(request: Request, ctx: { params: Promise<{ id: strin
         return NextResponse.json({ error: "isArchived must be a boolean", code: "invalid_boolean" }, { status: 400 });
       }
       updates.isArchived = b.isArchived;
+      if (b.lifecycleStatus === undefined) {
+        updates.lifecycleStatus = b.isArchived ? "archived" : (existing.lifecycleStatus === "archived" ? "active" : existing.lifecycleStatus);
+      }
     }
+
 
     const updated = await repo.updateArtifact(id, updates);
     return NextResponse.json({ artifact: updated }, { status: 200 });

@@ -31,6 +31,11 @@ export interface ListArtifactsResult {
   offset: number;
 }
 
+export interface ManageArtifactLinksResult {
+  counts: ArtifactWithCounts["counts"];
+  links: ArtifactLinks;
+}
+
 export interface ArtifactRepository {
   readonly userId: string;
 
@@ -40,7 +45,7 @@ export interface ArtifactRepository {
   createArtifact(input: CreateArtifactInput): Promise<Artifact>;
   updateArtifact(id: string, input: UpdateArtifactInput): Promise<Artifact>;
   deleteArtifact(id: string): Promise<boolean>;
-  manageArtifactLinks(id: string, input: ManageArtifactLinksInput): Promise<ArtifactLinks>;
+  manageArtifactLinks(id: string, input: ManageArtifactLinksInput): Promise<ManageArtifactLinksResult>;
 }
 
 export class ReferencedByProvenanceError extends Error {
@@ -59,9 +64,18 @@ export class ArtifactTitleConflictError extends Error {
   }
 }
 
+export class TargetEntityNotFoundError extends Error {
+  readonly code = "not_found";
+  constructor(message = "Target entity does not exist or does not belong to tenant.") {
+    super(message);
+    this.name = "TargetEntityNotFoundError";
+  }
+}
+
 export async function getRequestArtifactRepository(): Promise<ArtifactRepository> {
   const client = await getSupabaseServerClient();
   const { data, error } = await client.auth.getUser();
   if (error || !data.user) throw new AuthRequiredError();
   return new SupabaseArtifactRepository(client, data.user.id);
 }
+

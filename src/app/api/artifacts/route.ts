@@ -157,6 +157,41 @@ export async function POST(request: Request) {
     }
 
 
+    // Contradictory lifecycle check
+    if (b.lifecycleStatus !== undefined && b.isArchived !== undefined) {
+      if (b.isArchived === true && b.lifecycleStatus !== "archived") {
+        return NextResponse.json(
+          {
+            error: "Contradictory lifecycle status: isArchived=true requires lifecycleStatus='archived'",
+            code: "invalid_lifecycle_combination",
+          },
+          { status: 400 },
+        );
+      }
+      if (b.isArchived === false && b.lifecycleStatus === "archived") {
+        return NextResponse.json(
+          {
+            error: "Contradictory lifecycle status: isArchived=false cannot have lifecycleStatus='archived'",
+            code: "invalid_lifecycle_combination",
+          },
+          { status: 400 },
+        );
+      }
+    }
+
+    let lifecycleStatus: ArtifactLifecycleStatus = "active";
+    if (b.lifecycleStatus !== undefined) {
+      if (!VALID_STATUSES.includes(b.lifecycleStatus as string) || b.lifecycleStatus === "all") {
+        return NextResponse.json(
+          { error: `lifecycleStatus must be one of: active, archived, draft, superseded`, code: "invalid_status" },
+          { status: 400 },
+        );
+      }
+      lifecycleStatus = b.lifecycleStatus as ArtifactLifecycleStatus;
+    } else if (b.isArchived === true) {
+      lifecycleStatus = "archived";
+    }
+
     const input: CreateArtifactInput = {
       title,
       artifactType,
@@ -167,7 +202,7 @@ export async function POST(request: Request) {
       externalUrl: typeof b.externalUrl === "string" ? b.externalUrl : null,
       reusabilityScore,
       metadata: typeof b.metadata === "object" && b.metadata !== null ? (b.metadata as Record<string, unknown>) : {},
-      lifecycleStatus: (b.lifecycleStatus as ArtifactLifecycleStatus) ?? "active",
+      lifecycleStatus,
       skillIds,
       knowledgeNodeIds,
       questIds,
@@ -189,11 +224,14 @@ export async function POST(request: Request) {
     const code = errObj?.code;
     const msg = error instanceof Error ? error.message : String(errObj?.message ?? error);
 
-    if (code === "23505" || msg.includes("23505") || msg.includes("duplicate key")) {
+    if (code === "P0002" || msg.includes("not_found_or_not_owned") || code === "not_found") {
+      return NextResponse.json({ error: "Target entity does not exist or does not belong to tenant", code: "not_found" }, { status: 404 });
+    }
+    if (code === "23505" || msg.includes("23505") || msg.includes("duplicate key") || msg.includes("artifact_title_conflict")) {
       return NextResponse.json({ error: "An artifact with this title already exists", code: "artifact_title_conflict" }, { status: 409 });
     }
     if (code === "23503" || msg.includes("23503") || msg.includes("foreign key")) {
-      return NextResponse.json({ error: msg, code: "foreign_key_violation" }, { status: 400 });
+      return NextResponse.json({ error: "Target entity does not exist or does not belong to tenant", code: "not_found" }, { status: 404 });
     }
     if (code === "23514" || msg.includes("23514") || msg.includes("check constraint")) {
       return NextResponse.json({ error: msg, code: "check_constraint_violation" }, { status: 400 });
@@ -201,6 +239,6 @@ export async function POST(request: Request) {
 
     console.error("Failed to create artifact", error);
     return NextResponse.json({ error: "Failed to create artifact" }, { status: 500 });
-
   }
 }
+

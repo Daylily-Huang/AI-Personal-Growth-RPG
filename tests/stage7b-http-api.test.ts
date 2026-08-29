@@ -514,33 +514,266 @@ describe.skipIf(!DATABASE_URL)("Stage 7B — Artifact HTTP API & Atomic Settleme
       expect(data2.links.knowledgeNodes.length).toBe(0);
     });
 
-    test("POST /api/artifacts/[id]/links rejects attaching cross-tenant entity (400 Bad Request)", async () => {
-      const res = await api(userA, `/api/artifacts/${createdArtifactId}/links`, {
+    // ------------------------------------------------------------------------
+    // Lifecycle Contradiction Tests on POST & PATCH
+    // ------------------------------------------------------------------------
+    test("POST /api/artifacts rejects contradictory lifecycle combinations (400 Bad Request)", async () => {
+      const cases = [
+        { lifecycleStatus: "active", isArchived: true },
+        { lifecycleStatus: "draft", isArchived: true },
+        { lifecycleStatus: "superseded", isArchived: true },
+        { lifecycleStatus: "archived", isArchived: false },
+      ];
+
+      for (const c of cases) {
+        const res = await api(userA, "/api/artifacts", {
+          method: "POST",
+          body: JSON.stringify({
+            title: `Contradiction Test ${Date.now()}_${Math.random()}`,
+            artifactType: "document",
+            ...c,
+          }),
+        });
+        expect(res.status).toBe(400);
+        const data = await res.json();
+        expect(data.code).toBe("invalid_lifecycle_combination");
+      }
+    });
+
+    test("PATCH /api/artifacts/[id] rejects contradictory lifecycle combinations (400 Bad Request)", async () => {
+      const patchCases = [
+        { lifecycleStatus: "active", isArchived: true },
+        { lifecycleStatus: "archived", isArchived: false },
+      ];
+
+      for (const c of patchCases) {
+        const res = await api(userA, `/api/artifacts/${createdArtifactId}`, {
+          method: "PATCH",
+          body: JSON.stringify(c),
+        });
+        expect(res.status).toBe(400);
+        const data = await res.json();
+        expect(data.code).toBe("invalid_lifecycle_combination");
+      }
+    });
+
+    // ------------------------------------------------------------------------
+    // Hostile Create with Foreign Relations
+    // ------------------------------------------------------------------------
+    test("POST /api/artifacts rejects foreign relation IDs (404 Not Found) with zero artifact creation", async () => {
+      const hostileTitle = `Hostile Foreign Create ${Date.now()}`;
+      const res = await api(userA, "/api/artifacts", {
         method: "POST",
         body: JSON.stringify({
-          skills: [{ skillId: skillBId, action: "attach" }],
+          title: hostileTitle,
+          artifactType: "document",
+          skillIds: [skillBId], // foreign skill!
+        }),
+      });
+
+      expect(res.status).toBe(404);
+      const data = await res.json();
+      expect(data.code).toBe("not_found");
+
+      // Verify zero artifacts created
+      const { data: arts } = await adminClient
+        .from("artifacts")
+        .select("*")
+        .eq("user_id", userAId)
+        .eq("title", hostileTitle);
+      expect(arts?.length ?? 0).toBe(0);
+    });
+
+    test("POST /api/artifacts rejects malformed relation UUID (400 Bad Request)", async () => {
+      const res = await api(userA, "/api/artifacts", {
+        method: "POST",
+        body: JSON.stringify({
+          title: `Malformed UUID Create ${Date.now()}`,
+          artifactType: "document",
+          questIds: ["not-a-valid-uuid"],
         }),
       });
       expect(res.status).toBe(400);
       const data = await res.json();
-      expect(data.code).toBe("foreign_key_violation");
+      expect(data.code).toBe("invalid_uuid");
     });
 
-    test("DELETE /api/artifacts/[id] deletes unreferenced artifact and prevents deletion when referenced", async () => {
-      // Create temporary unreferenced artifact
-      const tempRes = await api(userA, "/api/artifacts", {
-        method: "POST",
-        body: JSON.stringify({ title: "Temporary Trash Artifact", artifactType: "document" }),
+    // ------------------------------------------------------------------------
+    // Deterministic List Ordering (created_at DESC, id ASC)
+    // ------------------------------------------------------------------------
+    test("GET /api/artifacts enforces deterministic ordering (created_at DESC, id ASC)", async () => {
+      const fixedTimestamp = new Date(Date.now() - 50000).toISOString();
+      const titles = [
+        `Order Test A ${Date.now()}`,
+        `Order Test B ${Date.now()}`,
+        `Order Test C ${Date.now()}`,
+      ];
+
+      const inserted = await adminClient
+        .from("artifacts")
+        .insert(
+          titles.map((title) => ({
+            user_id: userAId,
+            title,
+            artifact_type: "document",
+            created_at: fixedTimestamp,
+            updated_at: fixedTimestamp,
+          })),
+        )
+        .select("id, title, created_at");
+
+      expect(inserted.error).toBeNull();
+      const rows = inserted.data ?? [];
+      expect(rows.length).toBe(3);
+
+      // Expected order for same created_at is id ASC
+      const sortedById = [...rows].sort((a, b) => a.id.localeCompare(b.id));
+
+      const res = await api(userA, "/api/artifacts?status=all&limit=50");
+      expect(res.status).toBe(200);
+      const listData = await res.json();
+
+      const found = listData.artifacts.filter((a: { id: string }) =>
+        rows.some((r) => r.id === a.id),
+      );
+      expect(found.length).toBe(3);
+      expect(found[0].id).toBe(sortedById[0].id);
+      expect(found[1].id).toBe(sortedById[1].id);
+      expect(found[2].id).toBe(sortedById[2].id);
+    });
+
+    // ------------------------------------------------------------------------
+    // Cross-Tenant Entity ID Isolation Matrix
+    // ------------------------------------------------------------------------
+    test("Cross-Tenant HTTP isolation: User A cannot GET, PATCH, DELETE, or link User B's artifact", async () => {
+      // 1. GET User B artifact -> 404
+      const getRes = await api(userA, `/api/artifacts/${artifactBId}`);
+      expect(getRes.status).toBe(404);
+
+      // 2. PATCH User B artifact -> 404 & B unchanged
+      const patchRes = await api(userA, `/api/artifacts/${artifactBId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ summary: "Hacked by User A" }),
       });
-      const tempId = (await tempRes.json()).artifact.id;
+      expect(patchRes.status).toBe(404);
+      const { data: bArt } = await adminClient.from("artifacts").select("summary").eq("id", artifactBId).single();
+      expect(bArt?.summary).toBe("Top Secret Spec");
 
-      // Delete succeeds
-      const delRes = await api(userA, `/api/artifacts/${tempId}`, { method: "DELETE" });
-      expect(delRes.status).toBe(204);
+      // 3. DELETE User B artifact -> 404 & B still exists
+      const delRes = await api(userA, `/api/artifacts/${artifactBId}`, { method: "DELETE" });
+      expect(delRes.status).toBe(404);
+      const { data: bExists } = await adminClient.from("artifacts").select("id").eq("id", artifactBId).single();
+      expect(bExists).toBeDefined();
 
-      // Verify gone
-      const checkRes = await api(userA, `/api/artifacts/${tempId}`);
-      expect(checkRes.status).toBe(404);
+      // 4. POST /links on User B artifact -> 404
+      const linkBRes = await api(userA, `/api/artifacts/${artifactBId}/links`, {
+        method: "POST",
+        body: JSON.stringify({
+          activities: [{ activityId: activityAId, action: "attach" }],
+        }),
+      });
+      expect(linkBRes.status).toBe(404);
+
+      // 5. POST /links on User A artifact referencing User B entities -> 404 (non-disclosing)
+      const foreignLinkRes = await api(userA, `/api/artifacts/${createdArtifactId}/links`, {
+        method: "POST",
+        body: JSON.stringify({
+          quests: [{ questId: questBId, action: "attach" }],
+        }),
+      });
+      expect(foreignLinkRes.status).toBe(404);
+      const foreignData = await foreignLinkRes.json();
+      expect(foreignData.code).toBe("not_found");
+    });
+
+    // ------------------------------------------------------------------------
+    // Batch Links Atomicity
+    // ------------------------------------------------------------------------
+    test("POST /api/artifacts/[id]/links executes batch links atomically (all-or-nothing rollback)", async () => {
+      // Create a test quest for User A
+      const qRes = await adminClient
+        .from("quests")
+        .insert({ user_id: userAId, title: "Atomic Batch Test Quest", quest_type: "production" })
+        .select("id")
+        .single();
+      const validQuestId = qRes.data!.id;
+
+      // Submit batch with 1 valid attach and 1 foreign attach (questBId)
+      const res = await api(userA, `/api/artifacts/${createdArtifactId}/links`, {
+        method: "POST",
+        body: JSON.stringify({
+          quests: [
+            { questId: validQuestId, action: "attach" },
+            { questId: questBId, action: "attach" }, // foreign!
+          ],
+        }),
+      });
+
+      expect(res.status).toBe(404);
+
+      // Verify the valid attach was NOT committed (transaction rolled back)
+      const { data: link } = await adminClient
+        .from("artifact_quests")
+        .select("*")
+        .eq("artifact_id", createdArtifactId)
+        .eq("quest_id", validQuestId);
+      expect(link?.length ?? 0).toBe(0);
+    });
+
+    // ------------------------------------------------------------------------
+    // Referenced Delete HTTP Regression (409 Conflict)
+    // ------------------------------------------------------------------------
+    test("DELETE /api/artifacts/[id] returns 409 when referenced by Evidence record or Knowledge provenance", async () => {
+      // Create an artifact to be referenced
+      const artRes = await api(userA, "/api/artifacts", {
+        method: "POST",
+        body: JSON.stringify({
+          title: `Referenced Deletion Target ${Date.now()}`,
+          artifactType: "document",
+        }),
+      });
+      expect(artRes.status).toBe(201);
+      const targetId = (await artRes.json()).artifact.id;
+
+      // Create evidence record referencing the artifact
+      const evRes = await adminClient
+        .from("evidence_records")
+        .insert({
+          user_id: userAId,
+          activity_id: activityAId,
+          evidence_level: 3,
+          description: "Evidence linking artifact",
+        })
+        .select("id")
+        .single();
+      const evidenceId = evRes.data!.id;
+
+      // Link artifact to evidence
+      await adminClient.from("artifact_evidence").insert({
+        user_id: userAId,
+        artifact_id: targetId,
+        evidence_id: evidenceId,
+      });
+
+      // Attempt DELETE -> 409 Conflict
+      const delRes = await api(userA, `/api/artifacts/${targetId}`, { method: "DELETE" });
+      expect(delRes.status).toBe(409);
+      const delData = await delRes.json();
+      expect(delData.code).toBe("referenced_by_provenance");
+
+      // Verify artifact still exists in DB
+      const { data: artCheck } = await adminClient.from("artifacts").select("id").eq("id", targetId).single();
+      expect(artCheck).toBeDefined();
+
+      // Archiving succeeds
+      const archRes = await api(userA, `/api/artifacts/${targetId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ isArchived: true }),
+      });
+      expect(archRes.status).toBe(200);
+      const archData = await archRes.json();
+      expect(archData.artifact.isArchived).toBe(true);
+      expect(archData.artifact.lifecycleStatus).toBe("archived");
     });
   });
 
@@ -605,7 +838,6 @@ describe.skipIf(!DATABASE_URL)("Stage 7B — Artifact HTTP API & Atomic Settleme
       }
 
       expect(confirmRes.status).toBe(200);
-
 
       // Verify in DB
       const { data: art } = await adminClient
@@ -743,7 +975,6 @@ describe.skipIf(!DATABASE_URL)("Stage 7B — Artifact HTTP API & Atomic Settleme
       ];
 
       const confirmRes = await api(userA, `/api/assessments/${assessmentId}/confirm`, {
-
         method: "POST",
         body: JSON.stringify({ artifactResolutions: resolutions }),
       });
@@ -973,7 +1204,6 @@ describe.skipIf(!DATABASE_URL)("Stage 7B — Artifact HTTP API & Atomic Settleme
         { title: "Canonical AI Generated Title", artifactType: "data_analysis", reusabilityScore: 0.77 },
       ]);
 
-
       // Client sends CREATE without overrides
       const resolutions: ArtifactResolutionInput[] = [
         { proposalIndex: 0, resolution: "create" },
@@ -997,13 +1227,15 @@ describe.skipIf(!DATABASE_URL)("Stage 7B — Artifact HTTP API & Atomic Settleme
     });
 
     // ------------------------------------------------------------------------
-    // Case 15: Artifact Relation / FK Failure Rollback
+    // Case 15: Artifact Relation / FK Failure Rollback (Complete Proof)
     // ------------------------------------------------------------------------
-    test("Case 15: Artifact Relation / FK Failure Rollback -> Atomic rollback on invalid target", async () => {
+    test("Case 15: Artifact Relation / FK Failure Rollback -> 404 (non-disclosing) and all-or-nothing rollback across all subsystems", async () => {
+      const proposedTitle = `FK Failure Target ${Date.now()}`;
+
       // Proposal references cross-tenant questId
       const { assessmentId, activityId } = await createTestActivityAndAssessment(userAId, [
         {
-          title: `FK Failure Target ${Date.now()}`,
+          title: proposedTitle,
           artifactType: "document",
           questIds: [questBId], // foreign quest!
         },
@@ -1018,18 +1250,112 @@ describe.skipIf(!DATABASE_URL)("Stage 7B — Artifact HTTP API & Atomic Settleme
         body: JSON.stringify({ artifactResolutions: resolutions }),
       });
 
-      // The DB composite FK check rejects User A artifact linked to User B quest
-      expect(res.status).toBeGreaterThanOrEqual(400);
+      // The DB composite FK/check rejects User A artifact linked to User B quest -> non-disclosing 404
+      expect(res.status).toBe(404);
 
-      // Verify all-or-nothing rollback: Activity and Assessment remain pending
+      // Verify all-or-nothing rollback across all subsystems:
+      // 1. Activity and Assessment remain pending
       const { data: act } = await adminClient.from("activities").select("status").eq("id", activityId).single();
       expect(act?.status).toBe("pending_assessment");
       const { data: ass } = await adminClient.from("ai_assessments").select("status").eq("id", assessmentId).single();
       expect(ass?.status).toBe("pending");
+
+      // 2. Zero XP transactions
       const { data: txs } = await adminClient.from("xp_transactions").select("*").eq("activity_id", activityId);
       expect(txs?.length ?? 0).toBe(0);
-      const { data: arts } = await adminClient.from("artifacts").select("*").eq("title", `FK Failure Target ${Date.now()}`);
+
+      // 3. Zero Evidence records
+      const { data: evs } = await adminClient.from("evidence_records").select("*").eq("activity_id", activityId);
+      expect(evs?.length ?? 0).toBe(0);
+
+      // 4. Zero Mastery events
+      const { data: mEvents } = await adminClient.from("mastery_events").select("*").eq("activity_id", activityId);
+      expect(mEvents?.length ?? 0).toBe(0);
+
+      // 5. Zero Artifact rows
+      const { data: arts } = await adminClient.from("artifacts").select("*").eq("user_id", userAId).eq("title", proposedTitle);
       expect(arts?.length ?? 0).toBe(0);
+
+      // 6. Zero rows across all 5 child link tables for this activity
+      const { data: artActs } = await adminClient.from("artifact_activities").select("*").eq("activity_id", activityId);
+      expect(artActs?.length ?? 0).toBe(0);
+    });
+
+    // ------------------------------------------------------------------------
+    // Approved Overrides Runtime Validation Tests
+    // ------------------------------------------------------------------------
+    test("Approved Overrides: Unknown keys or invalid types return 400 Bad Request", async () => {
+      const { assessmentId } = await createTestActivityAndAssessment(userAId, [
+        { title: "Override Validation Target", artifactType: "document" },
+      ]);
+
+      // 1. Unknown field in approvedOverrides
+      const resUnknown = await api(userA, `/api/assessments/${assessmentId}/confirm`, {
+        method: "POST",
+        body: JSON.stringify({
+          artifactResolutions: [
+            {
+              proposalIndex: 0,
+              resolution: "create",
+              approvedOverrides: { maliciousField: "malicious_value" },
+            },
+          ],
+        }),
+      });
+      expect(resUnknown.status).toBe(400);
+      const dataUnknown = await resUnknown.json();
+      expect(dataUnknown.code).toBe("invalid_approved_overrides");
+
+      // 2. Invalid artifactType in approvedOverrides
+      const resInvalidType = await api(userA, `/api/assessments/${assessmentId}/confirm`, {
+        method: "POST",
+        body: JSON.stringify({
+          artifactResolutions: [
+            {
+              proposalIndex: 0,
+              resolution: "create",
+              approvedOverrides: { artifactType: "generic_code" },
+            },
+          ],
+        }),
+      });
+      expect(resInvalidType.status).toBe(400);
+      const dataInvalidType = await resInvalidType.json();
+      expect(dataInvalidType.code).toBe("invalid_artifact_type");
+
+      // 3. Out-of-range reusabilityScore
+      const resScore = await api(userA, `/api/assessments/${assessmentId}/confirm`, {
+        method: "POST",
+        body: JSON.stringify({
+          artifactResolutions: [
+            {
+              proposalIndex: 0,
+              resolution: "create",
+              approvedOverrides: { reusabilityScore: 1.5 },
+            },
+          ],
+        }),
+      });
+      expect(resScore.status).toBe(400);
+      const dataScore = await resScore.json();
+      expect(dataScore.code).toBe("invalid_approved_overrides");
+
+      // 4. Empty title in approvedOverrides
+      const resEmptyTitle = await api(userA, `/api/assessments/${assessmentId}/confirm`, {
+        method: "POST",
+        body: JSON.stringify({
+          artifactResolutions: [
+            {
+              proposalIndex: 0,
+              resolution: "create",
+              approvedOverrides: { title: "   " },
+            },
+          ],
+        }),
+      });
+      expect(resEmptyTitle.status).toBe(400);
+      const dataEmptyTitle = await resEmptyTitle.json();
+      expect(dataEmptyTitle.code).toBe("empty_artifact_title");
     });
   });
 });

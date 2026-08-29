@@ -644,9 +644,12 @@ BEGIN
           p_user_id, v_new_art_id, v_activity_id, 'produced', v_now
         );
 
-        -- Optional relational links from proposal
+        -- Optional relational links from proposal with fail-closed tenant validation
         IF v_prop_item->'skillIds' IS NOT NULL AND jsonb_typeof(v_prop_item->'skillIds') = 'array' THEN
           FOR v_sid_text IN SELECT * FROM jsonb_array_elements_text(v_prop_item->'skillIds') LOOP
+            IF NOT EXISTS (SELECT 1 FROM public.skills WHERE id = v_sid_text::uuid AND user_id = p_user_id) THEN
+              RAISE EXCEPTION 'skill_not_found_or_not_owned' USING ERRCODE = 'P0002';
+            END IF;
             INSERT INTO public.artifact_skills (user_id, artifact_id, skill_id, demonstration_level, created_at)
             VALUES (p_user_id, v_new_art_id, v_sid_text::uuid, 1, v_now)
             ON CONFLICT (user_id, artifact_id, skill_id) DO NOTHING;
@@ -655,6 +658,9 @@ BEGIN
 
         IF v_prop_item->'knowledgeNodeIds' IS NOT NULL AND jsonb_typeof(v_prop_item->'knowledgeNodeIds') = 'array' THEN
           FOR v_kid_text IN SELECT * FROM jsonb_array_elements_text(v_prop_item->'knowledgeNodeIds') LOOP
+            IF NOT EXISTS (SELECT 1 FROM public.knowledge_nodes WHERE id = v_kid_text::uuid AND user_id = p_user_id) THEN
+              RAISE EXCEPTION 'knowledge_node_not_found_or_not_owned' USING ERRCODE = 'P0002';
+            END IF;
             INSERT INTO public.artifact_knowledge_nodes (user_id, artifact_id, node_id, relation_type, created_at)
             VALUES (p_user_id, v_new_art_id, v_kid_text::uuid, 'synthesizes', v_now)
             ON CONFLICT (user_id, artifact_id, node_id) DO NOTHING;
@@ -663,6 +669,9 @@ BEGIN
 
         IF v_prop_item->'questIds' IS NOT NULL AND jsonb_typeof(v_prop_item->'questIds') = 'array' THEN
           FOR v_qid_text IN SELECT * FROM jsonb_array_elements_text(v_prop_item->'questIds') LOOP
+            IF NOT EXISTS (SELECT 1 FROM public.quests WHERE id = v_qid_text::uuid AND user_id = p_user_id) THEN
+              RAISE EXCEPTION 'quest_not_found_or_not_owned' USING ERRCODE = 'P0002';
+            END IF;
             INSERT INTO public.artifact_quests (user_id, artifact_id, quest_id, is_primary_deliverable, created_at)
             VALUES (p_user_id, v_new_art_id, v_qid_text::uuid, false, v_now)
             ON CONFLICT (user_id, artifact_id, quest_id) DO NOTHING;
@@ -733,5 +742,354 @@ REVOKE ALL ON FUNCTION public.settle_activity(uuid, jsonb) FROM public;
 REVOKE ALL ON FUNCTION public.settle_activity(uuid, jsonb) FROM anon;
 REVOKE ALL ON FUNCTION public.settle_activity(uuid, jsonb) FROM authenticated;
 GRANT EXECUTE ON FUNCTION public.settle_activity(uuid, jsonb) TO service_role;
+
+
+-- ==============================================================================
+-- 2. TRANSACTIONAL ARTIFACT CREATION WITH INITIAL LINKS (FAIL-CLOSED)
+-- ==============================================================================
+CREATE OR REPLACE FUNCTION public.create_artifact_with_links(
+  p_user_id uuid,
+  p_payload jsonb
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_caller_id uuid := auth.uid();
+  v_title text;
+  v_norm_title text;
+  v_type text;
+  v_summary text;
+  v_description text;
+  v_status text;
+  v_version text;
+  v_storage_path text;
+  v_external_url text;
+  v_reusability_score numeric;
+  v_metadata jsonb;
+  v_artifact_row public.artifacts;
+  v_item text;
+  v_now timestamptz := clock_timestamp();
+BEGIN
+  -- Multi-tenant security check
+  IF v_caller_id IS NOT NULL AND v_caller_id <> p_user_id THEN
+    RAISE EXCEPTION 'forbidden' USING ERRCODE = '42501';
+  END IF;
+  IF p_user_id IS NULL THEN
+    RAISE EXCEPTION 'auth_required' USING ERRCODE = '28000';
+  END IF;
+
+  v_title := btrim(p_payload->>'title');
+  IF v_title IS NULL OR v_title = '' THEN
+    RAISE EXCEPTION 'invalid_title' USING ERRCODE = '22023';
+  END IF;
+
+  v_norm_title := lower(regexp_replace(v_title, '\s+', ' ', 'g'));
+  IF EXISTS (
+    SELECT 1 FROM public.artifacts
+    WHERE user_id = p_user_id AND normalized_title = v_norm_title
+  ) THEN
+    RAISE EXCEPTION 'artifact_title_conflict' USING ERRCODE = '23505';
+  END IF;
+
+  v_type := p_payload->>'artifactType';
+  IF v_type NOT IN ('document', 'code_repository', 'design_spec', 'data_analysis', 'presentation', 'synthesis_note', 'creative_work', 'other') THEN
+    RAISE EXCEPTION 'invalid_artifact_type' USING ERRCODE = '22023';
+  END IF;
+
+
+  v_status := coalesce(p_payload->>'lifecycleStatus', 'active');
+  IF v_status NOT IN ('draft', 'active', 'archived', 'superseded') THEN
+    RAISE EXCEPTION 'invalid_status' USING ERRCODE = '22023';
+  END IF;
+
+  v_summary := p_payload->>'summary';
+  v_description := p_payload->>'description';
+  v_version := coalesce(p_payload->>'version', '1.0');
+  v_storage_path := p_payload->>'storagePath';
+  v_external_url := p_payload->>'externalUrl';
+  v_reusability_score := coalesce((p_payload->>'reusabilityScore')::numeric, 0.0);
+  IF v_reusability_score < 0.0 OR v_reusability_score > 1.0 THEN
+    RAISE EXCEPTION 'invalid_score' USING ERRCODE = '22023';
+  END IF;
+  v_metadata := coalesce(p_payload->'metadata', '{}'::jsonb);
+
+  -- 1. Fail-closed tenant validation of all initial link targets
+  IF p_payload ? 'activityIds' AND jsonb_typeof(p_payload->'activityIds') = 'array' THEN
+    FOR v_item IN SELECT jsonb_array_elements_text(p_payload->'activityIds') LOOP
+      IF NOT EXISTS (SELECT 1 FROM public.activities WHERE id = v_item::uuid AND user_id = p_user_id) THEN
+        RAISE EXCEPTION 'activity_not_found_or_not_owned' USING ERRCODE = 'P0002';
+      END IF;
+    END LOOP;
+  END IF;
+
+  IF p_payload ? 'skillIds' AND jsonb_typeof(p_payload->'skillIds') = 'array' THEN
+    FOR v_item IN SELECT jsonb_array_elements_text(p_payload->'skillIds') LOOP
+      IF NOT EXISTS (SELECT 1 FROM public.skills WHERE id = v_item::uuid AND user_id = p_user_id) THEN
+        RAISE EXCEPTION 'skill_not_found_or_not_owned' USING ERRCODE = 'P0002';
+      END IF;
+    END LOOP;
+  END IF;
+
+  IF p_payload ? 'knowledgeNodeIds' AND jsonb_typeof(p_payload->'knowledgeNodeIds') = 'array' THEN
+    FOR v_item IN SELECT jsonb_array_elements_text(p_payload->'knowledgeNodeIds') LOOP
+      IF NOT EXISTS (SELECT 1 FROM public.knowledge_nodes WHERE id = v_item::uuid AND user_id = p_user_id) THEN
+        RAISE EXCEPTION 'knowledge_node_not_found_or_not_owned' USING ERRCODE = 'P0002';
+      END IF;
+    END LOOP;
+  END IF;
+
+  IF p_payload ? 'questIds' AND jsonb_typeof(p_payload->'questIds') = 'array' THEN
+    FOR v_item IN SELECT jsonb_array_elements_text(p_payload->'questIds') LOOP
+      IF NOT EXISTS (SELECT 1 FROM public.quests WHERE id = v_item::uuid AND user_id = p_user_id) THEN
+        RAISE EXCEPTION 'quest_not_found_or_not_owned' USING ERRCODE = 'P0002';
+      END IF;
+    END LOOP;
+  END IF;
+
+  IF p_payload ? 'evidenceIds' AND jsonb_typeof(p_payload->'evidenceIds') = 'array' THEN
+    FOR v_item IN SELECT jsonb_array_elements_text(p_payload->'evidenceIds') LOOP
+      IF NOT EXISTS (SELECT 1 FROM public.evidence_records WHERE id = v_item::uuid AND user_id = p_user_id) THEN
+        RAISE EXCEPTION 'evidence_not_found_or_not_owned' USING ERRCODE = 'P0002';
+      END IF;
+    END LOOP;
+  END IF;
+
+  -- 2. Insert Artifact
+  INSERT INTO public.artifacts (
+    user_id,
+    title,
+    artifact_type,
+    summary,
+    description,
+    lifecycle_status,
+    version,
+    storage_path,
+    external_url,
+    reusability_score,
+    metadata,
+    is_archived,
+    archived_at,
+    created_at,
+    updated_at
+  ) VALUES (
+    p_user_id,
+    v_title,
+    v_type,
+    v_summary,
+    v_description,
+    v_status,
+    v_version,
+    v_storage_path,
+    v_external_url,
+    v_reusability_score,
+    v_metadata,
+    (v_status = 'archived'),
+    CASE WHEN v_status = 'archived' THEN v_now ELSE NULL END,
+    v_now,
+    v_now
+  ) RETURNING * INTO v_artifact_row;
+
+  -- 3. Insert initial relations atomically
+  IF p_payload ? 'activityIds' AND jsonb_typeof(p_payload->'activityIds') = 'array' THEN
+    FOR v_item IN SELECT jsonb_array_elements_text(p_payload->'activityIds') LOOP
+      INSERT INTO public.artifact_activities (user_id, artifact_id, activity_id, activity_role, created_at)
+      VALUES (p_user_id, v_artifact_row.id, v_item::uuid, 'produced', v_now)
+      ON CONFLICT (user_id, artifact_id, activity_id) DO NOTHING;
+    END LOOP;
+  END IF;
+
+  IF p_payload ? 'skillIds' AND jsonb_typeof(p_payload->'skillIds') = 'array' THEN
+    FOR v_item IN SELECT jsonb_array_elements_text(p_payload->'skillIds') LOOP
+      INSERT INTO public.artifact_skills (user_id, artifact_id, skill_id, demonstration_level, created_at)
+      VALUES (p_user_id, v_artifact_row.id, v_item::uuid, 1, v_now)
+      ON CONFLICT (user_id, artifact_id, skill_id) DO NOTHING;
+    END LOOP;
+  END IF;
+
+  IF p_payload ? 'knowledgeNodeIds' AND jsonb_typeof(p_payload->'knowledgeNodeIds') = 'array' THEN
+    FOR v_item IN SELECT jsonb_array_elements_text(p_payload->'knowledgeNodeIds') LOOP
+      INSERT INTO public.artifact_knowledge_nodes (user_id, artifact_id, node_id, relation_type, created_at)
+      VALUES (p_user_id, v_artifact_row.id, v_item::uuid, 'synthesizes', v_now)
+      ON CONFLICT (user_id, artifact_id, node_id) DO NOTHING;
+    END LOOP;
+  END IF;
+
+  IF p_payload ? 'questIds' AND jsonb_typeof(p_payload->'questIds') = 'array' THEN
+    FOR v_item IN SELECT jsonb_array_elements_text(p_payload->'questIds') LOOP
+      INSERT INTO public.artifact_quests (user_id, artifact_id, quest_id, is_primary_deliverable, created_at)
+      VALUES (p_user_id, v_artifact_row.id, v_item::uuid, false, v_now)
+      ON CONFLICT (user_id, artifact_id, quest_id) DO NOTHING;
+    END LOOP;
+  END IF;
+
+  IF p_payload ? 'evidenceIds' AND jsonb_typeof(p_payload->'evidenceIds') = 'array' THEN
+    FOR v_item IN SELECT jsonb_array_elements_text(p_payload->'evidenceIds') LOOP
+      INSERT INTO public.artifact_evidence (user_id, artifact_id, evidence_id, created_at)
+      VALUES (p_user_id, v_artifact_row.id, v_item::uuid, v_now)
+      ON CONFLICT (user_id, artifact_id, evidence_id) DO NOTHING;
+    END LOOP;
+  END IF;
+
+  RETURN to_jsonb(v_artifact_row);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.create_artifact_with_links(uuid, jsonb) TO authenticated, service_role;
+REVOKE EXECUTE ON FUNCTION public.create_artifact_with_links(uuid, jsonb) FROM anon;
+
+
+-- ==============================================================================
+-- 3. TRANSACTIONAL BATCH ARTIFACT LINK MUTATION (FAIL-CLOSED)
+-- ==============================================================================
+CREATE OR REPLACE FUNCTION public.manage_artifact_links(
+  p_user_id uuid,
+  p_artifact_id uuid,
+  p_payload jsonb
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_caller_id uuid := auth.uid();
+  v_item jsonb;
+  v_act_id uuid;
+  v_sk_id uuid;
+  v_node_id uuid;
+  v_q_id uuid;
+  v_ev_id uuid;
+  v_action text;
+  v_role text;
+  v_level int;
+  v_rel text;
+  v_primary boolean;
+  v_now timestamptz := clock_timestamp();
+BEGIN
+  IF v_caller_id IS NOT NULL AND v_caller_id <> p_user_id THEN
+    RAISE EXCEPTION 'forbidden' USING ERRCODE = '42501';
+  END IF;
+  IF p_user_id IS NULL THEN
+    RAISE EXCEPTION 'auth_required' USING ERRCODE = '28000';
+  END IF;
+
+  -- 1. Artifact must exist and belong to user
+  IF NOT EXISTS (SELECT 1 FROM public.artifacts WHERE id = p_artifact_id AND user_id = p_user_id) THEN
+    RAISE EXCEPTION 'artifact_not_found_or_not_owned' USING ERRCODE = 'P0002';
+  END IF;
+
+  -- 2. Process Activities
+  IF p_payload ? 'activities' AND jsonb_typeof(p_payload->'activities') = 'array' THEN
+    FOR v_item IN SELECT * FROM jsonb_array_elements(p_payload->'activities') LOOP
+      v_act_id := (v_item->>'activityId')::uuid;
+      v_action := v_item->>'action';
+      IF v_action = 'attach' THEN
+        IF NOT EXISTS (SELECT 1 FROM public.activities WHERE id = v_act_id AND user_id = p_user_id) THEN
+          RAISE EXCEPTION 'activity_not_found_or_not_owned' USING ERRCODE = 'P0002';
+        END IF;
+        v_role := coalesce(v_item->>'activityRole', 'produced');
+        INSERT INTO public.artifact_activities (user_id, artifact_id, activity_id, activity_role, created_at)
+        VALUES (p_user_id, p_artifact_id, v_act_id, v_role, v_now)
+        ON CONFLICT (user_id, artifact_id, activity_id)
+        DO UPDATE SET activity_role = v_role;
+      ELSIF v_action = 'detach' THEN
+        DELETE FROM public.artifact_activities
+        WHERE user_id = p_user_id AND artifact_id = p_artifact_id AND activity_id = v_act_id;
+      END IF;
+    END LOOP;
+  END IF;
+
+  -- 3. Process Skills
+  IF p_payload ? 'skills' AND jsonb_typeof(p_payload->'skills') = 'array' THEN
+    FOR v_item IN SELECT * FROM jsonb_array_elements(p_payload->'skills') LOOP
+      v_sk_id := (v_item->>'skillId')::uuid;
+      v_action := v_item->>'action';
+      IF v_action = 'attach' THEN
+        IF NOT EXISTS (SELECT 1 FROM public.skills WHERE id = v_sk_id AND user_id = p_user_id) THEN
+          RAISE EXCEPTION 'skill_not_found_or_not_owned' USING ERRCODE = 'P0002';
+        END IF;
+        v_level := coalesce((v_item->>'demonstrationLevel')::int, 1);
+        INSERT INTO public.artifact_skills (user_id, artifact_id, skill_id, demonstration_level, created_at)
+        VALUES (p_user_id, p_artifact_id, v_sk_id, v_level, v_now)
+        ON CONFLICT (user_id, artifact_id, skill_id)
+        DO UPDATE SET demonstration_level = v_level;
+      ELSIF v_action = 'detach' THEN
+        DELETE FROM public.artifact_skills
+        WHERE user_id = p_user_id AND artifact_id = p_artifact_id AND skill_id = v_sk_id;
+      END IF;
+    END LOOP;
+  END IF;
+
+  -- 4. Process Knowledge Nodes
+  IF p_payload ? 'knowledgeNodes' AND jsonb_typeof(p_payload->'knowledgeNodes') = 'array' THEN
+    FOR v_item IN SELECT * FROM jsonb_array_elements(p_payload->'knowledgeNodes') LOOP
+      v_node_id := (v_item->>'nodeId')::uuid;
+      v_action := v_item->>'action';
+      IF v_action = 'attach' THEN
+        IF NOT EXISTS (SELECT 1 FROM public.knowledge_nodes WHERE id = v_node_id AND user_id = p_user_id) THEN
+          RAISE EXCEPTION 'knowledge_node_not_found_or_not_owned' USING ERRCODE = 'P0002';
+        END IF;
+        v_rel := coalesce(v_item->>'relationType', 'synthesizes');
+        INSERT INTO public.artifact_knowledge_nodes (user_id, artifact_id, node_id, relation_type, created_at)
+        VALUES (p_user_id, p_artifact_id, v_node_id, v_rel, v_now)
+        ON CONFLICT (user_id, artifact_id, node_id)
+        DO UPDATE SET relation_type = v_rel;
+      ELSIF v_action = 'detach' THEN
+        DELETE FROM public.artifact_knowledge_nodes
+        WHERE user_id = p_user_id AND artifact_id = p_artifact_id AND node_id = v_node_id;
+      END IF;
+    END LOOP;
+  END IF;
+
+  -- 5. Process Quests
+  IF p_payload ? 'quests' AND jsonb_typeof(p_payload->'quests') = 'array' THEN
+    FOR v_item IN SELECT * FROM jsonb_array_elements(p_payload->'quests') LOOP
+      v_q_id := (v_item->>'questId')::uuid;
+      v_action := v_item->>'action';
+      IF v_action = 'attach' THEN
+        IF NOT EXISTS (SELECT 1 FROM public.quests WHERE id = v_q_id AND user_id = p_user_id) THEN
+          RAISE EXCEPTION 'quest_not_found_or_not_owned' USING ERRCODE = 'P0002';
+        END IF;
+        v_primary := coalesce((v_item->>'isPrimaryDeliverable')::boolean, false);
+        INSERT INTO public.artifact_quests (user_id, artifact_id, quest_id, is_primary_deliverable, created_at)
+        VALUES (p_user_id, p_artifact_id, v_q_id, v_primary, v_now)
+        ON CONFLICT (user_id, artifact_id, quest_id)
+        DO UPDATE SET is_primary_deliverable = v_primary;
+      ELSIF v_action = 'detach' THEN
+        DELETE FROM public.artifact_quests
+        WHERE user_id = p_user_id AND artifact_id = p_artifact_id AND quest_id = v_q_id;
+      END IF;
+    END LOOP;
+  END IF;
+
+  -- 6. Process Evidence
+  IF p_payload ? 'evidence' AND jsonb_typeof(p_payload->'evidence') = 'array' THEN
+    FOR v_item IN SELECT * FROM jsonb_array_elements(p_payload->'evidence') LOOP
+      v_ev_id := (v_item->>'evidenceId')::uuid;
+      v_action := v_item->>'action';
+      IF v_action = 'attach' THEN
+        IF NOT EXISTS (SELECT 1 FROM public.evidence_records WHERE id = v_ev_id AND user_id = p_user_id) THEN
+          RAISE EXCEPTION 'evidence_not_found_or_not_owned' USING ERRCODE = 'P0002';
+        END IF;
+        INSERT INTO public.artifact_evidence (user_id, artifact_id, evidence_id, created_at)
+        VALUES (p_user_id, p_artifact_id, v_ev_id, v_now)
+        ON CONFLICT (user_id, artifact_id, evidence_id) DO NOTHING;
+      ELSIF v_action = 'detach' THEN
+        DELETE FROM public.artifact_evidence
+        WHERE user_id = p_user_id AND artifact_id = p_artifact_id AND evidence_id = v_ev_id;
+      END IF;
+    END LOOP;
+  END IF;
+
+  RETURN jsonb_build_object('ok', true);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.manage_artifact_links(uuid, uuid, jsonb) TO authenticated, service_role;
+REVOKE EXECUTE ON FUNCTION public.manage_artifact_links(uuid, uuid, jsonb) FROM anon;
+
 
 

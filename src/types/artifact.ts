@@ -111,6 +111,7 @@ export interface CreateArtifactInput {
   reusabilityScore?: number;
   metadata?: Record<string, unknown>;
   lifecycleStatus?: ArtifactLifecycleStatus;
+  isArchived?: boolean;
   skillIds?: string[];
   knowledgeNodeIds?: string[];
   questIds?: string[];
@@ -166,8 +167,6 @@ export interface ArtifactProposal {
   reusabilityScore?: number;
   metadata?: Record<string, unknown>;
   skillIds?: string[];
-
-
   knowledgeNodeIds?: string[];
   questIds?: string[];
 }
@@ -193,9 +192,10 @@ export type ArtifactResolutionInput =
       proposalIndex: number;
       resolution: "existing";
       artifactId: string;
-      activityRole: "modified" | "referenced";
+      activityRole?: "produced" | "modified" | "referenced";
     }
   | {
       proposalIndex: number;
       resolution: "ignore";
     };
+

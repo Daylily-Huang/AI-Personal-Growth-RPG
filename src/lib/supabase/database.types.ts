@@ -1427,10 +1427,19 @@ export type Database = {
         }
       }
       xp_threshold_for_level: { Args: { p_level: number }; Returns: number }
+      create_artifact_with_links: {
+        Args: { p_user_id: string; p_payload: Json }
+        Returns: Json
+      }
+      manage_artifact_links: {
+        Args: { p_user_id: string; p_artifact_id: string; p_payload: Json }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never
     }
+
     CompositeTypes: {
       [_ in never]: never
     }
