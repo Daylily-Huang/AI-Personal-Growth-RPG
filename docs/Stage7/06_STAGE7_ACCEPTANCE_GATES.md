@@ -8,7 +8,7 @@
 
 ## 1. Acceptance Gates by Sub-Stage
 
-### Gate 7A: Schema, Composite FKs & Authority Invariants (CURRENT TARGET - FROZEN)
+### Gate 7A: Schema, Composite FKs & Authority Invariants (FINAL FROZEN - 42/42 PASS)
 - [x] **0041 Migration Applied**: Clean schema rebuild for `artifacts` and creation of normalized join tables;
 - [x] **Artifact Taxonomy Constraints**: `artifact_type` restricted to 8 canonical enum values (`document`, `code_repository`, `design_spec`, `data_analysis`, `presentation`, `synthesis_note`, `creative_work`, `other`);
 - [x] **Lifecycle Coherence Constraints**: `lifecycle_status = 'archived'` $\iff$ `is_archived = true` and `archived_at IS NOT NULL`; `draft`/`active`/`superseded` $\iff$ `is_archived = false` and `archived_at IS NULL`;
@@ -49,11 +49,12 @@
 
 ---
 
-## 3. Gate 7C: Artifacts Workspace UI (FUTURE)
-- [ ] Design-Sequence Checkpoint review before implementation;
+## 3. Gate 7C: Artifacts Workspace UI (BLOCKED PENDING GLOBAL VISUAL DESIGN FREEZE PASS)
+- [ ] **Prerequisite**: Global Visual Design Freeze PASS (Gates V1–V8);
+- [ ] Consume the **FINAL FROZEN Global Visual Design System** (`AppShell`, `InspectorDrawer`, `GlassPanel`, `RPGCard`, and shared primitives);
 - [ ] Complete 3-column workspace at `/artifacts`;
 - [ ] Interactive Artifact Cards with type badges, version pills, superseded status, and reusability meters;
-- [ ] Detail Drawer with markdown rendering and 5 relational accordions (Skills, Knowledge, Quests, Activities, Evidence);
+- [ ] Detail Drawer (`ArtifactInspectorContent`) with markdown rendering and 5 relational accordions (Skills, Knowledge, Quests, Activities, Evidence);
 - [ ] Create, Edit, Manage Links, and Archive/Delete confirmation modals with zero-mutation on cancel;
 - [ ] Assessment Confirmation Resolution UX (3-way Create / Existing / Ignore selector bound by `proposalIndex`);
 - [ ] Restore superseded work product action.

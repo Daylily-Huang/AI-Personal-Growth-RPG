@@ -1,7 +1,7 @@
 # Motion, Transitions & Feedback System Specification
 
 > **Document**: `06_MOTION_AND_FEEDBACK.md`  
-> **Status**: DESIGN FREEZE CANDIDATE  
+> **Status**: DESIGN FREEZE CANDIDATE (ROUND 2 REVIEW PENDING)  
 > **Milestone**: Global Visual Design Freeze  
 > **Dependencies**: Stage 0–6 (FROZEN), Stage 7A/7B (FROZEN), `01_GLOBAL_VISUAL_DIRECTION.md`, `02_DESIGN_TOKENS.md`  
 > **Related Documents**: `03_GLOBAL_APP_SHELL.md`, `04_SHARED_COMPONENT_SYSTEM.md`, `07_RESPONSIVE_AND_ACCESSIBILITY.md`
@@ -30,12 +30,12 @@ In the **AI Personal Growth RPG**, animation and motion serve strictly functiona
 
 ### 2.1 Micro-Interactions
 
-| Interaction | Duration | Easing | Visual Effect |
+| Interaction | Duration Token | Easing Token | Visual Effect |
 | :--- | :--- | :--- | :--- |
-| **Card Hover** | `150ms` | `ease-out` | `translateY(-2px)` elevation, subtle gold border illumination (`border-gold-subtle`). |
-| **Button Active/Press** | `100ms` | `ease-in-out` | `scale(0.985)` subtle depression, momentary brightness shift. |
-| **Focus Ring** | `120ms` | `ease-out` | 2px gold focus ring with smooth alpha transition (`rgba(212, 175, 55, 0.6)`). |
-| **Tab/Pill Selection** | `200ms` | `ease-out-gentle` | Sliding active indicator bar or soft background pill highlight. |
+| **Card Hover** | `var(--duration-fast)` | `var(--ease-out-gentle)` | Elevation (`var(--hover-surface-elevation)`), entity-specific or neutral border illumination. |
+| **Button Active/Press** | `var(--duration-instant)`| `var(--ease-in-out-subtle)`| Subtle depression (`var(--active-surface-depression)`), momentary brightness shift. |
+| **Focus Ring** | `var(--duration-fast)` | `var(--ease-out-gentle)` | 2px gold focus ring (`var(--focus-ring)`) with smooth alpha transition. |
+| **Tab/Pill Selection** | `var(--duration-normal)`| `var(--ease-out-gentle)` | Sliding active indicator bar or soft background pill highlight. |
 
 ---
 
@@ -43,19 +43,19 @@ In the **AI Personal Growth RPG**, animation and motion serve strictly functiona
 
 #### 1. Contextual Inspector Drawer
 - **Action**: Slide-in from right viewport edge upon entity selection.
-- **Duration**: `250ms` on desktop, `200ms` on mobile.
+- **Duration**: `var(--duration-normal)` (250ms on desktop, 200ms on mobile).
 - **Easing**: `cubic-bezier(0.16, 1, 0.3, 1)` (Gentle deceleration curve).
 - **Behavior**: Main workspace content smoothly compresses or darkens with a subtle backdrop veil.
 
 #### 2. Modals & Dialog Overlays
-- **Action**: Fade in backdrop (`rgba(5, 7, 10, 0.75)`) + slight upward scale (`scale(0.96) translateY(8px) -> scale(1) translateY(0)`).
-- **Duration**: `200ms`.
-- **Easing**: `cubic-bezier(0.0, 0.0, 0.2, 1.0)`.
+- **Action**: Fade in backdrop (`var(--z-modal-backdrop)`) + slight upward scale (`scale(0.96) translateY(8px) -> scale(1) translateY(0)`).
+- **Duration**: `var(--duration-normal)` (200ms).
+- **Easing**: `var(--ease-out-gentle)`.
 
 #### 3. Accordion Expand/Collapse
 - **Action**: Smooth CSS grid height transition (`grid-template-rows: 0fr -> 1fr`).
-- **Duration**: `200ms`.
-- **Easing**: `ease-in-out`.
+- **Duration**: `var(--duration-normal)` (200ms).
+- **Easing**: `var(--ease-in-out-subtle)`.
 
 ---
 
@@ -64,21 +64,20 @@ In the **AI Personal Growth RPG**, animation and motion serve strictly functiona
 ### 3.1 XP Settlement & Numerical Counter
 - **Trigger**: Confirmed assessment settlement or completed activity.
 - **Animation**:
-  - XP counter increments smoothly over `400ms` using tabular number ticker.
-  - Global XP track flashes with a gentle gold pulse (`box-shadow: 0 0 16px rgba(212, 175, 55, 0.3)`).
-  - Floating `+50 XP` indicator gently floats upward by `12px` and fades over `600ms`.
+  - XP counter increments smoothly over `var(--duration-slow)` using tabular number ticker.
+  - Global XP track flashes with a gentle gold pulse (`var(--glow-gold-subtle)`).
+  - Floating `+XP` indicator gently floats upward by `12px` and fades over `600ms`.
 
 ### 3.2 Level-Up Milestone
 - **Trigger**: Player character achieves new progression level.
 - **Animation**:
-  - Octagonal level badge pulses with ancient gold halo over `500ms`.
-  - Subtle environmental mist particles briefly converge toward the player status capsule.
+  - Octagonal level badge pulses with Ancient Gold halo (`var(--glow-gold-breakthrough)`).
   - Non-intrusive banner notification at top of screen (dismissible, never blocks interaction).
 
 ### 3.3 Skill Mastery & Evidence Grounding
-- **Trigger**: Verified mastery increment (e.g. Level 2 $\rightarrow$ Level 3).
+- **Trigger**: Verified mastery progression on M0–M10 scale (e.g. `M2 -> M3`).
 - **Animation**:
-  - The newly mastered diamond pip (`◆`) transitions from hollow to solid gold with a crisp, discrete flash.
+  - The newly mastered segment or diamond pip transitions to solid gold (`var(--gold-400)`) with a crisp, discrete flash.
   - Graph node emits an interconnected edge pulse to adjacent dependent skills.
 
 ---
