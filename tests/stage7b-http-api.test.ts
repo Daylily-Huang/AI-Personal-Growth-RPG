@@ -339,6 +339,7 @@ describe.skipIf(!DATABASE_URL)("Stage 7B — Artifact HTTP API & Atomic Settleme
       knowledgeNodeIds?: string[];
       questIds?: string[];
     }> = [],
+    options?: { questId?: string },
   ) {
     const actRes = await adminClient
       .from("activities")
@@ -350,10 +351,12 @@ describe.skipIf(!DATABASE_URL)("Stage 7B — Artifact HTTP API & Atomic Settleme
         status: "pending_assessment",
         rules_version: "1.0.0",
         effective_minutes: 30,
+        quest_id: options?.questId ?? null,
       })
       .select("id")
       .single();
     const activityId = actRes.data!.id;
+
 
     const proposalJson = {
       activity: { type: "learning", completion: 1.0 },
@@ -1610,21 +1613,41 @@ describe.skipIf(!DATABASE_URL)("Stage 7B — Artifact HTTP API & Atomic Settleme
     test("Case 15: Artifact Relation / FK Failure Rollback -> 404 (non-disclosing) and all-or-nothing rollback across all subsystems", async () => {
       const proposedTitle = `FK Failure Target ${Date.now()}`;
 
-      // Snapshot Quest progress & status before confirm
-      const { data: questBefore } = await adminClient
+      // 1. Create a dedicated active Quest for Case 15 where successful settlement in G.8 WOULD mutate it
+      const testQuestRes = await adminClient
         .from("quests")
-        .select("progress, status")
-        .eq("id", questAId)
+        .insert({
+          user_id: userAId,
+          title: `Case 15 Rollback Quest ${Date.now()}`,
+          quest_type: "production",
+          status: "active",
+          progress: 10,
+        })
+        .select("id, progress, status, updated_at, completed_at")
         .single();
+      expect(testQuestRes.error).toBeNull();
+      const questCase15 = testQuestRes.data!;
 
-      // Proposal references cross-tenant questId
-      const { assessmentId, activityId } = await createTestActivityAndAssessment(userAId, [
-        {
-          title: proposedTitle,
-          artifactType: "document",
-          questIds: [questBId], // foreign quest!
-        },
-      ]);
+      // 2. Snapshot Quest state BEFORE confirm
+      const questBefore = {
+        progress: questCase15.progress,
+        status: questCase15.status,
+        updated_at: questCase15.updated_at,
+        completed_at: questCase15.completed_at,
+      };
+
+      // 3. Create Activity explicitly linked to questCase15.id + Assessment proposal referencing cross-tenant questBId
+      const { assessmentId, activityId } = await createTestActivityAndAssessment(
+        userAId,
+        [
+          {
+            title: proposedTitle,
+            artifactType: "document",
+            questIds: [questBId], // deliberate cross-tenant relation failure in G.9
+          },
+        ],
+        { questId: questCase15.id },
+      );
 
       const resolutions: ArtifactResolutionInput[] = [
         { proposalIndex: 0, resolution: "create" },
@@ -1657,15 +1680,16 @@ describe.skipIf(!DATABASE_URL)("Stage 7B — Artifact HTTP API & Atomic Settleme
       const { data: mEvents } = await adminClient.from("mastery_events").select("*").eq("activity_id", activityId);
       expect(mEvents?.length ?? 0).toBe(0);
 
-      // 5. Quest progress and status completely unchanged (BEFORE == AFTER)
+      // 5. Quest progress, status, updated_at, completed_at completely unchanged (BEFORE === AFTER)
       const { data: questAfter } = await adminClient
         .from("quests")
-        .select("progress, status")
-        .eq("id", questAId)
+        .select("progress, status, updated_at, completed_at")
+        .eq("id", questCase15.id)
         .single();
-      expect(questAfter?.progress).toBe(questBefore?.progress);
-      expect(questAfter?.status).toBe(questBefore?.status);
-
+      expect(questAfter?.progress).toBe(questBefore.progress);
+      expect(questAfter?.status).toBe(questBefore.status);
+      expect(questAfter?.updated_at).toBe(questBefore.updated_at);
+      expect(questAfter?.completed_at).toBe(questBefore.completed_at);
 
       // 6. Zero Artifact rows created with proposedTitle
       const { data: arts } = await adminClient.from("artifacts").select("*").eq("user_id", userAId).eq("title", proposedTitle);
@@ -1687,6 +1711,7 @@ describe.skipIf(!DATABASE_URL)("Stage 7B — Artifact HTTP API & Atomic Settleme
       const { data: artEvs } = await adminClient.from("artifact_evidence").select("*, artifacts!inner(title)").eq("artifacts.title", proposedTitle);
       expect(artEvs?.length ?? 0).toBe(0);
     });
+
 
 
 
