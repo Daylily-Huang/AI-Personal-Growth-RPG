@@ -1,7 +1,7 @@
 # Shared Component System Specification
 
 > **Document**: `04_SHARED_COMPONENT_SYSTEM.md`  
-> **Status**: DESIGN FREEZE CANDIDATE (ROUND 3 FINAL REVIEW)  
+> **Status**: DESIGN FREEZE CANDIDATE — REVIEW PENDING  
 > **Milestone**: Global Visual Design Freeze  
 > **Dependencies**: Stage 0–6 (FROZEN), Stage 7A/7B (FROZEN), `01_GLOBAL_VISUAL_DIRECTION.md`, `02_DESIGN_TOKENS.md`, `03_GLOBAL_APP_SHELL.md`  
 > **Related Documents**: `05_ENTITY_VISUAL_LANGUAGE.md`, `06_MOTION_AND_FEEDBACK.md`, `08_PAGE_MIGRATION_PLAN.md`
@@ -105,7 +105,10 @@ All page interfaces are composed strictly from a unified catalog of shared UI pr
 
 #### `StatusBadge`
 - **Purpose**: Entity lifecycle and authority state indicators.
-- **Styling**: Consumes dedicated status tokens (`var(--status-*)`) or authority tokens (`var(--authority-*)`). Must pair color with an explicit semantic icon and text label (never color alone).
+- **Styling**:
+  - For Artifact Lifecycle (`draft`, `active`, `archived`, `superseded`): consumes dedicated lifecycle tokens (`var(--status-draft-*)`, `var(--status-active-*)`, `var(--status-archived-*)`, `var(--status-superseded-*)`).
+  - For Knowledge Authority (`verified`, `inferred`, `rejected`, `superseded`): consumes dedicated authority tokens (`var(--authority-verified-*)`, `var(--authority-inferred-*)`, `var(--authority-rejected-*)`, `var(--authority-superseded-*)`).
+  - Must pair color with an explicit semantic icon and text label (never color alone).
 
 ---
 
@@ -150,7 +153,7 @@ All page interfaces are composed strictly from a unified catalog of shared UI pr
 ### 2.5 Buttons & Interactive Controls
 
 #### `PrimaryButton`
-- **Style**: Solid Ancient Gold background (`bg: var(--gold-400)`, `text: var(--text-inverse)`, `font-weight: 600`), subtle hover glow (`var(--glow-gold-subtle)`), active scale depression (`var(--active-surface-depression)`).
+- **Style**: Solid Ancient Gold background (`bg: var(--gold-400)`, `text: var(--text-inverse)`, `font-weight: var(--font-weight-semibold)`), subtle hover glow (`var(--glow-gold-subtle)`), active scale depression (`var(--active-surface-depression)`).
 
 #### `SecondaryButton`
 - **Style**: Translucent glass background (`bg: var(--surface-base)`, `border: var(--border-default)`, `text: var(--text-primary)`, hover `bg: var(--surface-hover-neutral)`).
@@ -173,7 +176,7 @@ All page interfaces are composed strictly from a unified catalog of shared UI pr
 - **Visual**: Amethyst scholar silk styling (`border: var(--entity-artifact-border)`), displaying:
   - 8-type taxonomy badge (`document`, `code_repository`, `design_spec`, `data_analysis`, `presentation`, `synthesis_note`, `creative_work`, `other`).
   - Version pill (e.g. `v1.2.0`).
-  - Lifecycle status (`draft`, `active`, `superseded`, `archived`).
+  - Lifecycle status (`draft`, `active`, `superseded`, `archived`) using dedicated status tokens.
   - Reusability score meter ($0.00$ to $1.00$).
   - Relational count pills (Skills, Knowledge, Quests, Activities, Evidence).
 

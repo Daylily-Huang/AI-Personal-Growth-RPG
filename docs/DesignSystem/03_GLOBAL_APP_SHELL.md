@@ -1,7 +1,7 @@
 # Global App Shell Architecture Specification
 
 > **Document**: `03_GLOBAL_APP_SHELL.md`  
-> **Status**: DESIGN FREEZE CANDIDATE (ROUND 3 FINAL REVIEW)  
+> **Status**: DESIGN FREEZE CANDIDATE — REVIEW PENDING  
 > **Milestone**: Global Visual Design Freeze  
 > **Dependencies**: Stage 0–6 (FROZEN), Stage 7A/7B (FROZEN), `01_GLOBAL_VISUAL_DIRECTION.md`, `02_DESIGN_TOKENS.md`  
 > **Related Documents**: `04_SHARED_COMPONENT_SYSTEM.md`, `05_ENTITY_VISUAL_LANGUAGE.md`, `08_PAGE_MIGRATION_PLAN.md`
@@ -89,12 +89,12 @@ The unified **AppShell** provides a persistent, cohesive environment across all 
 
 ## 3. Responsive Shell Adaptation Matrix (Tailwind v4 Mobile-First)
 
-| Breakpoint Range | Sidebar Behavior | Header Zone | Workspace Layout | Inspector Drawer |
+| Breakpoint Tier (per `02_DESIGN_TOKENS.md`) | Sidebar Behavior | Header Zone | Workspace Layout | Inspector Drawer |
 | :--- | :--- | :--- | :--- | :--- |
-| **Base (Mobile: $< \text{md}$)** | Bottom Bar (`var(--mobile-nav-height)`) | Compact Title + Status Icon | Single column vertical stack | Fullscreen Sheet (`height: var(--drawer-sheet-mobile-height)`) |
-| **`md` (Tablet: $\ge 48\text{rem}$)** | Collapsed Icon Bar (`var(--sidebar-width-collapsed)`)| Compact Title + Level Badge | 2-Column Stack / Canvas | Slide-over Drawer (`width: var(--drawer-width-tablet)`)|
-| **`lg` (Desktop: $\ge 64\text{rem}$)** | Expanded Sidebar (`var(--sidebar-width-expanded)`)| Full Breadcrumbs + XP Capsule | 2-3 Column Grid / Canvas | Overlay Drawer (`width: var(--drawer-width-desktop)`)|
-| **`xl` (Wide: $\ge 90\text{rem}$)** | Expanded Sidebar (`var(--sidebar-width-expanded)`)| Full Breadcrumbs + XP Capsule | 3-4 Column Grid / Canvas | Side-by-Side Push (`width: var(--drawer-width-wide)`)|
+| **Base (Mobile)** | Bottom Bar (`var(--mobile-nav-height)`) | Compact Title + Status Icon | Single column vertical stack | Fullscreen Sheet (`height: var(--drawer-sheet-mobile-height)`) |
+| **`md` (Tablet)** | Collapsed Icon Bar (`var(--sidebar-width-collapsed)`)| Compact Title + Level Badge | 2-Column Stack / Canvas | Slide-over Drawer (`width: var(--drawer-width-tablet)`)|
+| **`lg` (Desktop)** | Expanded Sidebar (`var(--sidebar-width-expanded)`)| Full Breadcrumbs + XP Capsule | 2-3 Column Grid / Canvas | Overlay Drawer (`width: var(--drawer-width-desktop)`)|
+| **`xl` (Wide)** | Expanded Sidebar (`var(--sidebar-width-expanded)`)| Full Breadcrumbs + XP Capsule | 3-4 Column Grid / Canvas | Side-by-Side Push (`width: var(--drawer-width-wide)`)|
 
 ---
 

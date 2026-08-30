@@ -31,8 +31,7 @@ graph TD
     end
 
     subgraph Stage 7C: Interactive UI [BLOCKED PENDING GLOBAL VISUAL DESIGN FREEZE PASS]
-        C0[Design-Sequence Checkpoint] --> C1[Artifacts Gallery & List View]
-        C1 --> C2[Detail Inspector Drawer: 5 Relational Accordions]
+        C1[Artifacts Gallery & List View] --> C2[Detail Inspector Drawer: 5 Relational Accordions]
         C2 --> C3[Create / Edit / Archive / Superseded Dialogs]
         C3 --> C4[Assessment Confirm Proposal Resolution Control]
     end

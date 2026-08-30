@@ -1,7 +1,7 @@
 # Motion, Transitions & Feedback System Specification
 
 > **Document**: `06_MOTION_AND_FEEDBACK.md`  
-> **Status**: DESIGN FREEZE CANDIDATE (ROUND 3 FINAL REVIEW)  
+> **Status**: DESIGN FREEZE CANDIDATE — REVIEW PENDING  
 > **Milestone**: Global Visual Design Freeze  
 > **Dependencies**: Stage 0–6 (FROZEN), Stage 7A/7B (FROZEN), `01_GLOBAL_VISUAL_DIRECTION.md`, `02_DESIGN_TOKENS.md`  
 > **Related Documents**: `03_GLOBAL_APP_SHELL.md`, `04_SHARED_COMPONENT_SYSTEM.md`, `07_RESPONSIVE_AND_ACCESSIBILITY.md`
@@ -48,12 +48,12 @@ In the **AI Personal Growth RPG**, animation and motion serve strictly functiona
 - **Behavior**: Main workspace content smoothly compresses or darkens with a subtle backdrop veil.
 
 #### 2. Modals & Dialog Overlays
-- **Action**: Fade in backdrop (`var(--surface-modal-backdrop)`) + upward scale (`scale(var(--scale-modal-initial)) translateY(var(--distance-modal-offset)) -> scale(1) translateY(0)`).
+- **Action**: Fade in backdrop (`var(--surface-modal-backdrop)`) while modal container transitions from initial offset (`scale(var(--scale-modal-initial)) translateY(var(--distance-modal-offset))`) to resting state.
 - **Duration**: `var(--duration-modal)`.
 - **Easing**: `var(--ease-out-gentle)`.
 
 #### 3. Accordion Expand/Collapse
-- **Action**: Smooth CSS grid height transition (`grid-template-rows: 0fr -> 1fr`).
+- **Action**: Smooth CSS grid height transition between collapsed and expanded states.
 - **Duration**: `var(--duration-accordion)`.
 - **Easing**: `var(--ease-in-out-subtle)`.
 

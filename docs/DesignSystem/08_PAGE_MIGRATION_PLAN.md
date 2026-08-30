@@ -1,7 +1,7 @@
 # Page Migration & Implementation Roadmap
 
 > **Document**: `08_PAGE_MIGRATION_PLAN.md`  
-> **Status**: DESIGN FREEZE CANDIDATE (ROUND 3 FINAL REVIEW)  
+> **Status**: DESIGN FREEZE CANDIDATE — REVIEW PENDING  
 > **Milestone**: Global Visual Design Freeze  
 > **Dependencies**: Stage 0–6 (FROZEN), Stage 7A/7B (FROZEN), `01_GLOBAL_VISUAL_DIRECTION.md` to `07_RESPONSIVE_AND_ACCESSIBILITY.md`  
 > **Related Documents**: `09_GLOBAL_VISUAL_ACCEPTANCE_GATES.md`
@@ -41,13 +41,13 @@ The migration to the new Global Visual System follows a strict, layered implemen
 - `src/app/**` (**EXCLUDING** `src/app/api/**` — only page/layout presentation files)
 - `src/styles/**` (Design tokens, global styles imported into `src/app/globals.css`)
 - `public/assets/environment/**` (Atmospheric SVG ink-wash vectors)
-- Presentation-only helper utilities under `src/lib/**` (e.g. `src/lib/ui-utils.ts`) if strictly presentational with zero domain mutations.
+- Presentation-only helper utilities under `src/lib/**` (e.g. `src/lib/ui-utils.ts`) if strictly presentational with zero domain mutations and outside frozen namespaces.
 
-### 2.2 Strictly Prohibited Denylist Paths
+### 2.2 Strictly Frozen Backend & Domain Denylist
 - `src/app/api/**` (Frozen RESTful endpoints)
-- `supabase/migrations/**` (Frozen SQL migrations `0001` through `0042`)
+- `supabase/**` (Frozen SQL migrations `0001` through `0042` and database configuration)
 - `src/lib/store/**` (Frozen database repositories & settlement service)
-- `src/lib/ai/**` (AI prompt schemas & GM contracts when business contracts would change)
+- `src/lib/ai/**` (Frozen AI prompt schemas & GM contracts)
 - `src/lib/growth-engine/**` (Deterministic XP & growth calculation engine)
 - Domain authority modules, `0041_artifact_management_authority.sql`, `0042_artifact_settlement_integration.sql`
 
@@ -60,7 +60,7 @@ The migration to the new Global Visual System follows a strict, layered implemen
 - **Deliverables**:
   - Integrate tokens into `src/app/globals.css` using `@theme { ... }` for literal theme properties and `@theme inline { ... }` for CSS variable bindings.
   - Declare CSS custom properties for all frozen tokens from `02_DESIGN_TOKENS.md`.
-  - Configure Tailwind v4 mobile-first theme breakpoints (`--breakpoint-md: 48rem`, `--breakpoint-lg: 64rem`, `--breakpoint-xl: 90rem`).
+  - Configure `--breakpoint-md`, `--breakpoint-lg`, `--breakpoint-xl` exactly as defined in `02_DESIGN_TOKENS.md`.
   - Add atmospheric ink-wash vector silhouettes to `public/assets/environment/`.
 
 ### Phase 2 — Unified Global App Shell

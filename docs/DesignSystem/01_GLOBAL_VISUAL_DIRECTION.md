@@ -1,7 +1,7 @@
 # Global Visual Direction & Aesthetic Philosophy
 
 > **Document**: `01_GLOBAL_VISUAL_DIRECTION.md`  
-> **Status**: DESIGN FREEZE CANDIDATE (ROUND 3 FINAL REVIEW)  
+> **Status**: DESIGN FREEZE CANDIDATE — REVIEW PENDING  
 > **Milestone**: Global Visual Design Freeze  
 > **Dependencies**: Stage 0–6 (FROZEN), Stage 7A/7B (FROZEN)  
 > **Related Documents**: `02_DESIGN_TOKENS.md`, `03_GLOBAL_APP_SHELL.md`, `04_SHARED_COMPONENT_SYSTEM.md`, `05_ENTITY_VISUAL_LANGUAGE.md`
@@ -85,7 +85,7 @@ To preserve visual integrity across all sub-stages, the following visual anti-pa
 ### 3.4 Typography & Proportions
 - **Headings & RPG Titling**: Song-serif or elegant serif font family (`var(--font-serif)`) with generous tracking (`var(--tracking-wide)`) evoking traditional woodblock print elegance, paired with robust system fallbacks.
 - **Body & Data Content**: Clean, highly readable system sans-serif (`var(--font-sans)`).
-- **Numeric & Metric Display**: Tabular monospace numbers (`var(--font-mono)`, `font-variant-numeric: tabular-nums`) with semi-bold weights for XP values, Level badges, Mastery ratings (M0–M10), and Confidence metrics ($0.00 - 1.00$).
+- **Numeric & Metric Display**: Tabular monospace numbers (`var(--font-mono)`, `font-variant-numeric: tabular-nums`) with semi-bold weights (`var(--font-weight-semibold)`) for XP values, Level badges, Mastery ratings (M0–M10), and Confidence metrics ($0.00 - 1.00$).
 
 ---
 

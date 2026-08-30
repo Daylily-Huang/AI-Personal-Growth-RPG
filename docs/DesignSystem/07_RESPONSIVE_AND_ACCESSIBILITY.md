@@ -1,7 +1,7 @@
 # Responsive Design & Accessibility (a11y) Specification
 
 > **Document**: `07_RESPONSIVE_AND_ACCESSIBILITY.md`  
-> **Status**: DESIGN FREEZE CANDIDATE (ROUND 3 FINAL REVIEW)  
+> **Status**: DESIGN FREEZE CANDIDATE — REVIEW PENDING  
 > **Milestone**: Global Visual Design Freeze  
 > **Dependencies**: Stage 0–6 (FROZEN), Stage 7A/7B (FROZEN), `01_GLOBAL_VISUAL_DIRECTION.md`, `02_DESIGN_TOKENS.md`, `03_GLOBAL_APP_SHELL.md`  
 > **Related Documents**: `04_SHARED_COMPONENT_SYSTEM.md`, `06_MOTION_AND_FEEDBACK.md`, `09_GLOBAL_VISUAL_ACCEPTANCE_GATES.md`
@@ -64,7 +64,7 @@ $$\text{Foreground Text} \longrightarrow \text{Translucent Glass Surface} \longr
 ┌──────────────────────────────────────────────────────────────────────────────┐
 │                            RESPONSIVE BREAKPOINTS                            │
 │                                                                              │
-│   Base (< md)               md (≥ 48rem)               lg (≥ 64rem)          │
+│   Base (< md)               md (≥ md breakpoint)       lg (≥ lg breakpoint)  │
 │   • Single-column stack     • 2-column card grid       • Multi-column grid   │
 │   • Bottom Navigation bar   • Collapsed icon sidebar   • Expanded sidebar    │
 │   • Fullscreen sheet drawer • Slide-over drawer        • Side-by-side drawer │
@@ -74,12 +74,12 @@ $$\text{Foreground Text} \longrightarrow \text{Translucent Glass Surface} \longr
 
 ### 4.1 Viewport Breakpoint Matrix
 
-| Breakpoint Range | Dimensions | Shell Navigation | Workspace Layout | Contextual Drawer | Modal Presentation |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **Base (Mobile)** | $< \text{md}$ | Bottom Bar (`var(--mobile-nav-height)`) | 1 Column (`w-full`) | Fullscreen Sheet (`height: var(--drawer-sheet-mobile-height)`) | Fullscreen Sheet |
-| **`md` (Tablet)** | $\ge 48\text{rem}$ | Left Icon Bar (`var(--sidebar-width-collapsed)`)| 2 Columns | Slide-over Drawer (`width: var(--drawer-width-tablet)`)| Centered Card (`max-width: var(--modal-max-width-sm)`)|
-| **`lg` (Desktop)** | $\ge 64\text{rem}$ | Expanded (`var(--sidebar-width-expanded)`) | 2-3 Columns / Canvas | Overlay Drawer (`width: var(--drawer-width-desktop)`) | Centered Card (`max-width: var(--modal-max-width-default)`)|
-| **`xl` (Wide)** | $\ge 90\text{rem}$ | Expanded (`var(--sidebar-width-expanded)`) | 3-4 Columns / Canvas | Side-by-Side Push (`width: var(--drawer-width-wide)`)| Centered Card (`max-width: var(--modal-max-width-wide)`)|
+| Breakpoint Tier (per `02_DESIGN_TOKENS.md`) | Shell Navigation | Workspace Layout | Contextual Drawer | Modal Presentation |
+| :--- | :--- | :--- | :--- | :--- |
+| **Base (Mobile)** | Bottom Bar (`var(--mobile-nav-height)`) | 1 Column (`w-full`) | Fullscreen Sheet (`height: var(--drawer-sheet-mobile-height)`) | Fullscreen Sheet |
+| **`md` (Tablet)** | Left Icon Bar (`var(--sidebar-width-collapsed)`)| 2 Columns | Slide-over Drawer (`width: var(--drawer-width-tablet)`)| Centered Card (`max-width: var(--modal-max-width-sm)`)|
+| **`lg` (Desktop)** | Expanded (`var(--sidebar-width-expanded)`) | 2-3 Columns / Canvas | Overlay Drawer (`width: var(--drawer-width-desktop)`) | Centered Card (`max-width: var(--modal-max-width-default)`)|
+| **`xl` (Wide)** | Expanded (`var(--sidebar-width-expanded)`) | 3-4 Columns / Canvas | Side-by-Side Push (`width: var(--drawer-width-wide)`)| Centered Card (`max-width: var(--modal-max-width-wide)`)|
 
 ---
 

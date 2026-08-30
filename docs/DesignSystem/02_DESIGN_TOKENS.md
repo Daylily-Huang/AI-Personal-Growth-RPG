@@ -1,29 +1,28 @@
 # Formal Design Tokens Specification
 
 > **Document**: `02_DESIGN_TOKENS.md`  
-> **Status**: DESIGN FREEZE CANDIDATE (ROUND 3 FINAL REVIEW)  
+> **Status**: DESIGN FREEZE CANDIDATE — REVIEW PENDING  
 > **Milestone**: Global Visual Design Freeze  
 > **Dependencies**: Stage 0–6 (FROZEN), Stage 7A/7B (FROZEN), `01_GLOBAL_VISUAL_DIRECTION.md`  
 > **Related Documents**: `03_GLOBAL_APP_SHELL.md`, `04_SHARED_COMPONENT_SYSTEM.md`, `05_ENTITY_VISUAL_LANGUAGE.md`
 
 ---
 
-## 1. Single Style-Numeric Authority Rule & Intentional Exception Boundaries
+## 1. Single Style-Numeric Authority Rule & Exception Taxonomy
 
-This document (`02_DESIGN_TOKENS.md`) serves as the **SOLE STYLE-NUMERIC VISUAL AUTHORITY** for all visual styling values across the AI Personal Growth RPG.
+This document (`02_DESIGN_TOKENS.md`) serves as the **SOLE STYLE-NUMERIC VISUAL AUTHORITY** for all CSS and visual styling implementation values across the AI Personal Growth RPG.
 
-### 1.1 Enforcement Rules
-1. **Component Zero-Literal Rule**: No arbitrary style literals (`#hex`, `rgb(...)`, `rgba(...)`, raw `px`, raw `ms`, raw `s`, `bg-white/*`, etc.) are permitted inside React components or page stylesheets. All UI code must consume semantic CSS custom properties or Tailwind v4 theme utility classes.
-2. **Canonical Token Definition Exception**: The canonical design-token stylesheet itself (this specification and its implementation in `src/app/globals.css` / `src/styles/design-tokens.css`) is the intentional, sanctioned layer where raw visual values are defined.
-3. **Domain & Semantic Data Distinction**: This style-numeric authority rule governs visual styling implementation. It explicitly does **NOT** prohibit domain/semantic metrics in code or documentation, such as:
-   - Skill Mastery discrete levels (`M0` to `M10`)
-   - Epistemic / AI confidence values ($0.00$ to $1.00$, inferred $\le 0.95$)
-   - Artifact reusability score bounds ($0.00$ to $1.00$)
-   - Quest progress percentage ($0$ to $100$)
-   - WCAG accessibility contrast ratios (e.g. $\ge 7:1$, $\ge 4.5:1$)
-   - HTTP status codes (200, 201, 400, 404, 409, etc.)
-   - Test counts and test file totals
-4. **Accessibility Override Exception**: Standard `@media (prefers-reduced-motion)` reset properties are recognized as a standards-driven CSS accessibility exception.
+### 1.1 Enforcement Principle
+- **Zero Style Literals in UI Components**: No raw CSS style literals (`#hex`, `rgb(...)`, `rgba(...)`, raw `px`, raw `rem`, raw `ms`, raw `s`, `bg-white/*`, etc.) are permitted inside React components, page files, or auxiliary design specification documents. All UI code must consume semantic CSS custom properties (`var(--...)`) or Tailwind v4 theme utilities.
+- **Canonical Definition Layer Exception**: This specification and its corresponding runtime stylesheets (`src/app/globals.css` / `src/styles/design-tokens.css`) constitute the intentional definition layer where raw style values are formally declared.
+
+### 1.2 Allowed Non-Style Numeric Categories
+The following numeric categories represent domain semantics, structural counts, or accessibility standards and are explicitly **NOT** style literals:
+1. **Domain & Gamification Metrics**: Skill Mastery discrete ratings (`M0` to `M10`), Epistemic/Assessment confidence scores ($0.00$ to $1.00$, inferred $\le 0.95$), Quest progress percentages ($0$ to $100$), Artifact reusability scores ($0.00$ to $1.00$).
+2. **Structural & Taxonomy Counts**: 5 Mastery diamond symbols, 5 Knowledge edge types, 5 Artifact relation accordions, 8 canonical Artifact taxonomy types, 4 Knowledge authority states, 6 AppShell zones.
+3. **Engineering & Network Metadata**: HTTP status codes (200, 201, 400, 404, 409), test file counts, assertion totals, and Git commit references.
+4. **Standards-Defined Accessibility Thresholds**: WCAG 2.1 contrast targets (e.g. $\ge 7:1$ AAA, $\ge 4.5:1$ AA, $\ge 3:1$ large text) and WCAG large text dimensional definitions ($18\text{pt} / 24\text{px}$ normal or $14\text{pt}$ bold).
+5. **Standards-Driven Reduced-Motion Overrides**: Standard `@media (prefers-reduced-motion)` CSS reset directives ($0.01\text{ms}$).
 
 ---
 
@@ -76,7 +75,7 @@ This document (`02_DESIGN_TOKENS.md`) serves as the **SOLE STYLE-NUMERIC VISUAL 
 ## 3. Accent, Progression Gold & Functional Colors
 
 ### 3.1 Ancient Gold Hierarchy (Strict Whitelist Usage)
-*Ancient Gold is strictly reserved for: (1) Player Level, (2) XP milestones, (3) Skill Mastery on M0–M10 scale, (4) Primary affirmative actions, and (5) Global keyboard focus ring.*
+*Ancient Gold is strictly reserved for: (1) Player Level, (2) XP progression milestones, (3) Skill Mastery on M0–M10 scale, (4) Primary affirmative actions, and (5) Global keyboard focus ring.*
 
 ```css
 :root {
@@ -178,32 +177,42 @@ This document (`02_DESIGN_TOKENS.md`) serves as the **SOLE STYLE-NUMERIC VISUAL 
   --authority-rejected-border: rgba(248, 81, 73, 0.25);
   --authority-rejected-text: #f85149;
 
-  /* Superseded Authority */
+  /* Superseded Authority (Knowledge Domain) */
   --authority-superseded-bg: rgba(139, 148, 158, 0.08);
   --authority-superseded-border: rgba(139, 148, 158, 0.25);
   --authority-superseded-text: #8b949e;
 }
 ```
 
-### 3.6 Lifecycle Status Presentation Tokens
+### 3.6 Lifecycle Status Presentation Tokens (Complete 4-State Artifact & Global Coverage)
 ```css
 :root {
+  /* Active State */
   --status-active-bg: rgba(56, 139, 253, 0.10);
   --status-active-border: rgba(56, 139, 253, 0.30);
   --status-active-text: #58a6ff;
 
+  /* Draft State */
   --status-draft-bg: rgba(139, 148, 158, 0.10);
   --status-draft-border: rgba(139, 148, 158, 0.30);
   --status-draft-text: #8b949e;
 
+  /* Archived State (Separate from Superseded) */
   --status-archived-bg: rgba(110, 118, 129, 0.10);
   --status-archived-border: rgba(110, 118, 129, 0.25);
   --status-archived-text: #949ba4;
 
+  /* Superseded State (Artifact Lifecycle - Separate from Knowledge Authority) */
+  --status-superseded-bg: rgba(148, 155, 164, 0.10);
+  --status-superseded-border: rgba(148, 155, 164, 0.30);
+  --status-superseded-text: #949ba4;
+
+  /* Pending State */
   --status-pending-bg: rgba(210, 153, 34, 0.10);
   --status-pending-border: rgba(210, 153, 34, 0.30);
   --status-pending-text: #d29922;
 
+  /* Confirmed State */
   --status-confirmed-bg: rgba(46, 160, 67, 0.10);
   --status-confirmed-border: rgba(46, 160, 67, 0.30);
   --status-confirmed-text: #3fb950;
@@ -247,7 +256,7 @@ This document (`02_DESIGN_TOKENS.md`) serves as the **SOLE STYLE-NUMERIC VISUAL 
 
 ---
 
-## 4. Structural, Spatial & Shape Dimensions
+## 4. Structural, Spatial, Shape & Typography Tokens
 
 ### 4.1 Layout Dimensions & Shell Sizing
 ```css
@@ -303,13 +312,15 @@ This document (`02_DESIGN_TOKENS.md`) serves as the **SOLE STYLE-NUMERIC VISUAL 
 }
 ```
 
-### 4.3 Typography Scale & Fallback Policy
+### 4.3 Typography Scale & Font Weights
 ```css
 :root {
+  /* Font Families */
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
   --font-serif: 'Noto Serif SC', 'Source Han Serif SC', 'Songti SC', 'SimSun', 'STSong', serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace;
 
+  /* Type Scale */
   --text-xs: 0.75rem;    /* 12px */
   --text-sm: 0.875rem;   /* 14px */
   --text-base: 1.000rem; /* 16px */
@@ -319,6 +330,13 @@ This document (`02_DESIGN_TOKENS.md`) serves as the **SOLE STYLE-NUMERIC VISUAL 
   --text-3xl: 1.875rem;  /* 30px */
   --text-4xl: 2.250rem;  /* 36px */
 
+  /* Font Weights */
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  /* Leading & Tracking */
   --leading-tight: 1.25;
   --leading-normal: 1.50;
   --leading-relaxed: 1.75;

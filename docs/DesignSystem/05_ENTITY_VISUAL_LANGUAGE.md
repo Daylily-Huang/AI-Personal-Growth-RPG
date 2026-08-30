@@ -1,7 +1,7 @@
 # Entity Visual Language & Information Semantics
 
 > **Document**: `05_ENTITY_VISUAL_LANGUAGE.md`  
-> **Status**: DESIGN FREEZE CANDIDATE (ROUND 3 FINAL REVIEW)  
+> **Status**: DESIGN FREEZE CANDIDATE — REVIEW PENDING  
 > **Milestone**: Global Visual Design Freeze  
 > **Dependencies**: Stage 0–6 (FROZEN), Stage 7A/7B (FROZEN), `01_GLOBAL_VISUAL_DIRECTION.md`, `02_DESIGN_TOKENS.md`  
 > **Related Documents**: `04_SHARED_COMPONENT_SYSTEM.md`, `09_GLOBAL_VISUAL_ACCEPTANCE_GATES.md`
@@ -62,18 +62,21 @@ Governs relationships between an Artifact and a Knowledge Node (`artifact_knowle
 
 ---
 
-## 4. Knowledge Node Authority vs. Archive Lifecycles
+## 4. Knowledge Node Authority vs. Artifact Lifecycle States
 
-Knowledge visual presentation separates epistemic authority from lifecycle archival:
+The design system maintains strict token and visual separation between Knowledge authority and Artifact lifecycle:
 
-### 4.1 Four Distinct Authority States
+### 4.1 Knowledge Authority States (Epistemic Domain)
 1. `verified`: `bg: var(--authority-verified-bg)`, `border: var(--authority-verified-border)`, `text: var(--authority-verified-text)`. Solid checkmark seal icon. Formally sanctioned/verified knowledge.
 2. `inferred`: `bg: var(--authority-inferred-bg)`, `border: var(--authority-inferred-border)`, `text: var(--authority-inferred-text)`. Dashed outline style, subtle spark icon, confidence score displayed ($\le 0.95$). AI/Heuristic inferred concept pending human review.
 3. `rejected`: `bg: var(--authority-rejected-bg)`, `border: var(--authority-rejected-border)`, `text: var(--authority-rejected-text)`. Strike-through icon. Sanctioned rejection (retained for historical/audit tracing).
 4. `superseded`: `bg: var(--authority-superseded-bg)`, `border: var(--authority-superseded-border)`, `text: var(--authority-superseded-text)`. Forward-arrow icon. Retained historical node replaced by an upgraded concept.
 
-### 4.2 Lifecycle Archival Dimension (`is_archived`)
-- Archived status is governed by `var(--status-archived-*)`, represented by a distinct dimmed veil and `[Archived]` tag, completely independent of whether the node was `verified`, `inferred`, `rejected`, or `superseded`.
+### 4.2 Artifact Lifecycle States (Work Product Domain)
+1. `draft`: `bg: var(--status-draft-bg)`, `border: var(--status-draft-border)`, `text: var(--status-draft-text)`. In-progress draft deliverable.
+2. `active`: `bg: var(--status-active-bg)`, `border: var(--status-active-border)`, `text: var(--status-active-text)`. Standard active production work product.
+3. `superseded`: `bg: var(--status-superseded-bg)`, `border: var(--status-superseded-border)`, `text: var(--status-superseded-text)`. Historical revision superseded by a newer version (distinct from Knowledge authority superseded).
+4. `archived`: `bg: var(--status-archived-bg)`, `border: var(--status-archived-border)`, `text: var(--status-archived-text)`. Formally archived work product with archive veil.
 
 ---
 
