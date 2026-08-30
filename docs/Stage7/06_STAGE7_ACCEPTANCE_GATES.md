@@ -22,12 +22,12 @@
 
 ---
 
-## 2. Gate 7B: API Layer, Relationship Service & Settlement Integration (NEXT)
-- [ ] Complete RESTful endpoints under `/api/artifacts/**`;
-- [ ] Multi-entity join hydration in `GET /api/artifacts/[id]`;
-- [ ] Filter query support (`type`, `status` [active/archived/all/draft/superseded], `skillId`, `questId`, `search`, pagination);
-- [ ] Batch link management across all 5 entities (`activities`, `skills`, `knowledgeNodes`, `quests`, `evidence`);
-- [ ] **Assessment Artifact Proposal & Atomic Settlement Matrix (15 Required Cases)**:
+## 2. Gate 7B: API Layer, Relationship Service & Settlement Integration (CURRENT PASS - FINAL FREEZE CANDIDATE)
+- [x] Complete RESTful endpoints under `/api/artifacts/**`;
+- [x] Multi-entity join hydration in `GET /api/artifacts/[id]`;
+- [x] Filter query support (`type`, `status` [active/archived/all/draft/superseded], `skillId`, `questId`, `search`, pagination);
+- [x] Batch link management across all 5 entities (`activities`, `skills`, `knowledgeNodes`, `quests`, `evidence`);
+- [x] **Assessment Artifact Proposal & Atomic Settlement Matrix (15 Required Cases)**:
   1. **Assess 0 Proposals**: Assess returns 0 proposals $\rightarrow$ zero Artifact writes;
   2. **Single CREATE**: 1 proposal with `proposalIndex: 0`, `resolution: "create"` $\rightarrow$ exactly one Artifact created with `activity_role = 'produced'`;
   3. **Multiple CREATE**: 2 proposals with `proposalIndex: 0, 1`, `resolution: "create"` $\rightarrow$ exactly two Artifacts created in same atomic settlement;
@@ -43,8 +43,9 @@
   13. **Incomplete Coverage**: Confirm body omits a `proposalIndex` or has length $\ne N$ $\rightarrow$ HTTP **`400 Bad Request`**, zero mutations;
   14. **Proposal Tampering Protection**: Created Artifact metadata is strictly derived from persisted Assessment proposal (or whitelisted `approvedOverrides`), preventing arbitrary client-injected deliverable payloads;
   15. **Artifact Relation / FK Failure Rollback**: If any Artifact relationship persistence fails due to an invalid/foreign relation target or frozen FK/relationship constraint, the entire settlement transaction rolls back (asserting zero committed XP transactions, zero Evidence rows, zero Mastery events, zero Quest progress, zero Artifact rows, and zero Artifact relations).
-- [ ] Non-disclosing 404s on cross-tenant lookups;
-- [ ] 100% HTTP integration tests with authenticated and hostile-client assertions (`tests/stage7b-http-api.test.ts`).
+- [x] Non-disclosing 404s on cross-tenant lookups;
+- [x] 100% HTTP integration tests with authenticated and hostile-client assertions (`tests/stage7b-http-api.test.ts`).
+
 
 ---
 

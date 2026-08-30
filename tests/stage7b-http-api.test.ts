@@ -1,14 +1,11 @@
-// tests/stage7b-http-api.test.ts
-// Stage 7B Artifact HTTP API, Relational Joins & Atomic Settlement Integration (Live Supabase & Server)
-
 import http from "node:http";
 import next from "next";
 import { describe, expect, test, beforeAll, afterAll } from "vitest";
+import { Client } from "pg";
 import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
 import type { ArtifactType, ArtifactResolutionInput } from "@/types/artifact";
-
 
 const DATABASE_URL = process.env.XP_RPG_TEST_DB_URL;
 const TEST_PORT = 3098;
@@ -86,10 +83,12 @@ async function api(jar: Jar | null, path: string, init: RequestInit = {}): Promi
 describe.skipIf(!DATABASE_URL)("Stage 7B — Artifact HTTP API & Atomic Settlement Integration (Live Next.js + DB)", () => {
   let app: ReturnType<typeof next>;
   let server: http.Server;
+  let pg: Client;
   let userA: Jar;
   let userB: Jar;
   let userAId: string;
   let userBId: string;
+
 
   let domainAId: string;
   let skillAId: string;
@@ -100,14 +99,21 @@ describe.skipIf(!DATABASE_URL)("Stage 7B — Artifact HTTP API & Atomic Settleme
   let skillBId: string;
   let questBId: string;
   let artifactBId: string;
+  let activityBId: string;
+  let knowledgeNodeBId: string;
+  let evidenceBId: string;
 
   const emailA = `stage7b_a_${Date.now()}@growth.rpg`;
   const emailB = `stage7b_b_${Date.now()}@growth.rpg`;
 
   beforeAll(async () => {
+    pg = new Client({ connectionString: DATABASE_URL });
+    await pg.connect();
+
     app = next({ dev: false, dir: process.cwd() });
     await app.prepare();
     const handle = app.getRequestHandler();
+
 
     server = http.createServer((req, res) => {
       handle(req, res);
@@ -177,7 +183,6 @@ describe.skipIf(!DATABASE_URL)("Stage 7B — Artifact HTTP API & Atomic Settleme
       .select("id")
       .single();
 
-
     if (knRes.error) console.error("knRes error:", knRes.error);
     expect(knRes.error).toBeNull();
     knowledgeNodeAId = knRes.data!.id;
@@ -198,11 +203,20 @@ describe.skipIf(!DATABASE_URL)("Stage 7B — Artifact HTTP API & Atomic Settleme
     expect(actRes.error).toBeNull();
     activityAId = actRes.data!.id;
 
-    // Seed User B artifact & skill & quest
+    // Seed User B fixtures across all 5 entity types + artifact
+    const domBRes = await adminClient
+      .from("domains")
+      .insert({ user_id: userBId, name: "Engineering B 7B", slug: `eng-b-7b-${Date.now()}` })
+      .select("id")
+      .single();
+    expect(domBRes.error).toBeNull();
+    const domainBId = domBRes.data!.id;
+
     const skBRes = await adminClient
       .from("skills")
       .insert({
         user_id: userBId,
+        domain_id: domainBId,
         name: "Deep Learning 7B",
         normalized_name: "deep learning 7b",
         level: 1,
@@ -222,6 +236,49 @@ describe.skipIf(!DATABASE_URL)("Stage 7B — Artifact HTTP API & Atomic Settleme
     expect(qBRes.error).toBeNull();
     questBId = qBRes.data!.id;
 
+    const knBRes = await adminClient
+      .from("knowledge_nodes")
+      .insert({
+        user_id: userBId,
+        domain_id: domainBId,
+        title: "Transformer Attention Note B",
+        node_type: "concept",
+        verification_status: "inferred",
+        confidence: 0.9,
+      })
+      .select("id")
+      .single();
+    expect(knBRes.error).toBeNull();
+    knowledgeNodeBId = knBRes.data!.id;
+
+    const actBRes = await adminClient
+      .from("activities")
+      .insert({
+        user_id: userBId,
+        title: "Trained Attention Model B",
+        raw_input: "Trained Attention Model on GPU cluster",
+        activity_type: "coding",
+        status: "confirmed",
+        rules_version: "1.0.0",
+      })
+      .select("id")
+      .single();
+    expect(actBRes.error).toBeNull();
+    activityBId = actBRes.data!.id;
+
+    const evBRes = await adminClient
+      .from("evidence_records")
+      .insert({
+        user_id: userBId,
+        activity_id: activityBId,
+        evidence_level: 3,
+        description: "Benchmark logs from model run",
+      })
+      .select("id")
+      .single();
+    expect(evBRes.error).toBeNull();
+    evidenceBId = evBRes.data!.id;
+
     const artBRes = await adminClient
       .from("artifacts")
       .insert({
@@ -236,11 +293,10 @@ describe.skipIf(!DATABASE_URL)("Stage 7B — Artifact HTTP API & Atomic Settleme
     if (artBRes.error) console.error("artBRes error:", artBRes.error);
     expect(artBRes.error).toBeNull();
     artifactBId = artBRes.data!.id;
-
-
   }, 60000);
 
   afterAll(async () => {
+
     if (server) {
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }
@@ -264,7 +320,11 @@ describe.skipIf(!DATABASE_URL)("Stage 7B — Artifact HTTP API & Atomic Settleme
       await adminClient.auth.admin.deleteUser(userAId);
       await adminClient.auth.admin.deleteUser(userBId);
     }
+    if (pg) {
+      await pg.end();
+    }
   });
+
 
   // Helper to create a test activity + assessment pair for confirm testing
   async function createTestActivityAndAssessment(
@@ -368,10 +428,128 @@ describe.skipIf(!DATABASE_URL)("Stage 7B — Artifact HTTP API & Atomic Settleme
   });
 
   // ==========================================================================
+  // 1.5. SECURITY DEFINER PRIVILEGE & RAW RPC BOUNDARY MATRIX (Fail-Closed)
+  // ==========================================================================
+  describe("1.5. Security Definer Privilege & Raw RPC Boundary Matrix", () => {
+    test("information_schema & has_function_privilege prove PUBLIC and anon have no EXECUTE, authenticated has EXECUTE", async () => {
+      const privQuery = await pg.query(`
+        SELECT
+          has_function_privilege('anon', 'public.create_artifact_with_links(uuid, jsonb)', 'execute') AS anon_create,
+          has_function_privilege('anon', 'public.manage_artifact_links(uuid, uuid, jsonb)', 'execute') AS anon_manage,
+          has_function_privilege('authenticated', 'public.create_artifact_with_links(uuid, jsonb)', 'execute') AS auth_create,
+          has_function_privilege('authenticated', 'public.manage_artifact_links(uuid, uuid, jsonb)', 'execute') AS auth_manage,
+          has_function_privilege('public', 'public.create_artifact_with_links(uuid, jsonb)', 'execute') AS public_create,
+          has_function_privilege('public', 'public.manage_artifact_links(uuid, uuid, jsonb)', 'execute') AS public_manage
+      `);
+
+      const row = privQuery.rows[0];
+      expect(row.anon_create).toBe(false);
+      expect(row.anon_manage).toBe(false);
+      expect(row.public_create).toBe(false);
+      expect(row.public_manage).toBe(false);
+      expect(row.auth_create).toBe(true);
+      expect(row.auth_manage).toBe(true);
+    });
+
+    test("Raw anon client calling create_artifact_with_links and manage_artifact_links is denied with 0 mutations", async () => {
+      const anonClient = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+
+      const resAnonCreate = await anonClient.rpc("create_artifact_with_links", {
+        p_user_id: userAId,
+        p_payload: {
+          title: "Anon Spoofed Artifact",
+          artifactType: "document",
+        } as unknown as Database["public"]["Functions"]["create_artifact_with_links"]["Args"]["p_payload"],
+      });
+      expect(resAnonCreate.error).not.toBeNull();
+
+      const { data: anonArts } = await adminClient
+        .from("artifacts")
+        .select("id")
+        .eq("title", "Anon Spoofed Artifact");
+      expect(anonArts?.length ?? 0).toBe(0);
+
+      const resAnonManage = await anonClient.rpc("manage_artifact_links", {
+        p_user_id: userAId,
+        p_artifact_id: artifactBId,
+        p_payload: {
+          activities: [{ activityId: activityAId, action: "attach" }],
+        } as unknown as Database["public"]["Functions"]["manage_artifact_links"]["Args"]["p_payload"],
+      });
+      expect(resAnonManage.error).not.toBeNull();
+    });
+
+    test("Cross-tenant raw RPC invocation User A -> User B is denied (fail-closed auth guard)", async () => {
+      // User A tries to invoke create with User B's user_id
+      const resAonB = await userA.client.rpc("create_artifact_with_links", {
+        p_user_id: userBId,
+        p_payload: {
+          title: "User A Spoofed B Art",
+          artifactType: "document",
+        } as unknown as Database["public"]["Functions"]["create_artifact_with_links"]["Args"]["p_payload"],
+      });
+      expect(resAonB.error).not.toBeNull();
+      expect(resAonB.error?.code).toBe("42501");
+
+      const { data: arts } = await adminClient
+        .from("artifacts")
+        .select("id")
+        .eq("title", "User A Spoofed B Art");
+      expect(arts?.length ?? 0).toBe(0);
+
+      // User A tries to invoke manage with User B's user_id
+      const resManageAonB = await userA.client.rpc("manage_artifact_links", {
+        p_user_id: userBId,
+        p_artifact_id: artifactBId,
+        p_payload: {
+          activities: [{ activityId: activityAId, action: "attach" }],
+        } as unknown as Database["public"]["Functions"]["manage_artifact_links"]["Args"]["p_payload"],
+      });
+      expect(resManageAonB.error).not.toBeNull();
+      expect(resManageAonB.error?.code).toBe("42501");
+
+      // User B reciprocal
+      const resBonA = await userB.client.rpc("create_artifact_with_links", {
+        p_user_id: userAId,
+        p_payload: {
+          title: "User B Spoofed A Art",
+          artifactType: "document",
+        } as unknown as Database["public"]["Functions"]["create_artifact_with_links"]["Args"]["p_payload"],
+      });
+      expect(resBonA.error).not.toBeNull();
+      expect(resBonA.error?.code).toBe("42501");
+    });
+
+    test("Authenticated own-user raw RPC invocation succeeds", async () => {
+      const ownTitle = `Raw Own Created Art ${Date.now()}`;
+      const resOwn = await userA.client.rpc("create_artifact_with_links", {
+        p_user_id: userAId,
+        p_payload: {
+          title: ownTitle,
+          artifactType: "code_repository",
+          summary: "Created directly via RPC",
+        } as unknown as Database["public"]["Functions"]["create_artifact_with_links"]["Args"]["p_payload"],
+      });
+      expect(resOwn.error).toBeNull();
+      expect(resOwn.data).toBeDefined();
+
+      const { data: art } = await adminClient
+        .from("artifacts")
+        .select("*")
+        .eq("user_id", userAId)
+        .eq("title", ownTitle)
+        .single();
+      expect(art).toBeDefined();
+      expect(art?.artifact_type).toBe("code_repository");
+    });
+  });
+
+  // ==========================================================================
   // 2. REST API CRUD, FILTERS, JOIN HYDRATION & MULTI-TENANT ISOLATION
   // ==========================================================================
   describe("2. REST API CRUD & Multi-Tenant Isolation", () => {
     let createdArtifactId: string;
+
 
     test("POST /api/artifacts creates an artifact with 8-type taxonomy and initial relations", async () => {
       const res = await api(userA, "/api/artifacts", {
@@ -515,8 +693,25 @@ describe.skipIf(!DATABASE_URL)("Stage 7B — Artifact HTTP API & Atomic Settleme
     });
 
     // ------------------------------------------------------------------------
-    // Lifecycle Contradiction Tests on POST & PATCH
+    // Lifecycle Contradiction Tests & isArchived Type Validation on POST & PATCH
     // ------------------------------------------------------------------------
+    test("POST /api/artifacts rejects non-boolean isArchived (400 Bad Request)", async () => {
+      const invalidTypes = ["true", 1, {}, []];
+      for (const val of invalidTypes) {
+        const res = await api(userA, "/api/artifacts", {
+          method: "POST",
+          body: JSON.stringify({
+            title: `Type Test ${Date.now()}_${Math.random()}`,
+            artifactType: "document",
+            isArchived: val,
+          }),
+        });
+        expect(res.status).toBe(400);
+        const data = await res.json();
+        expect(data.code).toBe("invalid_boolean");
+      }
+    });
+
     test("POST /api/artifacts rejects contradictory lifecycle combinations (400 Bad Request)", async () => {
       const cases = [
         { lifecycleStatus: "active", isArchived: true },
@@ -599,6 +794,57 @@ describe.skipIf(!DATABASE_URL)("Stage 7B — Artifact HTTP API & Atomic Settleme
     });
 
     // ------------------------------------------------------------------------
+    // Strict Runtime Validation for /links Semantic Fields
+    // ------------------------------------------------------------------------
+    test("POST /api/artifacts/[id]/links validates semantic field bounds and types (400 Bad Request)", async () => {
+      // 1. Invalid activityRole
+      const resRole = await api(userA, `/api/artifacts/${createdArtifactId}/links`, {
+        method: "POST",
+        body: JSON.stringify({
+          activities: [{ activityId: activityAId, action: "attach", activityRole: "authored" }],
+        }),
+      });
+      expect(resRole.status).toBe(400);
+      const dataRole = await resRole.json();
+      expect(dataRole.code).toBe("invalid_input");
+
+      // 2. Out-of-bounds / non-integer demonstrationLevel (0, 6, 2.5)
+      for (const badLevel of [0, 6, 2.5]) {
+        const resLevel = await api(userA, `/api/artifacts/${createdArtifactId}/links`, {
+          method: "POST",
+          body: JSON.stringify({
+            skills: [{ skillId: skillAId, action: "attach", demonstrationLevel: badLevel }],
+          }),
+        });
+        expect(resLevel.status).toBe(400);
+        const dataLevel = await resLevel.json();
+        expect(dataLevel.code).toBe("invalid_input");
+      }
+
+      // 3. Invalid relationType
+      const resRel = await api(userA, `/api/artifacts/${createdArtifactId}/links`, {
+        method: "POST",
+        body: JSON.stringify({
+          knowledgeNodes: [{ nodeId: knowledgeNodeAId, action: "attach", relationType: "relates" }],
+        }),
+      });
+      expect(resRel.status).toBe(400);
+      const dataRel = await resRel.json();
+      expect(dataRel.code).toBe("invalid_input");
+
+      // 4. Non-boolean isPrimaryDeliverable
+      const resPrimary = await api(userA, `/api/artifacts/${createdArtifactId}/links`, {
+        method: "POST",
+        body: JSON.stringify({
+          quests: [{ questId: questAId, action: "attach", isPrimaryDeliverable: "true" }],
+        }),
+      });
+      expect(resPrimary.status).toBe(400);
+      const dataPrimary = await resPrimary.json();
+      expect(dataPrimary.code).toBe("invalid_input");
+    });
+
+    // ------------------------------------------------------------------------
     // Deterministic List Ordering (created_at DESC, id ASC)
     // ------------------------------------------------------------------------
     test("GET /api/artifacts enforces deterministic ordering (created_at DESC, id ASC)", async () => {
@@ -643,7 +889,7 @@ describe.skipIf(!DATABASE_URL)("Stage 7B — Artifact HTTP API & Atomic Settleme
     });
 
     // ------------------------------------------------------------------------
-    // Cross-Tenant Entity ID Isolation Matrix
+    // Cross-Tenant Entity ID Isolation Matrix across all 5 Entity Types
     // ------------------------------------------------------------------------
     test("Cross-Tenant HTTP isolation: User A cannot GET, PATCH, DELETE, or link User B's artifact", async () => {
       // 1. GET User B artifact -> 404
@@ -673,17 +919,93 @@ describe.skipIf(!DATABASE_URL)("Stage 7B — Artifact HTTP API & Atomic Settleme
         }),
       });
       expect(linkBRes.status).toBe(404);
+    });
 
-      // 5. POST /links on User A artifact referencing User B entities -> 404 (non-disclosing)
-      const foreignLinkRes = await api(userA, `/api/artifacts/${createdArtifactId}/links`, {
+    test("POST /api/artifacts/[id]/links rejects attaching any of the 5 foreign entity targets (404 Not Found, 0 mutations)", async () => {
+      // 1. Foreign Activity
+      const resAct = await api(userA, `/api/artifacts/${createdArtifactId}/links`, {
+        method: "POST",
+        body: JSON.stringify({
+          activities: [{ activityId: activityBId, action: "attach" }],
+        }),
+      });
+      expect(resAct.status).toBe(404);
+      const dataAct = await resAct.json();
+      expect(dataAct.code).toBe("not_found");
+      const { data: linkAct } = await adminClient
+        .from("artifact_activities")
+        .select("*")
+        .eq("artifact_id", createdArtifactId)
+        .eq("activity_id", activityBId);
+      expect(linkAct?.length ?? 0).toBe(0);
+
+      // 2. Foreign Skill
+      const resSk = await api(userA, `/api/artifacts/${createdArtifactId}/links`, {
+        method: "POST",
+        body: JSON.stringify({
+          skills: [{ skillId: skillBId, action: "attach" }],
+        }),
+      });
+      expect(resSk.status).toBe(404);
+      const dataSk = await resSk.json();
+      expect(dataSk.code).toBe("not_found");
+      const { data: linkSk } = await adminClient
+        .from("artifact_skills")
+        .select("*")
+        .eq("artifact_id", createdArtifactId)
+        .eq("skill_id", skillBId);
+      expect(linkSk?.length ?? 0).toBe(0);
+
+      // 3. Foreign Knowledge Node
+      const resKn = await api(userA, `/api/artifacts/${createdArtifactId}/links`, {
+        method: "POST",
+        body: JSON.stringify({
+          knowledgeNodes: [{ nodeId: knowledgeNodeBId, action: "attach" }],
+        }),
+      });
+      expect(resKn.status).toBe(404);
+      const dataKn = await resKn.json();
+      expect(dataKn.code).toBe("not_found");
+      const { data: linkKn } = await adminClient
+        .from("artifact_knowledge_nodes")
+        .select("*")
+        .eq("artifact_id", createdArtifactId)
+        .eq("node_id", knowledgeNodeBId);
+      expect(linkKn?.length ?? 0).toBe(0);
+
+      // 4. Foreign Quest
+      const resQ = await api(userA, `/api/artifacts/${createdArtifactId}/links`, {
         method: "POST",
         body: JSON.stringify({
           quests: [{ questId: questBId, action: "attach" }],
         }),
       });
-      expect(foreignLinkRes.status).toBe(404);
-      const foreignData = await foreignLinkRes.json();
-      expect(foreignData.code).toBe("not_found");
+      expect(resQ.status).toBe(404);
+      const dataQ = await resQ.json();
+      expect(dataQ.code).toBe("not_found");
+      const { data: linkQ } = await adminClient
+        .from("artifact_quests")
+        .select("*")
+        .eq("artifact_id", createdArtifactId)
+        .eq("quest_id", questBId);
+      expect(linkQ?.length ?? 0).toBe(0);
+
+      // 5. Foreign Evidence
+      const resEv = await api(userA, `/api/artifacts/${createdArtifactId}/links`, {
+        method: "POST",
+        body: JSON.stringify({
+          evidence: [{ evidenceId: evidenceBId, action: "attach" }],
+        }),
+      });
+      expect(resEv.status).toBe(404);
+      const dataEv = await resEv.json();
+      expect(dataEv.code).toBe("not_found");
+      const { data: linkEv } = await adminClient
+        .from("artifact_evidence")
+        .select("*")
+        .eq("artifact_id", createdArtifactId)
+        .eq("evidence_id", evidenceBId);
+      expect(linkEv?.length ?? 0).toBe(0);
     });
 
     // ------------------------------------------------------------------------
@@ -723,7 +1045,7 @@ describe.skipIf(!DATABASE_URL)("Stage 7B — Artifact HTTP API & Atomic Settleme
     // ------------------------------------------------------------------------
     // Referenced Delete HTTP Regression (409 Conflict)
     // ------------------------------------------------------------------------
-    test("DELETE /api/artifacts/[id] returns 409 when referenced by Evidence record or Knowledge provenance", async () => {
+    test("DELETE /api/artifacts/[id] returns 409 when referenced by Evidence record", async () => {
       // Create an artifact to be referenced
       const artRes = await api(userA, "/api/artifacts", {
         method: "POST",
@@ -775,6 +1097,62 @@ describe.skipIf(!DATABASE_URL)("Stage 7B — Artifact HTTP API & Atomic Settleme
       expect(archData.artifact.isArchived).toBe(true);
       expect(archData.artifact.lifecycleStatus).toBe("archived");
     });
+
+    test("DELETE /api/artifacts/[id] returns 409 when referenced by Knowledge Node provenance", async () => {
+      // Create an artifact to be referenced
+      const artRes = await api(userA, "/api/artifacts", {
+        method: "POST",
+        body: JSON.stringify({
+          title: `Knowledge Provenance Target ${Date.now()}`,
+          artifactType: "document",
+        }),
+      });
+      expect(artRes.status).toBe(201);
+      const targetId = (await artRes.json()).artifact.id;
+
+      // Create Knowledge Node referencing this artifact via source_type = 'artifact'
+      const knRes = await adminClient
+        .from("knowledge_nodes")
+        .insert({
+          user_id: userAId,
+          domain_id: domainAId,
+          title: `Node Derived from Art ${Date.now()}`,
+          node_type: "concept",
+          verification_status: "inferred",
+          confidence: 0.8,
+          source_type: "artifact",
+          source_id: targetId,
+        })
+        .select("id")
+        .single();
+      expect(knRes.error).toBeNull();
+      const nodeId = knRes.data!.id;
+
+
+      // Attempt DELETE -> 409 Conflict
+      const delRes = await api(userA, `/api/artifacts/${targetId}`, { method: "DELETE" });
+      expect(delRes.status).toBe(409);
+      const delData = await delRes.json();
+      expect(delData.code).toBe("referenced_by_provenance");
+
+      // Verify artifact remains in DB
+      const { data: artCheck } = await adminClient.from("artifacts").select("id").eq("id", targetId).single();
+      expect(artCheck).toBeDefined();
+
+      // Archiving succeeds
+      const archRes = await api(userA, `/api/artifacts/${targetId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ isArchived: true }),
+      });
+      expect(archRes.status).toBe(200);
+      const archData = await archRes.json();
+      expect(archData.artifact.isArchived).toBe(true);
+      expect(archData.artifact.lifecycleStatus).toBe("archived");
+
+      // Cleanup node
+      await adminClient.from("knowledge_nodes").delete().eq("id", nodeId);
+    });
+
   });
 
   // ==========================================================================
@@ -1232,6 +1610,13 @@ describe.skipIf(!DATABASE_URL)("Stage 7B — Artifact HTTP API & Atomic Settleme
     test("Case 15: Artifact Relation / FK Failure Rollback -> 404 (non-disclosing) and all-or-nothing rollback across all subsystems", async () => {
       const proposedTitle = `FK Failure Target ${Date.now()}`;
 
+      // Snapshot Quest progress & status before confirm
+      const { data: questBefore } = await adminClient
+        .from("quests")
+        .select("progress, status")
+        .eq("id", questAId)
+        .single();
+
       // Proposal references cross-tenant questId
       const { assessmentId, activityId } = await createTestActivityAndAssessment(userAId, [
         {
@@ -1272,14 +1657,38 @@ describe.skipIf(!DATABASE_URL)("Stage 7B — Artifact HTTP API & Atomic Settleme
       const { data: mEvents } = await adminClient.from("mastery_events").select("*").eq("activity_id", activityId);
       expect(mEvents?.length ?? 0).toBe(0);
 
-      // 5. Zero Artifact rows
+      // 5. Quest progress and status completely unchanged (BEFORE == AFTER)
+      const { data: questAfter } = await adminClient
+        .from("quests")
+        .select("progress, status")
+        .eq("id", questAId)
+        .single();
+      expect(questAfter?.progress).toBe(questBefore?.progress);
+      expect(questAfter?.status).toBe(questBefore?.status);
+
+
+      // 6. Zero Artifact rows created with proposedTitle
       const { data: arts } = await adminClient.from("artifacts").select("*").eq("user_id", userAId).eq("title", proposedTitle);
       expect(arts?.length ?? 0).toBe(0);
 
-      // 6. Zero rows across all 5 child link tables for this activity
+      // 7. Explicitly assert zero leaked rows in all 5 Artifact join tables for this proposed artifact/activity:
       const { data: artActs } = await adminClient.from("artifact_activities").select("*").eq("activity_id", activityId);
       expect(artActs?.length ?? 0).toBe(0);
+
+      const { data: artSks } = await adminClient.from("artifact_skills").select("*, artifacts!inner(title)").eq("artifacts.title", proposedTitle);
+      expect(artSks?.length ?? 0).toBe(0);
+
+      const { data: artKns } = await adminClient.from("artifact_knowledge_nodes").select("*, artifacts!inner(title)").eq("artifacts.title", proposedTitle);
+      expect(artKns?.length ?? 0).toBe(0);
+
+      const { data: artQs } = await adminClient.from("artifact_quests").select("*, artifacts!inner(title)").eq("artifacts.title", proposedTitle);
+      expect(artQs?.length ?? 0).toBe(0);
+
+      const { data: artEvs } = await adminClient.from("artifact_evidence").select("*, artifacts!inner(title)").eq("artifacts.title", proposedTitle);
+      expect(artEvs?.length ?? 0).toBe(0);
     });
+
+
 
     // ------------------------------------------------------------------------
     // Approved Overrides Runtime Validation Tests

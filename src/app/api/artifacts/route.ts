@@ -157,6 +157,10 @@ export async function POST(request: Request) {
     }
 
 
+    if (b.isArchived !== undefined && typeof b.isArchived !== "boolean") {
+      return NextResponse.json({ error: "isArchived must be a boolean", code: "invalid_boolean" }, { status: 400 });
+    }
+
     // Contradictory lifecycle check
     if (b.lifecycleStatus !== undefined && b.isArchived !== undefined) {
       if (b.isArchived === true && b.lifecycleStatus !== "archived") {
@@ -178,6 +182,7 @@ export async function POST(request: Request) {
         );
       }
     }
+
 
     let lifecycleStatus: ArtifactLifecycleStatus = "active";
     if (b.lifecycleStatus !== undefined) {

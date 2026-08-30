@@ -34,7 +34,12 @@ export async function POST(request: Request, ctx: { params: Promise<{ id: string
     const b = body as Record<string, unknown>;
 
     // Validate link inputs
-    const validateLinkArray = (arr: unknown, idField: string, name: string) => {
+    const validateLinkArray = (
+      arr: unknown,
+      idField: string,
+      name: string,
+      validateExtra?: (record: Record<string, unknown>) => void,
+    ) => {
       if (arr === undefined || arr === null) return undefined;
       if (!Array.isArray(arr)) throw new Error(`${name} must be an array`);
       for (const item of arr) {
@@ -48,6 +53,9 @@ export async function POST(request: Request, ctx: { params: Promise<{ id: string
         if (action !== "attach" && action !== "detach") {
           throw new Error(`Action in ${name} must be 'attach' or 'detach'`);
         }
+        if (action === "attach" && validateExtra) {
+          validateExtra(record);
+        }
       }
       return arr;
     };
@@ -59,15 +67,52 @@ export async function POST(request: Request, ctx: { params: Promise<{ id: string
     let evidenceInput: ManageArtifactLinksInput["evidence"];
 
     try {
-      activitiesInput = validateLinkArray(b.activities, "activityId", "activities") as ManageArtifactLinksInput["activities"];
-      skillsInput = validateLinkArray(b.skills, "skillId", "skills") as ManageArtifactLinksInput["skills"];
-      knowledgeNodesInput = validateLinkArray(b.knowledgeNodes, "nodeId", "knowledgeNodes") as ManageArtifactLinksInput["knowledgeNodes"];
-      questsInput = validateLinkArray(b.quests, "questId", "quests") as ManageArtifactLinksInput["quests"];
+      activitiesInput = validateLinkArray(b.activities, "activityId", "activities", (rec) => {
+        if (rec.activityRole !== undefined) {
+          if (typeof rec.activityRole !== "string" || !["produced", "referenced", "modified"].includes(rec.activityRole)) {
+            throw new Error(`Invalid activityRole in activities: ${String(rec.activityRole)}`);
+          }
+        }
+      }) as ManageArtifactLinksInput["activities"];
+
+      skillsInput = validateLinkArray(b.skills, "skillId", "skills", (rec) => {
+        if (rec.demonstrationLevel !== undefined) {
+          if (
+            typeof rec.demonstrationLevel !== "number" ||
+            !Number.isInteger(rec.demonstrationLevel) ||
+            rec.demonstrationLevel < 1 ||
+            rec.demonstrationLevel > 5
+          ) {
+            throw new Error(`demonstrationLevel in skills must be an integer between 1 and 5`);
+          }
+        }
+      }) as ManageArtifactLinksInput["skills"];
+
+      knowledgeNodesInput = validateLinkArray(b.knowledgeNodes, "nodeId", "knowledgeNodes", (rec) => {
+        if (rec.relationType !== undefined) {
+          if (
+            typeof rec.relationType !== "string" ||
+            !["cites", "implements", "synthesizes", "evaluates"].includes(rec.relationType)
+          ) {
+            throw new Error(`Invalid relationType in knowledgeNodes: ${String(rec.relationType)}`);
+          }
+        }
+      }) as ManageArtifactLinksInput["knowledgeNodes"];
+
+      questsInput = validateLinkArray(b.quests, "questId", "quests", (rec) => {
+        if (rec.isPrimaryDeliverable !== undefined) {
+          if (typeof rec.isPrimaryDeliverable !== "boolean") {
+            throw new Error(`isPrimaryDeliverable in quests must be a boolean`);
+          }
+        }
+      }) as ManageArtifactLinksInput["quests"];
+
       evidenceInput = validateLinkArray(b.evidence, "evidenceId", "evidence") as ManageArtifactLinksInput["evidence"];
     } catch (valErr) {
       const msg = valErr instanceof Error ? valErr.message : String(valErr);
       return NextResponse.json({ error: msg, code: "invalid_input" }, { status: 400 });
     }
+
 
 
     const input: ManageArtifactLinksInput = {
