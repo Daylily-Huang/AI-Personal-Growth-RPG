@@ -19,14 +19,18 @@ graph TD
         A5 --> A6[Live PostgreSQL Authority Test Suite: 42/42 PASS]
     end
 
-    subgraph Stage 7B: API, Read-Model & Settlement [FINAL FREEZE CANDIDATE / REVIEWER PENDING]
+    subgraph Stage 7B: API, Read-Model & Settlement [FINAL FROZEN]
         B1[Artifact Repository & Link Service] --> B2[RESTful Endpoints /api/artifacts]
         B2 --> B3[Batch Relationship Management: All 5 Entities]
         B3 --> B4[0042 Migration: AI Proposal Resolution & Atomic Settlement]
-        B4 --> B5[HTTP Integration Tests: 15 Gate 7B Verification Cases]
+        B4 --> B5[HTTP Integration Tests: 15 Gate 7B Verification Cases: 41/41 PASS]
     end
 
-    subgraph Stage 7C: Interactive UI [BLOCKED PENDING GLOBAL VISUAL DESIGN FREEZE]
+    subgraph Global Visual Design Freeze [CURRENT IN PROGRESS]
+        V0[Visual System Documentation & Design Tokens] --> V1[AppShell & Primitives Spec]
+    end
+
+    subgraph Stage 7C: Interactive UI [BLOCKED PENDING GLOBAL VISUAL DESIGN FREEZE PASS]
         C0[Design-Sequence Checkpoint] --> C1[Artifacts Gallery & List View]
         C1 --> C2[Detail Inspector Drawer: 5 Relational Accordions]
         C2 --> C3[Create / Edit / Archive / Superseded Dialogs]

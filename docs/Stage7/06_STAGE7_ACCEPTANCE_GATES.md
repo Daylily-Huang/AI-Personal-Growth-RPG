@@ -22,7 +22,7 @@
 
 ---
 
-## 2. Gate 7B: API Layer, Relationship Service & Settlement Integration (CURRENT PASS - FINAL FREEZE CANDIDATE)
+## 2. Gate 7B: API Layer, Relationship Service & Settlement Integration (FINAL FROZEN - 41/41 PASS)
 - [x] Complete RESTful endpoints under `/api/artifacts/**`;
 - [x] Multi-entity join hydration in `GET /api/artifacts/[id]`;
 - [x] Filter query support (`type`, `status` [active/archived/all/draft/superseded], `skillId`, `questId`, `search`, pagination);
