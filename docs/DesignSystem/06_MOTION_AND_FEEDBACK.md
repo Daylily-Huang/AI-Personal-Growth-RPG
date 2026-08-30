@@ -1,7 +1,7 @@
 # Motion, Transitions & Feedback System Specification
 
 > **Document**: `06_MOTION_AND_FEEDBACK.md`  
-> **Status**: DESIGN FREEZE CANDIDATE (ROUND 2 REVIEW PENDING)  
+> **Status**: DESIGN FREEZE CANDIDATE (ROUND 3 FINAL REVIEW)  
 > **Milestone**: Global Visual Design Freeze  
 > **Dependencies**: Stage 0–6 (FROZEN), Stage 7A/7B (FROZEN), `01_GLOBAL_VISUAL_DIRECTION.md`, `02_DESIGN_TOKENS.md`  
 > **Related Documents**: `03_GLOBAL_APP_SHELL.md`, `04_SHARED_COMPONENT_SYSTEM.md`, `07_RESPONSIVE_AND_ACCESSIBILITY.md`
@@ -16,7 +16,7 @@ In the **AI Personal Growth RPG**, animation and motion serve strictly functiona
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                           MOTION PRINCIPLES                             │
 │                                                                         │
-│   1. Restrained & Subtle (内敛微动) — Short durations (100ms - 300ms)    │
+│   1. Restrained & Subtle (内敛微动) — Short tokenized durations         │
 │   2. Causality-Driven (因果清晰) — Feedback directly tracks user action  │
 │   3. Never Blocking (流畅无阻) — Non-modal animations never trap focus   │
 │   4. Respects Accessibility (遵从减动) — Full prefers-reduced-motion     │
@@ -34,8 +34,8 @@ In the **AI Personal Growth RPG**, animation and motion serve strictly functiona
 | :--- | :--- | :--- | :--- |
 | **Card Hover** | `var(--duration-fast)` | `var(--ease-out-gentle)` | Elevation (`var(--hover-surface-elevation)`), entity-specific or neutral border illumination. |
 | **Button Active/Press** | `var(--duration-instant)`| `var(--ease-in-out-subtle)`| Subtle depression (`var(--active-surface-depression)`), momentary brightness shift. |
-| **Focus Ring** | `var(--duration-fast)` | `var(--ease-out-gentle)` | 2px gold focus ring (`var(--focus-ring)`) with smooth alpha transition. |
-| **Tab/Pill Selection** | `var(--duration-normal)`| `var(--ease-out-gentle)` | Sliding active indicator bar or soft background pill highlight. |
+| **Focus Ring** | `var(--duration-fast)` | `var(--ease-out-gentle)` | Focus ring (`var(--focus-ring-width)` solid `var(--focus-ring-color)`) with smooth alpha transition. |
+| **Tab/Pill Selection** | `var(--duration-normal)`| `var(--ease-out-gentle)` | Sliding active indicator bar or neutral background pill highlight (`var(--selection-neutral-bg)`). |
 
 ---
 
@@ -43,18 +43,18 @@ In the **AI Personal Growth RPG**, animation and motion serve strictly functiona
 
 #### 1. Contextual Inspector Drawer
 - **Action**: Slide-in from right viewport edge upon entity selection.
-- **Duration**: `var(--duration-normal)` (250ms on desktop, 200ms on mobile).
-- **Easing**: `cubic-bezier(0.16, 1, 0.3, 1)` (Gentle deceleration curve).
+- **Duration**: `var(--duration-drawer)` on desktop, `var(--duration-drawer-mobile)` on mobile.
+- **Easing**: `var(--ease-drawer)`.
 - **Behavior**: Main workspace content smoothly compresses or darkens with a subtle backdrop veil.
 
 #### 2. Modals & Dialog Overlays
-- **Action**: Fade in backdrop (`var(--z-modal-backdrop)`) + slight upward scale (`scale(0.96) translateY(8px) -> scale(1) translateY(0)`).
-- **Duration**: `var(--duration-normal)` (200ms).
+- **Action**: Fade in backdrop (`var(--surface-modal-backdrop)`) + upward scale (`scale(var(--scale-modal-initial)) translateY(var(--distance-modal-offset)) -> scale(1) translateY(0)`).
+- **Duration**: `var(--duration-modal)`.
 - **Easing**: `var(--ease-out-gentle)`.
 
 #### 3. Accordion Expand/Collapse
 - **Action**: Smooth CSS grid height transition (`grid-template-rows: 0fr -> 1fr`).
-- **Duration**: `var(--duration-normal)` (200ms).
+- **Duration**: `var(--duration-accordion)`.
 - **Easing**: `var(--ease-in-out-subtle)`.
 
 ---
@@ -66,7 +66,7 @@ In the **AI Personal Growth RPG**, animation and motion serve strictly functiona
 - **Animation**:
   - XP counter increments smoothly over `var(--duration-slow)` using tabular number ticker.
   - Global XP track flashes with a gentle gold pulse (`var(--glow-gold-subtle)`).
-  - Floating `+XP` indicator gently floats upward by `12px` and fades over `600ms`.
+  - Floating `+XP` indicator gently floats upward by `var(--distance-xp-float)` and fades over `var(--duration-xp-float)`.
 
 ### 3.2 Level-Up Milestone
 - **Trigger**: Player character achieves new progression level.
@@ -77,7 +77,7 @@ In the **AI Personal Growth RPG**, animation and motion serve strictly functiona
 ### 3.3 Skill Mastery & Evidence Grounding
 - **Trigger**: Verified mastery progression on M0–M10 scale (e.g. `M2 -> M3`).
 - **Animation**:
-  - The newly mastered segment or diamond pip transitions to solid gold (`var(--gold-400)`) with a crisp, discrete flash.
+  - The newly mastered diamond pip transitions to solid gold (`var(--gold-400)`) with a discrete flash.
   - Graph node emits an interconnected edge pulse to adjacent dependent skills.
 
 ---
@@ -98,6 +98,6 @@ In the **AI Personal Growth RPG**, animation and motion serve strictly functiona
 ```
 
 - When `prefers-reduced-motion` is active:
-  - All sliding drawers and scale effects are replaced with instant alpha opacity fades ($0\text{ms} - 50\text{ms}$).
+  - All sliding drawers and scale effects are replaced with instant alpha opacity fades.
   - Background atmospheric mist animation is completely halted.
   - XP counter and progress meters update instantaneously without numerical ticking.

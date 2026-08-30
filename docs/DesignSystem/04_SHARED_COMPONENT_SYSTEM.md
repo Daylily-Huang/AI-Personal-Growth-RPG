@@ -1,7 +1,7 @@
 # Shared Component System Specification
 
 > **Document**: `04_SHARED_COMPONENT_SYSTEM.md`  
-> **Status**: DESIGN FREEZE CANDIDATE (ROUND 2 REVIEW PENDING)  
+> **Status**: DESIGN FREEZE CANDIDATE (ROUND 3 FINAL REVIEW)  
 > **Milestone**: Global Visual Design Freeze  
 > **Dependencies**: Stage 0–6 (FROZEN), Stage 7A/7B (FROZEN), `01_GLOBAL_VISUAL_DIRECTION.md`, `02_DESIGN_TOKENS.md`, `03_GLOBAL_APP_SHELL.md`  
 > **Related Documents**: `05_ENTITY_VISUAL_LANGUAGE.md`, `06_MOTION_AND_FEEDBACK.md`, `08_PAGE_MIGRATION_PLAN.md`
@@ -42,8 +42,8 @@ All page interfaces are composed strictly from a unified catalog of shared UI pr
 
 #### `GlassPanel`
 - **Purpose**: Base translucent container for all structured content blocks.
-- **Props**: `variant?: 'ground' | 'base' | 'raised' | 'overlay'`, `blur?: 'sm' | 'md' | 'lg' | 'xl' | '2xl'`, `border?: 'subtle' | 'default' | 'gold' | 'none'`, `className?: string`.
-- **Styling**: Applies token-driven background opacity (`var(--surface-*)`), backdrop blur (`var(--glass-blur-*)`), 1px border (`var(--border-*)`), and top-edge highlight.
+- **Props**: `variant?: 'ground' | 'base' | 'raised' | 'overlay'`, `blur?: 'sm' | 'md' | 'lg' | 'xl' | '2xl'`, `border?: 'subtle' | 'default' | 'raised' | 'gold' | 'none'`, `className?: string`.
+- **Styling**: Applies token-driven background opacity (`var(--surface-*)`), backdrop blur (`var(--glass-blur-*)`), border (`var(--border-*)`), and top-edge highlight (`var(--border-highlight-top)`).
 
 #### `RPGCard`
 - **Purpose**: Primary interactive card used for activities, quests, artifacts, and summary metrics.
@@ -69,14 +69,27 @@ All page interfaces are composed strictly from a unified catalog of shared UI pr
 
 #### `LevelBadge`
 - **Purpose**: Displays character progression Level (accumulated practice volume).
-- **Visual**: Octagonal seal shape with Ancient Gold border (`var(--gold-400)`), dark slate interior, and bold Roman/Arabic integer (e.g. `LV.14`).
+- **Visual**: Octagonal seal shape with Ancient Gold border (`var(--gold-400)`), dark slate interior, and bold integer (e.g. `LV.14`).
 
-#### `MasteryBadge`
+#### `MasteryBadge` (Frozen Single Canonical Representation)
 - **Purpose**: Displays verified skill mastery level (**strictly M0 to M10 scale**).
 - **Structure**:
-  - Prominent semantic text label: `M0`, `M1`, `M2`, ... `M10` (never compressed to 1–5).
-  - Visual meter: 10 discrete segment ticks OR 5 dual-state diamonds (supporting Empty / Half / Full to represent 10 lossless progression steps).
-  - Solid gold fill (`var(--gold-400)`) represents verified capability depth; hollow/dimmed represents unmastered tiers.
+  - Mandatory visible text label: `M0`, `M1`, `M2`, ... `M10`.
+  - Visual meter: Exactly 5 diamond shapes where each diamond represents empty (`◇`), half (`◐`), or full (`◆`), providing 10 lossless progression steps:
+    ```
+    M0  = ◇◇◇◇◇
+    M1  = ◐◇◇◇◇
+    M2  = ◆◇◇◇◇
+    M3  = ◆◐◇◇◇
+    M4  = ◆◆◇◇◇
+    M5  = ◆◆◐◇◇
+    M6  = ◆◆◆◇◇
+    M7  = ◆◆◆◐◇
+    M8  = ◆◆◆◆◇
+    M9  = ◆◆◆◆◐
+    M10 = ◆◆◆◆◆
+    ```
+  - Solid gold fill (`var(--gold-400)`) represents verified capability depth; dimmed outline (`var(--border-subtle)`) represents unmastered tiers.
 
 #### `ConfidenceBadge`
 - **Purpose**: Displays epistemic confidence metric ($0.00$ to $1.00$). **Confidence is NEVER conflated with verified truth.**
@@ -84,15 +97,15 @@ All page interfaces are composed strictly from a unified catalog of shared UI pr
 - **Contextual Variants**:
   1. `variant="mastery"`: Displays *Skill Mastery Retention Confidence* (`Skill.masteryConfidence`).
   2. `variant="assessment"`: Displays *AI Assessment Proposal Confidence* (`Assessment.confidence`).
-  3. `variant="knowledge"`: Displays *Knowledge Graph Epistemic Confidence* (`KnowledgeNode.confidence`, capped $\le 0.95$ for inferred nodes).
-- **Visual Tiers**:
-  - High ($\ge 0.80$): Celadon Jade border & text (`var(--entity-knowledge-text)`).
-  - Medium ($0.50 - 0.79$): Antique Gold border & text (`var(--gold-300)`).
-  - Low ($< 0.50$): Muted Slate border & text (`var(--text-secondary)`).
+  3. `variant="knowledge"`: Displays *Knowledge Graph Epistemic Confidence* (`KnowledgeNode.confidence` or `KnowledgeEdge.confidence`, capped $\le 0.95$ for inferred states).
+- **Visual Tiers (Dedicated Functional Confidence Tokens, Non-Gold)**:
+  - High ($\ge 0.80$): `bg: var(--confidence-high-bg)`, `border: var(--confidence-high-border)`, `text: var(--confidence-high-text)`.
+  - Medium ($0.50 - 0.79$): `bg: var(--confidence-medium-bg)`, `border: var(--confidence-medium-border)`, `text: var(--confidence-medium-text)`.
+  - Low ($< 0.50$): `bg: var(--confidence-low-bg)`, `border: var(--confidence-low-border)`, `text: var(--confidence-low-text)`.
 
 #### `StatusBadge`
 - **Purpose**: Entity lifecycle and authority state indicators.
-- **Rule**: Must pair color with an explicit semantic icon and text label (never color alone).
+- **Styling**: Consumes dedicated status tokens (`var(--status-*)`) or authority tokens (`var(--authority-*)`). Must pair color with an explicit semantic icon and text label (never color alone).
 
 ---
 
@@ -100,11 +113,11 @@ All page interfaces are composed strictly from a unified catalog of shared UI pr
 
 #### `XPProgress`
 - **Purpose**: Displays quantitative experience points relative to next level threshold.
-- **Visual**: 6px horizontal track (`bg-white/10`) with gold progression gradient (using `var(--gold-500)` to `var(--gold-300)`) and tabular readout (`current / max XP`).
+- **Visual**: Track (`height: var(--progress-track-height)`, `bg: var(--surface-hover-neutral)`) with gold progression gradient (`var(--gold-500)` to `var(--gold-300)`) and tabular readout (`current / max XP`).
 
 #### `QuestProgress`
 - **Purpose**: Displays quest completion percentage ($0\%$ to $100\%$).
-- **Visual**: Azure horizon track (`var(--entity-quest-text)`) with milestone tick marks.
+- **Visual**: Azure horizon track (`bg: var(--entity-quest-text)`) with milestone tick marks.
 
 ---
 
@@ -116,7 +129,7 @@ All page interfaces are composed strictly from a unified catalog of shared UI pr
   - Right: Primary actions (`PrimaryButton`, `FilterBar`, or view toggle).
 
 #### `InspectorDrawer` (Structural Shell)
-- **Purpose**: Universal structural right-side slide-over container (`var(--z-drawer)`).
+- **Purpose**: Universal structural right-side slide-over container (`z-index: var(--z-drawer)`).
 - **Props**: `isOpen: boolean`, `title: string`, `entityType: string`, `statusPill?: ReactNode`, `onClose: () => void`, `actions?: ReactNode`, `children: ReactNode`.
 - **Behavior**: Focus-trapped, dismissible via ESC / backdrop, scrollable body. Does NOT hardcode specific domain tabs.
 
@@ -130,20 +143,20 @@ All page interfaces are composed strictly from a unified catalog of shared UI pr
   5. Grounding Evidence (`artifact_evidence`)
 
 #### `Tabs` & `Accordion`
-- **Visual**: Minimalist underline or boxed glass tabs with active gold indicator; smooth CSS grid height expansion.
+- **Visual**: Minimalist underline or boxed glass tabs with neutral selected indicator (`border: var(--selection-neutral-border)`); smooth CSS grid height expansion.
 
 ---
 
 ### 2.5 Buttons & Interactive Controls
 
 #### `PrimaryButton`
-- **Style**: Solid Ancient Gold background (`bg-[var(--gold-400)] text-[var(--text-inverse)] font-semibold`), subtle hover glow (`var(--glow-gold-subtle)`), active scale down (`var(--active-surface-depression)`).
+- **Style**: Solid Ancient Gold background (`bg: var(--gold-400)`, `text: var(--text-inverse)`, `font-weight: 600`), subtle hover glow (`var(--glow-gold-subtle)`), active scale depression (`var(--active-surface-depression)`).
 
 #### `SecondaryButton`
-- **Style**: Translucent glass background (`bg-[var(--surface-base)] border border-[var(--border-default)] text-[var(--text-primary)] hover:bg-[var(--surface-hover-neutral)]`).
+- **Style**: Translucent glass background (`bg: var(--surface-base)`, `border: var(--border-default)`, `text: var(--text-primary)`, hover `bg: var(--surface-hover-neutral)`).
 
 #### `DangerButton`
-- **Style**: Subtle vermilion background (`bg-[var(--entity-evidence-bg)] border border-[var(--entity-evidence-border)] text-[var(--entity-evidence-text)] hover:bg-red-500/20`).
+- **Style**: Dedicated functional danger background (`bg: var(--state-danger-bg)`, `border: var(--state-danger-border)`, `text: var(--state-danger-text)`, hover `bg: var(--state-danger-hover)`).
 
 #### `SearchInput` & `FilterBar`
 - **Style**: Integrated search field with search icon, clear button, and multi-select pill filters with active state borders.
@@ -157,7 +170,7 @@ All page interfaces are composed strictly from a unified catalog of shared UI pr
 - **`KnowledgeNode`**: Circular SVG node; displays concept title, authority status icon (`verified`, `inferred`, `rejected`, `superseded`), and 5 Knowledge edge types.
 
 ### 3.2 `ArtifactCard`
-- **Visual**: Amethyst scholar silk styling (`var(--entity-artifact-border)`), displaying:
+- **Visual**: Amethyst scholar silk styling (`border: var(--entity-artifact-border)`), displaying:
   - 8-type taxonomy badge (`document`, `code_repository`, `design_spec`, `data_analysis`, `presentation`, `synthesis_note`, `creative_work`, `other`).
   - Version pill (e.g. `v1.2.0`).
   - Lifecycle status (`draft`, `active`, `superseded`, `archived`).

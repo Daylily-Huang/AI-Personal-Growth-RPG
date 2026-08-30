@@ -1,7 +1,7 @@
 # Entity Visual Language & Information Semantics
 
 > **Document**: `05_ENTITY_VISUAL_LANGUAGE.md`  
-> **Status**: DESIGN FREEZE CANDIDATE (ROUND 2 REVIEW PENDING)  
+> **Status**: DESIGN FREEZE CANDIDATE (ROUND 3 FINAL REVIEW)  
 > **Milestone**: Global Visual Design Freeze  
 > **Dependencies**: Stage 0–6 (FROZEN), Stage 7A/7B (FROZEN), `01_GLOBAL_VISUAL_DIRECTION.md`, `02_DESIGN_TOKENS.md`  
 > **Related Documents**: `04_SHARED_COMPONENT_SYSTEM.md`, `09_GLOBAL_VISUAL_ACCEPTANCE_GATES.md`
@@ -49,7 +49,7 @@ To eliminate cross-ontology confusion, the two relational systems are strictly s
 Governs relationships between two Knowledge Nodes in the Knowledge Map:
 1. `prerequisite`: Directed DAG edge (Concept A is required before Concept B).
 2. `contains`: Directed DAG edge (Hierarchical parent-child containment).
-3. `supports`: Directed causal edge (Concept A provides conceptual backing for Concept B).
+3. `supports`: Directed non-transitive support relationship (Concept A provides conceptual or evidentiary backing for Concept B).
 4. `contradicts`: Symmetric canonical edge (Concepts A and B represent conflicting hypotheses; rendered as non-directional tension).
 5. `relates_to`: Symmetric canonical edge (General conceptual association; rendered as non-directional bond).
 
@@ -67,13 +67,13 @@ Governs relationships between an Artifact and a Knowledge Node (`artifact_knowle
 Knowledge visual presentation separates epistemic authority from lifecycle archival:
 
 ### 4.1 Four Distinct Authority States
-1. `verified`: Solid glowing Emerald Celadon border (`var(--entity-knowledge-border)`), checkmark seal icon. Formally sanctioned/verified knowledge.
-2. `inferred`: Dashed Celadon border, subtle spark icon, confidence score displayed ($\le 0.95$). AI/Heuristic inferred concept pending human review.
-3. `rejected`: Subtle gray-red border, strike-through icon. Sanctioned rejection (retained for historical/audit tracing).
-4. `superseded`: Dimmed outline with forward-arrow icon. Retained historical node replaced by an upgraded concept.
+1. `verified`: `bg: var(--authority-verified-bg)`, `border: var(--authority-verified-border)`, `text: var(--authority-verified-text)`. Solid checkmark seal icon. Formally sanctioned/verified knowledge.
+2. `inferred`: `bg: var(--authority-inferred-bg)`, `border: var(--authority-inferred-border)`, `text: var(--authority-inferred-text)`. Dashed outline style, subtle spark icon, confidence score displayed ($\le 0.95$). AI/Heuristic inferred concept pending human review.
+3. `rejected`: `bg: var(--authority-rejected-bg)`, `border: var(--authority-rejected-border)`, `text: var(--authority-rejected-text)`. Strike-through icon. Sanctioned rejection (retained for historical/audit tracing).
+4. `superseded`: `bg: var(--authority-superseded-bg)`, `border: var(--authority-superseded-border)`, `text: var(--authority-superseded-text)`. Forward-arrow icon. Retained historical node replaced by an upgraded concept.
 
 ### 4.2 Lifecycle Archival Dimension (`is_archived`)
-- Archived status is represented by a separate dimmed visual veil and `[Archived]` tag, completely independent of whether the node was `verified`, `inferred`, `rejected`, or `superseded`.
+- Archived status is governed by `var(--status-archived-*)`, represented by a distinct dimmed veil and `[Archived]` tag, completely independent of whether the node was `verified`, `inferred`, `rejected`, or `superseded`.
 
 ---
 
@@ -85,23 +85,23 @@ Knowledge visual presentation separates epistemic authority from lifecycle archi
 ├───────────────────────┼───────────────────────┼───────────────────────┼───────────────────────┤
 │ • Quantitative Volume │ • Qualitative Depth   │ • Epistemic Certainty │ • Objective % Metric  │
 │ • Numerical meter     │ • M0 to M10 scale     │ • NOT verified truth  │ • Horizontal bar      │
-│ • Gold progression    │ • Discrete 10-step    │ • 3 distinct contexts │ • Milestone ticks     │
+│ • Gold progression    │ • 5-diamond meter     │ • 3 distinct contexts │ • Milestone ticks     │
 │ • Level integer (1+)  │ • Skill-specific      │ • Score (0.00 - 1.00) │ • Quest-specific (%)  │
 └───────────────────────┴───────────────────────┴───────────────────────┴───────────────────────┘
 ```
 
-1. **Level (境界/等级)**: Represents accumulated practice volume. Rendered as an octagonal gold badge with an integer (e.g. `LV.14`).
-2. **XP (修为/经验)**: Represents quantitative progression toward next level threshold (`current_xp / target_xp`).
-3. **Mastery (造诣/熟练度)**: **Strictly M0–M10 scale.** Represents verified capability depth. Rendered with an explicit numeric label (`M3`, `M7`, etc.) and a 10-step discrete meter (or 5 dual-state diamonds).
+1. **Level (等级)**: Represents accumulated practice volume. Rendered as an octagonal gold badge with an integer (e.g. `LV.14`).
+2. **XP (经验)**: Represents quantitative progression toward next level threshold (`current_xp / target_xp`).
+3. **Mastery (造诣)**: **Strictly M0–M10 scale.** Represents verified capability depth. Rendered with an explicit numeric label (`M0`..`M10`) and a 5-diamond meter supporting empty, half, and full states.
 4. **Confidence (置信度)**: **NEVER conflated with truth.** Represents epistemic certainty across 3 isolated contexts:
    - *Skill Mastery Confidence* (`Skill.masteryConfidence`)
    - *Assessment Proposal Confidence* (`Assessment.confidence`)
-   - *Knowledge Epistemic Confidence* (`KnowledgeNode.confidence`)
+   - *Knowledge Epistemic Confidence* (`KnowledgeNode.confidence` or `KnowledgeEdge.confidence`, capped $\le 0.95$ for inferred states)
 
 ---
 
 ## 6. Anti-Conflation Rules for Implementation
 
 1. **Never use gold for generic items or Activities**: Ancient Gold is reserved exclusively for Player Level, XP milestones, Skill Mastery (M0–M10), primary affirmative actions, and the global focus ring. Activity uses Copper Ochre (`var(--entity-activity-text)`).
-2. **Never render Knowledge with Skill Mastery**: Knowledge nodes display Authority State and Epistemic Confidence, never M0–M10 mastery pips or XP bars.
+2. **Never render Knowledge with Skill Mastery**: Knowledge nodes display Authority State and Epistemic Confidence, never M0–M10 mastery badges or XP bars.
 3. **Never render Evidence as Artifacts**: Evidence is an immutable proof record; Artifacts are versionable, re-linkable work products with 8 taxonomy types.

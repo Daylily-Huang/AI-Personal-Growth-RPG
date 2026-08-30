@@ -1,7 +1,7 @@
 # Page Migration & Implementation Roadmap
 
 > **Document**: `08_PAGE_MIGRATION_PLAN.md`  
-> **Status**: DESIGN FREEZE CANDIDATE (ROUND 2 REVIEW PENDING)  
+> **Status**: DESIGN FREEZE CANDIDATE (ROUND 3 FINAL REVIEW)  
 > **Milestone**: Global Visual Design Freeze  
 > **Dependencies**: Stage 0–6 (FROZEN), Stage 7A/7B (FROZEN), `01_GLOBAL_VISUAL_DIRECTION.md` to `07_RESPONSIVE_AND_ACCESSIBILITY.md`  
 > **Related Documents**: `09_GLOBAL_VISUAL_ACCEPTANCE_GATES.md`
@@ -16,7 +16,7 @@ The migration to the new Global Visual System follows a strict, layered implemen
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                     LAYERED IMPLEMENTATION ROADMAP                      │
 │                                                                         │
-│   Phase 1: Visual Foundation & Tokens (Tailwind v4 @theme inline)       │
+│   Phase 1: Visual Foundation & Tokens (Tailwind v4 @theme Architecture) │
 │                                ↓                                        │
 │   Phase 2: Global App Shell (Unified Background, Nav, Header, Drawer)   │
 │                                ↓                                        │
@@ -41,13 +41,15 @@ The migration to the new Global Visual System follows a strict, layered implemen
 - `src/app/**` (**EXCLUDING** `src/app/api/**` — only page/layout presentation files)
 - `src/styles/**` (Design tokens, global styles imported into `src/app/globals.css`)
 - `public/assets/environment/**` (Atmospheric SVG ink-wash vectors)
+- Presentation-only helper utilities under `src/lib/**` (e.g. `src/lib/ui-utils.ts`) if strictly presentational with zero domain mutations.
 
 ### 2.2 Strictly Prohibited Denylist Paths
 - `src/app/api/**` (Frozen RESTful endpoints)
 - `supabase/migrations/**` (Frozen SQL migrations `0001` through `0042`)
 - `src/lib/store/**` (Frozen database repositories & settlement service)
-- `src/lib/ai/**` (AI prompt schemas & GM contracts)
+- `src/lib/ai/**` (AI prompt schemas & GM contracts when business contracts would change)
 - `src/lib/growth-engine/**` (Deterministic XP & growth calculation engine)
+- Domain authority modules, `0041_artifact_management_authority.sql`, `0042_artifact_settlement_integration.sql`
 
 ---
 
@@ -56,17 +58,17 @@ The migration to the new Global Visual System follows a strict, layered implemen
 ### Phase 1 — Visual Foundation & Tokens (Tailwind CSS v4 Integration)
 - **Objective**: Establish global token runtime using existing Tailwind CSS v4 architecture.
 - **Deliverables**:
-  - Integrate tokens into `src/app/globals.css` using `@theme inline { ... }` or `@import "./design-tokens.css";`.
+  - Integrate tokens into `src/app/globals.css` using `@theme { ... }` for literal theme properties and `@theme inline { ... }` for CSS variable bindings.
   - Declare CSS custom properties for all frozen tokens from `02_DESIGN_TOKENS.md`.
-  - Configure Tailwind v4 mobile-first theme breakpoints (`md: 768px`, `lg: 1024px`, `xl: 1440px`).
+  - Configure Tailwind v4 mobile-first theme breakpoints (`--breakpoint-md: 48rem`, `--breakpoint-lg: 64rem`, `--breakpoint-xl: 90rem`).
   - Add atmospheric ink-wash vector silhouettes to `public/assets/environment/`.
 
 ### Phase 2 — Unified Global App Shell
 - **Objective**: Replace per-page layouts with the global `AppShell`.
 - **Deliverables**:
-  - `src/components/layout/AppShell.tsx`: Root shell container with environmental background veil.
-  - `src/components/layout/AppSidebar.tsx`: Desktop expandable/collapsible sidebar with active gold indicators.
-  - `src/components/layout/AppHeader.tsx`: Top bar with Song-serif breadcrumbs, player level badge, and XP bar.
+  - `src/components/layout/AppShell.tsx`: Root shell container with environmental background veil (`var(--bg-veil-overlay)`).
+  - `src/components/layout/AppSidebar.tsx`: Desktop expandable/collapsible sidebar with neutral active indicators (`var(--selection-neutral-*)`).
+  - `src/components/layout/AppHeader.tsx`: Top bar with Song-serif breadcrumbs, player level badge (`LevelBadge`), and XP bar (`XPProgress`).
   - `src/components/layout/MobileNav.tsx`: Bottom navigation bar for mobile viewports.
   - `src/components/layout/InspectorDrawer.tsx`: Standardized structural slide-over drawer shell.
 
@@ -74,9 +76,9 @@ The migration to the new Global Visual System follows a strict, layered implemen
 - **Objective**: Build and test all presentation primitives in isolation.
 - **Deliverables**:
   - Surfaces: `GlassPanel`, `RPGCard`, `SectionCard`, `StatCard`.
-  - Badges: `LevelBadge`, `MasteryBadge` (M0–M10), `ConfidenceBadge` (3 variants), `StatusBadge`, `EntityChip`.
+  - Badges: `LevelBadge`, `MasteryBadge` (M0–M10 5-diamond meter), `ConfidenceBadge` (3 variants), `StatusBadge`, `EntityChip`.
   - Meters: `XPProgress`, `QuestProgress`, `ReusabilityMeter`.
-  - Controls: `PrimaryButton`, `SecondaryButton`, `DangerButton`, `SearchInput`, `FilterBar`.
+  - Controls: `PrimaryButton` (Gold), `SecondaryButton` (Neutral), `DangerButton` (Functional Danger), `SearchInput`, `FilterBar`.
   - Overlays: `ConfirmDialog`, `BaseModal`, `ToastNotification`, `Tooltip`.
 
 ### Phase 4 — Stage 7C: Artifact UI Implementation

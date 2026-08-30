@@ -1,7 +1,7 @@
 # Global Visual Direction & Aesthetic Philosophy
 
 > **Document**: `01_GLOBAL_VISUAL_DIRECTION.md`  
-> **Status**: DESIGN FREEZE CANDIDATE (ROUND 2 REVIEW PENDING)  
+> **Status**: DESIGN FREEZE CANDIDATE (ROUND 3 FINAL REVIEW)  
 > **Milestone**: Global Visual Design Freeze  
 > **Dependencies**: Stage 0–6 (FROZEN), Stage 7A/7B (FROZEN)  
 > **Related Documents**: `02_DESIGN_TOKENS.md`, `03_GLOBAL_APP_SHELL.md`, `04_SHARED_COMPONENT_SYSTEM.md`, `05_ENTITY_VISUAL_LANGUAGE.md`
@@ -26,9 +26,9 @@ The visual design of **AI Personal Growth RPG** represents a deliberate, harmoni
 ```
 
 ### Core Design Pillars:
-1. **Calm Immersion (静水流深)**: The UI feels like a tranquil scholar's sanctuary or cultivation pavilion. It invites deep reflection, focus, and sustained learning without sensory overload or artificial urgency.
+1. **Calm Immersion (静水流深)**: The UI feels like a tranquil scholar's sanctuary or cultivation pavilion. It invites deep reflection, focus, and sustained learning without sensory noise or synthetic urgency.
 2. **Structural Clarity (格物致知)**: Information hierarchy is razor-sharp. Visual styling never obscures semantic data, epistemic certainty metrics, or relational linkages.
-3. **Restrained Luminescence (光华内敛)**: Glows and Ancient Gold accents exist strictly to denote character progression (Level), quantitative XP milestones, Skill Mastery (M0–M10), and primary affirmative actions—never as decorative confetti or claims of epistemic truth.
+3. **Restrained Luminescence (光华内敛)**: Ancient Gold accents exist strictly within their frozen whitelist (Player Level, XP milestones, Skill Mastery on M0–M10, primary affirmative actions, and the keyboard focus ring)—never as decorative confetti or claims of epistemic truth.
 4. **Atmospheric Depth (虚实相生)**: Translucent glass layers create a sense of depth, floating above a subtle, low-contrast ink-wash environmental background protected by an atmospheric veil.
 
 ---
@@ -43,7 +43,7 @@ To preserve visual integrity across all sub-stages, the following visual anti-pa
 | **Gacha Game Casino UI (二次元抽卡/页游风)** | Flashing gold borders, oversized gem counters, pulsing chest popups, and fake streak banners induce dopamine manipulation. | Clean numeric typography, structured progress meters, and serene milestone confirmation dialogs with full audit traceability. |
 | **Neon Cyberpunk / Sci-Fi Clutter (荧光赛博风)** | Over-saturated cyan/magenta neon glows, scanlines, and circuit-board traces violate the Eastern ink-wash aesthetic. | Warm charcoal, muted slate ink, antique amber gold, and soft neutral edge highlights. |
 | **Generic SaaS Purple Dashboard (通用紫色SaaS)** | Standard generic gradients (purple-to-blue) erase the distinct cultural and intellectual identity of the product. | Custom ink-wash atmospheric palette with multi-layered neutral tones and antique gold accents. |
-| **Uncalibrated Glassmorphism (全屏无序磨砂)** | Applying uniform heavy blur and high transparency everywhere causes text illegibility, contrast failure, and visual fatigue. | Rigorous 4-layer surface opacity scale (`var(--surface-ground)`, `var(--surface-base)`, `var(--surface-raised)`, `var(--surface-overlay)`) with controlled backdrop blur. |
+| **Uncalibrated Glassmorphism (全屏无序磨砂)** | Applying uniform heavy blur and high transparency everywhere causes text illegibility, contrast failure, and visual fatigue. | Rigorous 4-layer surface opacity scale (`var(--surface-ground)`, `var(--surface-base)`, `var(--surface-raised)`, `var(--surface-overlay)`) with tokenized backdrop blur. |
 | **AI Fantasy Clutter (AI概念图堆砌)** | Using dense, high-contrast AI fantasy illustrations behind text makes UI unreadable and cheapens the interface. | Carefully graded, low-contrast atmospheric landscape silhouettes placed strictly behind `var(--bg-veil-overlay)`. |
 
 ---
@@ -52,7 +52,7 @@ To preserve visual integrity across all sub-stages, the following visual anti-pa
 
 ### 3.1 Background & Environment
 - **Aesthetic**: Atmospheric Chinese landscape with subtle mountains, mist, bamboo silhouettes, and distant flying cranes/birds.
-- **Layering**: Environmental background is fixed at `var(--z-bg-env)`, veiled behind an atmospheric tint mask governed strictly by token `var(--bg-veil-overlay)` in `02_DESIGN_TOKENS.md`.
+- **Layering**: Environmental background is fixed at `var(--z-bg-env)`, veiled behind an atmospheric tint mask governed strictly by token `var(--bg-veil-overlay)`.
 - **Readability Invariant**: Content legibility always supersedes background artwork. Contrast must be evaluated on composited surfaces under worst-case background conditions.
 
 ### 3.2 Surfaces & Glass Panels
@@ -61,21 +61,21 @@ To preserve visual integrity across all sub-stages, the following visual anti-pa
   - **Standard Card/Section**: Elevated surface (`var(--surface-base)` with `var(--glass-blur-lg)`).
   - **Interactive Drawer / Inspector**: Raised contextual layer (`var(--surface-raised)` with `var(--glass-blur-xl)`).
   - **Modal / Dialog Overlay**: Highest focus surface (`var(--surface-overlay)` with `var(--glass-blur-2xl)`).
-- **Border Treatment**: 1px subtle neutral border (`var(--border-subtle)` to `var(--border-default)`) with a delicate top-edge highlight (`var(--border-highlight-top)`).
+- **Border Treatment**: Neutral border (`var(--border-subtle)` to `var(--border-default)`) with a delicate top-edge highlight (`var(--border-highlight-top)`).
 
 ### 3.3 Color Strategy
 - **Base Environment**: Warm charcoal (`var(--bg-deep-void)`), Ink deep slate (`var(--bg-ink-wash)`).
 - **Primary Progression Accent (Ancient Gold / 墨金体系)**:
-  - Strictly reserved for: Player Level, XP milestones, Skill Mastery (M0–M10), primary affirmative actions, and the global focus ring.
-  - Base: `var(--gold-400)` (`#d4af37`), Muted: `var(--gold-500)` (`#c5a059`), Accent: `var(--gold-300)` (`#e5c158`).
+  - Strictly reserved for: Player Level, XP milestones, Skill Mastery (M0–M10 scale), primary affirmative actions, and global focus ring.
+  - Base: `var(--gold-400)`, Muted: `var(--gold-500)`, Accent: `var(--gold-300)`.
   - Ambient Glow: `var(--glow-gold-subtle)`.
-  - Gold is NEVER used as a universal card hover border, nor does it denote epistemic truth.
+  - Gold is NEVER used for generic card hover borders, generic tabs, or navigation active indicators, nor does it denote epistemic truth.
 - **Neutral Typography**:
   - `var(--text-primary)`: High-contrast body & headings.
   - `var(--text-secondary)`: Secondary context & labels.
-  - `var(--text-muted)`: Subdued metadata (guaranteed $\ge 4.5:1$ composited contrast).
+  - `var(--text-muted)`: Subdued metadata.
 - **Domain Semantic Accents** (Strictly functional, never decorative):
-  - **Activity**: Copper Ochre / Warm Sand (`var(--entity-activity-text)`) — distinct from progression gold.
+  - **Activity**: Copper Ochre (`var(--entity-activity-text)`).
   - **Skill**: Ancient Gold (`var(--entity-skill-text)`).
   - **Knowledge**: Emerald Celadon Jade (`var(--entity-knowledge-text)`).
   - **Quest**: Azure Horizon (`var(--entity-quest-text)`).

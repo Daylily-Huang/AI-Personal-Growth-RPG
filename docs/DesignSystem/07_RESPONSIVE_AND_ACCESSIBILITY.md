@@ -1,7 +1,7 @@
 # Responsive Design & Accessibility (a11y) Specification
 
 > **Document**: `07_RESPONSIVE_AND_ACCESSIBILITY.md`  
-> **Status**: DESIGN FREEZE CANDIDATE (ROUND 2 REVIEW PENDING)  
+> **Status**: DESIGN FREEZE CANDIDATE (ROUND 3 FINAL REVIEW)  
 > **Milestone**: Global Visual Design Freeze  
 > **Dependencies**: Stage 0–6 (FROZEN), Stage 7A/7B (FROZEN), `01_GLOBAL_VISUAL_DIRECTION.md`, `02_DESIGN_TOKENS.md`, `03_GLOBAL_APP_SHELL.md`  
 > **Related Documents**: `04_SHARED_COMPONENT_SYSTEM.md`, `06_MOTION_AND_FEEDBACK.md`, `09_GLOBAL_VISUAL_ACCEPTANCE_GATES.md`
@@ -17,7 +17,7 @@ Translucent glass surfaces and atmospheric ink aesthetics must never compromise 
 │                      ACCESSIBILITY COMMITMENTS                          │
 │                                                                         │
 │   • Composited Contrast Target: >= 7:1 on Primary, >= 4.5:1 on Normal   │
-│   • Minimum Touch Target: 44px × 44px on touch viewports                │
+│   • Minimum Touch Target: var(--touch-target-min) on touch viewports    │
 │   • Full Keyboard Navigation: Visible focus ring & logical tab order    │
 │   • Screen Reader Semantic Landmarks: nav, main, aside, header, dialog  │
 │   • Multi-Modal State: Color is always paired with text label & icon    │
@@ -43,11 +43,11 @@ $$\text{Foreground Text} \longrightarrow \text{Translucent Glass Surface} \longr
 
 ## 3. Keyboard Navigation & Focus Ring Standards
 
-1. **Mandatory 2px Visible Focus Ring**:
+1. **Mandatory Visible Focus Ring**:
    ```css
    :focus-visible {
-     outline: 2px solid var(--gold-400);
-     outline-offset: 2px;
+     outline: var(--focus-ring-width) solid var(--focus-ring-color);
+     outline-offset: var(--focus-ring-offset);
      border-radius: var(--radius-md);
    }
    ```
@@ -64,22 +64,22 @@ $$\text{Foreground Text} \longrightarrow \text{Translucent Glass Surface} \longr
 ┌──────────────────────────────────────────────────────────────────────────────┐
 │                            RESPONSIVE BREAKPOINTS                            │
 │                                                                              │
-│   Base (< 768px)            md (768 - 1023px)          lg (≥ 1024px)         │
+│   Base (< md)               md (≥ 48rem)               lg (≥ 64rem)          │
 │   • Single-column stack     • 2-column card grid       • Multi-column grid   │
 │   • Bottom Navigation bar   • Collapsed icon sidebar   • Expanded sidebar    │
-│   • Fullscreen sheet drawer • Slide-over drawer (420px)• Side-by-side drawer │
+│   • Fullscreen sheet drawer • Slide-over drawer        • Side-by-side drawer │
 │   • Horizontal touch scroll • Pinch/zoom graph canvas  • Interactive canvas  │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### 4.1 Viewport Breakpoint Matrix
 
-| Breakpoint | Dimensions | Shell Navigation | Workspace Layout | Contextual Drawer | Modal Presentation |
+| Breakpoint Range | Dimensions | Shell Navigation | Workspace Layout | Contextual Drawer | Modal Presentation |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Base (Mobile)** | $< 768\text{px}$ | Bottom Bar (`h-16`) | 1 Column (`w-full`) | Fullscreen Sheet (`h-[92vh]`) | Fullscreen Sheet |
-| **`md` (Tablet)** | $768\text{px} - 1023\text{px}$ | Left Icon Bar (`w-18`)| 2 Columns | Slide-over Drawer (`w-[420px]`)| Centered Card (85% width)|
-| **`lg` (Desktop)** | $1024\text{px} - 1439\text{px}$| Expanded (`w-64`) | 2-3 Columns / Canvas | Overlay Drawer (`w-[480px]`) | Centered Card (max 600px)|
-| **`xl` (Wide)** | $\ge 1440\text{px}$ | Expanded (`w-64`) | 3-4 Columns / Canvas | Side-by-Side Push (`w-[560px]`)| Centered Card (max 680px)|
+| **Base (Mobile)** | $< \text{md}$ | Bottom Bar (`var(--mobile-nav-height)`) | 1 Column (`w-full`) | Fullscreen Sheet (`height: var(--drawer-sheet-mobile-height)`) | Fullscreen Sheet |
+| **`md` (Tablet)** | $\ge 48\text{rem}$ | Left Icon Bar (`var(--sidebar-width-collapsed)`)| 2 Columns | Slide-over Drawer (`width: var(--drawer-width-tablet)`)| Centered Card (`max-width: var(--modal-max-width-sm)`)|
+| **`lg` (Desktop)** | $\ge 64\text{rem}$ | Expanded (`var(--sidebar-width-expanded)`) | 2-3 Columns / Canvas | Overlay Drawer (`width: var(--drawer-width-desktop)`) | Centered Card (`max-width: var(--modal-max-width-default)`)|
+| **`xl` (Wide)** | $\ge 90\text{rem}$ | Expanded (`var(--sidebar-width-expanded)`) | 3-4 Columns / Canvas | Side-by-Side Push (`width: var(--drawer-width-wide)`)| Centered Card (`max-width: var(--modal-max-width-wide)`)|
 
 ---
 
@@ -88,9 +88,9 @@ $$\text{Foreground Text} \longrightarrow \text{Translucent Glass Surface} \longr
 For interactive 2D graph workspaces (Skill Tree and Knowledge Map):
 
 1. **Level of Detail (LOD)**:
-   - Zoom $< 0.6\times$: Node text labels collapse into high-contrast icons to eliminate visual clutter.
-   - Zoom $0.6\times - 1.2\times$: Node title and primary level/status badge rendered.
-   - Zoom $> 1.2\times$: Full node metadata (relational edge counts, M0–M10 mastery badge, confidence badge) visible.
+   - Zoom $< \text{var(--lod-zoom-compact)}$: Node text labels collapse into high-contrast icons to eliminate visual clutter.
+   - Zoom $\text{var(--lod-zoom-compact)} - \text{var(--lod-zoom-standard)}$: Node title and primary level/status badge rendered.
+   - Zoom $> \text{var(--lod-zoom-standard)}$: Full node metadata (relational edge counts, M0–M10 mastery badge, confidence badge) visible.
 2. **Keyboard Traversal**:
    - Arrow keys (`Up`, `Down`, `Left`, `Right`) traverse connected graph edges between nodes.
    - `Enter` / `Space` selects and inspects the currently focused node, opening the `InspectorDrawer`.
