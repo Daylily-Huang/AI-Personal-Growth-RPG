@@ -11,7 +11,7 @@
 
 ```mermaid
 graph TD
-    subgraph Stage 7A: Schema & Authority [CURRENT TARGET - CLOSURE]
+    subgraph Stage 7A: Schema & Authority [FINAL FROZEN]
         A1[0041 Migration & Table Rebuild] --> A2[Normalized Relational Join Tables]
         A2 --> A3[Composite Foreign Keys: CASCADE vs RESTRICT]
         A3 --> A4[Column-Level UPDATE Privileges]
@@ -19,14 +19,14 @@ graph TD
         A5 --> A6[Live PostgreSQL Authority Test Suite: 42/42 PASS]
     end
 
-    subgraph Stage 7B: API, Read-Model & Settlement [NEXT]
+    subgraph Stage 7B: API, Read-Model & Settlement [FINAL FREEZE CANDIDATE / REVIEWER PENDING]
         B1[Artifact Repository & Link Service] --> B2[RESTful Endpoints /api/artifacts]
         B2 --> B3[Batch Relationship Management: All 5 Entities]
         B3 --> B4[0042 Migration: AI Proposal Resolution & Atomic Settlement]
         B4 --> B5[HTTP Integration Tests: 15 Gate 7B Verification Cases]
     end
 
-    subgraph Stage 7C: Interactive UI [FUTURE]
+    subgraph Stage 7C: Interactive UI [BLOCKED PENDING GLOBAL VISUAL DESIGN FREEZE]
         C0[Design-Sequence Checkpoint] --> C1[Artifacts Gallery & List View]
         C1 --> C2[Detail Inspector Drawer: 5 Relational Accordions]
         C2 --> C3[Create / Edit / Archive / Superseded Dialogs]
@@ -40,6 +40,7 @@ graph TD
 
     Stage 7A --> Stage 7B --> Stage 7C --> Stage 7D
 ```
+
 
 ---
 

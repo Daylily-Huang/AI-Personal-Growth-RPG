@@ -1,6 +1,8 @@
 import type { AssessmentProposal } from "@/lib/ai/schemas";
+import type { ArtifactResolutionInput } from "@/types/artifact";
 
 export type ActivityStatus = "pending_assessment" | "assessed" | "confirmed";
+
 
 export interface Activity {
   id: string;
@@ -381,7 +383,10 @@ export interface SettlementToApply {
   };
   /** Deterministic quest progression delta computed by the domain Growth Engine. */
   questProgressDelta?: number;
+  /** Stage 7B Artifact proposal resolutions to apply atomically */
+  artifactResolutions?: ArtifactResolutionInput[];
 }
+
 
 export interface NewActivityInput {
   rawInput: string;
@@ -496,3 +501,6 @@ export interface DashboardSnapshot {
   mainQuest?: Quest | null;
   activeQuests?: Quest[];
 }
+
+export * from "@/types/artifact";
+

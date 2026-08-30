@@ -5,12 +5,14 @@ import { calculateQuestProgressDelta } from "@/lib/growth-engine/quest-progressi
 import { countRecentSimilar } from "@/lib/store/similarity";
 import type { AssessmentProposal } from "@/lib/ai/schemas";
 import type { Repository } from "./repository";
+import { isValidUuid } from "@/lib/http/validation";
 import type {
   ConfirmResult,
   MasteryVerification,
   MasteryAction,
   SettlementToApply,
   SkillResolutionInput,
+  ArtifactResolutionInput,
   XpTransaction,
 } from "./types";
 
@@ -22,6 +24,10 @@ export const DEFAULT_QUEST_SIZE: QuestSize = "standard";
 const SIMILARITY_WINDOW_DAYS = 30;
 const MAX_REPETITION_CONFLICT_RETRIES = 3;
 
+export interface ConfirmAssessmentOptions {
+  artifactResolutions?: ArtifactResolutionInput[];
+}
+
 /**
  * Domain service for the Growth Loop — the SINGLE copy of settlement rules.
  *
@@ -29,20 +35,31 @@ const MAX_REPETITION_CONFLICT_RETRIES = 3;
  * - Skill resolution discriminated union (`existing` vs `create`);
  * - Authoritative evidence record persistence alongside activity settlement;
  * - Preservation of the native MasteryAction 3-state protocol (`none` / `upgrade` / `request_verification`).
+ *
+ * Stage 7B additions:
+ * - Artifact resolution discriminated union (`create` vs `existing` vs `ignore`);
+ * - Exact N-of-N proposal coverage validation;
+ * - Single atomic settlement transaction covering XP, Skills, Evidence, Quests, Artifacts.
  */
 export class SettlementService {
   constructor(private readonly repo: Repository) {}
 
-  async confirmAssessment(assessmentId: string): Promise<ConfirmResult> {
+  async confirmAssessment(
+    assessmentId: string,
+    options?: ConfirmAssessmentOptions,
+  ): Promise<ConfirmResult> {
     for (let attempt = 0; attempt < MAX_REPETITION_CONFLICT_RETRIES; attempt++) {
-      const { result, retry } = await this.trySettleOnce(assessmentId);
+      const { result, retry } = await this.trySettleOnce(assessmentId, options);
       if (retry) continue;
       return result;
     }
     return { ok: false, reason: "repetition_conflict_retry_exhausted" };
   }
 
-  private async trySettleOnce(assessmentId: string): Promise<{ result: ConfirmResult; retry: boolean }> {
+  private async trySettleOnce(
+    assessmentId: string,
+    options?: ConfirmAssessmentOptions,
+  ): Promise<{ result: ConfirmResult; retry: boolean }> {
     const assessment = await this.repo.getAssessment(assessmentId);
     if (!assessment) return { result: { ok: false, reason: "not_found" }, retry: false };
     if (assessment.status !== "pending") {
@@ -51,6 +68,113 @@ export class SettlementService {
 
     const activity = await this.repo.getActivity(assessment.activityId);
     if (!activity) return { result: { ok: false, reason: "activity_not_found" }, retry: false };
+
+    // Stage 7B Artifact resolution validation
+    const storedProposals = assessment.proposal.artifactProposals ?? [];
+    const proposalCount = storedProposals.length;
+    const resolutions = options?.artifactResolutions;
+
+    if (proposalCount > 0) {
+      if (!resolutions || !Array.isArray(resolutions) || resolutions.length !== proposalCount) {
+        return { result: { ok: false, reason: "incomplete_proposal_coverage" }, retry: false };
+      }
+
+      const canonicalTypes = new Set([
+        "document",
+        "code_repository",
+        "design_spec",
+        "data_analysis",
+        "presentation",
+        "synthesis_note",
+        "creative_work",
+        "other",
+      ]);
+      const allowedOverrideKeys = new Set([
+        "title",
+        "artifactType",
+        "summary",
+        "description",
+        "version",
+        "externalUrl",
+        "storagePath",
+        "reusabilityScore",
+      ]);
+
+      const seen = new Set<number>();
+      for (const res of resolutions) {
+        if (typeof res.proposalIndex !== "number" || !Number.isInteger(res.proposalIndex)) {
+          return { result: { ok: false, reason: "invalid_proposal_index" }, retry: false };
+        }
+        if (res.proposalIndex < 0 || res.proposalIndex >= proposalCount) {
+          return { result: { ok: false, reason: "out_of_range_proposal_index" }, retry: false };
+        }
+        if (seen.has(res.proposalIndex)) {
+          return { result: { ok: false, reason: "duplicate_proposal_index" }, retry: false };
+        }
+        seen.add(res.proposalIndex);
+
+        if (res.resolution !== "create" && res.resolution !== "existing" && res.resolution !== "ignore") {
+          return { result: { ok: false, reason: "invalid_artifact_resolution" }, retry: false };
+        }
+
+        if (res.resolution === "existing") {
+          if (!res.artifactId || typeof res.artifactId !== "string" || !isValidUuid(res.artifactId)) {
+            return { result: { ok: false, reason: "invalid_existing_artifact_id" }, retry: false };
+          }
+          if (res.activityRole !== undefined && res.activityRole !== "produced" && res.activityRole !== "modified" && res.activityRole !== "referenced") {
+            return { result: { ok: false, reason: "invalid_activity_role" }, retry: false };
+          }
+        }
+
+        if (res.resolution === "create" && res.approvedOverrides !== undefined) {
+          if (typeof res.approvedOverrides !== "object" || res.approvedOverrides === null || Array.isArray(res.approvedOverrides)) {
+            return { result: { ok: false, reason: "invalid_approved_overrides" }, retry: false };
+          }
+          const overrides = res.approvedOverrides as Record<string, unknown>;
+          for (const key of Object.keys(overrides)) {
+            if (!allowedOverrideKeys.has(key)) {
+              return { result: { ok: false, reason: "invalid_approved_overrides" }, retry: false };
+            }
+          }
+          if (overrides.title !== undefined) {
+            if (typeof overrides.title !== "string" || !overrides.title.trim()) {
+              return { result: { ok: false, reason: "empty_artifact_title" }, retry: false };
+            }
+          }
+          if (overrides.artifactType !== undefined) {
+            if (typeof overrides.artifactType !== "string" || !canonicalTypes.has(overrides.artifactType)) {
+              return { result: { ok: false, reason: "invalid_artifact_type" }, retry: false };
+            }
+          }
+          if (overrides.reusabilityScore !== undefined) {
+            if (typeof overrides.reusabilityScore !== "number" || isNaN(overrides.reusabilityScore) || overrides.reusabilityScore < 0 || overrides.reusabilityScore > 1) {
+              return { result: { ok: false, reason: "invalid_approved_overrides" }, retry: false };
+            }
+          }
+          if (overrides.summary !== undefined && overrides.summary !== null && typeof overrides.summary !== "string") {
+            return { result: { ok: false, reason: "invalid_approved_overrides" }, retry: false };
+          }
+          if (overrides.description !== undefined && overrides.description !== null && typeof overrides.description !== "string") {
+            return { result: { ok: false, reason: "invalid_approved_overrides" }, retry: false };
+          }
+          if (overrides.version !== undefined && overrides.version !== null && typeof overrides.version !== "string") {
+            return { result: { ok: false, reason: "invalid_approved_overrides" }, retry: false };
+          }
+          if (overrides.externalUrl !== undefined && overrides.externalUrl !== null && typeof overrides.externalUrl !== "string") {
+            return { result: { ok: false, reason: "invalid_approved_overrides" }, retry: false };
+          }
+          if (overrides.storagePath !== undefined && overrides.storagePath !== null && typeof overrides.storagePath !== "string") {
+            return { result: { ok: false, reason: "invalid_approved_overrides" }, retry: false };
+          }
+        }
+      }
+    } else {
+      if (resolutions && Array.isArray(resolutions) && resolutions.length > 0) {
+        return { result: { ok: false, reason: "unexpected_artifact_resolutions" }, retry: false };
+      }
+    }
+
+
 
     const now = new Date().toISOString();
     const skillName = assessment.proposal.affected_skills[0]?.name ?? "General Growth";
@@ -188,7 +312,9 @@ export class SettlementService {
         type: activityType ?? "activity_output",
       },
       questProgressDelta,
+      artifactResolutions: resolutions,
     };
+
 
     const result = await this.repo.applySettlement(settlement);
     if (result.ok) {

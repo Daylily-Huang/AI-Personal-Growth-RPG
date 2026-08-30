@@ -11,6 +11,37 @@ export const ACTIVITY_TYPES = [
 
 export const ActivityTypeSchema = z.enum(ACTIVITY_TYPES);
 
+export const ARTIFACT_TYPES = [
+  "document",
+  "code_repository",
+  "design_spec",
+  "data_analysis",
+  "presentation",
+  "synthesis_note",
+  "creative_work",
+  "other",
+] as const;
+
+export const ArtifactTypeSchema = z.enum(ARTIFACT_TYPES);
+
+export const ArtifactProposalSchema = z.object({
+  title: z.string().min(1),
+  artifactType: ArtifactTypeSchema,
+  summary: z.string().optional(),
+  description: z.string().optional(),
+  version: z.string().optional(),
+  externalUrl: z.string().optional(),
+  storagePath: z.string().optional(),
+  reusabilityScore: z.number().min(0).max(1).optional(),
+  metadata: z.record(z.string(), z.any()).optional(),
+  skillIds: z.array(z.string()).optional(),
+  knowledgeNodeIds: z.array(z.string()).optional(),
+  questIds: z.array(z.string()).optional(),
+});
+
+
+export type ArtifactProposal = z.infer<typeof ArtifactProposalSchema>;
+
 export const AssessmentProposalSchema = z.object({
   activity: z.object({
     type: ActivityTypeSchema,
@@ -74,13 +105,19 @@ export const AssessmentProposalSchema = z.object({
     goal_alignment: z.number().min(0).max(1),
     repetition_risk: z.enum(["low", "medium", "high"]),
   }),
-  artifacts: z.array(
-    z.object({
-      title: z.string(),
-      type: z.string(),
-      confirmed_existing: z.boolean(),
-    }),
-  ),
+  artifactProposals: z.array(ArtifactProposalSchema).optional(),
+  artifacts: z
+    .array(
+      z.object({
+        title: z.string(),
+        type: z.string(),
+        confirmed_existing: z.boolean().optional(),
+      }),
+    )
+    .optional()
+    .default([]),
+
+
   next_quest: z
     .object({
       title: z.string(),
@@ -93,4 +130,4 @@ export const AssessmentProposalSchema = z.object({
 
 export type AssessmentProposal = z.infer<typeof AssessmentProposalSchema>;
 
-export const PromptVersion = "activity-evaluator-v0.1";
+export const PromptVersion = "activity-evaluator-v0.2";
