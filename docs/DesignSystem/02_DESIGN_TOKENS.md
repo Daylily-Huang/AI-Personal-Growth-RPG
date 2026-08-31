@@ -414,13 +414,14 @@ The following numeric categories represent domain semantics, structural counts, 
   --breakpoint-md: 48rem;   /* 768px */
   --breakpoint-lg: 64rem;   /* 1024px */
   --breakpoint-xl: 90rem;   /* 1440px */
+
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font-serif: 'Noto Serif SC', 'Source Han Serif SC', 'Songti SC', 'SimSun', 'STSong', serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace;
 }
 
 @theme inline {
   --color-background: var(--bg-deep-void);
   --color-foreground: var(--text-primary);
-  --font-sans: var(--font-sans);
-  --font-serif: var(--font-serif);
-  --font-mono: var(--font-mono);
 }
 ```

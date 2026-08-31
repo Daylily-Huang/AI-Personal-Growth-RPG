@@ -2,17 +2,20 @@
 @import "../styles/design-tokens.css";
 
 @theme {
+  /* Breakpoint Tokens (from 02_DESIGN_TOKENS.md) */
   --breakpoint-md: 48rem;
   --breakpoint-lg: 64rem;
   --breakpoint-xl: 90rem;
+
+  /* Typography Theme Tokens (Non-circular literal definitions) */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font-serif: 'Noto Serif SC', 'Source Han Serif SC', 'Songti SC', 'SimSun', 'STSong', serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace;
 }
 
 @theme inline {
   --color-background: var(--bg-deep-void);
   --color-foreground: var(--text-primary);
-  --font-sans: var(--font-sans);
-  --font-serif: var(--font-serif);
-  --font-mono: var(--font-mono);
 }
 
 /* ==========================================================================
@@ -44,7 +47,6 @@ body {
 :focus-visible {
   outline: var(--focus-ring-width) solid var(--focus-ring-color);
   outline-offset: var(--focus-ring-offset);
-  border-radius: var(--radius-sm);
 }
 
 /* Accessibility: Reduced Motion Global Reset */

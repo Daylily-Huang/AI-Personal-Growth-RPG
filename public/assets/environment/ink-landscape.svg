@@ -1,52 +1,15 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 900" width="100%" height="100%" preserveAspectRatio="xMidYMid slice" aria-hidden="true" role="img">
-  <defs>
-    <!-- Environmental Atmospheric Gradient -->
-    <linearGradient id="ink-sky" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#0a0d12" />
-      <stop offset="60%" stop-color="#0e131b" />
-      <stop offset="100%" stop-color="#121824" />
-    </linearGradient>
-
-    <!-- Distant Mountains Gradient -->
-    <linearGradient id="ink-mountain-far" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#161e2b" stop-opacity="0.25" />
-      <stop offset="100%" stop-color="#0a0d12" stop-opacity="0.05" />
-    </linearGradient>
-
-    <!-- Mid-ground Mountains Gradient -->
-    <linearGradient id="ink-mountain-mid" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#1a2433" stop-opacity="0.40" />
-      <stop offset="100%" stop-color="#0a0d12" stop-opacity="0.10" />
-    </linearGradient>
-
-    <!-- Near Mountains & Ridge Gradient -->
-    <linearGradient id="ink-mountain-near" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#1e2a3c" stop-opacity="0.55" />
-      <stop offset="100%" stop-color="#0a0d12" stop-opacity="0.20" />
-    </linearGradient>
-
-    <!-- Soft Mist Gradient -->
-    <linearGradient id="ink-mist" x1="0%" y1="100%" x2="0%" y2="0%">
-      <stop offset="0%" stop-color="#0a0d12" stop-opacity="0.85" />
-      <stop offset="50%" stop-color="#0e131b" stop-opacity="0.30" />
-      <stop offset="100%" stop-color="#0a0d12" stop-opacity="0" />
-    </linearGradient>
-  </defs>
-
-  <!-- Background Base Canvas -->
-  <rect width="1440" height="900" fill="url(#ink-sky)" />
-
-  <!-- Layer 1: Distant Mountain Silhouettes -->
-  <path d="M0,480 Q180,320 380,410 T760,350 T1140,430 T1440,360 L1440,900 L0,900 Z" fill="url(#ink-mountain-far)" />
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 900" width="100%" height="100%" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+  <!-- Layer 1: Distant Mountain Silhouettes (Geometry / Silhouette Mask) -->
+  <path d="M0,480 Q180,320 380,410 T760,350 T1140,430 T1440,360 L1440,900 L0,900 Z" fill="currentColor" opacity="0.15" />
 
   <!-- Layer 2: Mid-Ground Mountain Ridges -->
-  <path d="M0,560 Q240,430 480,510 T960,460 T1440,540 L1440,900 L0,900 Z" fill="url(#ink-mountain-mid)" />
+  <path d="M0,560 Q240,430 480,510 T960,460 T1440,540 L1440,900 L0,900 Z" fill="currentColor" opacity="0.30" />
 
   <!-- Layer 3: Near Mountain Silhouettes -->
-  <path d="M0,640 Q320,530 640,610 T1280,570 Q1380,590 1440,620 L1440,900 L0,900 Z" fill="url(#ink-mountain-near)" />
+  <path d="M0,640 Q320,530 640,610 T1280,570 Q1380,590 1440,620 L1440,900 L0,900 Z" fill="currentColor" opacity="0.50" />
 
-  <!-- Layer 4: Distant Flying Crane / Bird Silhouettes (Minimalist Zen Motifs) -->
-  <g fill="#2d3748" opacity="0.25">
+  <!-- Layer 4: Distant Crane Flight Silhouettes -->
+  <g fill="currentColor" opacity="0.40">
     <!-- Crane 1 -->
     <path d="M420,280 Q426,274 434,277 Q438,280 432,284 Q425,282 420,280 Z" />
     <path d="M426,277 Q432,270 438,272 Q434,277 426,277 Z" />
@@ -56,7 +19,4 @@
     <!-- Crane 3 -->
     <path d="M480,285 Q484,281 490,283 Q492,285 488,288 Q483,286 480,285 Z" />
   </g>
-
-  <!-- Layer 5: Atmospheric Rising Mist & Ground Fog -->
-  <rect y="600" width="1440" height="300" fill="url(#ink-mist)" />
 </svg>
