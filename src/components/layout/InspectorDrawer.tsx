@@ -28,8 +28,9 @@ export function InspectorDrawer({
   const previousActiveElementRef = useRef<HTMLElement | null>(null);
 
   const isPurePush = mode === "push";
+  const isPureModal = mode === "modal";
 
-  // Focus trap: Handle Tab, Shift+Tab, and Escape keys (active for modal modes)
+  // Focus trap handler: active for modal mode, and below xl for auto mode
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (e.key === "Escape" || e.key === "Esc") {
@@ -38,7 +39,7 @@ export function InspectorDrawer({
         return;
       }
 
-      if (isPurePush) return; // Non-modal push panels preserve normal document tab flow
+      if (isPurePush) return; // Structural push panels preserve normal document tab flow
 
       if (e.key === "Tab") {
         if (!drawerRef.current) return;
@@ -111,29 +112,104 @@ export function InspectorDrawer({
 
   const hasTitle = Boolean(title);
 
+  // 1. Explicit Structural Push Mode (Side-by-side flex/grid participant, never fixed overlay)
+  if (isPurePush) {
+    return (
+      <aside
+        ref={drawerRef}
+        role="region"
+        aria-labelledby={hasTitle ? "inspector-drawer-title" : undefined}
+        aria-label={!hasTitle ? "检查器" : undefined}
+        tabIndex={-1}
+        data-testid="inspector-drawer-root"
+        data-mode="push"
+        className={`relative z-10 shrink-0 h-full w-[var(--drawer-width-wide)] bg-[var(--surface-overlay)] border-l border-[var(--border-raised)] shadow-[var(--shadow-overlay)] flex flex-col ${className}`}
+      >
+        <div
+          data-testid="inspector-drawer-panel"
+          className="flex flex-col h-full w-full"
+        >
+          {/* Header */}
+          <div
+            data-testid="inspector-drawer-header"
+            className="h-[var(--header-height)] px-4 lg:px-6 border-b border-[var(--border-subtle)] flex items-center justify-between gap-3 shrink-0"
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              {hasTitle && (
+                <h2
+                  id="inspector-drawer-title"
+                  data-testid="inspector-drawer-title"
+                  className="font-serif font-[var(--font-weight-semibold)] text-base text-[var(--text-primary)] tracking-[var(--tracking-wide)] truncate"
+                >
+                  {title}
+                </h2>
+              )}
+              {status && (
+                <div data-testid="inspector-drawer-status" className="shrink-0">
+                  {status}
+                </div>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={onClose}
+              data-testid="inspector-drawer-close"
+              aria-label="关闭抽屉"
+              className="w-8 h-8 rounded-[var(--radius-md)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover-neutral)] flex items-center justify-center min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] transition-colors duration-[var(--duration-fast)]"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Body */}
+          <div
+            data-testid="inspector-drawer-body"
+            className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-4"
+          >
+            {children}
+          </div>
+
+          {/* Optional Footer */}
+          {actions && (
+            <div
+              data-testid="inspector-drawer-footer"
+              className="p-4 lg:px-6 border-t border-[var(--border-subtle)] bg-[var(--surface-base)] shrink-0 flex items-center justify-end gap-3"
+            >
+              {actions}
+            </div>
+          )}
+        </div>
+      </aside>
+    );
+  }
+
+  // 2. Modal & Auto Responsive Modes
   return (
     <div
       data-testid="inspector-drawer-root"
       data-mode={mode}
       className={`fixed inset-0 z-[var(--z-drawer)] flex flex-col justify-end md:flex-row md:justify-end overflow-hidden pointer-events-none ${
-        isPurePush ? "md:pointer-events-none" : ""
+        mode === "auto"
+          ? "xl:static xl:z-auto xl:h-full xl:w-[var(--drawer-width-wide)] xl:shrink-0 xl:flex-none xl:pointer-events-auto"
+          : ""
       }`}
     >
-      {/* Backdrop (rendered for modal / auto modes, hidden in push mode) */}
-      {!isPurePush && (
-        <div
-          data-testid="inspector-drawer-backdrop"
-          onClick={onClose}
-          aria-hidden="true"
-          className="absolute inset-0 bg-[var(--surface-modal-backdrop)] backdrop-blur-[var(--glass-blur-sm)] transition-opacity duration-[var(--duration-fast)] pointer-events-auto"
-        />
-      )}
+      {/* Backdrop (rendered for modal mode; hidden on xl in auto mode) */}
+      <div
+        data-testid="inspector-drawer-backdrop"
+        onClick={onClose}
+        aria-hidden="true"
+        className={`absolute inset-0 bg-[var(--surface-modal-backdrop)] backdrop-blur-[var(--glass-blur-sm)] transition-opacity duration-[var(--duration-fast)] pointer-events-auto ${
+          mode === "auto" ? "xl:hidden" : ""
+        }`}
+      />
 
       {/* Slide-over Drawer Panel */}
       <div
         ref={drawerRef}
-        role={isPurePush ? "region" : "dialog"}
-        aria-modal={isPurePush ? undefined : "true"}
+        role={isPureModal ? "dialog" : undefined}
+        aria-modal={isPureModal ? "true" : undefined}
         aria-labelledby={hasTitle ? "inspector-drawer-title" : undefined}
         aria-label={!hasTitle ? "检查器" : undefined}
         tabIndex={-1}
@@ -142,7 +218,7 @@ export function InspectorDrawer({
           w-full h-[var(--drawer-sheet-mobile-height)] rounded-t-[var(--radius-xl)] border-t duration-[var(--duration-drawer-mobile)]
           md:h-full md:rounded-none md:border-t-0 md:border-l md:duration-[var(--duration-drawer)] md:w-[var(--drawer-width-tablet)]
           lg:w-[var(--drawer-width-desktop)]
-          xl:w-[var(--drawer-width-wide)]
+          ${mode === "auto" ? "xl:static xl:h-full xl:w-full xl:border-l xl:shadow-none" : "xl:w-[var(--drawer-width-wide)]"}
           ${className}`}
       >
         {/* Drawer Header */}

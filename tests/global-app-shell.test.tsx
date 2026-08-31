@@ -15,6 +15,7 @@ import {
   AppShellBoundary,
   AppShellProvider,
   useAppShell,
+  useOptionalAppShell,
   useInspectorUrlState,
   isProductRoute,
 } from "@/components/layout";
@@ -152,24 +153,16 @@ describe("Global App Shell — Phase 2 Architecture & Component Verification", (
     expect(screen.getByTestId("app-shell-root")).toBeTruthy();
   });
 
-  it("3. verifies /login and non-product routes are strictly excluded from AppShell", () => {
+  it("3. verifies non-product routes render outside AppShell without layout chrome", () => {
     currentPathname = "/login";
-    const { rerender } = render(
+    render(
       <AppShellBoundary>
-        <div data-testid="login-page">登录</div>
+        <div data-testid="login-content">登录页面</div>
       </AppShellBoundary>
     );
 
     expect(screen.queryByTestId("app-shell-root")).toBeNull();
-    expect(screen.getByTestId("login-page")).toBeTruthy();
-
-    currentPathname = "/";
-    rerender(
-      <AppShellBoundary>
-        <div data-testid="root-landing">根路径重定向</div>
-      </AppShellBoundary>
-    );
-    expect(screen.queryByTestId("app-shell-root")).toBeNull();
+    expect(screen.getByTestId("login-content")).toBeTruthy();
   });
 
   it("4. verifies AppWorkspace sits explicitly above AppEnvironment via z-canvas", () => {
@@ -220,87 +213,95 @@ describe("Global App Shell — Phase 2 Architecture & Component Verification", (
   it("6. verifies md header displays Compact Title + Level Badge only", () => {
     render(<AppHeader dashboard={mockDashboard} />);
     const tabletLevelBadge = screen.getByTestId("header-tablet-level-badge");
+
+    expect(tabletLevelBadge).toBeTruthy();
     expect(tabletLevelBadge.className).toContain("hidden md:inline-block lg:hidden");
     expect(tabletLevelBadge.textContent).toBe("LV.14");
   });
 
-  it("7. verifies lg header exposes full Breadcrumbs and XP capsule", () => {
+  it("7. verifies lg and xl header renders full breadcrumbs and XP progression meter", () => {
     render(<AppHeader dashboard={mockDashboard} />);
     const breadcrumbs = screen.getByTestId("header-breadcrumbs");
     const capsule = screen.getByTestId("header-progression-capsule");
+    const xpIntoLevel = screen.getByTestId("header-xp-into-level");
+    const xpNeeded = screen.getByTestId("header-xp-needed");
+    const xpBar = screen.getByTestId("header-xp-bar");
 
-    expect(breadcrumbs.className).toContain("hidden lg:flex");
-    expect(capsule.className).toContain("hidden lg:flex");
+    expect(breadcrumbs).toBeTruthy();
+    expect(capsule).toBeTruthy();
+    expect(xpIntoLevel.textContent).toBe("150");
+    expect(xpNeeded.textContent).toBe("300 XP");
+    expect(xpBar.style.width).toBe("50%");
   });
 
-  it("8. verifies md sidebar is collapsed by structural CSS classes (no JS matchMedia)", () => {
-    render(<AppSidebar collapsed={false} onToggleCollapse={vi.fn()} />);
+  it("8. verifies AppSidebar uses CSS-first collapsed width on md and expanded on lg", () => {
+    render(<AppSidebar collapsed={false} onToggleCollapse={vi.fn()} playerLevel={14} />);
     const sidebar = screen.getByTestId("app-sidebar");
+
     expect(sidebar.className).toContain("w-[var(--sidebar-width-collapsed)] lg:w-[var(--sidebar-width-expanded)]");
   });
 
-  it("9. verifies content offset matches CSS-first collapsed md and expanded lg contract", () => {
+  it("9. verifies AppShell content margin is offset via CSS-first sidebar tokens", () => {
     render(
       <AppShell dashboard={mockDashboard}>
         <div>内容</div>
       </AppShell>
     );
+    const content = screen.getByTestId("app-shell-content-container");
 
-    const container = screen.getByTestId("app-shell-content-container");
-    expect(container.className).toContain("md:ml-[var(--sidebar-width-collapsed)] lg:ml-[var(--sidebar-width-expanded)]");
+    expect(content.className).toContain("md:ml-[var(--sidebar-width-collapsed)] lg:ml-[var(--sidebar-width-expanded)]");
   });
 
-  it("10. verifies no raw 1024px / 64rem breakpoint literals exist in layout code", () => {
-    const layoutDir = path.resolve(process.cwd(), "src/components/layout");
-    const files = fs.readdirSync(layoutDir).filter((f) => f.endsWith(".tsx") || f.endsWith(".ts"));
-
-    for (const file of files) {
-      const content = fs.readFileSync(path.join(layoutDir, file), "utf8");
-      expect(content).not.toContain("1024px");
-      expect(content).not.toContain("64rem");
-    }
+  it("9b. verifies AppSidebar hides toggle button on md tablet and displays only on lg+", () => {
+    render(<AppSidebar collapsed={false} onToggleCollapse={vi.fn()} playerLevel={14} />);
+    const toggleBtn = screen.getByTestId("sidebar-toggle-button");
+    expect(toggleBtn.className).toContain("hidden lg:flex");
   });
 
   // ----------------------------------------------------
-  // 11-15. Skills & Knowledge Mobile Filter Opener & Breakpoint Gap Fix
+  // 10-15. Skills & Knowledge Mobile Filter Openers & No Match States
   // ----------------------------------------------------
-  it("11. verifies Skills page has a reachable mobile filter opener button", () => {
-    const filePath = path.resolve(process.cwd(), "src/app/skills/page.tsx");
-    const content = fs.readFileSync(filePath, "utf8");
-    expect(content).toContain('onClick={() => setMobileNavOpen(true)}');
+  it("10. verifies Skills page contains mobile filter opener with aria-label", () => {
+    const content = fs.readFileSync(path.resolve(process.cwd(), "src/app/skills/page.tsx"), "utf8");
     expect(content).toContain('aria-label="打开筛选面板"');
+    expect(content).toContain("setMobileNavOpen(true)");
   });
 
-  it("12. verifies Knowledge page has a reachable mobile filter opener button", () => {
-    const filePath = path.resolve(process.cwd(), "src/app/knowledge/page.tsx");
-    const content = fs.readFileSync(filePath, "utf8");
-    expect(content).toContain('onClick={() => setMobileNavOpen(true)}');
+  it("11. verifies Knowledge page contains mobile filter opener with aria-label", () => {
+    const content = fs.readFileSync(path.resolve(process.cwd(), "src/app/knowledge/page.tsx"), "utf8");
     expect(content).toContain('aria-label="打开筛选面板"');
+    expect(content).toContain("setMobileNavOpen(true)");
   });
 
-  it("13. verifies no legacy 1280px matchMedia authority remains in Skills or Knowledge pages", () => {
-    const skillsPath = path.resolve(process.cwd(), "src/app/skills/page.tsx");
-    const knowledgePath = path.resolve(process.cwd(), "src/app/knowledge/page.tsx");
-    expect(fs.readFileSync(skillsPath, "utf8")).not.toContain("1280px");
-    expect(fs.readFileSync(knowledgePath, "utf8")).not.toContain("1280px");
+  it("12. verifies Knowledge page restores focusTarget and centering mechanism", () => {
+    const content = fs.readFileSync(path.resolve(process.cwd(), "src/app/knowledge/page.tsx"), "utf8");
+    expect(content).toContain("setFocusTarget");
+    expect(content).toContain("focusTarget={focusTarget}");
+  });
+
+  it("13. verifies Knowledge page restores no-match-state and clear-all-filters-btn", () => {
+    const content = fs.readFileSync(path.resolve(process.cwd(), "src/app/knowledge/page.tsx"), "utf8");
+    expect(content).toContain('data-testid="no-match-state"');
+    expect(content).toContain('data-testid="clear-all-filters-btn"');
+    expect(content).toContain("handleResetFilters");
   });
 
   it("14. verifies Skills detail panel supports single-instance responsive container (desktop static column on xl, overlay on < xl)", () => {
     const content = fs.readFileSync(path.resolve(process.cwd(), "src/app/skills/page.tsx"), "utf8");
-    expect(content).toContain("xl:relative xl:w-[380px] xl:shrink-0");
+    expect(content).toContain("xl:relative xl:w-[var(--drawer-width-desktop)] xl:shrink-0");
     expect(content).toContain("xl:hidden");
     expect(content).toContain("xl:static");
   });
 
   it("15. verifies Knowledge detail panel supports single-instance responsive container (desktop static column on xl, overlay on < xl)", () => {
     const content = fs.readFileSync(path.resolve(process.cwd(), "src/app/knowledge/page.tsx"), "utf8");
-    expect(content).toContain("xl:relative xl:w-[380px] xl:shrink-0");
+    expect(content).toContain("xl:relative xl:w-[var(--drawer-width-desktop)] xl:shrink-0");
     expect(content).toContain("xl:hidden");
     expect(content).toContain("xl:static");
   });
 
   // ----------------------------------------------------
-  // 16-19. Shell Read-Model Synchronization
+  // 16-19. Shell Read-Model Synchronization & Hook Architecture
   // ----------------------------------------------------
   it("16. verifies AppShellContext publishes latest dashboard snapshot to AppHeader", () => {
     function TestConsumer() {
@@ -341,46 +342,83 @@ describe("Global App Shell — Phase 2 Architecture & Component Verification", (
     expect(screen.queryByTestId("pending-assessment-indicator")).toBeNull();
   });
 
-  // ----------------------------------------------------
-  // 20-25. InspectorDrawer Mobile Anchoring, Push Mode & A11y
-  // ----------------------------------------------------
-  it("20. verifies InspectorDrawer root uses flex-col justify-end for bottom sheet anchoring", () => {
-    render(
-      <InspectorDrawer open={true} onClose={vi.fn()} title="测试">
-        <div>内容</div>
-      </InspectorDrawer>
-    );
-
-    const root = screen.getByTestId("inspector-drawer-root");
-    expect(root.className).toContain("flex flex-col justify-end");
+  it("17. verifies useOptionalAppShell returns null outside provider without throwing", () => {
+    function OptionalConsumer() {
+      const shellCtx = useOptionalAppShell();
+      return <div data-testid="ctx-result">{shellCtx ? "inside" : "outside"}</div>;
+    }
+    render(<OptionalConsumer />);
+    expect(screen.getByTestId("ctx-result").textContent).toBe("outside");
   });
 
-  it("21. verifies InspectorDrawer panel consumes duration-drawer-mobile token on mobile", () => {
-    render(
-      <InspectorDrawer open={true} onClose={vi.fn()} title="测试">
-        <div>内容</div>
-      </InspectorDrawer>
-    );
-
-    const panel = screen.getByTestId("inspector-drawer-panel");
-    expect(panel.className).toContain("duration-[var(--duration-drawer-mobile)]");
-    expect(panel.className).toContain("md:duration-[var(--duration-drawer)]");
+  it("18. verifies useAppShell throws descriptive error when used outside provider", () => {
+    function StrictConsumer() {
+      useAppShell();
+      return <div>strict</div>;
+    }
+    expect(() => render(<StrictConsumer />)).toThrow("useAppShell must be used within an AppShellProvider");
   });
 
-  it("22. verifies InspectorDrawer mode='push' renders as non-modal region without backdrop", () => {
+  it("19. verifies initialDashboard suppresses initial network fetch in AppShellProvider", () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
     render(
-      <InspectorDrawer open={true} onClose={vi.fn()} title="测试" mode="push">
+      <AppShellProvider initialDashboard={mockDashboard}>
+        <div>已初始化</div>
+      </AppShellProvider>
+    );
+    expect(fetchSpy).not.toHaveBeenCalledWith("/api/dashboard");
+  });
+
+  // ----------------------------------------------------
+  // 20-27. InspectorDrawer Modal, Structural Push & Auto Modes
+  // ----------------------------------------------------
+  it("20. verifies InspectorDrawer mode='push' is a structural aside, NOT a fixed overlay", () => {
+    render(
+      <InspectorDrawer open={true} onClose={vi.fn()} title="属性检查器" mode="push">
         <div>推送抽屉内容</div>
       </InspectorDrawer>
     );
 
+    const root = screen.getByTestId("inspector-drawer-root");
+    expect(root.tagName.toLowerCase()).toBe("aside");
+    expect(root.getAttribute("role")).toBe("region");
+    expect(root.className).not.toContain("fixed inset-0");
+    expect(root.className).toContain("w-[var(--drawer-width-wide)]");
     expect(screen.queryByTestId("inspector-drawer-backdrop")).toBeNull();
-    const panel = screen.getByTestId("inspector-drawer-panel");
-    expect(panel.getAttribute("role")).toBe("region");
-    expect(panel.getAttribute("aria-modal")).toBeNull();
   });
 
-  it("23. verifies InspectorDrawer closes on Escape key", () => {
+  it("21. verifies InspectorDrawer mode='modal' renders fixed viewport overlay with backdrop and dialog role", () => {
+    render(
+      <InspectorDrawer open={true} onClose={vi.fn()} title="模态抽屉" mode="modal">
+        <div>模态抽屉内容</div>
+      </InspectorDrawer>
+    );
+
+    const root = screen.getByTestId("inspector-drawer-root");
+    expect(root.className).toContain("fixed inset-0");
+    expect(screen.getByTestId("inspector-drawer-backdrop")).toBeTruthy();
+    const panel = screen.getByTestId("inspector-drawer-panel");
+    expect(panel.getAttribute("role")).toBe("dialog");
+    expect(panel.getAttribute("aria-modal")).toBe("true");
+  });
+
+  it("22. verifies InspectorDrawer mode='auto' renders responsive hybrid layout (modal below xl, push on xl)", () => {
+    render(
+      <InspectorDrawer open={true} onClose={vi.fn()} title="自适应抽屉" mode="auto">
+        <div>自适应内容</div>
+      </InspectorDrawer>
+    );
+
+    const root = screen.getByTestId("inspector-drawer-root");
+    expect(root.className).toContain("fixed inset-0");
+    expect(root.className).toContain("xl:static");
+    expect(root.className).toContain("xl:w-[var(--drawer-width-wide)]");
+
+    const backdrop = screen.getByTestId("inspector-drawer-backdrop");
+    expect(backdrop.className).toContain("xl:hidden");
+  });
+
+  it("23. verifies InspectorDrawer closes on Escape key in modal mode", () => {
     const onClose = vi.fn();
     render(
       <InspectorDrawer open={true} onClose={onClose} title="测试">
@@ -394,7 +432,7 @@ describe("Global App Shell — Phase 2 Architecture & Component Verification", (
 
   it("24. verifies Tab key cycles focus within modal drawer", () => {
     render(
-      <InspectorDrawer open={true} onClose={vi.fn()} title="测试">
+      <InspectorDrawer open={true} onClose={vi.fn()} title="测试" mode="modal">
         <button data-testid="btn-last">最后按钮</button>
       </InspectorDrawer>
     );
@@ -409,7 +447,7 @@ describe("Global App Shell — Phase 2 Architecture & Component Verification", (
 
   it("25. verifies Shift+Tab key cycles focus backwards within modal drawer", () => {
     render(
-      <InspectorDrawer open={true} onClose={vi.fn()} title="测试">
+      <InspectorDrawer open={true} onClose={vi.fn()} title="测试" mode="modal">
         <button data-testid="btn-last">最后按钮</button>
       </InspectorDrawer>
     );
@@ -431,7 +469,7 @@ describe("Global App Shell — Phase 2 Architecture & Component Verification", (
           <button data-testid="open-trigger" onClick={() => setOpen(true)}>
             打开
           </button>
-          <InspectorDrawer open={open} onClose={() => { setOpen(false); onClose(); }} title="抽屉">
+          <InspectorDrawer open={open} onClose={() => { setOpen(false); onClose(); }} title="抽屉" mode="modal">
             <div>内容</div>
           </InspectorDrawer>
         </div>

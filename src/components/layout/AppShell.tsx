@@ -8,7 +8,7 @@ import { AppHeader } from "./AppHeader";
 import { AppWorkspace } from "./AppWorkspace";
 import { MobileNav } from "./MobileNav";
 import type { DashboardSnapshot } from "@/lib/store/types";
-import { useAppShell } from "./AppShellContext";
+import { useOptionalAppShell } from "./AppShellContext";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 
@@ -34,19 +34,11 @@ export function AppShell({
   className = "",
 }: AppShellProps) {
   const router = useRouter();
-
-  // Try reading shared context if mounted under AppShellProvider
-  let shellCtx: ReturnType<typeof useAppShell> | null = null;
-  try {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    shellCtx = useAppShell();
-  } catch {
-    // Fallback if rendered outside provider in standalone test
-  }
+  const shellCtx = useOptionalAppShell();
 
   const [localCollapsed, setLocalCollapsed] = useState(false);
 
-  const sidebarCollapsed = shellCtx ? shellCtx.sidebarCollapsed : localCollapsed;
+  const desktopCollapsed = shellCtx ? shellCtx.desktopCollapsed : localCollapsed;
   const toggleSidebar = shellCtx
     ? shellCtx.toggleSidebar
     : () => setLocalCollapsed((prev) => !prev);
@@ -81,7 +73,7 @@ export function AppShell({
 
       {/* 2. Desktop Navigation Sidebar (CSS-first responsive structure) */}
       <AppSidebar
-        collapsed={sidebarCollapsed}
+        collapsed={desktopCollapsed}
         onToggleCollapse={toggleSidebar}
         playerLevel={playerLevel}
         userEmail={userEmail}
@@ -91,7 +83,7 @@ export function AppShell({
       <div
         data-testid="app-shell-content-container"
         className={`flex-1 flex flex-col transition-[margin-left] duration-[var(--duration-normal)] ease-[var(--ease-in-out-subtle)] pb-[var(--mobile-nav-height)] md:pb-0 ${
-          sidebarCollapsed
+          desktopCollapsed
             ? "md:ml-[var(--sidebar-width-collapsed)]"
             : "md:ml-[var(--sidebar-width-collapsed)] lg:ml-[var(--sidebar-width-expanded)]"
         }`}

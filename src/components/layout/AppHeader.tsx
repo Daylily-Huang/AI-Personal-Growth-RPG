@@ -5,8 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronRight, Sparkles, User } from "lucide-react";
 import type { DashboardSnapshot } from "@/lib/store/types";
-
-import { useAppShell } from "./AppShellContext";
+import { useOptionalAppShell } from "./AppShellContext";
 
 export interface AppHeaderProps {
   title?: string;
@@ -35,13 +34,7 @@ export function AppHeader({
 }: AppHeaderProps) {
   const pathname = usePathname();
 
-  let shellCtx: ReturnType<typeof useAppShell> | null = null;
-  try {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    shellCtx = useAppShell();
-  } catch {
-    // Standalone fallback
-  }
+  const shellCtx = useOptionalAppShell();
 
   const dashboard = propDashboard !== undefined ? propDashboard : (shellCtx ? shellCtx.dashboard : null);
   const userEmail = propUserEmail !== undefined ? propUserEmail : (shellCtx ? shellCtx.userEmail : null);
@@ -73,7 +66,7 @@ export function AppHeader({
       {/* Left: Title & Desktop-only Breadcrumbs */}
       <div className="flex items-center gap-3 min-w-0">
         <div className="flex flex-col min-w-0">
-          {/* Breadcrumbs Navigation — Hidden on Base and md, visible on lg/xl per frozen contract */}
+          {/* Breadcrumbs Navigation — Hidden below lg, visible on lg and above per frozen contract */}
           <nav
             aria-label="页面路径"
             data-testid="header-breadcrumbs"
@@ -127,15 +120,15 @@ export function AppHeader({
 
       {/* Right: Progression Meter, Pending Indicator & User Identity */}
       <div className="flex items-center gap-3 lg:gap-5 shrink-0">
-        {/* Pending Assessment Indicator (Rendered ONLY if data exists) */}
+        {/* Pending Assessment Indicator (Compact icon+number below lg; verbose on lg+) */}
         {pendingAssessmentsCount > 0 && (
           <div
             data-testid="pending-assessment-indicator"
             className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[var(--state-warning-bg)] border border-[var(--state-warning-border)] text-[var(--state-warning-text)] text-xs font-[var(--font-weight-medium)] animate-pulse"
           >
             <Sparkles className="w-3.5 h-3.5 shrink-0" />
-            <span className="hidden sm:inline">{pendingAssessmentsCount} 待确认评估</span>
-            <span className="sm:hidden font-mono font-bold">{pendingAssessmentsCount}</span>
+            <span className="hidden lg:inline">{pendingAssessmentsCount} 待确认评估</span>
+            <span className="lg:hidden font-mono font-bold">{pendingAssessmentsCount}</span>
           </div>
         )}
 

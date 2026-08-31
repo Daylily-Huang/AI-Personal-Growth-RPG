@@ -5,25 +5,49 @@ import type { DashboardSnapshot } from "@/lib/store/types";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 
+export interface DashboardRefreshResult {
+  ok: boolean;
+  status?: number;
+  error?: string;
+  dashboard?: DashboardSnapshot;
+}
+
 export interface AppShellContextValue {
   dashboard: DashboardSnapshot | null;
+  dashboardLoading: boolean;
+  dashboardError: string | null;
   setDashboard: React.Dispatch<React.SetStateAction<DashboardSnapshot | null>>;
-  refreshDashboard: () => Promise<void>;
+  refreshDashboard: () => Promise<DashboardRefreshResult>;
   userEmail: string | null;
   setUserEmail: React.Dispatch<React.SetStateAction<string | null>>;
+  desktopCollapsed: boolean;
+  setDesktopCollapsed: React.Dispatch<React.SetStateAction<boolean>>;
+  toggleSidebar: () => void;
+  // Backward compatibility aliases
   sidebarCollapsed: boolean;
   setSidebarCollapsed: React.Dispatch<React.SetStateAction<boolean>>;
-  toggleSidebar: () => void;
 }
 
 const AppShellContext = createContext<AppShellContextValue | null>(null);
 
+/**
+ * Strict hook for components that require AppShellProvider.
+ * Throws an error if used outside AppShellProvider.
+ */
 export function useAppShell(): AppShellContextValue {
   const ctx = useContext(AppShellContext);
   if (!ctx) {
     throw new Error("useAppShell must be used within an AppShellProvider");
   }
   return ctx;
+}
+
+/**
+ * Optional hook that safely returns AppShellContextValue or null without throwing.
+ * Zero try/catch and zero rule-of-hooks suppression.
+ */
+export function useOptionalAppShell(): AppShellContextValue | null {
+  return useContext(AppShellContext);
 }
 
 export interface AppShellProviderProps {
@@ -38,27 +62,49 @@ export function AppShellProvider({
   initialUserEmail = null,
 }: AppShellProviderProps) {
   const [dashboard, setDashboard] = useState<DashboardSnapshot | null>(initialDashboard);
+  const [dashboardLoading, setDashboardLoading] = useState<boolean>(!initialDashboard);
+  const [dashboardError, setDashboardError] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(initialUserEmail);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [desktopCollapsed, setDesktopCollapsed] = useState(false);
 
-  const refreshDashboard = useCallback(async () => {
+  const refreshDashboard = useCallback(async (): Promise<DashboardRefreshResult> => {
+    setDashboardLoading(true);
+    setDashboardError(null);
     try {
       const res = await fetch("/api/dashboard");
-      if (res.ok) {
-        const data = await res.json();
-        if (data.dashboard) {
-          setDashboard(data.dashboard);
-        }
+      if (res.status === 401) {
+        setDashboardLoading(false);
+        return { ok: false, status: 401, error: "unauthenticated" };
       }
-    } catch {
-      // Degrade gracefully
+      if (!res.ok) {
+        const msg = `Failed to load dashboard: ${res.status}`;
+        setDashboardError(msg);
+        setDashboardLoading(false);
+        return { ok: false, status: res.status, error: msg };
+      }
+      const data = await res.json();
+      if (data.dashboard) {
+        setDashboard(data.dashboard);
+        setDashboardLoading(false);
+        return { ok: true, status: 200, dashboard: data.dashboard };
+      }
+      setDashboardLoading(false);
+      return { ok: true, status: 200 };
+    } catch (e) {
+      const err = e instanceof Error ? e.message : "Unknown error";
+      setDashboardError(err);
+      setDashboardLoading(false);
+      return { ok: false, error: err };
     }
   }, []);
 
-  // Fetch initial dashboard once if not provided
+  // Fetch initial dashboard ONCE only if initialDashboard was NOT provided
   useEffect(() => {
-    let ignore = false;
+    if (initialDashboard) {
+      return;
+    }
 
+    let ignore = false;
     async function loadInitial() {
       try {
         const res = await fetch("/api/dashboard");
@@ -66,10 +112,13 @@ export function AppShellProvider({
           const data = await res.json();
           if (!ignore && data.dashboard) {
             setDashboard((prev) => prev ?? data.dashboard);
+            setDashboardLoading(false);
           }
+        } else {
+          if (!ignore) setDashboardLoading(false);
         }
       } catch {
-        // Degrade gracefully
+        if (!ignore) setDashboardLoading(false);
       }
     }
 
@@ -77,7 +126,7 @@ export function AppShellProvider({
     return () => {
       ignore = true;
     };
-  }, []);
+  }, [initialDashboard]);
 
   // Resolve session email if configured
   useEffect(() => {
@@ -98,21 +147,34 @@ export function AppShellProvider({
   }, [userEmail]);
 
   const toggleSidebar = useCallback(() => {
-    setSidebarCollapsed((prev) => !prev);
+    setDesktopCollapsed((prev) => !prev);
   }, []);
 
   const value = useMemo(
     () => ({
       dashboard,
+      dashboardLoading,
+      dashboardError,
       setDashboard,
       refreshDashboard,
       userEmail,
       setUserEmail,
-      sidebarCollapsed,
-      setSidebarCollapsed,
+      desktopCollapsed,
+      setDesktopCollapsed,
       toggleSidebar,
+      // Backward compatibility aliases
+      sidebarCollapsed: desktopCollapsed,
+      setSidebarCollapsed: setDesktopCollapsed,
     }),
-    [dashboard, refreshDashboard, userEmail, sidebarCollapsed, toggleSidebar]
+    [
+      dashboard,
+      dashboardLoading,
+      dashboardError,
+      refreshDashboard,
+      userEmail,
+      desktopCollapsed,
+      toggleSidebar,
+    ]
   );
 
   return (

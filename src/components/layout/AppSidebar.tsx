@@ -69,7 +69,7 @@ export function AppSidebar({
 }: AppSidebarProps) {
   const pathname = usePathname();
 
-  // Keyboard shortcut Ctrl/Cmd + B for sidebar collapse
+  // Keyboard shortcut Ctrl/Cmd + B for desktop sidebar collapse
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && (e.key === "b" || e.key === "B")) {
@@ -102,6 +102,7 @@ export function AppSidebar({
       aria-label="主要导航"
       data-testid="app-sidebar"
       data-collapsed={collapsed}
+      data-desktop-collapsed={collapsed}
       className={`hidden md:flex flex-col fixed top-0 left-0 bottom-0 z-[var(--z-app-shell)] bg-[var(--surface-base)] backdrop-blur-[var(--glass-blur-lg)] border-r border-[var(--border-subtle)] transition-[width] duration-[var(--duration-normal)] ease-[var(--ease-in-out-subtle)] select-none ${
         collapsed
           ? "w-[var(--sidebar-width-collapsed)]"
@@ -238,22 +239,22 @@ export function AppSidebar({
           )}
         </div>
 
-        {/* Collapse / Expand Toggle Button (Visible on desktop for user manual toggle) */}
+        {/* Collapse / Expand Toggle Button (Displayed on desktop lg+ where manual collapse is interactive) */}
         <button
           type="button"
           onClick={onToggleCollapse}
           data-testid="sidebar-toggle-button"
           aria-label={collapsed ? "展开导航 (Ctrl+B)" : "折叠导航 (Ctrl+B)"}
           aria-expanded={!collapsed}
-          className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-[var(--radius-md)] text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover-neutral)] min-h-[var(--touch-target-min)] transition-colors duration-[var(--duration-fast)]"
+          className="hidden lg:flex w-full items-center justify-center gap-2 py-2 px-3 rounded-[var(--radius-md)] text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover-neutral)] min-h-[var(--touch-target-min)] transition-colors duration-[var(--duration-fast)]"
         >
           {collapsed ? (
             <ChevronRight className="w-4 h-4" />
           ) : (
             <>
               <ChevronLeft className="w-4 h-4" />
-              <span className="hidden lg:inline">折叠导航</span>
-              <kbd className="hidden lg:inline ml-auto text-xs font-mono px-1 py-0.5 rounded bg-[var(--surface-ground)] text-[var(--text-disabled)]">
+              <span>折叠导航</span>
+              <kbd className="ml-auto text-xs font-mono px-1 py-0.5 rounded bg-[var(--surface-ground)] text-[var(--text-disabled)]">
                 Ctrl+B
               </kbd>
             </>

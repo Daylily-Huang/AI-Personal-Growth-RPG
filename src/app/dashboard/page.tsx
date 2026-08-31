@@ -25,32 +25,37 @@ import {
   ChevronRight,
 } from "lucide-react";
 
-import { useAppShell } from "@/components/layout/AppShellContext";
+import { useOptionalAppShell } from "@/components/layout/AppShellContext";
 
 export default function DashboardPage() {
   const router = useRouter();
-
-  let shellCtx: ReturnType<typeof useAppShell> | null = null;
-  try {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    shellCtx = useAppShell();
-  } catch {
-    // Standalone fallback
-  }
+  const shellCtx = useOptionalAppShell();
 
   const [localDashboard, setLocalDashboard] = useState<DashboardSnapshot | null>(null);
-  const dashboard = shellCtx ? shellCtx.dashboard : localDashboard;
-  const setDashboard = shellCtx ? shellCtx.setDashboard : setLocalDashboard;
+  const [localLoading, setLocalLoading] = useState<boolean>(!shellCtx?.dashboard);
+  const [localError, setLocalError] = useState<string | null>(null);
 
-  const [loading, setLoading] = useState(!dashboard);
-  const [error, setError] = useState<string | null>(null);
+  const dashboard = shellCtx ? shellCtx.dashboard : localDashboard;
+  const loading = shellCtx ? shellCtx.dashboardLoading : localLoading;
+  const error = (shellCtx ? shellCtx.dashboardError : null) || localError;
+
   const [rawInput, setRawInput] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    setError(null);
+    setLocalError(null);
+    if (shellCtx) {
+      const res = await shellCtx.refreshDashboard();
+      if (res.status === 401) {
+        router.push("/login");
+      }
+      return;
+    }
+
+    // Standalone fallback
     try {
+      setLocalLoading(true);
       const res = await fetch("/api/dashboard");
       if (res.status === 401) {
         router.push("/login");
@@ -58,19 +63,24 @@ export default function DashboardPage() {
       }
       if (!res.ok) throw new Error("Failed to load dashboard");
       const data = await res.json();
-      setDashboard(data.dashboard);
+      setLocalDashboard(data.dashboard);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Unknown error");
+      setLocalError(e instanceof Error ? e.message : "Unknown error");
     } finally {
-      setLoading(false);
+      setLocalLoading(false);
     }
-  }, [router, setDashboard]);
+  }, [router, shellCtx]);
 
+  // Only run independent mount fetch if NOT inside AppShellProvider
   useEffect(() => {
-    let ignore = false;
+    if (shellCtx) {
+      return;
+    }
 
+    let ignore = false;
     async function fetchDashboard() {
       try {
+        setLocalLoading(true);
         const res = await fetch("/api/dashboard");
         if (res.status === 401) {
           router.push("/login");
@@ -78,11 +88,11 @@ export default function DashboardPage() {
         }
         if (!res.ok) throw new Error("Failed to load dashboard");
         const data = await res.json();
-        if (!ignore) setDashboard(data.dashboard);
+        if (!ignore) setLocalDashboard(data.dashboard);
       } catch (e) {
-        if (!ignore) setError(e instanceof Error ? e.message : "Unknown error");
+        if (!ignore) setLocalError(e instanceof Error ? e.message : "Unknown error");
       } finally {
-        if (!ignore) setLoading(false);
+        if (!ignore) setLocalLoading(false);
       }
     }
 
@@ -90,7 +100,7 @@ export default function DashboardPage() {
     return () => {
       ignore = true;
     };
-  }, [router, setDashboard]);
+  }, [router, shellCtx]);
 
   async function handleQuickLog(e: React.FormEvent) {
     e.preventDefault();
@@ -98,7 +108,7 @@ export default function DashboardPage() {
     if (!text || submitting) return;
 
     setSubmitting(true);
-    setError(null);
+    setLocalError(null);
     try {
       const createRes = await fetch("/api/activities", {
         method: "POST",
@@ -119,10 +129,10 @@ export default function DashboardPage() {
       }
       if (!assessRes.ok) throw new Error("AI assessment failed, but your activity is saved");
       setRawInput("");
-      setLoading(true);
+      setLocalLoading(true);
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Unknown error");
+      setLocalError(e instanceof Error ? e.message : "Unknown error");
     } finally {
       setSubmitting(false);
     }
@@ -130,7 +140,7 @@ export default function DashboardPage() {
 
   async function handleConfirm(assessmentId: string) {
     setConfirmingId(assessmentId);
-    setError(null);
+    setLocalError(null);
     try {
       const res = await fetch(`/api/assessments/${assessmentId}/confirm`, { method: "POST" });
       if (res.status === 401) {
@@ -138,10 +148,10 @@ export default function DashboardPage() {
         return;
       }
       if (!res.ok) throw new Error("Failed to confirm assessment");
-      setLoading(true);
+      setLocalLoading(true);
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Unknown error");
+      setLocalError(e instanceof Error ? e.message : "Unknown error");
     } finally {
       setConfirmingId(null);
     }
