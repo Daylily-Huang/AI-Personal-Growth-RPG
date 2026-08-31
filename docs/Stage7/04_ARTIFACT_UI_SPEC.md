@@ -9,33 +9,36 @@
 
 ## 1. User Experience & Layout Architecture
 
-The Artifact workspace lives at `/artifacts` and provides an intuitive, high-density dashboard for reviewing, organizing, and inspecting durable work products within the unified `AppShell`.
+The Artifact workspace lives at `/artifacts` and is rendered inside the global `AppShell` (inheriting `AppSidebar` and `AppHeader`), providing a cohesive 3-column workspace for reviewing, organizing, and inspecting durable work products.
 
 ```text
-+----------------------------------------------------------------------------------------------------+
-| Header: AI Personal Growth RPG | Quests | Skills | Knowledge Map | [Artifacts] | Dashboard | User  |
-+--------------------------+----------------------------------------------+--------------------------+
-| Left: Filter & Taxonomy  | Center: Artifact Gallery & List              | Right: Detail Drawer     |
-| [Search artifacts...]    | + [+ New Artifact]    [Grid | List]          | [Title: LTP RFC] [Edit]  |
-|                          |                                              | Type: Design Spec (1.0)  |
-| Types:                   | +------------------------------------------+ | Reusability: 90% (High)  |
-| - [x] All Types (14)     | | [RFC] Neural Plasticity Paper            | | External: [GitHub PR #8] |
-| - [ ] Document (4)       | | Type: Document | v1.2 | Reusability: 85% | |                          |
-| - [ ] Code Repo (5)      | | Links: 2 Skills, 4 Nodes, 1 Quest, 1 Ev  | | --- Summary ---        |
-| - [ ] Design Spec (3)    | +------------------------------------------+ | Architecture spec for... |
-| - [ ] Data Analysis (2)  | | [CODE] Knowledge Canvas ReactFlow Engine | |                          |
-|                          | | Type: Code Repo | v2.0 | Reusability: 95%| | --- Linked Skills ---   |
-| Status Filter:           | | Links: 1 Skill, 3 Nodes, 2 Quests        | | - Neuroscience (M3)    |
-| (o) Active (12)          | +------------------------------------------+ |                          |
-| ( ) Drafts (2)           | | [DESIGN] System Database Schema (0039)   | | --- Knowledge Nodes ---|
-| ( ) Superseded (1)       | | Type: Design Spec | Superseded           | | - LTP (Verified)       |
-| ( ) Archived (2)         | +------------------------------------------+ |                          |
-| ( ) All (17)             |                                              | --- Linked Evidence ---  |
-|                          |                                              | - E4 (Verified)          |
-| Linked Skill Filter:     |                                              |   Grounding for Neuro    |
-| [All Skills           v] |                                              |                          |
-|                          |                                              | [Archive]   [Delete]     |
-+--------------------------+----------------------------------------------+--------------------------+
+┌────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ AppShell                                                                                           │
+│ ┌──────────────┬─────────────────────────────────────────────────────────────────────────────────┐ │
+│ │ AppSidebar   │ AppHeader: 产出台 (Artifacts) / Breadcrumbs • LV.14 • XP Progress               │ │
+│ │ (Global Nav) ├─────────────────────────────────────────────────────────────────────────────────┤ │
+│ │              │ AppWorkspace                                                                    │ │
+│ │ • Dashboard  │ ┌─────────────────────────┬───────────────────────────────┬───────────────────┐ │ │
+│ │ • Quests     │ │ Left: Filter & Taxonomy │ Center: Artifact Gallery/List │ InspectorDrawer   │ │ │
+│ │ • Skills     │ │ [Search artifacts...]   │ [+ New Artifact] [Grid|List]  │ (ArtifactInspector│ │ │
+│ │ • Knowledge  │ │                         │ ┌───────────────────────────┐ │  Content)         │ │ │
+│ │ • Artifacts* │ │ Artifact Types (8):     │ │ [RFC] Neural Plasticity   │ │ Title: LTP RFC    │ │ │
+│ │ • Settings   │ │ - [x] All Types (14)    │ │ Type: Document | v1.2.0   │ │ Type: Design Spec │ │ │
+│ │              │ │ - [ ] Document (4)      │ │ Reusability: 0.85         │ │ Reusability: 0.90 │ │ │
+│ │              │ │ - [ ] Code Repo (5)     │ │ Links: 2 Sk, 4 Kn, 1 Ev   │ │ External: [PR #8] │ │ │
+│ │              │ │ - [ ] Design Spec (3)   │ └───────────────────────────┘ │ --- Summary ---   │ │ │
+│ │              │ │                         │ ┌───────────────────────────┐ │ Spec for LTP...   │ │ │
+│ │              │ │ Status Filter:          │ │ [CODE] ReactFlow Canvas   │ │ --- Relations --│ │ │
+│ │              │ │ (o) Active (12)         │ │ Type: Code Repo | v2.0.0  │ │ • Skills (Demo) │ │ │
+│ │              │ │ ( ) Drafts (2)          │ │ Reusability: 0.95         │ │ • Knowledge (4) │ │ │
+│ │              │ │ ( ) Superseded (1)      │ └───────────────────────────┘ │ • Quests (1)      │ │ │
+│ │              │ │ ( ) Archived (2)        │ ┌───────────────────────────┐ │ • Activities (1)  │ │ │
+│ │              │ │                         │ │ [SPEC] Database Schema    │ │ • Evidence (E4) │ │ │
+│ │              │ │ Linked Skill Filter:    │ │ Type: Design Spec | Super │ │                   │ │ │
+│ │              │ │ [All Skills          v] │ └───────────────────────────┘ │ [Edit]  [Archive]│ │ │
+│ │ [Collapse <] │ └─────────────────────────┴───────────────────────────────┴───────────────────┘ │ │
+│ └──────────────┴─────────────────────────────────────────────────────────────────────────────────┘ │
+└────────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -56,8 +59,12 @@ The Artifact workspace lives at `/artifacts` and provides an intuitive, high-den
 - **Metadata Section**: Reusability score meter, created date, last updated date, lifecycle status.
 - **Summary & Description**: Formatted markdown rendering for detailed notes.
 - **Relational Accordions (All 5 Entity Types)**:
-  - **Linked Skills**: Lists attached skills with player's current verified mastery (`MasteryBadge`, M0–M10).
-  - **Knowledge Nodes**: Lists synthesized/cited knowledge concepts with 4 authority badges (`verified`, `inferred`, `rejected`, `superseded`), epistemic confidence, and 4 relation types (`cites`, `implements`, `synthesizes`, `evaluates`).
+  - **Linked Skills**: Lists attached skills directly from the frozen `ArtifactSkillLink` read model:
+    - Skill name (`name`)
+    - Cumulative Skill Level (`level`, e.g. `Lvl 3` from `ArtifactSkillLink.level`)
+    - Artifact Demonstration Level (`demonstrationLevel`, integer 1..5, e.g. `Demonstration Level 4/5` from `ArtifactSkillLink.demonstrationLevel`).
+    - *Invariant*: `Artifact Skill Demonstration Level (1..5) != Skill Mastery (M0–M10)`. Demonstration level is never displayed as M0–M10.
+  - **Knowledge Nodes**: Lists synthesized/cited knowledge concepts with 4 authority badges (`verified`, `inferred`, `rejected`, `superseded`), epistemic confidence ($\le 0.95$ for inferred), and 4 relation types (`cites`, `implements`, `synthesizes`, `evaluates`).
   - **Linked Quests**: Lists associated quest goals and deliverable fulfillment flags (`isPrimaryDeliverable`).
   - **Originating Activities**: Links to the activity sessions during which this artifact was produced (`activityRole: produced | referenced | modified`).
   - **Linked Evidence**: Lists attached mastery evidence records with `evidenceLevel` (**E0..E6**), `verified` state badge, and audit description.
@@ -83,7 +90,7 @@ The Artifact workspace lives at `/artifacts` and provides an intuitive, high-den
 ### 3.3 Manage Links Dialog (Relationship Manager)
 - Tabbed or multi-section modal for batch attaching / detaching links across:
   1. **Activities**: Select originating activity and assign role (`produced`, `referenced`, `modified`).
-  2. **Skills**: Select target skill and assign demonstration depth.
+  2. **Skills**: Select target skill and assign `demonstrationLevel` (integer 1..5).
   3. **Knowledge Nodes**: Select concept/claim and assign relation type (`cites`, `implements`, `synthesizes`, `evaluates`).
   4. **Quests**: Select quest and toggle `isPrimaryDeliverable`.
   5. **Evidence**: Attach / detach proof records (`public.evidence_records`).
