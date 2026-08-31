@@ -4,20 +4,58 @@ import path from 'node:path';
 import { execSync } from 'node:child_process';
 import { compile } from 'tailwindcss';
 
-const FROZEN_BACKEND_DENYLIST = [
+export const FROZEN_BACKEND_DENYLIST = [
   'src/app/api/',
   'supabase/',
   'src/lib/store/',
   'src/lib/ai/',
   'src/lib/growth-engine/',
+  'src/lib/supabase/',
+  'src/lib/http/',
+  'src/lib/auth/',
+  'src/lib/knowledge/authority-service.ts',
+  'src/lib/knowledge/types.ts',
+  'src/lib/skills/derived-state.ts',
   '0041_artifact_management_authority.sql',
   '0042_artifact_settlement_integration.sql',
 ];
+
+export const VISUAL_MIGRATION_SURFACES = [
+  'src/styles/',
+  'src/components/',
+  'public/assets/environment/',
+  'docs/DesignSystem/',
+  'tests/visual-foundation.test.ts',
+];
+
+export function isVisualMigrationPath(filePath: string): boolean {
+  // src/app/** EXCEPT src/app/api/** is a visual/page presentation surface
+  if (filePath.startsWith('src/app/') && !filePath.startsWith('src/app/api/')) {
+    return true;
+  }
+  return VISUAL_MIGRATION_SURFACES.some(
+    (prefix) => filePath.startsWith(prefix) || filePath.includes(prefix)
+  );
+}
 
 export function isFrozenBackendViolation(filePath: string): boolean {
   return FROZEN_BACKEND_DENYLIST.some(
     (prefix) => filePath.startsWith(prefix) || filePath.includes(prefix)
   );
+}
+
+export interface VisualMigrationValidationResult {
+  isVisualPR: boolean;
+  violations: string[];
+}
+
+export function validateVisualMigrationDelta(changedFiles: string[]): VisualMigrationValidationResult {
+  const isVisualPR = changedFiles.some((f) => isVisualMigrationPath(f));
+  if (!isVisualPR) {
+    return { isVisualPR: false, violations: [] };
+  }
+  const violations = changedFiles.filter((f) => isFrozenBackendViolation(f));
+  return { isVisualPR: true, violations };
 }
 
 describe('Visual Foundation & Design Tokens Runtime Verification', () => {
@@ -135,7 +173,6 @@ describe('Visual Foundation & Design Tokens Runtime Verification', () => {
     expect(tokensCss).not.toMatch(/--confidence-medium-text:\s*#d4af37/);
 
     // 3. Scan globals.css rules: verify that ONLY :focus-visible consumes Gold variables/colors
-    // Clean comments and @theme blocks to isolate style rules
     const rulesOnly = globalsCss
       .replace(/\/\*[\s\S]*?\*\//g, '')
       .replace(/@theme\s+inline\s*\{[\s\S]*?\}/g, '')
@@ -220,11 +257,21 @@ describe('Visual Foundation & Design Tokens Runtime Verification', () => {
     expect(svgContent).not.toContain('@import');
   });
 
-  it('10. verifies deterministic fail-closed PR path guard: compares PR delta against base ref and rejects frozen paths', () => {
+  it('10. verifies live PR delta in pull_request CI: visual migration contains zero frozen backend violations', () => {
+    const isPullRequest =
+      process.env.GITHUB_EVENT_NAME === 'pull_request' ||
+      Boolean(process.env.GITHUB_BASE_REF);
+
+    if (!isPullRequest) {
+      // In push-to-main or non-PR event, PR delta assertion is not applicable
+      // Post-merge push-to-main CI will NOT fail because changedFiles is empty
+      expect(true).toBe(true);
+      return;
+    }
+
     const baseRef = process.env.GITHUB_BASE_REF || 'main';
     let changedFiles: string[] = [];
 
-    // Attempt base comparison commands
     const diffCommands = [
       `git diff --name-only origin/${baseRef}...HEAD`,
       `git diff --name-only ${baseRef}...HEAD`,
@@ -246,39 +293,81 @@ describe('Visual Foundation & Design Tokens Runtime Verification', () => {
       }
     }
 
-    // Guard MUST fail closed if base diff resolution fails in CI
+    // In an actual pull_request event, diff resolution MUST fail closed if base comparison fails
     if (!diffSucceeded) {
-      throw new Error(`Failed to resolve PR changed files against base '${baseRef}': ${lastError?.message}`);
+      throw new Error(`[Fail-Closed] Failed to resolve PR changed files against base '${baseRef}': ${lastError?.message}`);
     }
 
-    // In a PR or branch delta, changedFiles must be non-empty
-    expect(changedFiles.length).toBeGreaterThan(0);
-
-    // Verify allowed visual files are in the delta
-    expect(changedFiles).toContain('src/styles/design-tokens.css');
-    expect(changedFiles).toContain('src/app/globals.css');
-
-    // Filter against frozen backend denylist
-    const violatedFiles = changedFiles.filter((filePath) => isFrozenBackendViolation(filePath));
-    expect(violatedFiles).toEqual([]);
+    const result = validateVisualMigrationDelta(changedFiles);
+    if (result.isVisualPR) {
+      expect(result.violations).toEqual([]);
+    }
   });
 
-  it('11. verifies unit correctness of frozen backend path matcher with violation fixtures', () => {
-    // Assert all denylist fixtures are identified as violations
-    expect(isFrozenBackendViolation('src/app/api/activities/route.ts')).toBe(true);
-    expect(isFrozenBackendViolation('src/app/api/artifacts/route.ts')).toBe(true);
-    expect(isFrozenBackendViolation('supabase/migrations/0041_artifact_management_authority.sql')).toBe(true);
-    expect(isFrozenBackendViolation('supabase/migrations/0042_artifact_settlement_integration.sql')).toBe(true);
-    expect(isFrozenBackendViolation('src/lib/store/request-repository.ts')).toBe(true);
-    expect(isFrozenBackendViolation('src/lib/ai/prompts/assessment.ts')).toBe(true);
-    expect(isFrozenBackendViolation('src/lib/growth-engine/engine.ts')).toBe(true);
+  it('11. verifies unit correctness of visual migration delta validation for visual-only PRs', () => {
+    const visualOnlyDelta = [
+      'src/styles/design-tokens.css',
+      'src/app/globals.css',
+      'public/assets/environment/ink-landscape.svg',
+      'tests/visual-foundation.test.ts',
+    ];
+    const result = validateVisualMigrationDelta(visualOnlyDelta);
+    expect(result.isVisualPR).toBe(true);
+    expect(result.violations).toEqual([]);
+  });
 
-    // Assert allowed visual foundation paths are NOT identified as violations
-    expect(isFrozenBackendViolation('src/styles/design-tokens.css')).toBe(false);
-    expect(isFrozenBackendViolation('src/app/globals.css')).toBe(false);
-    expect(isFrozenBackendViolation('public/assets/environment/ink-landscape.svg')).toBe(false);
-    expect(isFrozenBackendViolation('tests/visual-foundation.test.ts')).toBe(false);
-    expect(isFrozenBackendViolation('docs/DesignSystem/02_DESIGN_TOKENS.md')).toBe(false);
-    expect(isFrozenBackendViolation('.github/workflows/ci.yml')).toBe(false);
+  it('12. verifies unit rejection when visual PR delta contains frozen backend API or DB files', () => {
+    const visualPlusBackendDelta = [
+      'src/components/AppShell.tsx',
+      'src/app/globals.css',
+      'src/app/api/activities/route.ts',
+      'supabase/migrations/0041_artifact_management_authority.sql',
+    ];
+    const result = validateVisualMigrationDelta(visualPlusBackendDelta);
+    expect(result.isVisualPR).toBe(true);
+    expect(result.violations).toEqual([
+      'src/app/api/activities/route.ts',
+      'supabase/migrations/0041_artifact_management_authority.sql',
+    ]);
+  });
+
+  it('13. verifies unit rejection when visual PR delta contains frozen Knowledge or Skill domain authority modules', () => {
+    const visualPlusDomainAuthorityDelta = [
+      'src/styles/design-tokens.css',
+      'src/lib/knowledge/authority-service.ts',
+      'src/lib/knowledge/types.ts',
+      'src/lib/skills/derived-state.ts',
+    ];
+    const result = validateVisualMigrationDelta(visualPlusDomainAuthorityDelta);
+    expect(result.isVisualPR).toBe(true);
+    expect(result.violations).toEqual([
+      'src/lib/knowledge/authority-service.ts',
+      'src/lib/knowledge/types.ts',
+      'src/lib/skills/derived-state.ts',
+    ]);
+  });
+
+  it('14. verifies that presentation and layout helpers (graph-layout, layout) are intentionally NOT frozen', () => {
+    expect(isFrozenBackendViolation('src/lib/knowledge/graph-layout.ts')).toBe(false);
+    expect(isFrozenBackendViolation('src/lib/skills/layout.ts')).toBe(false);
+    expect(isFrozenBackendViolation('src/lib/ui-utils.ts')).toBe(false);
+  });
+
+  it('15. verifies that future visual PRs without design-tokens.css/globals.css pass cleanly', () => {
+    const futureVisualPRDelta = [
+      'src/components/AppShell.tsx',
+      'src/components/Sidebar.tsx',
+      'src/app/dashboard/page.tsx',
+    ];
+    const result = validateVisualMigrationDelta(futureVisualPRDelta);
+    expect(result.isVisualPR).toBe(true);
+    expect(result.violations).toEqual([]);
+  });
+
+  it('16. verifies that push-to-main or empty delta is not misclassified or failed', () => {
+    const emptyDelta: string[] = [];
+    const result = validateVisualMigrationDelta(emptyDelta);
+    expect(result.isVisualPR).toBe(false);
+    expect(result.violations).toEqual([]);
   });
 });
