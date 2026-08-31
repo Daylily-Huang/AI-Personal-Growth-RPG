@@ -96,7 +96,7 @@ export function AppHeader({
             })}
           </nav>
 
-          {/* Section Title in Song-Serif + Tablet Level Badge / Placeholder */}
+          {/* Section Title in Song-Serif + Tablet Level Badge / Placeholder (Shared w-11 h-5 Slot) */}
           <div className="flex items-center gap-2 truncate">
             <h1
               data-testid="header-page-title"
@@ -105,11 +105,12 @@ export function AppHeader({
               {displayTitle}
             </h1>
 
-            {/* Tablet (md) Level Badge or Zero-CLS Skeleton */}
+            {/* Tablet (md) Level Badge or Zero-CLS Skeleton (Shared w-11 h-5 geometry) */}
             {typeof playerLevel === "number" ? (
               <span
                 data-testid="header-tablet-level-badge"
-                className="hidden md:inline-block lg:hidden font-mono font-[var(--font-weight-bold)] text-xs text-[var(--text-primary)] px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--surface-raised)] border border-[var(--border-raised)]"
+                title={`LV.${playerLevel}`}
+                className="hidden md:inline-block lg:hidden w-11 h-5 shrink-0 text-center font-mono font-[var(--font-weight-bold)] text-xs text-[var(--text-primary)] rounded-[var(--radius-sm)] bg-[var(--surface-raised)] border border-[var(--border-raised)] truncate leading-5"
               >
                 LV.{playerLevel}
               </span>
@@ -117,7 +118,7 @@ export function AppHeader({
               <span
                 data-testid="header-tablet-level-skeleton"
                 aria-hidden="true"
-                className="hidden md:inline-block lg:hidden w-11 h-5 rounded-[var(--radius-sm)] bg-[var(--surface-raised)] border border-[var(--border-raised)] animate-pulse"
+                className="hidden md:inline-block lg:hidden w-11 h-5 shrink-0 rounded-[var(--radius-sm)] bg-[var(--surface-raised)] border border-[var(--border-raised)] animate-pulse"
               />
             )}
           </div>
@@ -144,16 +145,17 @@ export function AppHeader({
             data-testid="header-progression-capsule"
             className="hidden lg:flex items-center gap-2.5 px-3 py-1.5 rounded-[var(--radius-md)] bg-[var(--surface-ground)] border border-[var(--border-subtle)]"
           >
-            {/* Level Readout */}
+            {/* Level Readout (Shared w-11 h-5 Slot) */}
             <span
               data-testid="header-player-level"
-              className="font-mono font-[var(--font-weight-bold)] text-xs text-[var(--text-primary)] px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--surface-raised)] border border-[var(--border-raised)]"
+              title={`LV.${playerLevel}`}
+              className="font-mono font-[var(--font-weight-bold)] text-xs text-[var(--text-primary)] w-11 h-5 shrink-0 inline-block text-center leading-5 rounded-[var(--radius-sm)] bg-[var(--surface-raised)] border border-[var(--border-raised)] truncate"
             >
               LV.{playerLevel}
             </span>
 
-            {/* XP Progress Bar & Numerical Readout */}
-            <div className="flex flex-col gap-1 w-28 lg:w-36">
+            {/* XP Progress Bar & Numerical Readout (Shared w-28 lg:w-36 Slot) */}
+            <div className="flex flex-col gap-1 w-28 lg:w-36 shrink-0">
               <div className="flex items-center justify-between text-xs font-mono text-[var(--text-muted)]">
                 <span data-testid="header-xp-into-level">{levelProgress.xpIntoLevel}</span>
                 <span>/</span>
@@ -171,11 +173,12 @@ export function AppHeader({
               </div>
             </div>
 
-            {/* Optional Total XP on xl */}
+            {/* Total XP Slot on xl (Shared w-16 h-4 Slot) */}
             {typeof totalXp === "number" ? (
               <span
                 data-testid="header-total-xp"
-                className="hidden xl:inline-block text-xs font-mono text-[var(--text-secondary)] pl-1 border-l border-[var(--border-subtle)]"
+                title={`总 ${totalXp}`}
+                className="hidden xl:inline-block w-16 h-4 shrink-0 text-xs font-mono text-[var(--text-secondary)] pl-1 border-l border-[var(--border-subtle)] truncate"
               >
                 总 {totalXp}
               </span>
@@ -183,7 +186,7 @@ export function AppHeader({
               <span
                 data-testid="header-total-xp-placeholder"
                 aria-hidden="true"
-                className="hidden xl:inline-block w-14 h-4 pl-1 border-l border-[var(--border-subtle)] opacity-0"
+                className="hidden xl:inline-block w-16 h-4 shrink-0 pl-1 border-l border-[var(--border-subtle)] opacity-0"
               />
             )}
           </div>
@@ -193,15 +196,19 @@ export function AppHeader({
             aria-hidden="true"
             className="hidden lg:flex items-center gap-2.5 px-3 py-1.5 rounded-[var(--radius-md)] bg-[var(--surface-ground)] border border-[var(--border-subtle)]"
           >
-            <div className="w-9 h-5 rounded-[var(--radius-sm)] bg-[var(--surface-raised)] animate-pulse" />
-            <div className="flex flex-col gap-1 w-28 lg:w-36">
+            {/* Level Skeleton (Shared w-11 h-5 Slot) */}
+            <div className="w-11 h-5 shrink-0 rounded-[var(--radius-sm)] bg-[var(--surface-raised)] animate-pulse" />
+
+            {/* Meter Skeleton (Shared w-28 lg:w-36 Slot) */}
+            <div className="flex flex-col gap-1 w-28 lg:w-36 shrink-0">
               <div className="w-16 h-3 rounded bg-[var(--surface-raised)] animate-pulse" />
               <div className="w-full h-[var(--progress-track-height)] rounded-full bg-[var(--surface-raised)]" />
             </div>
-            {/* Reserved Total XP slot on xl for Zero Layout Shift */}
+
+            {/* Total XP Skeleton (Shared w-16 h-4 Slot) */}
             <div
               data-testid="header-total-xp-skeleton"
-              className="hidden xl:inline-block w-14 h-4 pl-1 border-l border-[var(--border-subtle)]"
+              className="hidden xl:inline-block w-16 h-4 shrink-0 pl-1 border-l border-[var(--border-subtle)]"
             >
               <div className="w-full h-full rounded bg-[var(--surface-raised)] animate-pulse" />
             </div>

@@ -20,6 +20,7 @@ import {
   isProductRoute,
 } from "@/components/layout";
 import type { DashboardSnapshot } from "@/lib/store/types";
+import DashboardPage from "@/app/dashboard/page";
 import { validateVisualMigrationDelta } from "./visual-foundation.test";
 
 // Mock next/navigation
@@ -420,6 +421,7 @@ describe("Global App Shell — Phase 2 Architecture & Component Verification", (
     unmount();
 
     // 2. At xl: structural push behavior (role=region, aria-modal absent, no backdrop, non-fixed)
+    document.documentElement.style.setProperty("--breakpoint-xl", "90rem");
     const originalMatchMedia = window.matchMedia;
     window.matchMedia = vi.fn().mockImplementation((query) => ({
       matches: true,
@@ -446,6 +448,7 @@ describe("Global App Shell — Phase 2 Architecture & Component Verification", (
     expect(screen.queryByTestId("inspector-drawer-backdrop")).toBeNull();
 
     window.matchMedia = originalMatchMedia;
+    document.documentElement.style.removeProperty("--breakpoint-xl");
   });
 
   it("23. verifies InspectorDrawer closes on Escape key in modal mode", () => {
@@ -711,5 +714,163 @@ describe("Global App Shell — Phase 2 Architecture & Component Verification", (
     });
 
     expect(screen.getByTestId("error-result").textContent).toContain("Failed to load dashboard: 500");
+  });
+
+  it("43. verifies no raw '90rem' or '1440px' exists in InspectorDrawer.tsx", () => {
+    const drawerPath = path.resolve(process.cwd(), "src/components/layout/InspectorDrawer.tsx");
+    const content = fs.readFileSync(drawerPath, "utf8");
+    expect(content).not.toContain("90rem");
+    expect(content).not.toContain("1440px");
+  });
+
+  it("44. verifies InspectorDrawer auto mode preserves child local state across responsive transitions without subtree remount", () => {
+    document.documentElement.style.setProperty("--breakpoint-xl", "90rem");
+    let changeListener: (() => void) | null = null;
+    let isMatches = false;
+
+    const originalMatchMedia = window.matchMedia;
+    window.matchMedia = vi.fn().mockImplementation((query) => ({
+      get matches() {
+        return isMatches;
+      },
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn((event, handler) => {
+        if (event === "change") changeListener = handler;
+      }),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }));
+
+    function StatefulChild() {
+      const [text, setText] = React.useState("初始输入值");
+      return (
+        <div>
+          <input
+            data-testid="child-input"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+          />
+        </div>
+      );
+    }
+
+    render(
+      <InspectorDrawer open={true} onClose={vi.fn()} title="自适应" mode="auto">
+        <StatefulChild />
+      </InspectorDrawer>
+    );
+
+    const input = screen.getByTestId("child-input") as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "修改后的持久输入值" } });
+    expect(input.value).toBe("修改后的持久输入值");
+
+    // Transition from below-xl (< 1440px) to xl (>= 1440px)
+    act(() => {
+      isMatches = true;
+      if (changeListener) changeListener();
+    });
+
+    const inputAfterTransition = screen.getByTestId("child-input") as HTMLInputElement;
+    expect(inputAfterTransition.value).toBe("修改后的持久输入值");
+
+    // Transition back from xl to below-xl
+    act(() => {
+      isMatches = false;
+      if (changeListener) changeListener();
+    });
+
+    const inputAfterSecondTransition = screen.getByTestId("child-input") as HTMLInputElement;
+    expect(inputAfterSecondTransition.value).toBe("修改后的持久输入值");
+
+    window.matchMedia = originalMatchMedia;
+    document.documentElement.style.removeProperty("--breakpoint-xl");
+  });
+
+  it("45. verifies shared slot geometry contracts guarantee identical width/height between skeleton and loaded header states", () => {
+    // 1. Loading State
+    const { unmount } = render(<AppHeader dashboard={null} />);
+    const tabletSkeleton = screen.getByTestId("header-tablet-level-skeleton");
+    const progressionSkeleton = screen.getByTestId("header-progression-skeleton");
+    const totalXpSkeleton = screen.getByTestId("header-total-xp-skeleton");
+
+    expect(tabletSkeleton.className).toContain("w-11 h-5");
+    expect(progressionSkeleton.className).toContain("gap-2.5 px-3 py-1.5");
+    expect(totalXpSkeleton.className).toContain("w-16 h-4");
+
+    unmount();
+
+    // 2. Loaded State
+    render(
+      <AppHeader
+        dashboard={{
+          player: { playerLevel: 14, totalXp: 1250, unallocatedSkillPoints: 0 },
+          levelProgress: { currentLevel: 14, xpIntoLevel: 250, xpNeededForNext: 500, progress: 0.5 },
+          activeQuests: [],
+          skillsSummary: [],
+          recentActivities: [],
+          pendingAssessments: [],
+          streak: { currentStreak: 1, bestStreak: 1, lastActivityDate: null },
+        } as unknown as DashboardSnapshot}
+      />
+    );
+
+    const loadedTabletBadge = screen.getByTestId("header-tablet-level-badge");
+    const loadedProgressionCapsule = screen.getByTestId("header-progression-capsule");
+    const loadedPlayerLevel = screen.getByTestId("header-player-level");
+    const loadedTotalXp = screen.getByTestId("header-total-xp");
+
+    expect(loadedTabletBadge.className).toContain("w-11 h-5");
+    expect(loadedPlayerLevel.className).toContain("w-11 h-5");
+    expect(loadedProgressionCapsule.className).toContain("gap-2.5 px-3 py-1.5");
+    expect(loadedTotalXp.className).toContain("w-16 h-4");
+  });
+
+  it("46. verifies large Player Level and large Total XP maintain shared slot geometry with truncation", () => {
+    render(
+      <AppHeader
+        dashboard={{
+          player: { playerLevel: 9999, totalXp: 1000000, unallocatedSkillPoints: 0 },
+          levelProgress: { currentLevel: 9999, xpIntoLevel: 0, xpNeededForNext: 1000, progress: 0 },
+          activeQuests: [],
+          skillsSummary: [],
+          recentActivities: [],
+          pendingAssessments: [],
+          streak: { currentStreak: 1, bestStreak: 1, lastActivityDate: null },
+        } as unknown as DashboardSnapshot}
+      />
+    );
+
+    const loadedTabletBadge = screen.getByTestId("header-tablet-level-badge");
+    const loadedPlayerLevel = screen.getByTestId("header-player-level");
+    const loadedTotalXp = screen.getByTestId("header-total-xp");
+
+    expect(loadedTabletBadge.className).toContain("w-11 h-5");
+    expect(loadedTabletBadge.className).toContain("truncate");
+    expect(loadedPlayerLevel.className).toContain("w-11 h-5");
+    expect(loadedPlayerLevel.className).toContain("truncate");
+    expect(loadedTotalXp.className).toContain("w-16 h-4");
+    expect(loadedTotalXp.className).toContain("truncate");
+  });
+
+  it("47. verifies DashboardPage redirects to /login on unauthenticated error state", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+      ok: false,
+      status: 401,
+    } as Response);
+
+    render(
+      <AppShellProvider>
+        <DashboardPage />
+      </AppShellProvider>
+    );
+
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 10));
+    });
+
+    expect(mockRouterPush).toHaveBeenCalledWith("/login");
   });
 });

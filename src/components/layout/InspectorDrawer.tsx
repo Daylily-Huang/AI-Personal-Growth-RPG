@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useCallback, useState } from "react";
+import React, { useEffect, useRef, useCallback, useSyncExternalStore } from "react";
 import { X } from "lucide-react";
 
 export interface InspectorDrawerProps {
@@ -14,32 +14,44 @@ export interface InspectorDrawerProps {
   className?: string;
 }
 
+function getIsXlSnapshot(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    const xlToken = getComputedStyle(document.documentElement)
+      .getPropertyValue("--breakpoint-xl")
+      .trim();
+    if (!xlToken) return false;
+    return window.matchMedia(`(min-width: ${xlToken})`).matches;
+  } catch {
+    return false;
+  }
+}
+
+function subscribeToXlBreakpoint(callback: () => void): () => void {
+  if (typeof window === "undefined") return () => {};
+  try {
+    const xlToken = getComputedStyle(document.documentElement)
+      .getPropertyValue("--breakpoint-xl")
+      .trim();
+    if (!xlToken) return () => {};
+    const mq = window.matchMedia(`(min-width: ${xlToken})`);
+    mq.addEventListener("change", callback);
+    return () => mq.removeEventListener("change", callback);
+  } catch {
+    return () => {};
+  }
+}
+
 /**
  * Token-aware responsive hook that reads the frozen --breakpoint-xl authority
- * without hardcoding raw numbers in TypeScript.
+ * via useSyncExternalStore without hardcoding raw numbers in TypeScript.
  */
 function useIsXlBreakpoint(): boolean {
-  const [isXl, setIsXl] = useState(false);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    try {
-      const xlToken =
-        getComputedStyle(document.documentElement)
-          .getPropertyValue("--breakpoint-xl")
-          .trim() || "90rem";
-      const mq = window.matchMedia(`(min-width: ${xlToken})`);
-      const update = () => setIsXl(mq.matches);
-      update();
-      mq.addEventListener("change", update);
-      return () => mq.removeEventListener("change", update);
-    } catch {
-      // Graceful fallback
-    }
-  }, []);
-
-  return isXl;
+  return useSyncExternalStore(
+    subscribeToXlBreakpoint,
+    getIsXlSnapshot,
+    () => false
+  );
 }
 
 export function InspectorDrawer({
@@ -52,15 +64,49 @@ export function InspectorDrawer({
   mode = "auto",
   className = "",
 }: InspectorDrawerProps) {
-  const drawerRef = useRef<HTMLDivElement>(null);
-  const previousActiveElementRef = useRef<HTMLElement | null>(null);
+  const drawerRef = useRef<HTMLElement>(null);
+  const openerRef = useRef<HTMLElement | null>(null);
+  const wasOpenRef = useRef(false);
 
   const isXl = useIsXlBreakpoint();
 
   // Resolve effective behavioral mode from explicit prop or responsive token authority
   const isPush = mode === "push" || (mode === "auto" && isXl);
 
-  // Focus trap handler: active ONLY in modal mode
+  // 1. Stable Opener Capture & Focus Restoration Lifecycle
+  useEffect(() => {
+    if (open && !wasOpenRef.current) {
+      // Capture trigger element ONLY once on closed -> open transition
+      openerRef.current = document.activeElement as HTMLElement | null;
+      wasOpenRef.current = true;
+
+      // Shift initial focus into drawer only if modal mode
+      if (!isPush) {
+        requestAnimationFrame(() => {
+          const focusable = drawerRef.current?.querySelector<HTMLElement>(
+            'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+          );
+          if (focusable) {
+            focusable.focus();
+          } else {
+            drawerRef.current?.focus();
+          }
+        });
+      }
+    } else if (!open && wasOpenRef.current) {
+      wasOpenRef.current = false;
+      // Restore focus to original trigger when drawer closes
+      if (
+        openerRef.current &&
+        typeof openerRef.current.focus === "function" &&
+        document.body.contains(openerRef.current)
+      ) {
+        openerRef.current.focus();
+      }
+    }
+  }, [open, isPush]);
+
+  // 2. Keyboard Handler: Escape dismiss & Modal Focus Trapping
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (e.key === "Escape" || e.key === "Esc") {
@@ -69,7 +115,7 @@ export function InspectorDrawer({
         return;
       }
 
-      if (isPush) return; // Structural push panels preserve normal document Tab flow
+      if (isPush) return; // Structural push mode preserves normal document Tab flow
 
       if (e.key === "Tab") {
         if (!drawerRef.current) return;
@@ -107,143 +153,62 @@ export function InspectorDrawer({
 
   useEffect(() => {
     if (open) {
-      previousActiveElementRef.current = document.activeElement as HTMLElement | null;
       window.addEventListener("keydown", handleKeyDown);
-
-      if (!isPush) {
-        // Shift initial focus into modal drawer only
-        const focusable = drawerRef.current?.querySelector<HTMLElement>(
-          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
-        );
-        if (focusable) {
-          focusable.focus();
-        } else {
-          drawerRef.current?.focus();
-        }
-      }
     } else {
       window.removeEventListener("keydown", handleKeyDown);
-      // Restore focus to triggering element when closed
-      if (
-        previousActiveElementRef.current &&
-        typeof previousActiveElementRef.current.focus === "function" &&
-        document.body.contains(previousActiveElementRef.current)
-      ) {
-        previousActiveElementRef.current.focus();
-      }
     }
-
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [open, handleKeyDown, isPush]);
+  }, [open, handleKeyDown]);
 
   if (!open) return null;
 
   const hasTitle = Boolean(title);
 
-  // 1. Structural Push Mode (Explicit push or Auto at xl)
-  if (isPush) {
-    return (
-      <aside
-        ref={drawerRef}
-        role="region"
-        aria-labelledby={hasTitle ? "inspector-drawer-title" : undefined}
-        aria-label={!hasTitle ? "检查器" : undefined}
-        tabIndex={-1}
-        data-testid="inspector-drawer-root"
-        data-mode="push"
-        className={`relative z-10 shrink-0 h-full w-[var(--drawer-width-wide)] bg-[var(--surface-overlay)] border-l border-[var(--border-raised)] shadow-[var(--shadow-overlay)] flex flex-col ${className}`}
-      >
-        <div
-          data-testid="inspector-drawer-panel"
-          className="flex flex-col h-full w-full"
-        >
-          {/* Header */}
-          <div
-            data-testid="inspector-drawer-header"
-            className="h-[var(--header-height)] px-4 lg:px-6 border-b border-[var(--border-subtle)] flex items-center justify-between gap-3 shrink-0"
-          >
-            <div className="flex items-center gap-2 min-w-0">
-              {hasTitle && (
-                <h2
-                  id="inspector-drawer-title"
-                  data-testid="inspector-drawer-title"
-                  className="font-serif font-[var(--font-weight-semibold)] text-base text-[var(--text-primary)] tracking-[var(--tracking-wide)] truncate"
-                >
-                  {title}
-                </h2>
-              )}
-              {status && (
-                <div data-testid="inspector-drawer-status" className="shrink-0">
-                  {status}
-                </div>
-              )}
-            </div>
-
-            <button
-              type="button"
-              onClick={onClose}
-              data-testid="inspector-drawer-close"
-              aria-label="关闭抽屉"
-              className="w-8 h-8 rounded-[var(--radius-md)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover-neutral)] flex items-center justify-center min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] transition-colors duration-[var(--duration-fast)]"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-
-          {/* Body */}
-          <div
-            data-testid="inspector-drawer-body"
-            className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-4"
-          >
-            {children}
-          </div>
-
-          {/* Optional Footer */}
-          {actions && (
-            <div
-              data-testid="inspector-drawer-footer"
-              className="p-4 lg:px-6 border-t border-[var(--border-subtle)] bg-[var(--surface-base)] shrink-0 flex items-center justify-end gap-3"
-            >
-              {actions}
-            </div>
-          )}
-        </div>
-      </aside>
-    );
-  }
-
-  // 2. Viewport Modal Mode (Explicit modal or Auto below xl)
+  // Single Stable Subtree: aside root and children remain mounted across responsive transitions
   return (
-    <div
+    <aside
+      ref={drawerRef}
+      role={isPush ? "region" : undefined}
+      aria-labelledby={isPush && hasTitle ? "inspector-drawer-title" : undefined}
+      aria-label={isPush && !hasTitle ? "检查器" : undefined}
+      tabIndex={-1}
       data-testid="inspector-drawer-root"
-      data-mode="modal"
-      className="fixed inset-0 z-[var(--z-drawer)] flex flex-col justify-end md:flex-row md:justify-end overflow-hidden"
+      data-mode={isPush ? "push" : "modal"}
+      className={
+        isPush
+          ? `relative z-10 shrink-0 h-full w-[var(--drawer-width-wide)] bg-[var(--surface-overlay)] border-l border-[var(--border-raised)] shadow-[var(--shadow-overlay)] flex flex-col ${className}`
+          : `fixed inset-0 z-[var(--z-drawer)] flex flex-col justify-end md:flex-row md:justify-end overflow-hidden ${className}`
+      }
     >
-      {/* Backdrop */}
-      <div
-        data-testid="inspector-drawer-backdrop"
-        onClick={onClose}
-        aria-hidden="true"
-        className="absolute inset-0 bg-[var(--surface-modal-backdrop)] backdrop-blur-[var(--glass-blur-sm)] transition-opacity duration-[var(--duration-fast)]"
-      />
+      {/* Backdrop: rendered in modal mode only */}
+      {!isPush && (
+        <div
+          data-testid="inspector-drawer-backdrop"
+          onClick={onClose}
+          aria-hidden="true"
+          className="absolute inset-0 bg-[var(--surface-modal-backdrop)] backdrop-blur-[var(--glass-blur-sm)] transition-opacity duration-[var(--duration-fast)]"
+        />
+      )}
 
       {/* Slide-over Drawer Panel */}
       <div
-        ref={drawerRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={hasTitle ? "inspector-drawer-title" : undefined}
-        aria-label={!hasTitle ? "检查器" : undefined}
+        role={!isPush ? "dialog" : undefined}
+        aria-modal={!isPush ? "true" : undefined}
+        aria-labelledby={!isPush && hasTitle ? "inspector-drawer-title" : undefined}
+        aria-label={!isPush && !hasTitle ? "检查器" : undefined}
         tabIndex={-1}
         data-testid="inspector-drawer-panel"
-        className={`relative z-10 bg-[var(--surface-overlay)] border-[var(--border-raised)] shadow-[var(--shadow-overlay)] flex flex-col transition-transform ease-[var(--ease-drawer)] max-w-full 
-          w-full h-[var(--drawer-sheet-mobile-height)] rounded-t-[var(--radius-xl)] border-t duration-[var(--duration-drawer-mobile)]
-          md:h-full md:rounded-none md:border-t-0 md:border-l md:duration-[var(--duration-drawer)] md:w-[var(--drawer-width-tablet)]
-          lg:w-[var(--drawer-width-desktop)]
-          xl:w-[var(--drawer-width-wide)]
-          ${className}`}
+        className={
+          isPush
+            ? "flex flex-col h-full w-full"
+            : `relative z-10 bg-[var(--surface-overlay)] border-[var(--border-raised)] shadow-[var(--shadow-overlay)] flex flex-col transition-transform ease-[var(--ease-drawer)] max-w-full 
+              w-full h-[var(--drawer-sheet-mobile-height)] rounded-t-[var(--radius-xl)] border-t duration-[var(--duration-drawer-mobile)]
+              md:h-full md:rounded-none md:border-t-0 md:border-l md:duration-[var(--duration-drawer)] md:w-[var(--drawer-width-tablet)]
+              lg:w-[var(--drawer-width-desktop)]
+              xl:w-[var(--drawer-width-wide)]`
+        }
       >
         {/* Drawer Header */}
         <div
@@ -296,6 +261,6 @@ export function InspectorDrawer({
           </div>
         )}
       </div>
-    </div>
+    </aside>
   );
 }
