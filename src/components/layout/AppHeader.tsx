@@ -172,13 +172,19 @@ export function AppHeader({
             </div>
 
             {/* Optional Total XP on xl */}
-            {typeof totalXp === "number" && (
+            {typeof totalXp === "number" ? (
               <span
                 data-testid="header-total-xp"
                 className="hidden xl:inline-block text-xs font-mono text-[var(--text-secondary)] pl-1 border-l border-[var(--border-subtle)]"
               >
                 总 {totalXp}
               </span>
+            ) : (
+              <span
+                data-testid="header-total-xp-placeholder"
+                aria-hidden="true"
+                className="hidden xl:inline-block w-14 h-4 pl-1 border-l border-[var(--border-subtle)] opacity-0"
+              />
             )}
           </div>
         ) : (
@@ -191,6 +197,13 @@ export function AppHeader({
             <div className="flex flex-col gap-1 w-28 lg:w-36">
               <div className="w-16 h-3 rounded bg-[var(--surface-raised)] animate-pulse" />
               <div className="w-full h-[var(--progress-track-height)] rounded-full bg-[var(--surface-raised)]" />
+            </div>
+            {/* Reserved Total XP slot on xl for Zero Layout Shift */}
+            <div
+              data-testid="header-total-xp-skeleton"
+              className="hidden xl:inline-block w-14 h-4 pl-1 border-l border-[var(--border-subtle)]"
+            >
+              <div className="w-full h-full rounded bg-[var(--surface-raised)] animate-pulse" />
             </div>
           </div>
         )}

@@ -73,11 +73,14 @@ export function AppShellProvider({
     try {
       const res = await fetch("/api/dashboard");
       if (res.status === 401) {
+        setDashboard(null);
+        setDashboardError("unauthenticated");
         setDashboardLoading(false);
         return { ok: false, status: 401, error: "unauthenticated" };
       }
       if (!res.ok) {
         const msg = `Failed to load dashboard: ${res.status}`;
+        setDashboard(null);
         setDashboardError(msg);
         setDashboardLoading(false);
         return { ok: false, status: res.status, error: msg };
@@ -85,6 +88,7 @@ export function AppShellProvider({
       const data = await res.json();
       if (data.dashboard) {
         setDashboard(data.dashboard);
+        setDashboardError(null);
         setDashboardLoading(false);
         return { ok: true, status: 200, dashboard: data.dashboard };
       }
@@ -92,6 +96,7 @@ export function AppShellProvider({
       return { ok: true, status: 200 };
     } catch (e) {
       const err = e instanceof Error ? e.message : "Unknown error";
+      setDashboard(null);
       setDashboardError(err);
       setDashboardLoading(false);
       return { ok: false, error: err };
@@ -106,19 +111,10 @@ export function AppShellProvider({
 
     let ignore = false;
     async function loadInitial() {
-      try {
-        const res = await fetch("/api/dashboard");
-        if (res.ok) {
-          const data = await res.json();
-          if (!ignore && data.dashboard) {
-            setDashboard((prev) => prev ?? data.dashboard);
-            setDashboardLoading(false);
-          }
-        } else {
-          if (!ignore) setDashboardLoading(false);
-        }
-      } catch {
-        if (!ignore) setDashboardLoading(false);
+      const res = await refreshDashboard();
+      if (ignore) return;
+      if (res.status === 401) {
+        setDashboardError("unauthenticated");
       }
     }
 
@@ -126,7 +122,7 @@ export function AppShellProvider({
     return () => {
       ignore = true;
     };
-  }, [initialDashboard]);
+  }, [initialDashboard, refreshDashboard]);
 
   // Resolve session email if configured
   useEffect(() => {

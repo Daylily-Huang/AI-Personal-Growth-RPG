@@ -402,20 +402,50 @@ describe("Global App Shell — Phase 2 Architecture & Component Verification", (
     expect(panel.getAttribute("aria-modal")).toBe("true");
   });
 
-  it("22. verifies InspectorDrawer mode='auto' renders responsive hybrid layout (modal below xl, push on xl)", () => {
+  it("22. verifies InspectorDrawer mode='auto' resolves modal below xl and structural push at xl", () => {
+    // 1. Below xl: modal behavior (role=dialog, aria-modal=true, backdrop present)
+    const { unmount } = render(
+      <InspectorDrawer open={true} onClose={vi.fn()} title="自适应抽屉" mode="auto">
+        <div>自适应内容</div>
+      </InspectorDrawer>
+    );
+
+    const modalRoot = screen.getByTestId("inspector-drawer-root");
+    expect(modalRoot.className).toContain("fixed inset-0");
+    expect(screen.getByTestId("inspector-drawer-backdrop")).toBeTruthy();
+    const modalPanel = screen.getByTestId("inspector-drawer-panel");
+    expect(modalPanel.getAttribute("role")).toBe("dialog");
+    expect(modalPanel.getAttribute("aria-modal")).toBe("true");
+
+    unmount();
+
+    // 2. At xl: structural push behavior (role=region, aria-modal absent, no backdrop, non-fixed)
+    const originalMatchMedia = window.matchMedia;
+    window.matchMedia = vi.fn().mockImplementation((query) => ({
+      matches: true,
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }));
+
     render(
       <InspectorDrawer open={true} onClose={vi.fn()} title="自适应抽屉" mode="auto">
         <div>自适应内容</div>
       </InspectorDrawer>
     );
 
-    const root = screen.getByTestId("inspector-drawer-root");
-    expect(root.className).toContain("fixed inset-0");
-    expect(root.className).toContain("xl:static");
-    expect(root.className).toContain("xl:w-[var(--drawer-width-wide)]");
+    const pushRoot = screen.getByTestId("inspector-drawer-root");
+    expect(pushRoot.tagName.toLowerCase()).toBe("aside");
+    expect(pushRoot.getAttribute("role")).toBe("region");
+    expect(pushRoot.className).not.toContain("fixed inset-0");
+    expect(pushRoot.className).toContain("w-[var(--drawer-width-wide)]");
+    expect(screen.queryByTestId("inspector-drawer-backdrop")).toBeNull();
 
-    const backdrop = screen.getByTestId("inspector-drawer-backdrop");
-    expect(backdrop.className).toContain("xl:hidden");
+    window.matchMedia = originalMatchMedia;
   });
 
   it("23. verifies InspectorDrawer closes on Escape key in modal mode", () => {
@@ -633,5 +663,53 @@ describe("Global App Shell — Phase 2 Architecture & Component Verification", (
     const disabledArtifact = screen.getByTestId("nav-item-disabled-产出台");
     expect(disabledArtifact.getAttribute("aria-label")).toBe("产出台，即将开放");
     expect(disabledArtifact.getAttribute("title")).toBe("产出台 (即将开放)");
+  });
+
+  it("39. verifies AppHeader progression skeleton reserves the Total XP segment for zero layout shift at xl", () => {
+    render(<AppHeader dashboard={null} />);
+    const totalXpSkeleton = screen.getByTestId("header-total-xp-skeleton");
+    expect(totalXpSkeleton).toBeTruthy();
+    expect(totalXpSkeleton.className).toContain("hidden xl:inline-block");
+  });
+
+  it("40. verifies no undefined drawer token or raw 45px calculation exists in skills/knowledge pages", () => {
+    const skillsContent = fs.readFileSync(path.resolve(process.cwd(), "src/app/skills/page.tsx"), "utf8");
+    const knowledgeContent = fs.readFileSync(path.resolve(process.cwd(), "src/app/knowledge/page.tsx"), "utf8");
+
+    expect(skillsContent).not.toContain("--drawer-width-collapsed");
+    expect(knowledgeContent).not.toContain("--drawer-width-collapsed");
+    expect(skillsContent).not.toContain("45px");
+    expect(knowledgeContent).not.toContain("45px");
+  });
+
+  it("41. verifies Knowledge truncation banner does NOT consume progression Gold", () => {
+    const knowledgeContent = fs.readFileSync(path.resolve(process.cwd(), "src/app/knowledge/page.tsx"), "utf8");
+    expect(knowledgeContent).not.toContain("gold-400");
+    expect(knowledgeContent).not.toContain("gold-300");
+  });
+
+  it("42. verifies AppShellProvider handles initial 500 error and sets dashboardError", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+    } as Response);
+
+    function ErrorConsumer() {
+      const { dashboardError, dashboardLoading } = useAppShell();
+      if (dashboardLoading) return <div>loading</div>;
+      return <div data-testid="error-result">{dashboardError}</div>;
+    }
+
+    render(
+      <AppShellProvider>
+        <ErrorConsumer />
+      </AppShellProvider>
+    );
+
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 10));
+    });
+
+    expect(screen.getByTestId("error-result").textContent).toContain("Failed to load dashboard: 500");
   });
 });

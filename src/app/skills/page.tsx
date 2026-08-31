@@ -299,8 +299,8 @@ export default function SkillsPage() {
             onClick={() => setMobileNavOpen(false)}
             className="fixed inset-0 z-40 bg-[var(--surface-modal-backdrop)] backdrop-blur-[var(--glass-blur-sm)] lg:hidden"
           />
-          <div className="fixed inset-y-0 left-0 z-50 w-[var(--drawer-width-collapsed)] min-w-[280px] max-w-[85vw] border-r border-[var(--border-raised)] bg-[var(--surface-overlay)] shadow-[var(--shadow-overlay)] lg:hidden">
-            <div className="flex items-center justify-between border-b border-[var(--border-subtle)] px-3 py-2.5">
+          <div className="fixed inset-y-0 left-0 z-50 w-[var(--sidebar-width-expanded)] max-w-[85vw] flex flex-col border-r border-[var(--border-raised)] bg-[var(--surface-overlay)] shadow-[var(--shadow-overlay)] lg:hidden">
+            <div className="flex items-center justify-between border-b border-[var(--border-subtle)] px-3 py-2.5 shrink-0">
               <span className="text-sm font-[var(--font-weight-medium)] text-[var(--text-primary)]">筛选</span>
               <button
                 type="button"
@@ -311,7 +311,7 @@ export default function SkillsPage() {
                 ✕
               </button>
             </div>
-            <div className="h-[calc(100%-45px)]">{filterPanel}</div>
+            <div className="flex-1 min-h-0 overflow-y-auto">{filterPanel}</div>
           </div>
         </>
       ) : null}

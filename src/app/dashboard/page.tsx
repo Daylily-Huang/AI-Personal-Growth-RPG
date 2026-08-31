@@ -71,6 +71,13 @@ export default function DashboardPage() {
     }
   }, [router, shellCtx]);
 
+  // Handle initial 401 unauthenticated redirect from AppShellProvider
+  useEffect(() => {
+    if (shellCtx?.dashboardError === "unauthenticated") {
+      router.push("/login");
+    }
+  }, [shellCtx?.dashboardError, router]);
+
   // Only run independent mount fetch if NOT inside AppShellProvider
   useEffect(() => {
     if (shellCtx) {

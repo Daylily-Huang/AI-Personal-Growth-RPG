@@ -266,7 +266,7 @@ export default function KnowledgeMapPage() {
               data-testid="graph-truncated-banner"
               className="absolute left-4 top-4 z-20 flex items-center gap-2 rounded-[var(--radius-md)] border border-[var(--state-warning-border)] bg-[var(--surface-overlay)] px-3 py-1.5 text-xs text-[var(--state-warning-text)] backdrop-blur-[var(--glass-blur-md)] shadow-[var(--shadow-overlay)]"
             >
-              <Sparkles className="h-3.5 w-3.5 text-[var(--gold-400)] shrink-0" />
+              <Sparkles className="h-3.5 w-3.5 text-[var(--state-warning-text)] shrink-0" />
               <span>
                 当前图谱节点较多，已截取前 {graph.nodes.length} 个核心节点（总计 {graph.stats.totalNodes}）。可点击节点进行局部展开。
               </span>
@@ -400,8 +400,8 @@ export default function KnowledgeMapPage() {
             onClick={() => setMobileNavOpen(false)}
             className="fixed inset-0 z-40 bg-[var(--surface-modal-backdrop)] backdrop-blur-[var(--glass-blur-sm)] lg:hidden"
           />
-          <div className="fixed inset-y-0 left-0 z-50 w-[var(--drawer-width-collapsed)] min-w-[280px] max-w-[85vw] border-r border-[var(--border-raised)] bg-[var(--surface-overlay)] shadow-[var(--shadow-overlay)] lg:hidden">
-            <div className="flex items-center justify-between border-b border-[var(--border-subtle)] px-3 py-2.5">
+          <div className="fixed inset-y-0 left-0 z-50 w-[var(--sidebar-width-expanded)] max-w-[85vw] flex flex-col border-r border-[var(--border-raised)] bg-[var(--surface-overlay)] shadow-[var(--shadow-overlay)] lg:hidden">
+            <div className="flex items-center justify-between border-b border-[var(--border-subtle)] px-3 py-2.5 shrink-0">
               <span className="text-sm font-[var(--font-weight-medium)] text-[var(--text-primary)]">知识筛选</span>
               <button
                 type="button"
@@ -412,7 +412,7 @@ export default function KnowledgeMapPage() {
                 ✕
               </button>
             </div>
-            <div className="h-[calc(100%-45px)]">{filterPanel}</div>
+            <div className="flex-1 min-h-0 overflow-y-auto">{filterPanel}</div>
           </div>
         </>
       )}

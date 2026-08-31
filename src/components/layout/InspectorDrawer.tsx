@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useCallback } from "react";
+import React, { useEffect, useRef, useCallback, useState } from "react";
 import { X } from "lucide-react";
 
 export interface InspectorDrawerProps {
@@ -12,6 +12,34 @@ export interface InspectorDrawerProps {
   children: React.ReactNode;
   mode?: "modal" | "push" | "auto";
   className?: string;
+}
+
+/**
+ * Token-aware responsive hook that reads the frozen --breakpoint-xl authority
+ * without hardcoding raw numbers in TypeScript.
+ */
+function useIsXlBreakpoint(): boolean {
+  const [isXl, setIsXl] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    try {
+      const xlToken =
+        getComputedStyle(document.documentElement)
+          .getPropertyValue("--breakpoint-xl")
+          .trim() || "90rem";
+      const mq = window.matchMedia(`(min-width: ${xlToken})`);
+      const update = () => setIsXl(mq.matches);
+      update();
+      mq.addEventListener("change", update);
+      return () => mq.removeEventListener("change", update);
+    } catch {
+      // Graceful fallback
+    }
+  }, []);
+
+  return isXl;
 }
 
 export function InspectorDrawer({
@@ -27,10 +55,12 @@ export function InspectorDrawer({
   const drawerRef = useRef<HTMLDivElement>(null);
   const previousActiveElementRef = useRef<HTMLElement | null>(null);
 
-  const isPurePush = mode === "push";
-  const isPureModal = mode === "modal";
+  const isXl = useIsXlBreakpoint();
 
-  // Focus trap handler: active for modal mode, and below xl for auto mode
+  // Resolve effective behavioral mode from explicit prop or responsive token authority
+  const isPush = mode === "push" || (mode === "auto" && isXl);
+
+  // Focus trap handler: active ONLY in modal mode
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (e.key === "Escape" || e.key === "Esc") {
@@ -39,7 +69,7 @@ export function InspectorDrawer({
         return;
       }
 
-      if (isPurePush) return; // Structural push panels preserve normal document tab flow
+      if (isPush) return; // Structural push panels preserve normal document Tab flow
 
       if (e.key === "Tab") {
         if (!drawerRef.current) return;
@@ -72,7 +102,7 @@ export function InspectorDrawer({
         }
       }
     },
-    [onClose, isPurePush]
+    [onClose, isPush]
   );
 
   useEffect(() => {
@@ -80,8 +110,8 @@ export function InspectorDrawer({
       previousActiveElementRef.current = document.activeElement as HTMLElement | null;
       window.addEventListener("keydown", handleKeyDown);
 
-      if (!isPurePush) {
-        // Shift initial focus into the modal drawer
+      if (!isPush) {
+        // Shift initial focus into modal drawer only
         const focusable = drawerRef.current?.querySelector<HTMLElement>(
           'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
         );
@@ -106,14 +136,14 @@ export function InspectorDrawer({
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [open, handleKeyDown, isPurePush]);
+  }, [open, handleKeyDown, isPush]);
 
   if (!open) return null;
 
   const hasTitle = Boolean(title);
 
-  // 1. Explicit Structural Push Mode (Side-by-side flex/grid participant, never fixed overlay)
-  if (isPurePush) {
+  // 1. Structural Push Mode (Explicit push or Auto at xl)
+  if (isPush) {
     return (
       <aside
         ref={drawerRef}
@@ -184,41 +214,35 @@ export function InspectorDrawer({
     );
   }
 
-  // 2. Modal & Auto Responsive Modes
+  // 2. Viewport Modal Mode (Explicit modal or Auto below xl)
   return (
     <div
       data-testid="inspector-drawer-root"
-      data-mode={mode}
-      className={`fixed inset-0 z-[var(--z-drawer)] flex flex-col justify-end md:flex-row md:justify-end overflow-hidden pointer-events-none ${
-        mode === "auto"
-          ? "xl:static xl:z-auto xl:h-full xl:w-[var(--drawer-width-wide)] xl:shrink-0 xl:flex-none xl:pointer-events-auto"
-          : ""
-      }`}
+      data-mode="modal"
+      className="fixed inset-0 z-[var(--z-drawer)] flex flex-col justify-end md:flex-row md:justify-end overflow-hidden"
     >
-      {/* Backdrop (rendered for modal mode; hidden on xl in auto mode) */}
+      {/* Backdrop */}
       <div
         data-testid="inspector-drawer-backdrop"
         onClick={onClose}
         aria-hidden="true"
-        className={`absolute inset-0 bg-[var(--surface-modal-backdrop)] backdrop-blur-[var(--glass-blur-sm)] transition-opacity duration-[var(--duration-fast)] pointer-events-auto ${
-          mode === "auto" ? "xl:hidden" : ""
-        }`}
+        className="absolute inset-0 bg-[var(--surface-modal-backdrop)] backdrop-blur-[var(--glass-blur-sm)] transition-opacity duration-[var(--duration-fast)]"
       />
 
       {/* Slide-over Drawer Panel */}
       <div
         ref={drawerRef}
-        role={isPureModal ? "dialog" : undefined}
-        aria-modal={isPureModal ? "true" : undefined}
+        role="dialog"
+        aria-modal="true"
         aria-labelledby={hasTitle ? "inspector-drawer-title" : undefined}
         aria-label={!hasTitle ? "检查器" : undefined}
         tabIndex={-1}
         data-testid="inspector-drawer-panel"
-        className={`relative z-10 pointer-events-auto bg-[var(--surface-overlay)] border-[var(--border-raised)] shadow-[var(--shadow-overlay)] flex flex-col transition-transform ease-[var(--ease-drawer)] max-w-full 
+        className={`relative z-10 bg-[var(--surface-overlay)] border-[var(--border-raised)] shadow-[var(--shadow-overlay)] flex flex-col transition-transform ease-[var(--ease-drawer)] max-w-full 
           w-full h-[var(--drawer-sheet-mobile-height)] rounded-t-[var(--radius-xl)] border-t duration-[var(--duration-drawer-mobile)]
           md:h-full md:rounded-none md:border-t-0 md:border-l md:duration-[var(--duration-drawer)] md:w-[var(--drawer-width-tablet)]
           lg:w-[var(--drawer-width-desktop)]
-          ${mode === "auto" ? "xl:static xl:h-full xl:w-full xl:border-l xl:shadow-none" : "xl:w-[var(--drawer-width-wide)]"}
+          xl:w-[var(--drawer-width-wide)]
           ${className}`}
       >
         {/* Drawer Header */}
