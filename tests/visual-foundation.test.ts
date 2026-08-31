@@ -13,11 +13,19 @@ export const FROZEN_BACKEND_DENYLIST = [
   'src/lib/supabase/',
   'src/lib/http/',
   'src/lib/auth/',
+  'src/proxy.ts',
+  'src/types/artifact.ts',
   'src/lib/knowledge/authority-service.ts',
   'src/lib/knowledge/types.ts',
   'src/lib/skills/derived-state.ts',
   '0041_artifact_management_authority.sql',
   '0042_artifact_settlement_integration.sql',
+];
+
+export const VISUAL_PRESENTATION_HELPERS = [
+  'src/lib/knowledge/graph-layout.ts',
+  'src/lib/skills/layout.ts',
+  'src/lib/ui-utils.ts',
 ];
 
 export const VISUAL_MIGRATION_SURFACES = [
@@ -29,6 +37,10 @@ export const VISUAL_MIGRATION_SURFACES = [
 ];
 
 export function isVisualMigrationPath(filePath: string): boolean {
+  // Explicitly approved presentation-only helpers
+  if (VISUAL_PRESENTATION_HELPERS.some((helper) => filePath === helper || filePath.endsWith(helper))) {
+    return true;
+  }
   // src/app/** EXCEPT src/app/api/** is a visual/page presentation surface
   if (filePath.startsWith('src/app/') && !filePath.startsWith('src/app/api/')) {
     return true;
@@ -347,13 +359,51 @@ describe('Visual Foundation & Design Tokens Runtime Verification', () => {
     ]);
   });
 
-  it('14. verifies that presentation and layout helpers (graph-layout, layout) are intentionally NOT frozen', () => {
-    expect(isFrozenBackendViolation('src/lib/knowledge/graph-layout.ts')).toBe(false);
-    expect(isFrozenBackendViolation('src/lib/skills/layout.ts')).toBe(false);
-    expect(isFrozenBackendViolation('src/lib/ui-utils.ts')).toBe(false);
+  it('14. verifies unit rejection when visual PR delta contains frozen Artifact domain types or proxy auth middleware', () => {
+    const visualPlusArtifactProxyDelta = [
+      'src/components/layout/AppShell.tsx',
+      'src/types/artifact.ts',
+      'src/proxy.ts',
+    ];
+    const result = validateVisualMigrationDelta(visualPlusArtifactProxyDelta);
+    expect(result.isVisualPR).toBe(true);
+    expect(result.violations).toEqual([
+      'src/types/artifact.ts',
+      'src/proxy.ts',
+    ]);
   });
 
-  it('15. verifies that future visual PRs without design-tokens.css/globals.css pass cleanly', () => {
+  it('15. verifies that approved presentation helpers alone are classified as visual migration without violations', () => {
+    const graphLayoutDelta = ['src/lib/knowledge/graph-layout.ts'];
+    const graphResult = validateVisualMigrationDelta(graphLayoutDelta);
+    expect(graphResult.isVisualPR).toBe(true);
+    expect(graphResult.violations).toEqual([]);
+
+    const skillLayoutDelta = ['src/lib/skills/layout.ts'];
+    const skillResult = validateVisualMigrationDelta(skillLayoutDelta);
+    expect(skillResult.isVisualPR).toBe(true);
+    expect(skillResult.violations).toEqual([]);
+  });
+
+  it('16. verifies unit rejection when presentation helper is combined with frozen backend or domain authority', () => {
+    const helperPlusApiDelta = [
+      'src/lib/knowledge/graph-layout.ts',
+      'src/app/api/knowledge/route.ts',
+    ];
+    const helperApiResult = validateVisualMigrationDelta(helperPlusApiDelta);
+    expect(helperApiResult.isVisualPR).toBe(true);
+    expect(helperApiResult.violations).toEqual(['src/app/api/knowledge/route.ts']);
+
+    const helperPlusDerivedStateDelta = [
+      'src/lib/skills/layout.ts',
+      'src/lib/skills/derived-state.ts',
+    ];
+    const helperDerivedResult = validateVisualMigrationDelta(helperPlusDerivedStateDelta);
+    expect(helperDerivedResult.isVisualPR).toBe(true);
+    expect(helperDerivedResult.violations).toEqual(['src/lib/skills/derived-state.ts']);
+  });
+
+  it('17. verifies that future visual PRs without design-tokens.css/globals.css pass cleanly', () => {
     const futureVisualPRDelta = [
       'src/components/AppShell.tsx',
       'src/components/Sidebar.tsx',
@@ -364,7 +414,17 @@ describe('Visual Foundation & Design Tokens Runtime Verification', () => {
     expect(result.violations).toEqual([]);
   });
 
-  it('16. verifies that push-to-main or empty delta is not misclassified or failed', () => {
+  it('18. verifies that backend-only PRs are not misclassified as visual migration PRs', () => {
+    const backendOnlyDelta = [
+      'src/app/api/activities/route.ts',
+      'supabase/migrations/0041_artifact_management_authority.sql',
+    ];
+    const result = validateVisualMigrationDelta(backendOnlyDelta);
+    expect(result.isVisualPR).toBe(false);
+    expect(result.violations).toEqual([]);
+  });
+
+  it('19. verifies that push-to-main or empty delta is not misclassified or failed', () => {
     const emptyDelta: string[] = [];
     const result = validateVisualMigrationDelta(emptyDelta);
     expect(result.isVisualPR).toBe(false);
