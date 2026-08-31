@@ -2,65 +2,72 @@
 
 > **Status**: DESIGN FREEZE  
 > **Milestone**: Stage 7 (Artifact Management & Synthesis System)  
-> **Dependencies**: Stage 0–6 (FROZEN)  
+> **Dependencies**: Stage 0–6 (FROZEN), Stage 7A/7B (FROZEN), Global Visual Design Freeze (PREREQUISITE)  
 > **Related Documents**: `01_ARTIFACT_DOMAIN_MODEL.md`, `02_ARTIFACT_AUTHORITY_RULES.md`, `03_ARTIFACT_API_AND_STATE.md`, `05_STAGE7_IMPLEMENTATION_PLAN.md`, `06_STAGE7_ACCEPTANCE_GATES.md`
 
 ---
 
 ## 1. User Experience & Layout Architecture
 
-The Artifact workspace lives at `/artifacts` and provides an intuitive, high-density dashboard for reviewing, organizing, and inspecting durable work products.
+The Artifact workspace lives at `/artifacts` and is rendered inside the global `AppShell` (inheriting `AppSidebar` and `AppHeader`), providing a cohesive 3-column workspace for reviewing, organizing, and inspecting durable work products.
 
 ```text
-+----------------------------------------------------------------------------------------------------+
-| Header: AI Personal Growth RPG | Quests | Skills | Knowledge Map | [Artifacts] | Dashboard | User  |
-+--------------------------+----------------------------------------------+--------------------------+
-| Left: Filter & Taxonomy  | Center: Artifact Gallery & List              | Right: Detail Drawer     |
-| [Search artifacts...]    | + [+ New Artifact]    [Grid | List]          | [Title: LTP RFC] [Edit]  |
-|                          |                                              | Type: Design Spec (1.0)  |
-| Types:                   | +------------------------------------------+ | Reusability: 90% (High)  |
-| - [x] All Types (14)     | | [RFC] Neural Plasticity Paper            | | External: [GitHub PR #8] |
-| - [ ] Document (4)       | | Type: Document | v1.2 | Reusability: 85% | |                          |
-| - [ ] Code Repo (5)      | | Links: 2 Skills, 4 Nodes, 1 Quest, 1 Ev  | | --- Summary ---        |
-| - [ ] Design Spec (3)    | +------------------------------------------+ | Architecture spec for... |
-| - [ ] Data Analysis (2)  | | [CODE] Knowledge Canvas ReactFlow Engine | |                          |
-|                          | | Type: Code Repo | v2.0 | Reusability: 95%| | --- Linked Skills ---   |
-| Status Filter:           | | Links: 1 Skill, 3 Nodes, 2 Quests        | | - Neuroscience (Lvl 3) |
-| (o) Active (12)          | +------------------------------------------+ |                          |
-| ( ) Drafts (2)           | | [DESIGN] System Database Schema (0039)   | | --- Knowledge Nodes ---|
-| ( ) Superseded (1)       | | Type: Design Spec | Superseded           | | - LTP (Verified)       |
-| ( ) Archived (2)         | +------------------------------------------+ |                          |
-| ( ) All (17)             |                                              | --- Linked Evidence ---  |
-|                          |                                              | - Level 4 (Verified)     |
-| Linked Skill Filter:     |                                              |   Grounding for Neuro    |
-| [All Skills           v] |                                              |                          |
-|                          |                                              | [Archive]   [Delete]     |
-+--------------------------+----------------------------------------------+--------------------------+
+┌────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ AppShell                                                                                           │
+│ ┌──────────────┬─────────────────────────────────────────────────────────────────────────────────┐ │
+│ │ AppSidebar   │ AppHeader: 产出台 (Artifacts) / Breadcrumbs • LV.14 • XP Progress               │ │
+│ │ (Global Nav) ├─────────────────────────────────────────────────────────────────────────────────┤ │
+│ │              │ AppWorkspace                                                                    │ │
+│ │ • Dashboard  │ ┌─────────────────────────┬───────────────────────────────┬───────────────────┐ │ │
+│ │ • Quests     │ │ Left: Filter & Taxonomy │ Center: Artifact Gallery/List │ InspectorDrawer   │ │ │
+│ │ • Skills     │ │ [Search artifacts...]   │ [+ New Artifact] [Grid|List]  │ (ArtifactInspector│ │ │
+│ │ • Knowledge  │ │                         │ ┌───────────────────────────┐ │  Content)         │ │ │
+│ │ • Artifacts* │ │ Artifact Types (8):     │ │ [RFC] Neural Plasticity   │ │ Title: LTP RFC    │ │ │
+│ │ • Settings   │ │ - [x] All Types (14)    │ │ Type: Document | v1.2.0   │ │ Type: Design Spec │ │ │
+│ │              │ │ - [ ] Document (4)      │ │ Reusability: 0.85         │ │ Reusability: 0.90 │ │ │
+│ │              │ │ - [ ] Code Repo (5)     │ │ Links: 2 Sk, 4 Kn, 1 Ev   │ │ External: [PR #8] │ │ │
+│ │              │ │ - [ ] Design Spec (3)   │ └───────────────────────────┘ │ --- Summary ---   │ │ │
+│ │              │ │                         │ ┌───────────────────────────┐ │ Spec for LTP...   │ │ │
+│ │              │ │ Status Filter:          │ │ [CODE] ReactFlow Canvas   │ │ --- Relations --│ │ │
+│ │              │ │ (o) Active (12)         │ │ Type: Code Repo | v2.0.0  │ │ • Skills (Demo) │ │ │
+│ │              │ │ ( ) Drafts (2)          │ │ Reusability: 0.95         │ │ • Knowledge (4) │ │ │
+│ │              │ │ ( ) Superseded (1)      │ └───────────────────────────┘ │ • Quests (1)      │ │ │
+│ │              │ │ ( ) Archived (2)        │ ┌───────────────────────────┐ │ • Activities (1)  │ │ │
+│ │              │ │                         │ │ [SPEC] Database Schema    │ │ • Evidence (E4) │ │ │
+│ │              │ │ Linked Skill Filter:    │ │ Type: Design Spec | Super │ │                   │ │ │
+│ │              │ │ [All Skills          v] │ └───────────────────────────┘ │ [Edit]  [Archive]│ │ │
+│ │ [Collapse <] │ └─────────────────────────┴───────────────────────────────┴───────────────────┘ │ │
+│ └──────────────┴─────────────────────────────────────────────────────────────────────────────────┘ │
+└────────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
 ## 2. Component Specifications
 
-### 2.1 Artifact Card (Center Grid/List View)
-- **Type Icon & Badge**: Visually distinguishes `document`, `code_repository`, `design_spec`, `data_analysis`, `presentation`, `synthesis_note`, `creative_work`, `other`.
+### 2.1 Artifact Card (`ArtifactCard`)
+- **Type Icon & Badge**: Visually distinguishes the 8 canonical types (`document`, `code_repository`, `design_spec`, `data_analysis`, `presentation`, `synthesis_note`, `creative_work`, `other`).
 - **Title & Version Pill**: Clear typography with semantic version tag (e.g. `v1.0.0`).
-- **Lifecycle Badge**: Distinct visual styling for `Draft` (dashed outline), `Active` (solid slate), `Superseded` (muted indigo badge with rewind icon), and `Archived` (muted gray).
+- **Lifecycle Badge**: Dedicated `StatusBadge` styling consuming frozen tokens (`var(--status-draft-*)`, `var(--status-active-*)`, `var(--status-superseded-*)`, `var(--status-archived-*)`).
 - **Summary Preview**: Truncated 2-line preview of the deliverable abstract.
-- **Reusability Score Bar**: Color-coded progress bar (0% - 100%) indicating how reusable the artifact is.
+- **Reusability Score Bar**: Color-coded progress bar (0.00 - 1.00) indicating deliverable reusability.
 - **Relationship Count Badges**: Pill chips showing attached counts (`2 Skills`, `4 Knowledge Nodes`, `1 Quest`, `1 Evidence`).
-- **Selection State**: Amber/gold highlight ring when selected and open in the right drawer.
+- **Selection State**: Entity selection border (`var(--entity-artifact-border)` / `var(--selection-neutral-border)`) when active. Generic selection does NOT consume progression Gold.
 
-### 2.2 Right Detail Drawer (Artifact Inspector)
+### 2.2 Right Detail Drawer (`ArtifactInspectorContent`)
 - **Header**: Title, Type pill, Version tag, External link button (opens GitHub / arXiv / Figma in new tab).
 - **Metadata Section**: Reusability score meter, created date, last updated date, lifecycle status.
 - **Summary & Description**: Formatted markdown rendering for detailed notes.
 - **Relational Accordions (All 5 Entity Types)**:
-  - **Linked Skills**: Lists attached skills with player's current level and demonstration rating (1..5).
-  - **Knowledge Nodes**: Lists synthesized/cited knowledge facts with epistemic badges (`verified`, `inferred`) and relation types (`synthesizes`, `cites`, `implements`, `evaluates`).
+  - **Linked Skills**: Lists attached skills directly from the frozen `ArtifactSkillLink` read model:
+    - Skill name (`name`)
+    - Cumulative Skill Level (`level`, e.g. `Lvl 3` from `ArtifactSkillLink.level`)
+    - Artifact Demonstration Level (`demonstrationLevel`, integer 1..5, e.g. `Demonstration Level 4/5` from `ArtifactSkillLink.demonstrationLevel`).
+    - *Invariant*: `Artifact Skill Demonstration Level (1..5) != Skill Mastery (M0–M10)`. Demonstration level is never displayed as M0–M10.
+  - **Knowledge Nodes**: Lists synthesized/cited knowledge concepts with 4 authority badges (`verified`, `inferred`, `rejected`, `superseded`), epistemic confidence ($\le 0.95$ for inferred), and 4 relation types (`cites`, `implements`, `synthesizes`, `evaluates`).
   - **Linked Quests**: Lists associated quest goals and deliverable fulfillment flags (`isPrimaryDeliverable`).
   - **Originating Activities**: Links to the activity sessions during which this artifact was produced (`activityRole: produced | referenced | modified`).
-  - **Linked Evidence**: Lists attached mastery evidence records with `evidenceLevel` (E0..E6), `verified` state badge, and audit description.
+  - **Linked Evidence**: Lists attached mastery evidence records with `evidenceLevel` (**E0..E6**), `verified` state badge, and audit description.
 - **Action Footer**:
   - `[Edit Metadata]` $\rightarrow$ Opens Edit Modal.
   - `[Manage Links]` $\rightarrow$ Opens Relationship Management Dialog.
@@ -83,7 +90,7 @@ The Artifact workspace lives at `/artifacts` and provides an intuitive, high-den
 ### 3.3 Manage Links Dialog (Relationship Manager)
 - Tabbed or multi-section modal for batch attaching / detaching links across:
   1. **Activities**: Select originating activity and assign role (`produced`, `referenced`, `modified`).
-  2. **Skills**: Select target skill and assign demonstration level (1..5).
+  2. **Skills**: Select target skill and assign `demonstrationLevel` (integer 1..5).
   3. **Knowledge Nodes**: Select concept/claim and assign relation type (`cites`, `implements`, `synthesizes`, `evaluates`).
   4. **Quests**: Select quest and toggle `isPrimaryDeliverable`.
   5. **Evidence**: Attach / detach proof records (`public.evidence_records`).
@@ -103,11 +110,8 @@ The Artifact workspace lives at `/artifacts` and provides an intuitive, high-den
 
 ---
 
-## 4. Design-Sequence Checkpoint
+## 4. Implementation Prerequisite
 
 > [!IMPORTANT]
-> **Design-Sequence Checkpoint (Pre-Stage 7C)**:
-> Before building Stage 7C UI components, we will pause and evaluate extracting:
-> 1. Global App Shell & Navigation Bar (unifying Dashboard, Quests, Skills, Knowledge Map, and Artifacts).
-> 2. Shared Drawer & Inspector Primitives (unifying Knowledge Detail Drawer and Artifact Detail Drawer).
-> 3. Shared Design Tokens (colors, typography, cards, badges).
+> **Prerequisite for Stage 7C UI Implementation**:
+> Stage 7C UI implementation begins directly by consuming the **FINAL FROZEN Global Visual Design System** (`AppShell`, `InspectorDrawer`, `ArtifactInspectorContent`, `GlassPanel`, `RPGCard`, `StatusBadge`, and shared primitives). No further design-sequence checkpoints are required.

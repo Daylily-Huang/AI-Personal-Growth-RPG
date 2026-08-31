@@ -19,16 +19,19 @@ graph TD
         A5 --> A6[Live PostgreSQL Authority Test Suite: 42/42 PASS]
     end
 
-    subgraph Stage 7B: API, Read-Model & Settlement [FINAL FREEZE CANDIDATE / REVIEWER PENDING]
+    subgraph Stage 7B: API, Read-Model & Settlement [FINAL FROZEN]
         B1[Artifact Repository & Link Service] --> B2[RESTful Endpoints /api/artifacts]
         B2 --> B3[Batch Relationship Management: All 5 Entities]
         B3 --> B4[0042 Migration: AI Proposal Resolution & Atomic Settlement]
-        B4 --> B5[HTTP Integration Tests: 15 Gate 7B Verification Cases]
+        B4 --> B5[HTTP Integration Tests: 15 Gate 7B Verification Cases: 41/41 PASS]
     end
 
-    subgraph Stage 7C: Interactive UI [BLOCKED PENDING GLOBAL VISUAL DESIGN FREEZE]
-        C0[Design-Sequence Checkpoint] --> C1[Artifacts Gallery & List View]
-        C1 --> C2[Detail Inspector Drawer: 5 Relational Accordions]
+    subgraph Global Visual Design Freeze [CURRENT IN PROGRESS]
+        V0[Visual System Documentation & Design Tokens] --> V1[AppShell & Primitives Spec]
+    end
+
+    subgraph Stage 7C: Interactive UI [BLOCKED PENDING GLOBAL VISUAL DESIGN FREEZE PASS]
+        C1[Artifacts Gallery & List View] --> C2[Detail Inspector Drawer: 5 Relational Accordions]
         C2 --> C3[Create / Edit / Archive / Superseded Dialogs]
         C3 --> C4[Assessment Confirm Proposal Resolution Control]
     end
@@ -38,7 +41,7 @@ graph TD
         D2 --> D3[Final Freeze Merge to main]
     end
 
-    Stage 7A --> Stage 7B --> Stage 7C --> Stage 7D
+    Stage 7A --> Stage 7B --> Global Visual Design Freeze --> Stage 7C --> Stage 7D
 ```
 
 
@@ -46,7 +49,7 @@ graph TD
 
 ## 2. Sub-Stage Detailed Breakdown
 
-### 2.1 Stage 7A — Domain Model, Schema & Authority (Branch: `feature/stage7a-artifact-authority`)
+### 2.1 Stage 7A — Domain Model, Schema & Authority (FINAL FROZEN)
 - **Migration `0041_artifact_management_authority.sql`**:
   - Rebuild / upgrade `public.artifacts` with strict constraints (`artifact_type` 8 canonical types, `lifecycle_status` enum, `reusability_score numeric(3,2)`, `check_artifact_lifecycle_coherence`).
   - Create normalized join tables:
@@ -59,9 +62,9 @@ graph TD
   - Implement column-level UPDATE privileges on `public.artifacts` (whitelisted user-authoritative columns) and child tables (semantic columns only); revoke raw UPDATE on immutable/audit columns.
   - Implement fail-closed delete guard trigger `prevent_artifact_delete_if_referenced()` protecting Knowledge Provenance and Evidence.
   - Row Level Security (RLS) policies on all tables (`auth.uid() = user_id`).
-  - Comprehensive live PostgreSQL test suite (`tests/stage7a-db-authority.test.ts`, 42 tests).
+  - Comprehensive live PostgreSQL test suite (`tests/stage7a-db-authority.test.ts`, 42/42 PASS).
 
-### 2.2 Stage 7B — Repository, API Layer & Settlement Integration
+### 2.2 Stage 7B — Repository, API Layer & Settlement Integration (FINAL FROZEN)
 - Typed `SupabaseArtifactRepository` implementing CRUD, filtering, pagination, and multi-relational joins across all 5 entity types.
 - Next.js App Router API routes under `src/app/api/artifacts/**`.
 - Batch link management across activities, skills, knowledge nodes, quests, and evidence.
@@ -71,11 +74,11 @@ graph TD
   - Process confirm-time `artifactResolutions: ArtifactResolutionInput[]` (`CREATE`, `EXISTING`, `IGNORE`) bound strictly by `proposalIndex`.
   - Enforce exact $N$-of-$N$ resolution coverage and derive metadata strictly from stored assessment proposal (with optional `approvedOverrides`).
   - Atomic, idempotent settlement execution (zero duplicate mutations, repeat confirm preserves `409 Conflict` `already_confirmed`).
-  - 15 required verification cases in HTTP integration test suite (`tests/stage7b-http-api.test.ts`).
+  - 15 required verification cases in HTTP integration test suite (`tests/stage7b-http-api.test.ts`, 41/41 PASS).
 
-### 2.3 Stage 7C — Artifacts Workspace UI
-- Pause at **Design-Sequence Checkpoint** to evaluate extracting global app shell, shared navigation, and drawer primitives.
-- Implement `/artifacts` page with Left filter bar (active, draft, archived, superseded, all), Center artifact gallery/list, and Right detail inspector with 5 relational accordions.
+### 2.3 Stage 7C — Artifacts Workspace UI (BLOCKED PENDING GLOBAL VISUAL DESIGN FREEZE PASS)
+- Consume the **FINAL FROZEN Global Visual Design System** (`AppShell`, `InspectorDrawer`, `GlassPanel`, `RPGCard`, and shared UI primitives).
+- Implement `/artifacts` page with Left filter bar (active, draft, archived, superseded, all), Center artifact gallery/list, and Right detail inspector (`ArtifactInspectorContent` with 5 relational accordions).
 - Interactive Modals (Create, Edit, Manage Links, Archive/Delete confirmation, Restore Superseded).
 - Assessment confirmation dialog resolution picker integration bound to `proposalIndex`.
 - UI component and interaction test suite (`tests/stage7c-ui.test.tsx`).
