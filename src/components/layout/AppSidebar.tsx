@@ -48,7 +48,7 @@ export const NAV_ITEMS: NavItem[] = [
     label: "产出台",
     icon: FolderGit2,
     disabled: true,
-    badge: "阶段7C",
+    badge: "即将开放",
   },
 ];
 
@@ -108,14 +108,14 @@ export function AppSidebar({
           : "w-[var(--sidebar-width-expanded)]"
       } ${className}`}
     >
-      {/* Brand Header */}
+      {/* Brand Header — Neutral Icon (Zero Progression Gold) */}
       <div className="h-[var(--header-height)] flex items-center justify-between px-4 border-b border-[var(--border-subtle)]">
         <Link
           href="/dashboard"
           className="flex items-center gap-3 overflow-hidden focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)] rounded-[var(--radius-sm)]"
           aria-label="AI Personal Growth RPG 首页"
         >
-          <div className="w-8 h-8 rounded-[var(--radius-md)] bg-[var(--surface-raised)] border border-[var(--border-raised)] flex items-center justify-center shrink-0 text-[var(--gold-400)]">
+          <div className="w-8 h-8 rounded-[var(--radius-md)] bg-[var(--surface-raised)] border border-[var(--border-raised)] flex items-center justify-center shrink-0 text-[var(--text-primary)]">
             <Shield className="w-5 h-5" />
           </div>
           {!collapsed && (
@@ -123,7 +123,7 @@ export function AppSidebar({
               <span className="font-serif font-[var(--font-weight-semibold)] text-sm tracking-[var(--tracking-wide)] text-[var(--text-primary)] truncate">
                 AI Personal Growth
               </span>
-              <span className="text-[10px] text-[var(--text-muted)] tracking-wider">
+              <span className="text-xs text-[var(--text-muted)] tracking-wider">
                 RPG WORKSPACE
               </span>
             </div>
@@ -155,7 +155,7 @@ export function AppSidebar({
                       {item.label}
                     </span>
                     {item.badge && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--surface-ground)] border border-[var(--border-subtle)] text-[var(--text-muted)]">
+                      <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--surface-ground)] border border-[var(--border-subtle)] text-[var(--text-muted)]">
                         {item.badge}
                       </span>
                     )}
@@ -229,7 +229,7 @@ export function AppSidebar({
               {typeof playerLevel === "number" && (
                 <span
                   data-testid="sidebar-player-level"
-                  className="text-[11px] font-mono font-[var(--font-weight-semibold)] px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--surface-raised)] text-[var(--text-primary)] border border-[var(--border-subtle)]"
+                  className="text-xs font-mono font-[var(--font-weight-semibold)] px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--surface-raised)] text-[var(--text-primary)] border border-[var(--border-subtle)]"
                 >
                   LV.{playerLevel}
                 </span>
@@ -253,7 +253,7 @@ export function AppSidebar({
             <>
               <ChevronLeft className="w-4 h-4" />
               <span>折叠导航</span>
-              <kbd className="ml-auto text-[10px] font-mono px-1 py-0.5 rounded bg-[var(--surface-ground)] text-[var(--text-disabled)]">
+              <kbd className="ml-auto text-xs font-mono px-1 py-0.5 rounded bg-[var(--surface-ground)] text-[var(--text-disabled)]">
                 Ctrl+B
               </kbd>
             </>

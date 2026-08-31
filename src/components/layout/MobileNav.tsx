@@ -31,7 +31,7 @@ export function MobileNav({ className = "" }: MobileNavProps) {
               aria-disabled="true"
             >
               <Icon className="w-5 h-5" />
-              <span className="text-[10px] mt-0.5">{item.label}</span>
+              <span className="text-xs mt-0.5">{item.label}</span>
             </div>
           );
         }
@@ -50,7 +50,7 @@ export function MobileNav({ className = "" }: MobileNavProps) {
             }`}
           >
             <Icon className="w-5 h-5" />
-            <span className="text-[10px] mt-0.5 tracking-tight">{item.label}</span>
+            <span className="text-xs mt-0.5 tracking-tight">{item.label}</span>
 
             {/* Active Neutral Indicator Dot */}
             {isActive && (

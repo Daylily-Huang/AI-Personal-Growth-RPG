@@ -25,12 +25,44 @@ export function InspectorDrawer({
   const drawerRef = useRef<HTMLDivElement>(null);
   const previousActiveElementRef = useRef<HTMLElement | null>(null);
 
-  // Store trigger focus and handle Escape key
+  // Focus trap: Handle Tab, Shift+Tab, and Escape keys
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (e.key === "Escape" || e.key === "Esc") {
         e.preventDefault();
         onClose();
+        return;
+      }
+
+      if (e.key === "Tab") {
+        if (!drawerRef.current) return;
+
+        const focusableElements = drawerRef.current.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        );
+
+        if (focusableElements.length === 0) {
+          e.preventDefault();
+          drawerRef.current.focus();
+          return;
+        }
+
+        const firstElement = focusableElements[0];
+        const lastElement = focusableElements[focusableElements.length - 1];
+
+        if (e.shiftKey) {
+          // Shift + Tab: if on first element, cycle to last
+          if (document.activeElement === firstElement || !drawerRef.current.contains(document.activeElement)) {
+            e.preventDefault();
+            lastElement.focus();
+          }
+        } else {
+          // Tab: if on last element, cycle to first
+          if (document.activeElement === lastElement || !drawerRef.current.contains(document.activeElement)) {
+            e.preventDefault();
+            firstElement.focus();
+          }
+        }
       }
     },
     [onClose]
@@ -41,9 +73,9 @@ export function InspectorDrawer({
       previousActiveElementRef.current = document.activeElement as HTMLElement | null;
       window.addEventListener("keydown", handleKeyDown);
 
-      // Shift focus into the drawer container for keyboard accessibility
+      // Shift initial focus into the drawer
       const focusable = drawerRef.current?.querySelector<HTMLElement>(
-        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
       );
       if (focusable) {
         focusable.focus();
@@ -53,7 +85,11 @@ export function InspectorDrawer({
     } else {
       window.removeEventListener("keydown", handleKeyDown);
       // Restore focus to triggering element when closed
-      if (previousActiveElementRef.current && typeof previousActiveElementRef.current.focus === "function") {
+      if (
+        previousActiveElementRef.current &&
+        typeof previousActiveElementRef.current.focus === "function" &&
+        document.body.contains(previousActiveElementRef.current)
+      ) {
         previousActiveElementRef.current.focus();
       }
     }
@@ -65,31 +101,33 @@ export function InspectorDrawer({
 
   if (!open) return null;
 
+  const hasTitle = Boolean(title);
+
   return (
     <div
       data-testid="inspector-drawer-root"
       className="fixed inset-0 z-[var(--z-drawer)] overflow-hidden"
     >
-      {/* Backdrop */}
+      {/* Backdrop — positioned behind the panel within drawer root */}
       <div
         data-testid="inspector-drawer-backdrop"
         onClick={onClose}
         aria-hidden="true"
-        className="fixed inset-0 z-[var(--z-modal-backdrop)] bg-[var(--surface-modal-backdrop)] backdrop-blur-[var(--glass-blur-sm)] transition-opacity duration-[var(--duration-fast)]"
+        className="absolute inset-0 bg-[var(--surface-modal-backdrop)] backdrop-blur-[var(--glass-blur-sm)] transition-opacity duration-[var(--duration-fast)]"
       />
 
-      {/* Slide-over Drawer Panel */}
+      {/* Slide-over Drawer Panel — strictly in front of backdrop */}
       <div
         ref={drawerRef}
         role="dialog"
         aria-modal="true"
-        aria-labelledby="inspector-drawer-title"
+        aria-labelledby={hasTitle ? "inspector-drawer-title" : undefined}
+        aria-label={!hasTitle ? "检查器" : undefined}
         tabIndex={-1}
         data-testid="inspector-drawer-panel"
-        className={`fixed right-0 top-0 bottom-0 z-[var(--z-drawer)] bg-[var(--surface-overlay)] border-l border-[var(--border-raised)] shadow-[var(--shadow-overlay)] flex flex-col transition-transform duration-[var(--duration-drawer)] ease-[var(--ease-drawer)] max-w-full 
-          /* Responsive Widths */
-          w-full h-[var(--drawer-sheet-mobile-height)] bottom-0 top-auto rounded-t-[var(--radius-xl)] border-t border-l-0
-          md:h-full md:bottom-0 md:top-0 md:rounded-none md:border-t-0 md:border-l md:w-[var(--drawer-width-tablet)]
+        className={`relative z-10 ml-auto bg-[var(--surface-overlay)] border-[var(--border-raised)] shadow-[var(--shadow-overlay)] flex flex-col transition-transform duration-[var(--duration-drawer)] ease-[var(--ease-drawer)] max-w-full 
+          w-full h-[var(--drawer-sheet-mobile-height)] mt-auto rounded-t-[var(--radius-xl)] border-t
+          md:mt-0 md:h-full md:rounded-none md:border-t-0 md:border-l md:w-[var(--drawer-width-tablet)]
           lg:w-[var(--drawer-width-desktop)]
           xl:w-[var(--drawer-width-wide)]
           ${className}`}
@@ -100,7 +138,7 @@ export function InspectorDrawer({
           className="h-[var(--header-height)] px-4 lg:px-6 border-b border-[var(--border-subtle)] flex items-center justify-between gap-3 shrink-0"
         >
           <div className="flex items-center gap-2 min-w-0">
-            {title && (
+            {hasTitle && (
               <h2
                 id="inspector-drawer-title"
                 data-testid="inspector-drawer-title"

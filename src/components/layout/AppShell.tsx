@@ -34,8 +34,27 @@ export function AppShell({
 }: AppShellProps) {
   const router = useRouter();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [userToggled, setUserToggled] = useState(false);
   const [fetchedDashboard, setFetchedDashboard] = useState<DashboardSnapshot | null>(null);
   const [fetchedUserEmail, setFetchedUserEmail] = useState<string | null>(null);
+
+  // Responsive sidebar collapse contract: md (tablet) defaults to collapsed, lg (desktop) defaults to expanded
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function" || userToggled) return;
+
+    const mediaQuery = window.matchMedia("(min-width: 1024px)");
+    const updateResponsiveSidebar = () => {
+      if (!userToggled) {
+        setSidebarCollapsed(!mediaQuery.matches);
+      }
+    };
+
+    updateResponsiveSidebar();
+    if (typeof mediaQuery.addEventListener === "function") {
+      mediaQuery.addEventListener("change", updateResponsiveSidebar);
+      return () => mediaQuery.removeEventListener("change", updateResponsiveSidebar);
+    }
+  }, [userToggled]);
 
   // Derived effective state (props take precedence over fetched fallback)
   const dashboard = propDashboard ?? fetchedDashboard;
@@ -99,6 +118,7 @@ export function AppShell({
   });
 
   const toggleSidebar = () => {
+    setUserToggled(true);
     setSidebarCollapsed((prev) => !prev);
   };
 

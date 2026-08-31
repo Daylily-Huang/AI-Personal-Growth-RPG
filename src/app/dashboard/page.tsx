@@ -12,7 +12,6 @@ import type {
   XpTransaction,
 } from "@/lib/store/types";
 import {
-  Sparkles,
   Zap,
   Check,
   RefreshCw,
@@ -21,13 +20,10 @@ import {
   BookOpen,
   Plus,
   ShieldAlert,
-  LogOut,
-  Database as DatabaseIcon,
   Target,
   Crown,
   ChevronRight,
 } from "lucide-react";
-import { isSupabaseConfigured } from "@/lib/supabase/env";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -37,8 +33,6 @@ export default function DashboardPage() {
   const [rawInput, setRawInput] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
-
-  const isConfigured = isSupabaseConfigured();
 
   const load = useCallback(async () => {
     setError(null);
@@ -83,15 +77,6 @@ export default function DashboardPage() {
       ignore = true;
     };
   }, [router]);
-
-  async function handleLogout() {
-    try {
-      await fetch("/api/auth/logout", { method: "POST" });
-    } finally {
-      router.push("/login");
-      router.refresh();
-    }
-  }
 
   async function handleQuickLog(e: React.FormEvent) {
     e.preventDefault();
@@ -149,103 +134,54 @@ export default function DashboardPage() {
   }
 
   if (loading && !dashboard) {
-    return <Shell onLogout={handleLogout} isConfigured={isConfigured}><LoadingState /></Shell>;
+    return <LoadingState />;
   }
 
   if (error && !dashboard) {
-    return <Shell onLogout={handleLogout} isConfigured={isConfigured}><ErrorState message={error} onRetry={load} /></Shell>;
+    return <ErrorState message={error} onRetry={load} />;
   }
 
   if (!dashboard) {
-    return <Shell onLogout={handleLogout} isConfigured={isConfigured}><EmptyState onRefresh={load} /></Shell>;
+    return <EmptyState onRefresh={load} />;
   }
 
   return (
-    <Shell onLogout={handleLogout} isConfigured={isConfigured}>
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-8 sm:px-6">
-        <PlayerHeader dashboard={dashboard} />
+    <div className="flex w-full flex-col gap-6">
+      <PlayerHeader dashboard={dashboard} />
 
-        {error ? (
-          <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-            {error}
-          </div>
-        ) : null}
-
-        <QuestsOverview
-          mainQuest={dashboard.mainQuest}
-          activeQuests={dashboard.activeQuests}
-        />
-
-        <QuickLogForm
-          rawInput={rawInput}
-          setRawInput={setRawInput}
-          onSubmit={handleQuickLog}
-          submitting={submitting}
-        />
-
-        <PendingProposals
-          assessments={dashboard.pendingAssessments}
-          confirmingId={confirmingId}
-          onConfirm={handleConfirm}
-        />
-
-        <PendingVerifications verifications={dashboard.pendingMasteryVerifications} />
-
-        <RecentGrowth transactions={dashboard.recentGrowth} />
-
-        <ActivityHistory activities={dashboard.activities} />
-
-        {dashboard.activities.length === 0 && dashboard.pendingAssessments.length === 0 ? (
-          <EmptyState onRefresh={load} />
-        ) : null}
-      </div>
-    </Shell>
-  );
-}
-
-function Shell({
-  children,
-  onLogout,
-  isConfigured,
-}: {
-  children: React.ReactNode;
-  onLogout: () => void;
-  isConfigured: boolean;
-}) {
-  return (
-    <div className="min-h-screen bg-[#0b0f17] text-zinc-100">
-      <header className="border-b border-white/5 bg-[#0d1320]/80 backdrop-blur sticky top-0 z-50">
-        <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
-          <div className="flex items-center gap-2 font-semibold tracking-tight">
-            <Sparkles className="h-5 w-5 text-amber-300" />
-            AI Personal Growth RPG
-          </div>
-          <nav className="flex items-center gap-4 text-xs">
-            <a href="/dashboard" className="font-medium text-amber-300">
-              Dashboard
-            </a>
-            <a href="/quests" className="text-zinc-400 hover:text-zinc-200">
-              Quests
-            </a>
-            <a href="/skills" className="text-zinc-400 hover:text-zinc-200">
-              Skill Tree
-            </a>
-            <span className="hidden sm:inline-flex items-center gap-1 rounded bg-white/5 border border-white/10 px-2 py-0.5 text-[11px] text-zinc-400">
-              <DatabaseIcon className="h-3 w-3 text-emerald-400" />
-              {isConfigured ? "Supabase Realtime Engine" : "Demo Mode · Local Ledger"}
-            </span>
-            <button
-              onClick={onLogout}
-              className="inline-flex items-center gap-1 text-zinc-400 hover:text-red-300 transition-colors cursor-pointer"
-              title="退出登录"
-            >
-              <LogOut className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">退出</span>
-            </button>
-          </nav>
+      {error ? (
+        <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+          {error}
         </div>
-      </header>
-      <main>{children}</main>
+      ) : null}
+
+      <QuestsOverview
+        mainQuest={dashboard.mainQuest}
+        activeQuests={dashboard.activeQuests}
+      />
+
+      <QuickLogForm
+        rawInput={rawInput}
+        setRawInput={setRawInput}
+        onSubmit={handleQuickLog}
+        submitting={submitting}
+      />
+
+      <PendingProposals
+        assessments={dashboard.pendingAssessments}
+        confirmingId={confirmingId}
+        onConfirm={handleConfirm}
+      />
+
+      <PendingVerifications verifications={dashboard.pendingMasteryVerifications} />
+
+      <RecentGrowth transactions={dashboard.recentGrowth} />
+
+      <ActivityHistory activities={dashboard.activities} />
+
+      {dashboard.activities.length === 0 && dashboard.pendingAssessments.length === 0 ? (
+        <EmptyState onRefresh={load} />
+      ) : null}
     </div>
   );
 }

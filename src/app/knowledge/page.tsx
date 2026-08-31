@@ -7,11 +7,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Loader2,
-  LogOut,
-  Menu,
   RefreshCw,
   Search,
-  Network,
   AlertCircle,
   Sparkles,
 } from "lucide-react";
@@ -147,15 +144,6 @@ export default function KnowledgeMapPage() {
     }));
   }
 
-  async function handleLogout() {
-    try {
-      await fetch("/api/auth/logout", { method: "POST" });
-    } finally {
-      router.push("/login");
-      router.refresh();
-    }
-  }
-
   const domainItems: DomainItem[] = useMemo(() => {
     return (graph?.domains ?? []).map((d) => ({
       id: d.id,
@@ -227,27 +215,14 @@ export default function KnowledgeMapPage() {
   );
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-[#0b0f17] text-zinc-100">
-      {/* Header Navigation */}
-      <header className="z-40 shrink-0 border-b border-white/5 bg-[#0d1320]/80 backdrop-blur">
-        <div className="flex w-full items-center justify-between gap-3 px-4 py-3 sm:px-6">
-          <div className="flex items-center gap-2 font-semibold tracking-tight">
-            <button
-              type="button"
-              onClick={() => setMobileNavOpen(true)}
-              aria-label="打开筛选面板"
-              className="rounded-md p-1 text-zinc-400 hover:bg-white/5 hover:text-zinc-200 lg:hidden focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400"
-            >
-              <Menu className="h-5 w-5" />
-            </button>
-            <Network aria-hidden="true" className="h-5 w-5 text-sky-400" />
-            <span>Knowledge Map</span>
-            <span className="ml-1 hidden rounded-full bg-sky-950 px-2 py-0.5 text-[10px] font-semibold text-sky-300 border border-sky-800/40 md:inline-block">
-              Stage 6 Epistemic
-            </span>
-          </div>
-
-          <div className="relative hidden min-w-0 flex-1 justify-center sm:flex">
+    <div className="flex h-full w-full min-h-0 flex-1 overflow-hidden">
+      {/* LEFT — Desktop Filter / Navigation Panel (280px) */}
+      <aside
+        className="hidden w-[280px] shrink-0 overflow-hidden border-r border-white/5 bg-[#0d1320]/60 lg:flex lg:flex-col"
+        aria-label="知识领域与认识论筛选"
+      >
+        <div className="p-3 border-b border-white/5">
+          <div className="relative">
             <Search
               aria-hidden="true"
               className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-500"
@@ -258,45 +233,12 @@ export default function KnowledgeMapPage() {
               onChange={(e) => handleFilterChange({ search: e.target.value })}
               placeholder="搜索概念、命题或关系…"
               aria-label="搜索知识库"
-              className="w-full max-w-xs rounded-lg border border-white/10 bg-black/30 px-8 py-1.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400"
+              className="w-full rounded-lg border border-white/10 bg-black/30 pl-8 pr-3 py-1.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400"
             />
           </div>
-
-          <nav aria-label="页面导航" className="flex items-center gap-4 text-xs">
-            <a href="/dashboard" className="text-zinc-400 hover:text-zinc-200">
-              Dashboard
-            </a>
-            <a href="/quests" className="text-zinc-400 hover:text-zinc-200">
-              Quests
-            </a>
-            <a href="/skills" className="text-zinc-400 hover:text-zinc-200">
-              Skill Tree
-            </a>
-            <a href="/knowledge" className="font-medium text-sky-400" aria-current="page">
-              Knowledge Map
-            </a>
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="inline-flex cursor-pointer items-center gap-1 text-zinc-400 transition-colors hover:text-red-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400"
-              title="退出登录"
-            >
-              <LogOut aria-hidden="true" className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">退出</span>
-            </button>
-          </nav>
         </div>
-      </header>
-
-      {/* 3-Column Workspace */}
-      <main className="flex min-h-0 w-full flex-1">
-        {/* LEFT — Desktop Filter / Navigation Panel (280px) */}
-        <aside
-          className="hidden w-[280px] shrink-0 overflow-hidden border-r border-white/5 bg-[#0d1320]/60 lg:block"
-          aria-label="知识领域与认识论筛选"
-        >
-          {filterPanel}
-        </aside>
+        <div className="flex-1 overflow-y-auto">{filterPanel}</div>
+      </aside>
 
         {/* CENTER — Interactive ReactFlow Canvas */}
         <section className="relative min-w-0 flex-1" aria-label="知识图谱互动画布">
@@ -460,7 +402,6 @@ export default function KnowledgeMapPage() {
             </>
           )
         ) : null}
-      </main>
 
       {/* Mobile Filter Drawer Overlay */}
       {mobileNavOpen && (

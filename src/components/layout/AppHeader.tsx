@@ -57,11 +57,15 @@ export function AppHeader({
       data-testid="app-header"
       className={`sticky top-0 z-[var(--z-header)] h-[var(--header-height)] bg-[var(--surface-base)] backdrop-blur-[var(--glass-blur-md)] border-b border-[var(--border-subtle)] flex items-center justify-between px-4 lg:px-8 select-none ${className}`}
     >
-      {/* Left: Breadcrumbs & Page Title */}
+      {/* Left: Dynamic Breadcrumbs (Desktop) & Page Title */}
       <div className="flex items-center gap-3 min-w-0">
         <div className="flex flex-col min-w-0">
-          {/* Breadcrumbs Navigation */}
-          <nav aria-label="页面路径" className="flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
+          {/* Breadcrumbs Navigation — Hidden on mobile for compact layout */}
+          <nav
+            aria-label="页面路径"
+            data-testid="header-breadcrumbs"
+            className="hidden md:flex items-center gap-1.5 text-xs text-[var(--text-muted)]"
+          >
             {resolvedBreadcrumbs.map((crumb, idx) => {
               const isLast = idx === resolvedBreadcrumbs.length - 1;
               return (
@@ -72,12 +76,12 @@ export function AppHeader({
                   {crumb.href && !isLast ? (
                     <Link
                       href={crumb.href}
-                      className="hover:text-[var(--text-primary)] transition-colors truncate max-w-[120px]"
+                      className="hover:text-[var(--text-primary)] transition-colors truncate"
                     >
                       {crumb.label}
                     </Link>
                   ) : (
-                    <span className="text-[var(--text-secondary)] font-[var(--font-weight-medium)] truncate max-w-[140px]">
+                    <span className="text-[var(--text-secondary)] font-[var(--font-weight-medium)] truncate">
                       {crumb.label}
                     </span>
                   )}
@@ -102,18 +106,18 @@ export function AppHeader({
         {pendingAssessmentsCount > 0 && (
           <div
             data-testid="pending-assessment-indicator"
-            className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-[var(--radius-full,9999px)] bg-[var(--state-warning-bg)] border border-[var(--state-warning-border)] text-[var(--state-warning-text)] text-xs font-[var(--font-weight-medium)] animate-pulse"
+            className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[var(--state-warning-bg)] border border-[var(--state-warning-border)] text-[var(--state-warning-text)] text-xs font-[var(--font-weight-medium)] animate-pulse"
           >
             <Sparkles className="w-3.5 h-3.5 shrink-0" />
             <span>{pendingAssessmentsCount} 待确认评估</span>
           </div>
         )}
 
-        {/* Player Progression Capsule (Strictly Frozen Read Models) */}
+        {/* Player Progression Capsule (Hidden on mobile for compact header) */}
         {typeof playerLevel === "number" && levelProgress && (
           <div
             data-testid="header-progression-capsule"
-            className="flex items-center gap-2.5 px-3 py-1.5 rounded-[var(--radius-md)] bg-[var(--surface-ground)] border border-[var(--border-subtle)]"
+            className="hidden md:flex items-center gap-2.5 px-3 py-1.5 rounded-[var(--radius-md)] bg-[var(--surface-ground)] border border-[var(--border-subtle)]"
           >
             {/* Level Readout */}
             <span
@@ -124,8 +128,8 @@ export function AppHeader({
             </span>
 
             {/* XP Progress Bar & Numerical Readout */}
-            <div className="flex flex-col gap-1 min-w-[90px] lg:min-w-[120px]">
-              <div className="flex items-center justify-between text-[10px] font-mono text-[var(--text-muted)]">
+            <div className="flex flex-col gap-1 w-28 lg:w-36">
+              <div className="flex items-center justify-between text-xs font-mono text-[var(--text-muted)]">
                 <span data-testid="header-xp-into-level">{levelProgress.xpIntoLevel}</span>
                 <span>/</span>
                 <span data-testid="header-xp-needed">{levelProgress.xpNeededForNext} XP</span>
@@ -146,7 +150,7 @@ export function AppHeader({
             {typeof totalXp === "number" && (
               <span
                 data-testid="header-total-xp"
-                className="hidden xl:inline-block text-[11px] font-mono text-[var(--text-secondary)] pl-1 border-l border-[var(--border-subtle)]"
+                className="hidden xl:inline-block text-xs font-mono text-[var(--text-secondary)] pl-1 border-l border-[var(--border-subtle)]"
               >
                 总 {totalXp}
               </span>

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, LogOut, Menu, RefreshCw, Search, TreePine } from "lucide-react";
+import { Loader2, RefreshCw, Search } from "lucide-react";
 import type {
   SkillDerivedState,
   SkillFlowNode,
@@ -144,15 +144,6 @@ export default function SkillsPage() {
     }
   }
 
-  async function handleLogout() {
-    try {
-      await fetch("/api/auth/logout", { method: "POST" });
-    } finally {
-      router.push("/login");
-      router.refresh();
-    }
-  }
-
   const filterPanel = (
     <DomainFilterPanel
       domains={domainListItems}
@@ -165,24 +156,14 @@ export default function SkillsPage() {
   );
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-[#0b0f17] text-zinc-100">
-      {/* Header */}
-      <header className="z-40 shrink-0 border-b border-white/5 bg-[#0d1320]/80 backdrop-blur">
-        <div className="flex w-full items-center justify-between gap-3 px-4 py-3 sm:px-6">
-          <div className="flex items-center gap-2 font-semibold tracking-tight">
-            <button
-              type="button"
-              onClick={() => setMobileNavOpen(true)}
-              aria-label="打开筛选面板"
-              className="rounded-md p-1 text-zinc-400 hover:bg-white/5 hover:text-zinc-200 lg:hidden focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400"
-            >
-              <Menu className="h-5 w-5" />
-            </button>
-            <TreePine aria-hidden="true" className="h-5 w-5 text-emerald-300" />
-            Skill Tree
-          </div>
-
-          <div className="relative hidden min-w-0 flex-1 justify-center sm:flex">
+    <div className="flex h-full w-full min-h-0 flex-1 overflow-hidden">
+      {/* LEFT — desktop */}
+      <aside
+        className="hidden w-[280px] shrink-0 overflow-hidden border-r border-white/5 bg-[#0d1320]/60 lg:flex lg:flex-col"
+        aria-label="领域与状态筛选"
+      >
+        <div className="p-3 border-b border-white/5">
+          <div className="relative">
             <Search
               aria-hidden="true"
               className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-500"
@@ -192,45 +173,15 @@ export default function SkillsPage() {
               onChange={(e) => setSearch(e.target.value)}
               placeholder="搜索技能名称或别名…"
               aria-label="搜索技能"
-              className="w-full max-w-xs rounded-lg border border-white/10 bg-black/30 px-8 py-1.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400"
+              className="w-full rounded-lg border border-white/10 bg-black/30 pl-8 pr-3 py-1.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400"
             />
           </div>
-
-          <nav aria-label="页面导航" className="flex items-center gap-4 text-xs">
-            <a href="/dashboard" className="text-zinc-400 hover:text-zinc-200">
-              Dashboard
-            </a>
-            <a href="/quests" className="text-zinc-400 hover:text-zinc-200">
-              Quests
-            </a>
-            <a href="/skills" className="font-medium text-amber-300" aria-current="page">
-              Skill Tree
-            </a>
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="inline-flex cursor-pointer items-center gap-1 text-zinc-400 transition-colors hover:text-red-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400"
-              title="退出登录"
-            >
-              <LogOut aria-hidden="true" className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">退出</span>
-            </button>
-          </nav>
         </div>
-      </header>
+        <div className="flex-1 overflow-y-auto">{filterPanel}</div>
+      </aside>
 
-      {/* 3-column workspace */}
-      <main className="flex min-h-0 w-full flex-1">
-        {/* LEFT — desktop */}
-        <aside
-          className="hidden w-[280px] shrink-0 overflow-hidden border-r border-white/5 bg-[#0d1320]/60 lg:block"
-          aria-label="领域与状态筛选"
-        >
-          {filterPanel}
-        </aside>
-
-        {/* CENTER */}
-        <section className="relative min-w-0 flex-1" aria-label="技能图谱画布">
+      {/* CENTER */}
+      <section className="relative min-w-0 flex-1 h-full" aria-label="技能图谱画布">
           {loading ? (
             <div className="flex h-full items-center justify-center gap-3 text-zinc-400">
               <Loader2 className="h-8 w-8 animate-spin text-emerald-300" aria-hidden="true" />
@@ -327,7 +278,6 @@ export default function SkillsPage() {
             </>
           )
         ) : null}
-      </main>
 
       {/* Mobile filter overlay */}
       {mobileNavOpen ? (
