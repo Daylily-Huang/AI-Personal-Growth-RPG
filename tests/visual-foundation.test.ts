@@ -4,6 +4,22 @@ import path from 'node:path';
 import { execSync } from 'node:child_process';
 import { compile } from 'tailwindcss';
 
+const FROZEN_BACKEND_DENYLIST = [
+  'src/app/api/',
+  'supabase/',
+  'src/lib/store/',
+  'src/lib/ai/',
+  'src/lib/growth-engine/',
+  '0041_artifact_management_authority.sql',
+  '0042_artifact_settlement_integration.sql',
+];
+
+export function isFrozenBackendViolation(filePath: string): boolean {
+  return FROZEN_BACKEND_DENYLIST.some(
+    (prefix) => filePath.startsWith(prefix) || filePath.includes(prefix)
+  );
+}
+
 describe('Visual Foundation & Design Tokens Runtime Verification', () => {
   const rootDir = process.cwd();
   const tokensCssPath = path.resolve(rootDir, 'src/styles/design-tokens.css');
@@ -99,32 +115,50 @@ describe('Visual Foundation & Design Tokens Runtime Verification', () => {
     expect(tokensCss).toMatch(/--authority-superseded-text/);
   });
 
-  it('5. verifies Gold whitelist governance (Token Declaration vs Token Consumption)', () => {
-    // 1. Declaration: Gold tokens are legitimately declared
+  it('5. verifies Gold whitelist governance and strictly asserts ONLY :focus-visible consumes Gold in global styles', () => {
+    // 1. Declaration: Gold tokens are legitimately declared in design-tokens.css
     expect(tokensCss).toContain('--gold-400: #d4af37;');
     expect(tokensCss).toContain('--entity-skill-text: #e5c158;');
 
-    // 2. Consumption: Activity uses Copper Ochre (#f0ad6b) and does not alias Gold
+    // 2. Non-gold tokens do not alias or consume Gold
     expect(tokensCss).toContain('--entity-activity-text: #f0ad6b;');
     expect(tokensCss).not.toMatch(/--entity-activity-text:\s*#d4af37/);
     expect(tokensCss).not.toMatch(/--entity-activity-text:\s*var\(--gold/);
 
-    // 3. Consumption: Generic selection is neutral white/translucent, never Gold
     expect(tokensCss).toContain('--selection-neutral-bg: rgba(255, 255, 255, 0.08);');
     expect(tokensCss).toContain('--selection-neutral-border: rgba(255, 255, 255, 0.35);');
     expect(tokensCss).toContain('--selection-neutral-text: #ffffff;');
     expect(tokensCss).not.toMatch(/--selection-neutral-[^:]+:\s*#d4af37/);
 
-    // 4. Consumption: Functional confidence and danger states do not consume Gold
     expect(tokensCss).toContain('--confidence-medium-text: #e3b341;'); // Dedicated amber neutral, not gold
     expect(tokensCss).toContain('--state-danger-text: #f85149;');
     expect(tokensCss).not.toMatch(/--confidence-medium-text:\s*#d4af37/);
 
-    // 5. Consumption in globals.css: ONLY :focus-visible consumes Gold
-    expect(globalsCss).toContain('outline: var(--focus-ring-width) solid var(--focus-ring-color);');
-    // Ensure ::selection does not consume Gold
-    expect(globalsCss).toContain('background-color: var(--selection-neutral-bg);');
-    expect(globalsCss).toContain('color: var(--selection-neutral-text);');
+    // 3. Scan globals.css rules: verify that ONLY :focus-visible consumes Gold variables/colors
+    // Clean comments and @theme blocks to isolate style rules
+    const rulesOnly = globalsCss
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/@theme\s+inline\s*\{[\s\S]*?\}/g, '')
+      .replace(/@theme\s*\{[\s\S]*?\}/g, '');
+
+    const ruleRegex = /([^{}]+)\{([^{}]+)\}/g;
+    let match;
+    const goldConsumingSelectors: string[] = [];
+
+    while ((match = ruleRegex.exec(rulesOnly)) !== null) {
+      const selector = match[1].trim();
+      const declarations = match[2].trim();
+      if (
+        declarations.includes('--gold') ||
+        declarations.includes('--focus-ring-color') ||
+        declarations.includes('#d4af37')
+      ) {
+        goldConsumingSelectors.push(selector);
+      }
+    }
+
+    // Strictly assert ONLY :focus-visible consumes Gold in globals.css
+    expect(goldConsumingSelectors).toEqual([':focus-visible']);
   });
 
   it('6. verifies that global focus-visible baseline does not force border-radius on components', () => {
@@ -147,7 +181,7 @@ describe('Visual Foundation & Design Tokens Runtime Verification', () => {
     expect(globalsCss).toContain('transition-duration: 0.01ms !important;');
   });
 
-  it('9. verifies that environment SVG is pure geometry/silhouette with no private color palette authority', () => {
+  it('9. verifies that environment SVG is pure geometry/silhouette with ZERO private color, gradient, or opacity constants', () => {
     expect(fs.existsSync(environmentAssetPath)).toBe(true);
     const svgContent = fs.readFileSync(environmentAssetPath, 'utf8');
 
@@ -158,50 +192,93 @@ describe('Visual Foundation & Design Tokens Runtime Verification', () => {
     // Accessibility cleanup: purely decorative, no role="img" when aria-hidden="true"
     expect(svgContent).not.toContain('role="img"');
 
-    // No private color palettes or hex color declarations in SVG
+    // Zero hex color codes (#xxx, #xxxxxx, #xxxxxxxx)
     expect(svgContent).not.toMatch(/#[0-9a-fA-F]{3,8}/);
+
+    // Zero rgb or rgba values
+    expect(svgContent).not.toMatch(/rgba?\(/);
+
+    // Zero gradient definitions or stops
     expect(svgContent).not.toContain('<linearGradient');
+    expect(svgContent).not.toContain('<radialGradient');
     expect(svgContent).not.toContain('<stop');
+
+    // Zero raw opacity attributes
+    expect(svgContent).not.toMatch(/\s+opacity\s*=/);
+    expect(svgContent).not.toMatch(/\s+fill-opacity\s*=/);
+    expect(svgContent).not.toMatch(/\s+stroke-opacity\s*=/);
+
+    // Zero inline style attributes or <style> blocks
+    expect(svgContent).not.toMatch(/\s+style\s*=/);
+    expect(svgContent).not.toContain('<style');
 
     // Uses currentColor for CSS-driven styling
     expect(svgContent).toContain('fill="currentColor"');
 
-    // No text or external font dependencies
+    // Zero embedded text or external font/network imports
     expect(svgContent).not.toContain('<text');
     expect(svgContent).not.toContain('@import');
   });
 
-  it('10. verifies deterministic git path guard: zero frozen backend paths modified', () => {
-    const frozenBackendPrefixes = [
-      'src/app/api/',
-      'supabase/',
-      'src/lib/store/',
-      'src/lib/ai/',
-      'src/lib/growth-engine/',
-      '0041_artifact_management_authority.sql',
-      '0042_artifact_settlement_integration.sql',
+  it('10. verifies deterministic fail-closed PR path guard: compares PR delta against base ref and rejects frozen paths', () => {
+    const baseRef = process.env.GITHUB_BASE_REF || 'main';
+    let changedFiles: string[] = [];
+
+    // Attempt base comparison commands
+    const diffCommands = [
+      `git diff --name-only origin/${baseRef}...HEAD`,
+      `git diff --name-only ${baseRef}...HEAD`,
+      `git diff --name-only origin/${baseRef} HEAD`,
+      `git diff --name-only ${baseRef} HEAD`,
     ];
 
-    // Get list of changed files relative to main branch
-    let changedFiles: string[] = [];
-    try {
-      const output = execSync('git diff --name-only origin/main...HEAD', { encoding: 'utf8' });
-      changedFiles = output.split('\n').map((s) => s.trim()).filter(Boolean);
-    } catch {
+    let diffSucceeded = false;
+    let lastError: Error | null = null;
+
+    for (const cmd of diffCommands) {
       try {
-        const output = execSync('git diff --name-only main...HEAD', { encoding: 'utf8' });
+        const output = execSync(cmd, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
         changedFiles = output.split('\n').map((s) => s.trim()).filter(Boolean);
-      } catch {
-        // Fallback to git status check
-        const output = execSync('git status --porcelain', { encoding: 'utf8' });
-        changedFiles = output.split('\n').map((s) => s.trim().slice(3)).filter(Boolean);
+        diffSucceeded = true;
+        break;
+      } catch (err) {
+        lastError = err as Error;
       }
     }
 
-    const violatedFiles = changedFiles.filter((filePath) =>
-      frozenBackendPrefixes.some((prefix) => filePath.startsWith(prefix) || filePath.includes(prefix))
-    );
+    // Guard MUST fail closed if base diff resolution fails in CI
+    if (!diffSucceeded) {
+      throw new Error(`Failed to resolve PR changed files against base '${baseRef}': ${lastError?.message}`);
+    }
 
+    // In a PR or branch delta, changedFiles must be non-empty
+    expect(changedFiles.length).toBeGreaterThan(0);
+
+    // Verify allowed visual files are in the delta
+    expect(changedFiles).toContain('src/styles/design-tokens.css');
+    expect(changedFiles).toContain('src/app/globals.css');
+
+    // Filter against frozen backend denylist
+    const violatedFiles = changedFiles.filter((filePath) => isFrozenBackendViolation(filePath));
     expect(violatedFiles).toEqual([]);
+  });
+
+  it('11. verifies unit correctness of frozen backend path matcher with violation fixtures', () => {
+    // Assert all denylist fixtures are identified as violations
+    expect(isFrozenBackendViolation('src/app/api/activities/route.ts')).toBe(true);
+    expect(isFrozenBackendViolation('src/app/api/artifacts/route.ts')).toBe(true);
+    expect(isFrozenBackendViolation('supabase/migrations/0041_artifact_management_authority.sql')).toBe(true);
+    expect(isFrozenBackendViolation('supabase/migrations/0042_artifact_settlement_integration.sql')).toBe(true);
+    expect(isFrozenBackendViolation('src/lib/store/request-repository.ts')).toBe(true);
+    expect(isFrozenBackendViolation('src/lib/ai/prompts/assessment.ts')).toBe(true);
+    expect(isFrozenBackendViolation('src/lib/growth-engine/engine.ts')).toBe(true);
+
+    // Assert allowed visual foundation paths are NOT identified as violations
+    expect(isFrozenBackendViolation('src/styles/design-tokens.css')).toBe(false);
+    expect(isFrozenBackendViolation('src/app/globals.css')).toBe(false);
+    expect(isFrozenBackendViolation('public/assets/environment/ink-landscape.svg')).toBe(false);
+    expect(isFrozenBackendViolation('tests/visual-foundation.test.ts')).toBe(false);
+    expect(isFrozenBackendViolation('docs/DesignSystem/02_DESIGN_TOKENS.md')).toBe(false);
+    expect(isFrozenBackendViolation('.github/workflows/ci.yml')).toBe(false);
   });
 });

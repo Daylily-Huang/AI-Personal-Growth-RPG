@@ -1,15 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 900" width="100%" height="100%" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-  <!-- Layer 1: Distant Mountain Silhouettes (Geometry / Silhouette Mask) -->
-  <path d="M0,480 Q180,320 380,410 T760,350 T1140,430 T1440,360 L1440,900 L0,900 Z" fill="currentColor" opacity="0.15" />
+  <!-- Layer 1: Distant Mountain Silhouettes (Pure Geometry) -->
+  <path d="M0,480 Q180,320 380,410 T760,350 T1140,430 T1440,360 L1440,900 L0,900 Z" fill="currentColor" />
 
-  <!-- Layer 2: Mid-Ground Mountain Ridges -->
-  <path d="M0,560 Q240,430 480,510 T960,460 T1440,540 L1440,900 L0,900 Z" fill="currentColor" opacity="0.30" />
+  <!-- Layer 2: Mid-Ground Mountain Ridges (Pure Geometry) -->
+  <path d="M0,560 Q240,430 480,510 T960,460 T1440,540 L1440,900 L0,900 Z" fill="currentColor" />
 
-  <!-- Layer 3: Near Mountain Silhouettes -->
-  <path d="M0,640 Q320,530 640,610 T1280,570 Q1380,590 1440,620 L1440,900 L0,900 Z" fill="currentColor" opacity="0.50" />
+  <!-- Layer 3: Near Mountain Silhouettes (Pure Geometry) -->
+  <path d="M0,640 Q320,530 640,610 T1280,570 Q1380,590 1440,620 L1440,900 L0,900 Z" fill="currentColor" />
 
-  <!-- Layer 4: Distant Crane Flight Silhouettes -->
-  <g fill="currentColor" opacity="0.40">
+  <!-- Layer 4: Distant Crane Flight Silhouettes (Pure Geometry) -->
+  <g fill="currentColor">
     <!-- Crane 1 -->
     <path d="M420,280 Q426,274 434,277 Q438,280 432,284 Q425,282 420,280 Z" />
     <path d="M426,277 Q432,270 438,272 Q434,277 426,277 Z" />
