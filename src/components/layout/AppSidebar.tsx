@@ -133,7 +133,7 @@ export function AppSidebar({
       </div>
 
       {/* Navigation Links */}
-      <nav className="flex-1 py-4 px-2 space-y-1 overflow-y-auto">
+      <nav className="flex-1 py-4 px-2 space-y-1 overflow-y-auto" aria-label="侧边栏导航">
         {NAV_ITEMS.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href;
@@ -143,13 +143,14 @@ export function AppSidebar({
               <div
                 key={item.href}
                 data-testid={`nav-item-disabled-${item.label}`}
-                title={collapsed ? `${item.label} (${item.badge})` : undefined}
+                title={`${item.label} (${item.badge})`}
+                aria-label={`${item.label}，${item.badge}`}
                 className={`relative flex items-center gap-3 px-3 py-2 rounded-[var(--radius-md)] min-h-[var(--touch-target-min)] text-[var(--text-disabled)] cursor-not-allowed opacity-60 ${
                   collapsed ? "justify-center" : "justify-center lg:justify-start"
                 }`}
                 aria-disabled="true"
               >
-                <Icon className="w-5 h-5 shrink-0" />
+                <Icon className="w-5 h-5 shrink-0" aria-hidden="true" />
                 {!collapsed && (
                   <div className="hidden lg:flex items-center justify-between flex-1 truncate">
                     <span className="text-sm font-[var(--font-weight-medium)] truncate">
@@ -162,6 +163,9 @@ export function AppSidebar({
                     )}
                   </div>
                 )}
+                {/* Always provide accessible name for screen readers even when collapsed or on tablet */}
+                <span className="sr-only lg:hidden">{item.label}，{item.badge}</span>
+                {collapsed && <span className="sr-only">{item.label}，{item.badge}</span>}
               </div>
             );
           }
@@ -173,7 +177,8 @@ export function AppSidebar({
               data-testid={`nav-item-${item.href.slice(1)}`}
               data-active={isActive}
               aria-current={isActive ? "page" : undefined}
-              title={collapsed ? item.label : undefined}
+              aria-label={item.label}
+              title={item.label}
               className={`group relative flex items-center gap-3 px-3 py-2 rounded-[var(--radius-md)] min-h-[var(--touch-target-min)] transition-colors duration-[var(--duration-fast)] ${
                 collapsed ? "justify-center" : "justify-center lg:justify-start"
               } ${
@@ -193,15 +198,16 @@ export function AppSidebar({
                 className={`w-5 h-5 shrink-0 ${
                   isActive ? "text-[var(--selection-neutral-text)]" : "text-[var(--text-muted)] group-hover:text-[var(--text-primary)]"
                 }`}
+                aria-hidden="true"
               />
               {!collapsed && (
                 <span className="hidden lg:inline text-sm font-[var(--font-weight-medium)] truncate">
                   {item.label}
                 </span>
               )}
-              {collapsed && (
-                <span className="sr-only">{item.label}</span>
-              )}
+              {/* Accessible name on tablet md and collapsed mode */}
+              <span className="sr-only lg:hidden">{item.label}</span>
+              {collapsed && <span className="sr-only">{item.label}</span>}
             </Link>
           );
         })}

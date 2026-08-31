@@ -96,7 +96,7 @@ export function AppHeader({
             })}
           </nav>
 
-          {/* Section Title in Song-Serif + Tablet Level Badge */}
+          {/* Section Title in Song-Serif + Tablet Level Badge / Placeholder */}
           <div className="flex items-center gap-2 truncate">
             <h1
               data-testid="header-page-title"
@@ -105,14 +105,20 @@ export function AppHeader({
               {displayTitle}
             </h1>
 
-            {/* Tablet (md) Level Badge only per frozen responsive contract */}
-            {typeof playerLevel === "number" && (
+            {/* Tablet (md) Level Badge or Zero-CLS Skeleton */}
+            {typeof playerLevel === "number" ? (
               <span
                 data-testid="header-tablet-level-badge"
                 className="hidden md:inline-block lg:hidden font-mono font-[var(--font-weight-bold)] text-xs text-[var(--text-primary)] px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--surface-raised)] border border-[var(--border-raised)]"
               >
                 LV.{playerLevel}
               </span>
+            ) : (
+              <span
+                data-testid="header-tablet-level-skeleton"
+                aria-hidden="true"
+                className="hidden md:inline-block lg:hidden w-11 h-5 rounded-[var(--radius-sm)] bg-[var(--surface-raised)] border border-[var(--border-raised)] animate-pulse"
+              />
             )}
           </div>
         </div>
@@ -132,8 +138,8 @@ export function AppHeader({
           </div>
         )}
 
-        {/* Desktop (lg/xl) Full Progression Capsule with XP Meter */}
-        {typeof playerLevel === "number" && levelProgress && (
+        {/* Desktop (lg/xl) Full Progression Capsule or Zero-CLS Skeleton */}
+        {typeof playerLevel === "number" && levelProgress ? (
           <div
             data-testid="header-progression-capsule"
             className="hidden lg:flex items-center gap-2.5 px-3 py-1.5 rounded-[var(--radius-md)] bg-[var(--surface-ground)] border border-[var(--border-subtle)]"
@@ -174,6 +180,18 @@ export function AppHeader({
                 总 {totalXp}
               </span>
             )}
+          </div>
+        ) : (
+          <div
+            data-testid="header-progression-skeleton"
+            aria-hidden="true"
+            className="hidden lg:flex items-center gap-2.5 px-3 py-1.5 rounded-[var(--radius-md)] bg-[var(--surface-ground)] border border-[var(--border-subtle)]"
+          >
+            <div className="w-9 h-5 rounded-[var(--radius-sm)] bg-[var(--surface-raised)] animate-pulse" />
+            <div className="flex flex-col gap-1 w-28 lg:w-36">
+              <div className="w-16 h-3 rounded bg-[var(--surface-raised)] animate-pulse" />
+              <div className="w-full h-[var(--progress-track-height)] rounded-full bg-[var(--surface-raised)]" />
+            </div>
           </div>
         )}
 

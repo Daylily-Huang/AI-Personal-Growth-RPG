@@ -598,4 +598,40 @@ describe("Global App Shell — Phase 2 Architecture & Component Verification", (
     expect(result.isVisualPR).toBe(true);
     expect(result.violations).toEqual([]);
   });
+
+  it("36. verifies zero react-hooks/rules-of-hooks suppressions exist in layout and page code", () => {
+    const filesToCheck = [
+      "src/components/layout/AppShell.tsx",
+      "src/components/layout/AppHeader.tsx",
+      "src/components/layout/AppShellContext.tsx",
+      "src/app/dashboard/page.tsx",
+    ];
+    for (const relPath of filesToCheck) {
+      const content = fs.readFileSync(path.resolve(process.cwd(), relPath), "utf8");
+      expect(content).not.toContain("rules-of-hooks");
+      expect(content).not.toMatch(/try\s*\{\s*useAppShell\(\)/);
+    }
+  });
+
+  it("37. verifies AppHeader renders zero-layout-shift skeletons on md and lg when dashboard is loading", () => {
+    render(<AppHeader dashboard={null} />);
+    const tabletSkeleton = screen.getByTestId("header-tablet-level-skeleton");
+    const progressionSkeleton = screen.getByTestId("header-progression-skeleton");
+
+    expect(tabletSkeleton).toBeTruthy();
+    expect(tabletSkeleton.className).toContain("hidden md:inline-block lg:hidden");
+    expect(progressionSkeleton).toBeTruthy();
+    expect(progressionSkeleton.className).toContain("hidden lg:flex");
+  });
+
+  it("38. verifies AppSidebar navigation items retain accessible names and titles on tablet icon-only mode", () => {
+    render(<AppSidebar collapsed={false} onToggleCollapse={vi.fn()} playerLevel={14} />);
+    const questLink = screen.getByTestId("nav-item-quests");
+    expect(questLink.getAttribute("aria-label")).toBe("任务志");
+    expect(questLink.getAttribute("title")).toBe("任务志");
+
+    const disabledArtifact = screen.getByTestId("nav-item-disabled-产出台");
+    expect(disabledArtifact.getAttribute("aria-label")).toBe("产出台，即将开放");
+    expect(disabledArtifact.getAttribute("title")).toBe("产出台 (即将开放)");
+  });
 });
