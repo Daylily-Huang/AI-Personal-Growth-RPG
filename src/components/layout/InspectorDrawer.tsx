@@ -67,44 +67,94 @@ export function InspectorDrawer({
   const drawerRef = useRef<HTMLElement>(null);
   const openerRef = useRef<HTMLElement | null>(null);
   const wasOpenRef = useRef(false);
+  const prevIsPushRef = useRef<boolean | null>(null);
+  const rafIdRef = useRef<number | null>(null);
 
   const isXl = useIsXlBreakpoint();
-
-  // Resolve effective behavioral mode from explicit prop or responsive token authority
   const isPush = mode === "push" || (mode === "auto" && isXl);
 
-  // 1. Stable Opener Capture & Focus Restoration Lifecycle
-  useEffect(() => {
-    if (open && !wasOpenRef.current) {
-      // Capture trigger element ONLY once on closed -> open transition
-      openerRef.current = document.activeElement as HTMLElement | null;
-      wasOpenRef.current = true;
-
-      // Shift initial focus into drawer only if modal mode
-      if (!isPush) {
-        requestAnimationFrame(() => {
-          const focusable = drawerRef.current?.querySelector<HTMLElement>(
-            'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
-          );
-          if (focusable) {
-            focusable.focus();
-          } else {
-            drawerRef.current?.focus();
-          }
-        });
+  // Helper to focus first focusable element inside drawer
+  const focusInsideDrawer = useCallback(() => {
+    if (rafIdRef.current !== null) {
+      cancelAnimationFrame(rafIdRef.current);
+    }
+    rafIdRef.current = requestAnimationFrame(() => {
+      rafIdRef.current = null;
+      if (!drawerRef.current) return;
+      const focusable = drawerRef.current.querySelector<HTMLElement>(
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      );
+      if (focusable) {
+        focusable.focus();
+      } else {
+        drawerRef.current.focus();
       }
-    } else if (!open && wasOpenRef.current) {
-      wasOpenRef.current = false;
-      // Restore focus to original trigger when drawer closes
+    });
+  }, []);
+
+  // 1. Lifecycle: Opener capture, Mode transitions, and Focus containment
+  useEffect(() => {
+    if (open) {
+      if (!wasOpenRef.current) {
+        // A. Closed -> Open
+        openerRef.current = document.activeElement as HTMLElement | null;
+        wasOpenRef.current = true;
+        if (!isPush) {
+          focusInsideDrawer();
+        }
+      } else {
+        // Breakpoint / mode transition while open
+        if (prevIsPushRef.current === true && !isPush) {
+          // B. Push -> Modal while open
+          // If current activeElement is outside drawer, move focus into the now-active modal
+          if (!drawerRef.current || !drawerRef.current.contains(document.activeElement)) {
+            focusInsideDrawer();
+          }
+        } else if (prevIsPushRef.current === false && isPush) {
+          // C. Modal -> Push while open: cancel any pending modal focus RAF
+          if (rafIdRef.current !== null) {
+            cancelAnimationFrame(rafIdRef.current);
+            rafIdRef.current = null;
+          }
+        }
+      }
+      prevIsPushRef.current = isPush;
+    } else {
+      if (wasOpenRef.current) {
+        // D. Open -> Closed
+        wasOpenRef.current = false;
+        prevIsPushRef.current = null;
+        if (rafIdRef.current !== null) {
+          cancelAnimationFrame(rafIdRef.current);
+          rafIdRef.current = null;
+        }
+        if (
+          openerRef.current &&
+          typeof openerRef.current.focus === "function" &&
+          document.body.contains(openerRef.current)
+        ) {
+          openerRef.current.focus();
+        }
+      }
+    }
+  }, [open, isPush, focusInsideDrawer]);
+
+  // E. Cleanup on unmount while open
+  useEffect(() => {
+    return () => {
+      if (rafIdRef.current !== null) {
+        cancelAnimationFrame(rafIdRef.current);
+      }
       if (
+        wasOpenRef.current &&
         openerRef.current &&
         typeof openerRef.current.focus === "function" &&
         document.body.contains(openerRef.current)
       ) {
         openerRef.current.focus();
       }
-    }
-  }, [open, isPush]);
+    };
+  }, []);
 
   // 2. Keyboard Handler: Escape dismiss & Modal Focus Trapping
   const handleKeyDown = useCallback(

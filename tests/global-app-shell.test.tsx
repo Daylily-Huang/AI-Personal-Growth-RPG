@@ -873,4 +873,285 @@ describe("Global App Shell — Phase 2 Architecture & Component Verification", (
 
     expect(mockRouterPush).toHaveBeenCalledWith("/login");
   });
+
+  it("48. verifies auto drawer direct open at xl does NOT steal focus from active opener", () => {
+    document.documentElement.style.setProperty("--breakpoint-xl", "90rem");
+    const originalMatchMedia = window.matchMedia;
+    window.matchMedia = vi.fn().mockImplementation((query) => ({
+      matches: true,
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }));
+
+    function TestDirectXl() {
+      const [open, setOpen] = React.useState(false);
+      return (
+        <div>
+          <button data-testid="xl-opener" onClick={() => setOpen(true)}>
+            打开
+          </button>
+          <InspectorDrawer open={open} onClose={() => setOpen(false)} mode="auto">
+            <button data-testid="drawer-inner-btn">内部按钮</button>
+          </InspectorDrawer>
+        </div>
+      );
+    }
+
+    render(<TestDirectXl />);
+    const opener = screen.getByTestId("xl-opener");
+    opener.focus();
+    expect(document.activeElement).toBe(opener);
+
+    fireEvent.click(opener);
+
+    // In push mode at xl, focus remains on opener and is NOT stolen into drawer
+    expect(document.activeElement).toBe(opener);
+
+    window.matchMedia = originalMatchMedia;
+    document.documentElement.style.removeProperty("--breakpoint-xl");
+  });
+
+  it("49. verifies transition from push (xl) to modal (below xl) moves outside focus into the active modal", async () => {
+    document.documentElement.style.setProperty("--breakpoint-xl", "90rem");
+    let isMatches = true;
+    let changeListener: (() => void) | null = null;
+
+    const originalMatchMedia = window.matchMedia;
+    window.matchMedia = vi.fn().mockImplementation((query) => ({
+      get matches() {
+        return isMatches;
+      },
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn((event, handler) => {
+        if (event === "change") changeListener = handler;
+      }),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }));
+
+    function TestPushToModal() {
+      const [open, setOpen] = React.useState(false);
+      return (
+        <div>
+          <button data-testid="push-opener" onClick={() => setOpen(true)}>
+            打开抽屉
+          </button>
+          <button data-testid="outside-workspace-btn">工作区其他按钮</button>
+          <InspectorDrawer open={open} onClose={() => setOpen(false)} mode="auto">
+            <button data-testid="drawer-target-btn">抽屉按钮</button>
+          </InspectorDrawer>
+        </div>
+      );
+    }
+
+    render(<TestPushToModal />);
+    const opener = screen.getByTestId("push-opener");
+    opener.focus();
+    fireEvent.click(opener);
+
+    // In push mode, user focuses an outside workspace button
+    const outsideBtn = screen.getByTestId("outside-workspace-btn");
+    outsideBtn.focus();
+    expect(document.activeElement).toBe(outsideBtn);
+
+    // Viewport shrinks below xl -> drawer transitions from push to modal
+    act(() => {
+      isMatches = false;
+      if (changeListener) changeListener();
+    });
+
+    // Wait for focus containment RAF to execute
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
+
+    const drawerClose = screen.getByTestId("inspector-drawer-close");
+    const drawerTarget = screen.getByTestId("drawer-target-btn");
+    const isInsideDrawer = document.activeElement === drawerClose || document.activeElement === drawerTarget;
+    expect(isInsideDrawer).toBe(true);
+
+    window.matchMedia = originalMatchMedia;
+    document.documentElement.style.removeProperty("--breakpoint-xl");
+  });
+
+  it("50. verifies unmounting InspectorDrawer while open restores focus to connected opener", () => {
+    function TestUnmountWhileOpen() {
+      const [mounted, setMounted] = React.useState(false);
+      return (
+        <div>
+          <button data-testid="unmount-opener" onClick={() => setMounted(true)}>
+            挂载并打开
+          </button>
+          {mounted && (
+            <InspectorDrawer open={true} onClose={() => setMounted(false)} mode="modal">
+              <button onClick={() => setMounted(false)} data-testid="dismiss-unmount">
+                销毁抽屉
+              </button>
+            </InspectorDrawer>
+          )}
+        </div>
+      );
+    }
+
+    render(<TestUnmountWhileOpen />);
+    const opener = screen.getByTestId("unmount-opener");
+    opener.focus();
+    expect(document.activeElement).toBe(opener);
+
+    fireEvent.click(opener);
+    expect(screen.getByTestId("dismiss-unmount")).toBeTruthy();
+
+    const dismissBtn = screen.getByTestId("dismiss-unmount");
+    fireEvent.click(dismissBtn);
+
+    expect(document.activeElement).toBe(opener);
+  });
+
+  it("51. verifies AppShellProvider + DashboardPage executes exactly ONE initial /api/dashboard request", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        dashboard: {
+          player: { playerLevel: 10, totalXp: 1000, energy: 100, focus: 100, momentum: 1 },
+          levelProgress: { xpIntoLevel: 100, xpNeededForNext: 400, progress: 0.25 },
+          skills: [],
+          quests: [],
+          activeQuests: [],
+          mainQuest: null,
+          recentGrowth: [],
+          activities: [],
+          pendingAssessments: [],
+          pendingMasteryVerifications: [],
+        },
+      }),
+    } as Response);
+
+    render(
+      <AppShellProvider>
+        <DashboardPage />
+      </AppShellProvider>
+    );
+
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 20));
+    });
+
+    const dashboardCalls = fetchSpy.mock.calls.filter((call) => call[0] === "/api/dashboard");
+    expect(dashboardCalls.length).toBe(1);
+    expect(screen.getByText("XP Lv.10")).toBeTruthy();
+    expect(screen.getByText("1000 XP total")).toBeTruthy();
+  });
+
+  it("52. verifies initial 500 error renders ErrorState and retry recovers dashboard state", async () => {
+    let callCount = 0;
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => {
+      if (url === "/api/dashboard") {
+        callCount++;
+        if (callCount === 1) {
+          return { ok: false, status: 500 } as Response;
+        }
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            dashboard: {
+              player: { playerLevel: 12, totalXp: 1500, energy: 100, focus: 100, momentum: 1 },
+              levelProgress: { xpIntoLevel: 200, xpNeededForNext: 600, progress: 0.33 },
+              skills: [],
+              quests: [],
+              activeQuests: [],
+              mainQuest: null,
+              recentGrowth: [],
+              activities: [],
+              pendingAssessments: [],
+              pendingMasteryVerifications: [],
+            },
+          }),
+        } as Response;
+      }
+      return { ok: true, status: 200, json: async () => ({}) } as Response;
+    });
+
+    render(
+      <AppShellProvider>
+        <DashboardPage />
+      </AppShellProvider>
+    );
+
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 20));
+    });
+
+    const retryBtn = screen.getByRole("button", { name: /Retry/i });
+    expect(retryBtn).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.click(retryBtn);
+      await new Promise((r) => setTimeout(r, 20));
+    });
+
+    expect(screen.getByText("XP Lv.12")).toBeTruthy();
+    expect(screen.getByText("1500 XP total")).toBeTruthy();
+  });
+
+  it("53. verifies network rejection renders ErrorState and retry recovers", async () => {
+    let callCount = 0;
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => {
+      if (url === "/api/dashboard") {
+        callCount++;
+        if (callCount === 1) {
+          throw new Error("Network offline failure");
+        }
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            dashboard: {
+              player: { playerLevel: 15, totalXp: 2000, energy: 100, focus: 100, momentum: 1 },
+              levelProgress: { xpIntoLevel: 300, xpNeededForNext: 800, progress: 0.375 },
+              skills: [],
+              quests: [],
+              activeQuests: [],
+              mainQuest: null,
+              recentGrowth: [],
+              activities: [],
+              pendingAssessments: [],
+              pendingMasteryVerifications: [],
+            },
+          }),
+        } as Response;
+      }
+      return { ok: true, status: 200, json: async () => ({}) } as Response;
+    });
+
+    render(
+      <AppShellProvider>
+        <DashboardPage />
+      </AppShellProvider>
+    );
+
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 20));
+    });
+
+    expect(screen.getByText("Network offline failure")).toBeTruthy();
+    const retryBtn = screen.getByRole("button", { name: /Retry/i });
+
+    await act(async () => {
+      fireEvent.click(retryBtn);
+      await new Promise((r) => setTimeout(r, 20));
+    });
+
+    expect(screen.getByText("XP Lv.15")).toBeTruthy();
+    expect(screen.getByText("2000 XP total")).toBeTruthy();
+  });
 });
