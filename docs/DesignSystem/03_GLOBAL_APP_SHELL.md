@@ -52,7 +52,7 @@ The unified **AppShell** provides a persistent, cohesive environment across all 
     - `/knowledge`: 知识图 (Knowledge Map)
     - `/artifacts`: 产出台 (Artifact Gallery)
   - **Selected Navigation State**: Neutral selected surface (`var(--selection-neutral-bg)`), neutral highlight border (`var(--selection-neutral-border)`), and high-contrast text (`var(--selection-neutral-text)`). Does NOT use progression Gold.
-  - **Bottom Footer**: Compact player avatar, level badge (`LevelBadge`), and collapse toggle button.
+  - **Bottom Footer**: Compact player identity placeholder, level badge (`LevelBadge`), and collapse toggle button.
 - **Desktop Collapsed (`width: var(--sidebar-width-collapsed)`)**:
   - Icons centered with hover tooltips (`z-index: var(--z-tooltip)`).
   - Active state shown via neutral vertical highlight bar (`width: var(--indicator-width-active)`, `bg: var(--selection-neutral-indicator)`).
@@ -63,8 +63,18 @@ The unified **AppShell** provides a persistent, cohesive environment across all 
 ### 2.3 Zone 3: Top Header (`AppHeader`)
 - **Left Zone**: Dynamic Breadcrumbs + Current Section Title with Song-serif styling (`font-family: var(--font-serif)`, `letter-spacing: var(--tracking-wide)`).
 - **Right Zone**:
-  - **Player Identity Capsule**: Avatar + User Name/Handle + Global Level Badge (`LevelBadge`, e.g. `LV.14`). *No artificial cultivation realm titles (e.g. 筑基) are derived from progression.*
-  - **Global XP Bar**: Compact animated progression bar showing `current_xp / next_level_xp` (`XPProgress`).
+  - **Player Progression (Frozen Read Models)**:
+    - `LevelBadge`: Bound strictly to `dashboard.player.playerLevel` (e.g. `LV.14`). *No artificial cultivation realm titles (e.g. 筑基) are derived from progression.*
+    - `XPProgress`: Bound strictly to frozen `dashboard.levelProgress` properties:
+      - Current level progress: `dashboard.levelProgress.xpIntoLevel`
+      - Threshold needed: `dashboard.levelProgress.xpNeededForNext`
+      - Progress percentage: `dashboard.levelProgress.progress`
+      - Optional total XP tooltip/readout: `dashboard.player.totalXp`
+      - *Never invent unbacked `current_xp` or `next_level_xp` fields.*
+  - **Player Identity (Graceful Fallback on Existing Auth Session)**:
+    - Consumes only the already-authenticated session identity available at runtime to the frontend (e.g. session email/user identifier).
+    - Local fallback: Renders initials or stylized monogram avatar placeholder locally when no profile image exists.
+    - Zero new backend/schema dependencies: No `profiles` table, avatar column, username column, or profile API is required. AppHeader presentation MUST degrade gracefully without any persisted profile feature.
   - **Pending Assessment Indicator**: Subtle pulse badge indicating unconfirmed AI assessments.
 
 ### 2.4 Zone 4: Main Workspace (`AppWorkspace`)

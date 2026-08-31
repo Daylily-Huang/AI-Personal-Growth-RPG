@@ -32,12 +32,12 @@ Color alone must never be the sole differentiator between entities. Every entity
 
 | Entity Type | Semantic Color Token | Icon Symbol | Border & Shape Geometry | Primary Badge & Readout | Primary Context |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Activity (行为)** | Copper Ochre (`var(--entity-activity-text)`) | ⚡ Lightning / Brush | Rounded Rect (`var(--radius-lg)`), Copper border | `ActivityType` (Learning, Creation, Production, Workout) | Timeline Feed, Settle Activity |
+| **Activity (行为)** | Copper Ochre (`var(--entity-activity-text)`) | ⚡ Lightning / Brush | Rounded Rect (`var(--radius-lg)`), Copper border | 6 Canonical `ActivityType`s (`learning`, `skill`, `production`, `physical`, `maintenance`, `reflection`) | Timeline Feed, Settle Activity |
 | **Quest (任务/使命)** | Azure Horizon (`var(--entity-quest-text)`) | 📜 Scroll / Compass | Beveled Pill Top-Edge (`var(--radius-xl)`), Azure border | `QuestProgress` ($0 - 100\%$) + Difficulty Stars | Mission Tree, Milestone Objective |
 | **Skill (技能/能力)** | Ancient Gold (`var(--entity-skill-text)`) | ⚔️ Crossed Swords / Talisman | Hexagonal Node / Gold border | `MasteryBadge` (**M0–M10**) + `masteryConfidence` | Capability Graph, Skill Hierarchy |
 | **Knowledge (知识/洞见)**| Emerald Celadon (`var(--entity-knowledge-text)`) | 🌿 Bamboo Leaf / Jade Nexus | Circular Node / Interconnected Edges | `AuthorityBadge` (4 States) + `epistemicConfidence` | Knowledge Map, Concept Synthesis |
 | **Artifact (产出/造物)** | Amethyst Scholar (`var(--entity-artifact-text)`)| 💎 Crystal / Bound Scroll | Double-Line Top Border, Silk Texture | 8-Type Badge + `ReusabilityScore` | Work Product Gallery, Links Inspector |
-| **Evidence (实证/证据)** | Vermilion Seal (`var(--entity-evidence-text)`) | 🏮 Traditional Red Seal / Stamp | Square Seal Inset, Vermilion Frame | `EvidenceLevel` ($1 - 5$) + Hash/URL Proof | Evidentiary Grounding, Audit Trail |
+| **Evidence (实证/证据)** | Vermilion Seal (`var(--entity-evidence-text)`) | 🏮 Traditional Red Seal / Stamp | Square Seal Inset, Vermilion Frame | `EvidenceLevel` (**E0–E6**) + `verified` indicator + `description` | Evidentiary Grounding, Audit Trail |
 
 ---
 
@@ -93,8 +93,8 @@ The design system maintains strict token and visual separation between Knowledge
 └───────────────────────┴───────────────────────┴───────────────────────┴───────────────────────┘
 ```
 
-1. **Level (等级)**: Represents accumulated practice volume. Rendered as an octagonal gold badge with an integer (e.g. `LV.14`).
-2. **XP (经验)**: Represents quantitative progression toward next level threshold (`current_xp / target_xp`).
+1. **Level (等级)**: Represents accumulated practice volume. Rendered as an octagonal gold badge with an integer (`dashboard.player.playerLevel`, e.g. `LV.14`).
+2. **XP (经验)**: Represents quantitative progression toward next level threshold (`dashboard.levelProgress.xpIntoLevel / dashboard.levelProgress.xpNeededForNext`).
 3. **Mastery (造诣)**: **Strictly M0–M10 scale.** Represents verified capability depth. Rendered with an explicit numeric label (`M0`..`M10`) and a 5-diamond meter supporting empty, half, and full states.
 4. **Confidence (置信度)**: **NEVER conflated with truth.** Represents epistemic certainty across 3 isolated contexts:
    - *Skill Mastery Confidence* (`Skill.masteryConfidence`)
@@ -107,4 +107,4 @@ The design system maintains strict token and visual separation between Knowledge
 
 1. **Never use gold for generic items or Activities**: Ancient Gold is reserved exclusively for Player Level, XP milestones, Skill Mastery (M0–M10), primary affirmative actions, and the global focus ring. Activity uses Copper Ochre (`var(--entity-activity-text)`).
 2. **Never render Knowledge with Skill Mastery**: Knowledge nodes display Authority State and Epistemic Confidence, never M0–M10 mastery badges or XP bars.
-3. **Never render Evidence as Artifacts**: Evidence is an immutable proof record; Artifacts are versionable, re-linkable work products with 8 taxonomy types.
+3. **Never render Evidence as Artifacts or invent fields**: Evidence is an immutable grounding record (`EvidenceRecord`: `evidenceLevel` E0–E6, `verified`, `description`, `evidenceType`, `activityId`, `skillId`, `createdAt`), with zero invented hash or URL fields; Artifacts are versionable, re-linkable work products with 8 taxonomy types.
