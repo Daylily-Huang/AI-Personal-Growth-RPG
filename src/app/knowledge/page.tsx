@@ -11,6 +11,7 @@ import {
   Search,
   AlertCircle,
   Sparkles,
+  SlidersHorizontal,
 } from "lucide-react";
 import type {
   KnowledgeGraphResponse,
@@ -25,8 +26,8 @@ import KnowledgeEdgeDetailPanel from "./components/KnowledgeEdgeDetailPanel";
 import type { KnowledgeFlowNodeType } from "./components/KnowledgeNodeView";
 import {
   type KnowledgeFilters,
-  DEFAULT_FILTERS,
   fetchKnowledgeGraph,
+  DEFAULT_FILTERS,
 } from "./components/controller";
 
 export default function KnowledgeMapPage() {
@@ -45,16 +46,7 @@ export default function KnowledgeMapPage() {
 
   // Mobile / Viewport State
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const [focusTarget, setFocusTarget] = useState<CanvasFocusTarget | null>(null);
-  const [isDesktopDetail, setIsDesktopDetail] = useState(false);
-
-  useEffect(() => {
-    const mq = window.matchMedia("(min-width: 1280px)");
-    const update = () => setIsDesktopDetail(mq.matches);
-    update();
-    mq.addEventListener("change", update);
-    return () => mq.removeEventListener("change", update);
-  }, []);
+  const [focusTarget] = useState<CanvasFocusTarget | null>(null);
 
   const doFetchGraph = useCallback(async (): Promise<KnowledgeGraphResponse | null> => {
     const res = await fetchKnowledgeGraph(filters);
@@ -81,7 +73,6 @@ export default function KnowledgeMapPage() {
       .finally(() => {
         if (!ignore) setLoading(false);
       });
-
     return () => {
       ignore = true;
     };
@@ -97,11 +88,13 @@ export default function KnowledgeMapPage() {
       .catch((e) => {
         setError(e instanceof Error ? e.message : "未知错误");
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        setLoading(false);
+      });
   }
 
-  function handleFilterChange(updates: Partial<KnowledgeFilters>) {
-    setFilters((prev) => ({ ...prev, ...updates }));
+  function handleFilterChange(newFilters: Partial<KnowledgeFilters>) {
+    setFilters((prev) => ({ ...prev, ...newFilters }));
   }
 
   function handleResetFilters() {
@@ -111,29 +104,13 @@ export default function KnowledgeMapPage() {
   }
 
   function handleSelectNode(nodeId: string | null) {
-    setSelectedEdgeId(null);
     setSelectedNodeId(nodeId);
-
-    if (nodeId && graph) {
-      const targetNode = graph.nodes.find((n) => n.id === nodeId);
-      if (targetNode) {
-        setFocusTarget({
-          x: targetNode.position.x,
-          y: targetNode.position.y,
-          nonce: Date.now(),
-        });
-      }
-    }
+    setSelectedEdgeId(null);
   }
 
   function handleSelectEdge(edgeId: string | null) {
-    setSelectedNodeId(null);
     setSelectedEdgeId(edgeId);
-  }
-
-  function handleClearSelection() {
     setSelectedNodeId(null);
-    setSelectedEdgeId(null);
   }
 
   function handleFocusRoot(rootId: string) {
@@ -206,7 +183,7 @@ export default function KnowledgeMapPage() {
   const filterPanel = (
     <KnowledgeFilterPanel
       domains={domainItems}
-      totalCandidateNodes={graph?.stats.totalNodes ?? 0}
+      totalCandidateNodes={graph?.stats?.totalNodes ?? graph?.nodes?.length ?? 0}
       filters={filters}
       rootNodeTitle={rootNodeTitle}
       onFilterChange={handleFilterChange}
@@ -215,35 +192,64 @@ export default function KnowledgeMapPage() {
   );
 
   return (
-    <div className="flex h-full w-full min-h-0 flex-1 overflow-hidden">
-      {/* LEFT — Desktop Filter / Navigation Panel (280px) */}
-      <aside
-        className="hidden w-[280px] shrink-0 overflow-hidden border-r border-white/5 bg-[#0d1320]/60 lg:flex lg:flex-col"
-        aria-label="知识领域与认识论筛选"
-      >
-        <div className="p-3 border-b border-white/5">
-          <div className="relative">
-            <Search
-              aria-hidden="true"
-              className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-500"
-            />
-            <input
-              data-testid="header-search-input"
-              value={filters.search}
-              onChange={(e) => handleFilterChange({ search: e.target.value })}
-              placeholder="搜索概念、命题或关系…"
-              aria-label="搜索知识库"
-              className="w-full rounded-lg border border-white/10 bg-black/30 pl-8 pr-3 py-1.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400"
-            />
-          </div>
+    <div className="flex flex-col h-full w-full min-h-0 overflow-hidden">
+      {/* Mobile/Tablet Local Toolbar (< 1024px) */}
+      <div className="flex items-center justify-between gap-2 p-2.5 border-b border-white/5 bg-[#0d1320]/60 lg:hidden">
+        <button
+          type="button"
+          onClick={() => setMobileNavOpen(true)}
+          aria-label="打开筛选面板"
+          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/10 bg-white/5 text-xs text-zinc-200 hover:bg-white/10"
+        >
+          <SlidersHorizontal className="w-3.5 h-3.5" />
+          <span>筛选</span>
+        </button>
+
+        <div className="relative flex-1 max-w-xs">
+          <Search
+            aria-hidden="true"
+            className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-500"
+          />
+          <input
+            data-testid="header-search-input"
+            value={filters.search}
+            onChange={(e) => handleFilterChange({ search: e.target.value })}
+            placeholder="搜索知识…"
+            aria-label="搜索知识库"
+            className="w-full rounded-lg border border-white/10 bg-black/30 pl-8 pr-2.5 py-1 text-xs text-zinc-100 placeholder:text-zinc-600 focus:outline-none"
+          />
         </div>
-        <div className="flex-1 overflow-y-auto">{filterPanel}</div>
-      </aside>
+      </div>
+
+      {/* Main Workspace Row */}
+      <div className="flex flex-1 min-h-0 w-full overflow-hidden">
+        {/* LEFT — Desktop Filter / Navigation Panel (280px) */}
+        <aside
+          className="hidden w-[280px] shrink-0 overflow-hidden border-r border-white/5 bg-[#0d1320]/60 lg:flex lg:flex-col"
+          aria-label="知识领域与认识论筛选"
+        >
+          <div className="p-3 border-b border-white/5">
+            <div className="relative">
+              <Search
+                aria-hidden="true"
+                className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-500"
+              />
+              <input
+                value={filters.search}
+                onChange={(e) => handleFilterChange({ search: e.target.value })}
+                placeholder="搜索概念、命题或关系…"
+                aria-label="搜索知识库"
+                className="w-full rounded-lg border border-white/10 bg-black/30 pl-8 pr-3 py-1.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400"
+              />
+            </div>
+          </div>
+          <div className="flex-1 overflow-y-auto">{filterPanel}</div>
+        </aside>
 
         {/* CENTER — Interactive ReactFlow Canvas */}
-        <section className="relative min-w-0 flex-1" aria-label="知识图谱互动画布">
+        <section className="relative min-w-0 flex-1 h-full" aria-label="知识图谱互动画布">
           {/* Truncation & Progressive View Indicator */}
-          {graph?.stats.isTruncated && (
+          {graph?.stats?.isTruncated && (
             <div
               data-testid="graph-truncated-banner"
               className="absolute left-4 top-4 z-20 flex items-center gap-2 rounded-lg border border-amber-500/30 bg-[#0d1320]/90 px-3 py-1.5 text-xs text-amber-300 backdrop-blur shadow-lg"
@@ -256,33 +262,27 @@ export default function KnowledgeMapPage() {
           )}
 
           {loading ? (
-            <div
-              data-testid="loading-indicator"
-              className="flex h-full items-center justify-center gap-3 text-zinc-400"
-            >
+            <div data-testid="loading-indicator" className="flex h-full items-center justify-center gap-3 text-zinc-400">
               <Loader2 className="h-8 w-8 animate-spin text-sky-400" aria-hidden="true" />
               <p className="text-sm">正在加载知识图谱与认知事实…</p>
             </div>
           ) : error ? (
-            <div
-              data-testid="error-state"
-              className="flex h-full flex-col items-center justify-center gap-4 px-6 text-center"
-            >
-              <div className="flex items-center gap-2 text-rose-400 font-semibold">
+            <div data-testid="error-state" className="flex h-full flex-col items-center justify-center gap-4 px-6 text-center">
+              <div className="flex items-center gap-2 text-rose-400">
                 <AlertCircle className="h-5 w-5" />
-                <span>加载知识图谱失败</span>
+                <span className="font-semibold">加载失败</span>
               </div>
               <p className="max-w-md text-sm text-zinc-400">{error}</p>
               <button
                 type="button"
                 data-testid="retry-btn"
                 onClick={refresh}
-                className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-4 py-2 text-sm hover:bg-white/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400"
+                className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm hover:bg-white/10"
               >
-                <RefreshCw className="h-4 w-4" aria-hidden="true" /> 重试
+                <RefreshCw className="h-4 w-4" /> 重试
               </button>
             </div>
-          ) : (graph?.stats.totalNodes ?? 0) === 0 ? (
+          ) : (graph?.stats?.totalNodes ?? graph?.nodes?.length ?? 0) === 0 ? (
             <div
               data-testid="empty-graph-state"
               className="flex h-full flex-col items-center justify-center gap-4 px-6 text-center"
@@ -301,21 +301,6 @@ export default function KnowledgeMapPage() {
                 去记录学习活动
               </a>
             </div>
-          ) : flowNodes.length === 0 ? (
-            <div
-              data-testid="no-match-state"
-              className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center"
-            >
-              <p className="text-sm text-zinc-400">当前筛选条件下没有可见的知识节点。</p>
-              <button
-                type="button"
-                data-testid="clear-all-filters-btn"
-                onClick={handleResetFilters}
-                className="rounded-lg border border-white/10 px-3 py-1.5 text-xs hover:bg-white/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400"
-              >
-                清除全部筛选
-              </button>
-            </div>
           ) : (
             <KnowledgeGraphCanvas
               nodes={flowNodes}
@@ -323,20 +308,29 @@ export default function KnowledgeMapPage() {
               selectedEdgeId={selectedEdgeId}
               onSelectNode={handleSelectNode}
               onSelectEdge={handleSelectEdge}
-              onClearSelection={handleClearSelection}
+              onClearSelection={() => {
+                setSelectedNodeId(null);
+                setSelectedEdgeId(null);
+              }}
               focusTarget={focusTarget}
               fitKey={`${filters.domainId ?? "all"}|${filters.status}|${filters.nodeType}|${filters.rootNodeId ?? "no-root"}|${filters.search}|${filters.depth}`}
             />
           )}
         </section>
 
-        {/* RIGHT — Desktop Static Column / Mobile Overlay (Node or Edge Detail) */}
+        {/* RIGHT — Desktop Column on xl / Mobile Overlay on < xl (Single-instance responsive container) */}
         {selectedNodeId ? (
-          isDesktopDetail ? (
-            <aside
-              className="relative hidden w-[380px] shrink-0 border-l border-white/5 bg-[#0d1320]/80 xl:block"
-              aria-label="知识节点详情"
-            >
+          <aside
+            aria-label="知识节点详情面板"
+            className="xl:relative xl:w-[380px] xl:shrink-0 xl:border-l xl:border-white/5 xl:bg-[#0d1320]/80"
+          >
+            <button
+              type="button"
+              aria-label="关闭详情面板"
+              onClick={() => setSelectedNodeId(null)}
+              className="fixed inset-0 z-40 bg-black/50 xl:hidden"
+            />
+            <div className="fixed inset-y-0 right-0 z-50 w-[min(380px,92vw)] border-l border-white/10 bg-[#0d1320] shadow-2xl xl:static xl:z-auto xl:w-full xl:h-full xl:border-none xl:shadow-none">
               <KnowledgeDetailPanel
                 key={`node-${selectedNodeId}`}
                 nodeId={selectedNodeId}
@@ -346,34 +340,20 @@ export default function KnowledgeMapPage() {
                 onFocusRoot={handleFocusRoot}
                 onDataChanged={refresh}
               />
-            </aside>
-          ) : (
-            <>
-              <button
-                type="button"
-                aria-label="关闭详情面板"
-                onClick={() => setSelectedNodeId(null)}
-                className="fixed inset-0 z-40 bg-black/50 xl:hidden"
-              />
-              <div className="fixed inset-y-0 right-0 z-50 w-[min(380px,92vw)] border-l border-white/10 bg-[#0d1320] shadow-2xl xl:hidden">
-                <KnowledgeDetailPanel
-                  key={`drawer-node-${selectedNodeId}`}
-                  nodeId={selectedNodeId}
-                  domains={domainItems}
-                  onClose={() => setSelectedNodeId(null)}
-                  onSelectNode={handleSelectNode}
-                  onFocusRoot={handleFocusRoot}
-                  onDataChanged={refresh}
-                />
-              </div>
-            </>
-          )
+            </div>
+          </aside>
         ) : selectedEdgeId ? (
-          isDesktopDetail ? (
-            <aside
-              className="relative hidden w-[380px] shrink-0 border-l border-white/5 bg-[#0d1320]/80 xl:block"
-              aria-label="知识连边详情"
-            >
+          <aside
+            aria-label="知识连边详情面板"
+            className="xl:relative xl:w-[380px] xl:shrink-0 xl:border-l xl:border-white/5 xl:bg-[#0d1320]/80"
+          >
+            <button
+              type="button"
+              aria-label="关闭连边详情"
+              onClick={() => setSelectedEdgeId(null)}
+              className="fixed inset-0 z-40 bg-black/50 xl:hidden"
+            />
+            <div className="fixed inset-y-0 right-0 z-50 w-[min(380px,92vw)] border-l border-white/10 bg-[#0d1320] shadow-2xl xl:static xl:z-auto xl:w-full xl:h-full xl:border-none xl:shadow-none">
               <KnowledgeEdgeDetailPanel
                 key={`edge-${selectedEdgeId}`}
                 edgeId={selectedEdgeId}
@@ -381,27 +361,10 @@ export default function KnowledgeMapPage() {
                 onSelectNode={handleSelectNode}
                 onDataChanged={refresh}
               />
-            </aside>
-          ) : (
-            <>
-              <button
-                type="button"
-                aria-label="关闭连边详情"
-                onClick={() => setSelectedEdgeId(null)}
-                className="fixed inset-0 z-40 bg-black/50 xl:hidden"
-              />
-              <div className="fixed inset-y-0 right-0 z-50 w-[min(380px,92vw)] border-l border-white/10 bg-[#0d1320] shadow-2xl xl:hidden">
-                <KnowledgeEdgeDetailPanel
-                  key={`drawer-edge-${selectedEdgeId}`}
-                  edgeId={selectedEdgeId}
-                  onClose={() => setSelectedEdgeId(null)}
-                  onSelectNode={handleSelectNode}
-                  onDataChanged={refresh}
-                />
-              </div>
-            </>
-          )
+            </div>
+          </aside>
         ) : null}
+      </div>
 
       {/* Mobile Filter Drawer Overlay */}
       {mobileNavOpen && (
@@ -428,17 +391,6 @@ export default function KnowledgeMapPage() {
           </div>
         </>
       )}
-
-      {/* Mobile Search Fallback */}
-      <div className="border-t border-white/5 bg-[#0d1320]/80 px-3 py-2 sm:hidden">
-        <input
-          value={filters.search}
-          onChange={(e) => handleFilterChange({ search: e.target.value })}
-          placeholder="搜索概念、命题或关系…"
-          aria-label="搜索知识库"
-          className="w-full rounded-lg border border-white/10 bg-black/30 px-3 py-1.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400"
-        />
-      </div>
     </div>
   );
 }

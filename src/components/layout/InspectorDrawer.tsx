@@ -10,6 +10,7 @@ export interface InspectorDrawerProps {
   status?: React.ReactNode;
   actions?: React.ReactNode;
   children: React.ReactNode;
+  mode?: "modal" | "push" | "auto";
   className?: string;
 }
 
@@ -20,12 +21,15 @@ export function InspectorDrawer({
   status,
   actions,
   children,
+  mode = "auto",
   className = "",
 }: InspectorDrawerProps) {
   const drawerRef = useRef<HTMLDivElement>(null);
   const previousActiveElementRef = useRef<HTMLElement | null>(null);
 
-  // Focus trap: Handle Tab, Shift+Tab, and Escape keys
+  const isPurePush = mode === "push";
+
+  // Focus trap: Handle Tab, Shift+Tab, and Escape keys (active for modal modes)
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (e.key === "Escape" || e.key === "Esc") {
@@ -33,6 +37,8 @@ export function InspectorDrawer({
         onClose();
         return;
       }
+
+      if (isPurePush) return; // Non-modal push panels preserve normal document tab flow
 
       if (e.key === "Tab") {
         if (!drawerRef.current) return;
@@ -65,7 +71,7 @@ export function InspectorDrawer({
         }
       }
     },
-    [onClose]
+    [onClose, isPurePush]
   );
 
   useEffect(() => {
@@ -73,14 +79,16 @@ export function InspectorDrawer({
       previousActiveElementRef.current = document.activeElement as HTMLElement | null;
       window.addEventListener("keydown", handleKeyDown);
 
-      // Shift initial focus into the drawer
-      const focusable = drawerRef.current?.querySelector<HTMLElement>(
-        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
-      );
-      if (focusable) {
-        focusable.focus();
-      } else {
-        drawerRef.current?.focus();
+      if (!isPurePush) {
+        // Shift initial focus into the modal drawer
+        const focusable = drawerRef.current?.querySelector<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        );
+        if (focusable) {
+          focusable.focus();
+        } else {
+          drawerRef.current?.focus();
+        }
       }
     } else {
       window.removeEventListener("keydown", handleKeyDown);
@@ -97,7 +105,7 @@ export function InspectorDrawer({
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [open, handleKeyDown]);
+  }, [open, handleKeyDown, isPurePush]);
 
   if (!open) return null;
 
@@ -106,28 +114,33 @@ export function InspectorDrawer({
   return (
     <div
       data-testid="inspector-drawer-root"
-      className="fixed inset-0 z-[var(--z-drawer)] overflow-hidden"
+      data-mode={mode}
+      className={`fixed inset-0 z-[var(--z-drawer)] flex flex-col justify-end md:flex-row md:justify-end overflow-hidden pointer-events-none ${
+        isPurePush ? "md:pointer-events-none" : ""
+      }`}
     >
-      {/* Backdrop — positioned behind the panel within drawer root */}
-      <div
-        data-testid="inspector-drawer-backdrop"
-        onClick={onClose}
-        aria-hidden="true"
-        className="absolute inset-0 bg-[var(--surface-modal-backdrop)] backdrop-blur-[var(--glass-blur-sm)] transition-opacity duration-[var(--duration-fast)]"
-      />
+      {/* Backdrop (rendered for modal / auto modes, hidden in push mode) */}
+      {!isPurePush && (
+        <div
+          data-testid="inspector-drawer-backdrop"
+          onClick={onClose}
+          aria-hidden="true"
+          className="absolute inset-0 bg-[var(--surface-modal-backdrop)] backdrop-blur-[var(--glass-blur-sm)] transition-opacity duration-[var(--duration-fast)] pointer-events-auto"
+        />
+      )}
 
-      {/* Slide-over Drawer Panel — strictly in front of backdrop */}
+      {/* Slide-over Drawer Panel */}
       <div
         ref={drawerRef}
-        role="dialog"
-        aria-modal="true"
+        role={isPurePush ? "region" : "dialog"}
+        aria-modal={isPurePush ? undefined : "true"}
         aria-labelledby={hasTitle ? "inspector-drawer-title" : undefined}
         aria-label={!hasTitle ? "检查器" : undefined}
         tabIndex={-1}
         data-testid="inspector-drawer-panel"
-        className={`relative z-10 ml-auto bg-[var(--surface-overlay)] border-[var(--border-raised)] shadow-[var(--shadow-overlay)] flex flex-col transition-transform duration-[var(--duration-drawer)] ease-[var(--ease-drawer)] max-w-full 
-          w-full h-[var(--drawer-sheet-mobile-height)] mt-auto rounded-t-[var(--radius-xl)] border-t
-          md:mt-0 md:h-full md:rounded-none md:border-t-0 md:border-l md:w-[var(--drawer-width-tablet)]
+        className={`relative z-10 pointer-events-auto bg-[var(--surface-overlay)] border-[var(--border-raised)] shadow-[var(--shadow-overlay)] flex flex-col transition-transform ease-[var(--ease-drawer)] max-w-full 
+          w-full h-[var(--drawer-sheet-mobile-height)] rounded-t-[var(--radius-xl)] border-t duration-[var(--duration-drawer-mobile)]
+          md:h-full md:rounded-none md:border-t-0 md:border-l md:duration-[var(--duration-drawer)] md:w-[var(--drawer-width-tablet)]
           lg:w-[var(--drawer-width-desktop)]
           xl:w-[var(--drawer-width-wide)]
           ${className}`}

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, RefreshCw, Search } from "lucide-react";
+import { Loader2, RefreshCw, Search, SlidersHorizontal } from "lucide-react";
 import type {
   SkillDerivedState,
   SkillFlowNode,
@@ -33,15 +33,6 @@ export default function SkillsPage() {
 
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [focusTarget, setFocusTarget] = useState<CanvasFocusTarget | null>(null);
-  const [isDesktopDetail, setIsDesktopDetail] = useState(false);
-
-  useEffect(() => {
-    const mq = window.matchMedia("(min-width: 1280px)");
-    const update = () => setIsDesktopDetail(mq.matches);
-    update();
-    mq.addEventListener("change", update);
-    return () => mq.removeEventListener("change", update);
-  }, []);
 
   // All setStates happen after an await (react-hooks/set-state-in-effect);
   // the initial loading=true comes from useState and the refresh() event
@@ -85,18 +76,22 @@ export default function SkillsPage() {
       .catch((e) => {
         setError(e instanceof Error ? e.message : "未知错误");
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        setLoading(false);
+      });
   }
 
-  const domainListItems = useMemo(
-    () => buildDomainList(graph?.domains ?? [], graph?.nodes ?? []),
-    [graph],
-  );
-  const totalCount = graph?.nodes.length ?? 0;
-  const domainNameById = useMemo(
-    () => new Map((graph?.domains ?? []).map((d) => [d.id, d.name])),
-    [graph],
-  );
+  const domainListItems = useMemo(() => {
+    if (!graph) return [];
+    return buildDomainList(graph.domains, graph.nodes);
+  }, [graph]);
+
+  const domainNameById = useMemo(() => {
+    if (!graph) return new Map<string, string>();
+    return new Map(graph.domains.map((d) => [d.id, d.name]));
+  }, [graph]);
+
+  const totalCount = graph?.nodes?.length ?? 0;
 
   const visible = useMemo(() => {
     if (!graph) return { nodes: [], edges: [] };
@@ -156,32 +151,61 @@ export default function SkillsPage() {
   );
 
   return (
-    <div className="flex h-full w-full min-h-0 flex-1 overflow-hidden">
-      {/* LEFT — desktop */}
-      <aside
-        className="hidden w-[280px] shrink-0 overflow-hidden border-r border-white/5 bg-[#0d1320]/60 lg:flex lg:flex-col"
-        aria-label="领域与状态筛选"
-      >
-        <div className="p-3 border-b border-white/5">
-          <div className="relative">
-            <Search
-              aria-hidden="true"
-              className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-500"
-            />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="搜索技能名称或别名…"
-              aria-label="搜索技能"
-              className="w-full rounded-lg border border-white/10 bg-black/30 pl-8 pr-3 py-1.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400"
-            />
-          </div>
-        </div>
-        <div className="flex-1 overflow-y-auto">{filterPanel}</div>
-      </aside>
+    <div className="flex flex-col h-full w-full min-h-0 overflow-hidden">
+      {/* Mobile/Tablet Local Toolbar (< 1024px) */}
+      <div className="flex items-center justify-between gap-2 p-2.5 border-b border-white/5 bg-[#0d1320]/60 lg:hidden">
+        <button
+          type="button"
+          onClick={() => setMobileNavOpen(true)}
+          aria-label="打开筛选面板"
+          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/10 bg-white/5 text-xs text-zinc-200 hover:bg-white/10"
+        >
+          <SlidersHorizontal className="w-3.5 h-3.5" />
+          <span>筛选</span>
+        </button>
 
-      {/* CENTER */}
-      <section className="relative min-w-0 flex-1 h-full" aria-label="技能图谱画布">
+        <div className="relative flex-1 max-w-xs">
+          <Search
+            aria-hidden="true"
+            className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-500"
+          />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="搜索技能…"
+            aria-label="搜索技能"
+            className="w-full rounded-lg border border-white/10 bg-black/30 pl-8 pr-2.5 py-1 text-xs text-zinc-100 placeholder:text-zinc-600 focus:outline-none"
+          />
+        </div>
+      </div>
+
+      {/* Main Workspace Row */}
+      <div className="flex flex-1 min-h-0 w-full overflow-hidden">
+        {/* LEFT — Desktop Filter / Navigation Panel (280px) */}
+        <aside
+          className="hidden w-[280px] shrink-0 overflow-hidden border-r border-white/5 bg-[#0d1320]/60 lg:flex lg:flex-col"
+          aria-label="领域与状态筛选"
+        >
+          <div className="p-3 border-b border-white/5">
+            <div className="relative">
+              <Search
+                aria-hidden="true"
+                className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-500"
+              />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="搜索技能名称或别名…"
+                aria-label="搜索技能"
+                className="w-full rounded-lg border border-white/10 bg-black/30 pl-8 pr-3 py-1.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400"
+              />
+            </div>
+          </div>
+          <div className="flex-1 overflow-y-auto">{filterPanel}</div>
+        </aside>
+
+        {/* CENTER — Interactive Canvas */}
+        <section className="relative min-w-0 flex-1 h-full" aria-label="技能图谱画布">
           {loading ? (
             <div className="flex h-full items-center justify-center gap-3 text-zinc-400">
               <Loader2 className="h-8 w-8 animate-spin text-emerald-300" aria-hidden="true" />
@@ -241,13 +265,18 @@ export default function SkillsPage() {
           )}
         </section>
 
-        {/* RIGHT — desktop static column / mobile drawer (single instance) */}
+        {/* RIGHT — Detail Panel (Responsive single-instance: static column on xl, fixed overlay drawer on < xl) */}
         {selectedSkillId && detailOpen ? (
-          isDesktopDetail ? (
-            <aside
-              className="relative hidden w-[380px] shrink-0 border-l border-white/5 bg-[#0d1320]/80 xl:block"
-              aria-label="技能详情"
-            >
+          <aside
+            className="xl:relative xl:w-[380px] xl:shrink-0 xl:border-l xl:border-white/5 xl:bg-[#0d1320]/80"
+          >
+            <button
+              type="button"
+              aria-label="关闭详情面板"
+              onClick={() => handleSelect(null)}
+              className="fixed inset-0 z-40 bg-black/50 xl:hidden"
+            />
+            <div className="fixed inset-y-0 right-0 z-50 w-[min(380px,92vw)] border-l border-white/10 bg-[#0d1320] shadow-2xl xl:static xl:z-auto xl:w-full xl:h-full xl:border-none xl:shadow-none">
               <SkillDetailPanel
                 key={selectedSkillId}
                 skillId={selectedSkillId}
@@ -256,30 +285,12 @@ export default function SkillsPage() {
                 onFocusSkill={handleFocusSkill}
                 onChanged={refresh}
               />
-            </aside>
-          ) : (
-            <>
-              <button
-                type="button"
-                aria-label="关闭详情面板"
-                onClick={() => handleSelect(null)}
-                className="fixed inset-0 z-40 bg-black/50 xl:hidden"
-              />
-              <div className="fixed inset-y-0 right-0 z-50 w-[min(380px,92vw)] border-l border-white/10 bg-[#0d1320] shadow-2xl xl:hidden">
-                <SkillDetailPanel
-                  key={`drawer-${selectedSkillId}`}
-                  skillId={selectedSkillId}
-                  domains={graph?.domains ?? []}
-                  onClose={() => handleSelect(null)}
-                  onFocusSkill={handleFocusSkill}
-                  onChanged={refresh}
-                />
-              </div>
-            </>
-          )
+            </div>
+          </aside>
         ) : null}
+      </div>
 
-      {/* Mobile filter overlay */}
+      {/* Mobile Filter Drawer Overlay */}
       {mobileNavOpen ? (
         <>
           <button
@@ -304,17 +315,6 @@ export default function SkillsPage() {
           </div>
         </>
       ) : null}
-
-      {/* Mobile search fallback */}
-      <div className="border-t border-white/5 bg-[#0d1320]/80 px-3 py-2 sm:hidden">
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="搜索技能名称或别名…"
-          aria-label="搜索技能"
-          className="w-full rounded-lg border border-white/10 bg-black/30 px-3 py-1.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400"
-        />
-      </div>
     </div>
   );
 }

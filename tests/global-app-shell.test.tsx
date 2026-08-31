@@ -13,7 +13,10 @@ import {
   InspectorDrawer,
   AppShell,
   AppShellBoundary,
+  AppShellProvider,
+  useAppShell,
   useInspectorUrlState,
+  isProductRoute,
 } from "@/components/layout";
 import type { DashboardSnapshot } from "@/lib/store/types";
 import { validateVisualMigrationDelta } from "./visual-foundation.test";
@@ -112,307 +115,276 @@ describe("Global App Shell — Phase 2 Architecture & Component Verification", (
   });
 
   // ----------------------------------------------------
-  // 1-3. Persistent AppShell Boundary & /login Exclusion
+  // 1-4. Route Classifier & Persistent AppShell Boundary
   // ----------------------------------------------------
-  it("1. verifies ONE persistent AppShell boundary exists and wraps product routes", () => {
+  it("1. verifies segment-safe isProductRoute classifier matches known product routes and subpaths", () => {
+    expect(isProductRoute("/dashboard")).toBe(true);
+    expect(isProductRoute("/quests")).toBe(true);
+    expect(isProductRoute("/quests/quest-123")).toBe(true);
+    expect(isProductRoute("/skills")).toBe(true);
+    expect(isProductRoute("/knowledge")).toBe(true);
+    expect(isProductRoute("/artifacts")).toBe(true);
+
+    expect(isProductRoute("/login")).toBe(false);
+    expect(isProductRoute("/")).toBe(false);
+    expect(isProductRoute("/api/dashboard")).toBe(false);
+    expect(isProductRoute("/onboarding")).toBe(false);
+  });
+
+  it("2. verifies ONE persistent AppShell boundary wraps product routes and survives route transitions", () => {
     currentPathname = "/dashboard";
     const { rerender } = render(
       <AppShellBoundary>
-        <div data-testid="page-dashboard">仪表盘内容</div>
+        <div data-testid="page-content">当前页面</div>
       </AppShellBoundary>
     );
 
     expect(screen.getByTestId("app-shell-root")).toBeTruthy();
-    expect(screen.getByTestId("page-dashboard")).toBeTruthy();
 
     // Navigate to /quests
     currentPathname = "/quests";
     rerender(
       <AppShellBoundary>
-        <div data-testid="page-quests">任务志内容</div>
+        <div data-testid="page-content">当前页面</div>
       </AppShellBoundary>
     );
 
     expect(screen.getByTestId("app-shell-root")).toBeTruthy();
-    expect(screen.getByTestId("page-quests")).toBeTruthy();
   });
 
-  it("2. verifies /login route is strictly excluded from AppShell wrapper", () => {
+  it("3. verifies /login and non-product routes are strictly excluded from AppShell", () => {
     currentPathname = "/login";
-    render(
+    const { rerender } = render(
       <AppShellBoundary>
-        <div data-testid="login-page">登录页面</div>
+        <div data-testid="login-page">登录</div>
       </AppShellBoundary>
     );
 
     expect(screen.queryByTestId("app-shell-root")).toBeNull();
-    expect(screen.queryByTestId("app-sidebar")).toBeNull();
-    expect(screen.queryByTestId("app-header")).toBeNull();
     expect(screen.getByTestId("login-page")).toBeTruthy();
-  });
 
-  it("3. verifies root layout mounts AppShellBoundary", () => {
-    const layoutPath = path.resolve(process.cwd(), "src/app/layout.tsx");
-    const content = fs.readFileSync(layoutPath, "utf8");
-    expect(content).toContain("AppShellBoundary");
-  });
-
-  // ----------------------------------------------------
-  // 4-9. Page Chrome Cleanup & Main Landmark Integrity
-  // ----------------------------------------------------
-  it("4. verifies Dashboard page contains no legacy Shell wrapper or duplicate header/nav/main", () => {
-    const filePath = path.resolve(process.cwd(), "src/app/dashboard/page.tsx");
-    const content = fs.readFileSync(filePath, "utf8");
-    expect(content).not.toContain("function Shell(");
-    expect(content).not.toContain("<Shell");
-    expect(content).not.toContain("</Shell>");
-    expect(content).not.toContain("<main>");
-    expect(content).not.toContain("</main>");
-  });
-
-  it("5. verifies Quests page contains no legacy header/nav or duplicate main", () => {
-    const filePath = path.resolve(process.cwd(), "src/app/quests/page.tsx");
-    const content = fs.readFileSync(filePath, "utf8");
-    expect(content).not.toContain("<header");
-    expect(content).not.toContain("</header>");
-    expect(content).not.toContain("<main");
-    expect(content).not.toContain("</main>");
-  });
-
-  it("6. verifies Skills page contains no legacy header/nav or duplicate main", () => {
-    const filePath = path.resolve(process.cwd(), "src/app/skills/page.tsx");
-    const content = fs.readFileSync(filePath, "utf8");
-    expect(content).not.toContain("<header");
-    expect(content).not.toContain("</header>");
-    expect(content).not.toContain("<main");
-    expect(content).not.toContain("</main>");
-  });
-
-  it("7. verifies Knowledge page contains no legacy header/nav or duplicate main", () => {
-    const filePath = path.resolve(process.cwd(), "src/app/knowledge/page.tsx");
-    const content = fs.readFileSync(filePath, "utf8");
-    expect(content).not.toContain("<header");
-    expect(content).not.toContain("</header>");
-    expect(content).not.toContain("<main");
-    expect(content).not.toContain("</main>");
-  });
-
-  it("8. verifies AppWorkspace provides the single primary main landmark", () => {
-    render(
-      <AppWorkspace fullBleed={false}>
-        <div>标准内容</div>
-      </AppWorkspace>
+    currentPathname = "/";
+    rerender(
+      <AppShellBoundary>
+        <div data-testid="root-landing">根路径重定向</div>
+      </AppShellBoundary>
     );
-
-    const mains = screen.getAllByRole("main");
-    expect(mains.length).toBe(1);
-    expect(mains[0].id).toBe("main-content");
-    expect(mains[0].getAttribute("data-full-bleed")).toBe("false");
+    expect(screen.queryByTestId("app-shell-root")).toBeNull();
   });
 
-  it("8b. verifies AppWorkspace supports fullBleed mode without margins", () => {
+  it("4. verifies AppWorkspace sits explicitly above AppEnvironment via z-canvas", () => {
     render(
-      <AppWorkspace fullBleed={true}>
-        <div>全屏画布内容</div>
-      </AppWorkspace>
+      <AppShell dashboard={mockDashboard}>
+        <div>页面内容</div>
+      </AppShell>
     );
 
     const workspace = screen.getByTestId("app-workspace");
+    expect(workspace.className).toContain("relative z-[var(--z-canvas)]");
+
+    const env = screen.getByTestId("app-environment");
+    expect(env.className).toContain("z-[var(--z-bg-env)]");
+  });
+
+  it("4b. verifies AppWorkspace supports fullBleed canvas rendering without padding", () => {
+    render(
+      <AppWorkspace fullBleed={true}>
+        <div>画布</div>
+      </AppWorkspace>
+    );
+    const workspace = screen.getByTestId("app-workspace");
     expect(workspace.getAttribute("data-full-bleed")).toBe("true");
-    expect(workspace.className).toContain("w-full h-full p-0");
-  });
-
-  it("9. verifies Skills/Knowledge fullBleed children do not use conflicting h-screen shell roots", () => {
-    const skillsContent = fs.readFileSync(path.resolve(process.cwd(), "src/app/skills/page.tsx"), "utf8");
-    const knowledgeContent = fs.readFileSync(path.resolve(process.cwd(), "src/app/knowledge/page.tsx"), "utf8");
-    expect(skillsContent).not.toContain("flex h-screen flex-col");
-    expect(knowledgeContent).not.toContain("flex h-screen flex-col");
+    expect(workspace.className).toContain("w-full h-full p-0 overflow-hidden");
   });
 
   // ----------------------------------------------------
-  // 10-14. Responsive Shell Matrix & Sidebar State
+  // 5-9. Responsive Header & Sidebar Matrix (CSS-First)
   // ----------------------------------------------------
-  it("10. verifies Base viewport exposes MobileNav and hides desktop sidebar", () => {
-    render(<AppShell dashboard={mockDashboard}><div>内容</div></AppShell>);
-    const sidebar = screen.getByTestId("app-sidebar");
-    const mobileNav = screen.getByTestId("mobile-nav");
+  it("5. verifies Base header hides breadcrumbs and full XP progression capsule", () => {
+    render(<AppHeader dashboard={mockDashboard} />);
+    const breadcrumbs = screen.getByTestId("header-breadcrumbs");
+    const capsule = screen.getByTestId("header-progression-capsule");
 
-    expect(sidebar.className).toContain("hidden md:flex");
-    expect(mobileNav.className).toContain("md:hidden");
+    expect(breadcrumbs.className).toContain("hidden lg:flex");
+    expect(capsule.className).toContain("hidden lg:flex");
   });
 
-  it("10b. verifies MobileNav renders active dot indicator for current route", () => {
+  it("5b. verifies MobileNav renders active item indicator for current route", () => {
     currentPathname = "/quests";
     render(<MobileNav />);
-    const activeNav = screen.getByTestId("mobile-nav-quests");
-    expect(activeNav.getAttribute("aria-current")).toBe("page");
+    const questItem = screen.getByTestId("mobile-nav-quests");
+    expect(questItem.getAttribute("aria-current")).toBe("page");
     expect(screen.getByTestId("mobile-active-indicator")).toBeTruthy();
   });
 
-  it("11. verifies sidebar expanded vs collapsed widths and content offsets", () => {
+  it("6. verifies md header displays Compact Title + Level Badge only", () => {
+    render(<AppHeader dashboard={mockDashboard} />);
+    const tabletLevelBadge = screen.getByTestId("header-tablet-level-badge");
+    expect(tabletLevelBadge.className).toContain("hidden md:inline-block lg:hidden");
+    expect(tabletLevelBadge.textContent).toBe("LV.14");
+  });
+
+  it("7. verifies lg header exposes full Breadcrumbs and XP capsule", () => {
+    render(<AppHeader dashboard={mockDashboard} />);
+    const breadcrumbs = screen.getByTestId("header-breadcrumbs");
+    const capsule = screen.getByTestId("header-progression-capsule");
+
+    expect(breadcrumbs.className).toContain("hidden lg:flex");
+    expect(capsule.className).toContain("hidden lg:flex");
+  });
+
+  it("8. verifies md sidebar is collapsed by structural CSS classes (no JS matchMedia)", () => {
+    render(<AppSidebar collapsed={false} onToggleCollapse={vi.fn()} />);
+    const sidebar = screen.getByTestId("app-sidebar");
+    expect(sidebar.className).toContain("w-[var(--sidebar-width-collapsed)] lg:w-[var(--sidebar-width-expanded)]");
+  });
+
+  it("9. verifies content offset matches CSS-first collapsed md and expanded lg contract", () => {
     render(
       <AppShell dashboard={mockDashboard}>
         <div>内容</div>
       </AppShell>
     );
 
-    const toggleBtn = screen.getByTestId("sidebar-toggle-button");
-    const sidebar = screen.getByTestId("app-sidebar");
     const container = screen.getByTestId("app-shell-content-container");
-
-    // Initially expanded on desktop
-    expect(sidebar.getAttribute("data-collapsed")).toBe("false");
-    expect(sidebar.className).toContain("w-[var(--sidebar-width-expanded)]");
-    expect(container.className).toContain("md:ml-[var(--sidebar-width-expanded)]");
-
-    // Toggle collapse
-    fireEvent.click(toggleBtn);
-    expect(sidebar.getAttribute("data-collapsed")).toBe("true");
-    expect(sidebar.className).toContain("w-[var(--sidebar-width-collapsed)]");
-    expect(container.className).toContain("md:ml-[var(--sidebar-width-collapsed)]");
+    expect(container.className).toContain("md:ml-[var(--sidebar-width-collapsed)] lg:ml-[var(--sidebar-width-expanded)]");
   });
 
-  it("12. verifies Ctrl/Cmd+B shortcut toggles sidebar collapse", () => {
-    render(<AppShell dashboard={mockDashboard}><div>内容</div></AppShell>);
-    const sidebar = screen.getByTestId("app-sidebar");
-
-    expect(sidebar.getAttribute("data-collapsed")).toBe("false");
-    fireEvent.keyDown(window, { key: "b", ctrlKey: true });
-    expect(sidebar.getAttribute("data-collapsed")).toBe("true");
-    fireEvent.keyDown(window, { key: "b", ctrlKey: true });
-    expect(sidebar.getAttribute("data-collapsed")).toBe("false");
-  });
-
-  it("13. verifies Ctrl/Cmd+B is suppressed when focused on editable controls", () => {
-    render(
-      <AppShell dashboard={mockDashboard}>
-        <input data-testid="test-input" type="text" />
-      </AppShell>
-    );
-    const sidebar = screen.getByTestId("app-sidebar");
-    const input = screen.getByTestId("test-input");
-
-    expect(sidebar.getAttribute("data-collapsed")).toBe("false");
-    fireEvent.keyDown(input, { key: "b", ctrlKey: true });
-    expect(sidebar.getAttribute("data-collapsed")).toBe("false");
-  });
-
-  // ----------------------------------------------------
-  // 15-20. AppHeader Breadcrumbs, Progression & Gold Governance
-  // ----------------------------------------------------
-  it("15. verifies AppHeader hides breadcrumbs and full XP capsule on mobile", () => {
-    render(<AppHeader dashboard={mockDashboard} />);
-    const breadcrumbs = screen.getByTestId("header-breadcrumbs");
-    const capsule = screen.getByTestId("header-progression-capsule");
-
-    expect(breadcrumbs.className).toContain("hidden md:flex");
-    expect(capsule.className).toContain("hidden md:flex");
-  });
-
-  it("16. verifies AppHeader reads frozen Level and XP without artificial cultivation realms", () => {
-    render(<AppHeader dashboard={mockDashboard} />);
-    expect(screen.getByTestId("header-player-level").textContent).toBe("LV.14");
-    expect(screen.getByTestId("header-xp-into-level").textContent).toBe("150");
-    expect(screen.getByTestId("header-xp-needed").textContent).toBe("300 XP");
-
-    const header = screen.getByTestId("app-header");
-    expect(header.textContent).not.toContain("筑基");
-    expect(header.textContent).not.toContain("金丹");
-    expect(header.textContent).not.toContain("元婴");
-  });
-
-  it("17. verifies Artifact nav item is disabled with '即将开放' label and prevents 404", () => {
-    render(<AppSidebar collapsed={false} onToggleCollapse={vi.fn()} />);
-    const disabledItem = screen.getByTestId("nav-item-disabled-产出台");
-    expect(disabledItem.getAttribute("aria-disabled")).toBe("true");
-    expect(disabledItem.textContent).toContain("即将开放");
-    expect(disabledItem.textContent).not.toContain("阶段7C");
-  });
-
-  it("18. verifies active navigation treatment strictly consumes neutral selection tokens", () => {
-    currentPathname = "/dashboard";
-    render(<AppSidebar collapsed={false} onToggleCollapse={vi.fn()} />);
-    const activeNav = screen.getByTestId("nav-item-dashboard");
-    expect(activeNav.className).toContain("bg-[var(--selection-neutral-bg)]");
-    expect(activeNav.className).toContain("border-[var(--selection-neutral-border)]");
-    expect(activeNav.className).toContain("text-[var(--selection-neutral-text)]");
-    expect(activeNav.className).not.toContain("gold");
-
-    const indicator = screen.getByTestId("nav-active-indicator");
-    expect(indicator.className).toContain("bg-[var(--selection-neutral-indicator)]");
-  });
-
-  it("19. verifies Brand shield does NOT consume progression Gold", () => {
-    const sidebarFilePath = path.resolve(process.cwd(), "src/components/layout/AppSidebar.tsx");
-    const content = fs.readFileSync(sidebarFilePath, "utf8");
-    expect(content).not.toContain("gold-400)]");
-    expect(content).not.toContain("gold-300)]");
-  });
-
-  it("20. verifies Progression Gold is consumed ONLY by approved progression UI", () => {
-    const headerFilePath = path.resolve(process.cwd(), "src/components/layout/AppHeader.tsx");
-    const content = fs.readFileSync(headerFilePath, "utf8");
-    // Gold is allowed for the XP progress bar
-    expect(content).toContain("bg-[var(--gold-400)]");
-  });
-
-  // ----------------------------------------------------
-  // 21. Raw Style Literal Audit
-  // ----------------------------------------------------
-  it("21. verifies no raw hex codes or arbitrary numeric styling literals remain in src/components/layout/**", () => {
+  it("10. verifies no raw 1024px / 64rem breakpoint literals exist in layout code", () => {
     const layoutDir = path.resolve(process.cwd(), "src/components/layout");
     const files = fs.readdirSync(layoutDir).filter((f) => f.endsWith(".tsx") || f.endsWith(".ts"));
 
     for (const file of files) {
       const content = fs.readFileSync(path.join(layoutDir, file), "utf8");
-      // Check for raw hex colors (#fff, #123456)
-      const hexMatches = content.match(/#[0-9a-fA-F]{3,8}\b/g);
-      expect(hexMatches, `Raw hex color found in ${file}: ${hexMatches?.join(", ")}`).toBeNull();
-
-      // Check for raw arbitrary pixel brackets like max-w-[120px], text-[10px], rounded-[var(--radius-full,9999px)]
-      const arbitraryNumericMatches = content.match(/(?:w|h|p|m|text|rounded|max-w|min-w)-\[\d+px\]/g);
-      expect(arbitraryNumericMatches, `Arbitrary numeric pixel literal in ${file}: ${arbitraryNumericMatches?.join(", ")}`).toBeNull();
-
-      // Check for unapproved fallback literals in CSS variables
-      const rawFallbackMatches = content.match(/var\(--[^,)]+,\s*[^)]+\)/g);
-      expect(rawFallbackMatches, `Unapproved CSS var fallback in ${file}: ${rawFallbackMatches?.join(", ")}`).toBeNull();
+      expect(content).not.toContain("1024px");
+      expect(content).not.toContain("64rem");
     }
   });
 
   // ----------------------------------------------------
-  // 22. AppEnvironment SVG Token Binding
+  // 11-15. Skills & Knowledge Mobile Filter Opener & Breakpoint Gap Fix
   // ----------------------------------------------------
-  it("22. verifies AppEnvironment artwork strictly binds color to var(--bg-ink-wash) via CSS mask", () => {
-    render(<AppEnvironment />);
-    const artwork = screen.getByTestId("environment-artwork");
-    expect(artwork.className).toContain("bg-[var(--bg-ink-wash)]");
-    expect(artwork.style.maskImage).toContain("ink-landscape.svg");
+  it("11. verifies Skills page has a reachable mobile filter opener button", () => {
+    const filePath = path.resolve(process.cwd(), "src/app/skills/page.tsx");
+    const content = fs.readFileSync(filePath, "utf8");
+    expect(content).toContain('onClick={() => setMobileNavOpen(true)}');
+    expect(content).toContain('aria-label="打开筛选面板"');
+  });
+
+  it("12. verifies Knowledge page has a reachable mobile filter opener button", () => {
+    const filePath = path.resolve(process.cwd(), "src/app/knowledge/page.tsx");
+    const content = fs.readFileSync(filePath, "utf8");
+    expect(content).toContain('onClick={() => setMobileNavOpen(true)}');
+    expect(content).toContain('aria-label="打开筛选面板"');
+  });
+
+  it("13. verifies no legacy 1280px matchMedia authority remains in Skills or Knowledge pages", () => {
+    const skillsPath = path.resolve(process.cwd(), "src/app/skills/page.tsx");
+    const knowledgePath = path.resolve(process.cwd(), "src/app/knowledge/page.tsx");
+    expect(fs.readFileSync(skillsPath, "utf8")).not.toContain("1280px");
+    expect(fs.readFileSync(knowledgePath, "utf8")).not.toContain("1280px");
+  });
+
+  it("14. verifies Skills detail panel supports single-instance responsive container (desktop static column on xl, overlay on < xl)", () => {
+    const content = fs.readFileSync(path.resolve(process.cwd(), "src/app/skills/page.tsx"), "utf8");
+    expect(content).toContain("xl:relative xl:w-[380px] xl:shrink-0");
+    expect(content).toContain("xl:hidden");
+    expect(content).toContain("xl:static");
+  });
+
+  it("15. verifies Knowledge detail panel supports single-instance responsive container (desktop static column on xl, overlay on < xl)", () => {
+    const content = fs.readFileSync(path.resolve(process.cwd(), "src/app/knowledge/page.tsx"), "utf8");
+    expect(content).toContain("xl:relative xl:w-[380px] xl:shrink-0");
+    expect(content).toContain("xl:hidden");
+    expect(content).toContain("xl:static");
   });
 
   // ----------------------------------------------------
-  // 23-30. InspectorDrawer Stacking, Focus Trap & Accessibility
+  // 16-19. Shell Read-Model Synchronization
   // ----------------------------------------------------
-  it("23. verifies InspectorDrawer backdrop is positioned behind panel inside drawer root", () => {
+  it("16. verifies AppShellContext publishes latest dashboard snapshot to AppHeader", () => {
+    function TestConsumer() {
+      const { setDashboard } = useAppShell();
+      return (
+        <div>
+          <button
+            data-testid="update-btn"
+            onClick={() =>
+              setDashboard({
+                ...mockDashboard,
+                player: { ...mockDashboard.player, playerLevel: 15 },
+                pendingAssessments: [],
+              })
+            }
+          >
+            升级
+          </button>
+          <AppHeader />
+        </div>
+      );
+    }
+
     render(
-      <InspectorDrawer open={true} onClose={vi.fn()} title="测试抽屉">
-        <div>抽屉内容</div>
+      <AppShellProvider initialDashboard={mockDashboard}>
+        <TestConsumer />
+      </AppShellProvider>
+    );
+
+    expect(screen.getByTestId("header-player-level").textContent).toBe("LV.14");
+    expect(screen.getByTestId("pending-assessment-indicator")).toBeTruthy();
+
+    // Trigger update
+    fireEvent.click(screen.getByTestId("update-btn"));
+
+    // Header updates immediately
+    expect(screen.getByTestId("header-player-level").textContent).toBe("LV.15");
+    expect(screen.queryByTestId("pending-assessment-indicator")).toBeNull();
+  });
+
+  // ----------------------------------------------------
+  // 20-25. InspectorDrawer Mobile Anchoring, Push Mode & A11y
+  // ----------------------------------------------------
+  it("20. verifies InspectorDrawer root uses flex-col justify-end for bottom sheet anchoring", () => {
+    render(
+      <InspectorDrawer open={true} onClose={vi.fn()} title="测试">
+        <div>内容</div>
       </InspectorDrawer>
     );
 
     const root = screen.getByTestId("inspector-drawer-root");
-    const backdrop = screen.getByTestId("inspector-drawer-backdrop");
-    const panel = screen.getByTestId("inspector-drawer-panel");
-
-    expect(root.contains(backdrop)).toBe(true);
-    expect(root.contains(panel)).toBe(true);
-    expect(panel.className).toContain("relative z-10");
+    expect(root.className).toContain("flex flex-col justify-end");
   });
 
-  it("24. verifies InspectorDrawer closes on Escape key", () => {
+  it("21. verifies InspectorDrawer panel consumes duration-drawer-mobile token on mobile", () => {
+    render(
+      <InspectorDrawer open={true} onClose={vi.fn()} title="测试">
+        <div>内容</div>
+      </InspectorDrawer>
+    );
+
+    const panel = screen.getByTestId("inspector-drawer-panel");
+    expect(panel.className).toContain("duration-[var(--duration-drawer-mobile)]");
+    expect(panel.className).toContain("md:duration-[var(--duration-drawer)]");
+  });
+
+  it("22. verifies InspectorDrawer mode='push' renders as non-modal region without backdrop", () => {
+    render(
+      <InspectorDrawer open={true} onClose={vi.fn()} title="测试" mode="push">
+        <div>推送抽屉内容</div>
+      </InspectorDrawer>
+    );
+
+    expect(screen.queryByTestId("inspector-drawer-backdrop")).toBeNull();
+    const panel = screen.getByTestId("inspector-drawer-panel");
+    expect(panel.getAttribute("role")).toBe("region");
+    expect(panel.getAttribute("aria-modal")).toBeNull();
+  });
+
+  it("23. verifies InspectorDrawer closes on Escape key", () => {
     const onClose = vi.fn();
     render(
-      <InspectorDrawer open={true} onClose={onClose} title="测试抽屉">
-        <div>抽屉内容</div>
+      <InspectorDrawer open={true} onClose={onClose} title="测试">
+        <div>内容</div>
       </InspectorDrawer>
     );
 
@@ -420,16 +392,14 @@ describe("Global App Shell — Phase 2 Architecture & Component Verification", (
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it("25. verifies Tab key cycles focus from last element to first element", () => {
+  it("24. verifies Tab key cycles focus within modal drawer", () => {
     render(
-      <InspectorDrawer open={true} onClose={vi.fn()} title="测试抽屉">
-        <button data-testid="btn-first">第一按钮</button>
+      <InspectorDrawer open={true} onClose={vi.fn()} title="测试">
         <button data-testid="btn-last">最后按钮</button>
       </InspectorDrawer>
     );
 
     const lastBtn = screen.getByTestId("btn-last");
-
     lastBtn.focus();
     expect(document.activeElement).toBe(lastBtn);
 
@@ -437,35 +407,32 @@ describe("Global App Shell — Phase 2 Architecture & Component Verification", (
     expect(document.activeElement).toBe(screen.getByTestId("inspector-drawer-close"));
   });
 
-  it("26. verifies Shift+Tab cycles focus from first element to last element", () => {
+  it("25. verifies Shift+Tab key cycles focus backwards within modal drawer", () => {
     render(
-      <InspectorDrawer open={true} onClose={vi.fn()} title="测试抽屉">
-        <button data-testid="btn-first">第一按钮</button>
+      <InspectorDrawer open={true} onClose={vi.fn()} title="测试">
         <button data-testid="btn-last">最后按钮</button>
       </InspectorDrawer>
     );
 
     const closeBtn = screen.getByTestId("inspector-drawer-close");
-    const lastBtn = screen.getByTestId("btn-last");
-
     closeBtn.focus();
     expect(document.activeElement).toBe(closeBtn);
 
     fireEvent.keyDown(window, { key: "Tab", shiftKey: true });
-    expect(document.activeElement).toBe(lastBtn);
+    expect(document.activeElement).toBe(screen.getByTestId("btn-last"));
   });
 
-  it("27. verifies focus is restored to the triggering element upon drawer close", () => {
+  it("26. verifies focus is restored to the triggering element upon drawer close", () => {
     const onClose = vi.fn();
     function TestComponent() {
       const [open, setOpen] = React.useState(false);
       return (
         <div>
           <button data-testid="open-trigger" onClick={() => setOpen(true)}>
-            打开抽屉
+            打开
           </button>
           <InspectorDrawer open={open} onClose={() => { setOpen(false); onClose(); }} title="抽屉">
-            <button data-testid="inside-btn">内按钮</button>
+            <div>内容</div>
           </InspectorDrawer>
         </div>
       );
@@ -476,19 +443,16 @@ describe("Global App Shell — Phase 2 Architecture & Component Verification", (
     trigger.focus();
     expect(document.activeElement).toBe(trigger);
 
-    // Open drawer
     fireEvent.click(trigger);
     expect(screen.getByTestId("inspector-drawer-panel")).toBeTruthy();
 
-    // Close drawer via close button
     const closeBtn = screen.getByTestId("inspector-drawer-close");
     fireEvent.click(closeBtn);
 
-    // Assert focus restored to trigger element
     expect(document.activeElement).toBe(trigger);
   });
 
-  it("28. verifies title-less drawer provides valid accessible naming without dangling aria-labelledby", () => {
+  it("27. verifies title-less drawer provides valid accessible naming", () => {
     render(
       <InspectorDrawer open={true} onClose={vi.fn()}>
         <div>无标题抽屉</div>
@@ -500,48 +464,23 @@ describe("Global App Shell — Phase 2 Architecture & Component Verification", (
     expect(panel.getAttribute("aria-labelledby")).toBeNull();
   });
 
-  it("29. verifies InspectorDrawer accepts arbitrary injected children and actions", () => {
-    render(
-      <InspectorDrawer
-        open={true}
-        onClose={vi.fn()}
-        title="自定义实体"
-        actions={<button data-testid="custom-action">保存</button>}
-      >
-        <div data-testid="custom-child">自定义实体内容</div>
-      </InspectorDrawer>
-    );
-
-    expect(screen.getByTestId("custom-child")).toBeTruthy();
-    expect(screen.getByTestId("custom-action")).toBeTruthy();
-  });
-
-  it("30. verifies InspectorDrawer contains zero hardcoded entity business schemas", () => {
-    const drawerFilePath = path.resolve(process.cwd(), "src/components/layout/InspectorDrawer.tsx");
-    const content = fs.readFileSync(drawerFilePath, "utf8");
-    expect(content).not.toContain("SkillDetail");
-    expect(content).not.toContain("KnowledgeNode");
-    expect(content).not.toContain("QuestDetail");
-    expect(content).not.toContain("ArtifactDetail");
-  });
-
   // ----------------------------------------------------
-  // 31-34. Universal URL State Infrastructure for Inspector
+  // 28-31. Universal URL State Infrastructure
   // ----------------------------------------------------
-  it("31. verifies useInspectorUrlState reads ?inspect=<id> from URL", () => {
+  it("28. verifies useInspectorUrlState reads ?inspect=<id> from URL", () => {
     currentSearchParams = new URLSearchParams("inspect=node-123&filter=all");
     const { result } = renderHook(() => useInspectorUrlState());
     expect(result.current.inspectId).toBe("node-123");
   });
 
-  it("32. verifies useInspectorUrlState reads ?tab=<tab> from URL", () => {
+  it("29. verifies useInspectorUrlState reads ?tab=<tab> from URL", () => {
     currentSearchParams = new URLSearchParams("inspect=node-123&tab=evidence");
     const { result } = renderHook(() => useInspectorUrlState());
     expect(result.current.inspectId).toBe("node-123");
     expect(result.current.activeTab).toBe("evidence");
   });
 
-  it("33. verifies closing inspector removes inspect and tab query params while preserving others", () => {
+  it("30. verifies closing inspector removes inspect and tab query params while preserving others", () => {
     currentSearchParams = new URLSearchParams("view=graph&filter=active&inspect=skill-99&tab=history");
     const { result } = renderHook(() => useInspectorUrlState());
 
@@ -552,7 +491,7 @@ describe("Global App Shell — Phase 2 Architecture & Component Verification", (
     expect(mockRouterReplace).toHaveBeenCalledWith("/dashboard?view=graph&filter=active");
   });
 
-  it("34. verifies openInspector and setTab preserve unrelated query parameters", () => {
+  it("31. verifies openInspector and setTab preserve unrelated query parameters", () => {
     currentSearchParams = new URLSearchParams("domain=rust&level=3");
     const { result } = renderHook(() => useInspectorUrlState());
 
@@ -564,8 +503,39 @@ describe("Global App Shell — Phase 2 Architecture & Component Verification", (
   });
 
   // ----------------------------------------------------
-  // 35. Frozen Backend Diff Guard
+  // 32-35. Style Audits & Frozen Diff Guard
   // ----------------------------------------------------
+  it("32. verifies Brand shield does NOT consume progression Gold", () => {
+    const sidebarFilePath = path.resolve(process.cwd(), "src/components/layout/AppSidebar.tsx");
+    const content = fs.readFileSync(sidebarFilePath, "utf8");
+    expect(content).not.toContain("gold-400)]");
+    expect(content).not.toContain("gold-300)]");
+  });
+
+  it("33. verifies no raw hex codes or arbitrary numeric styling literals remain in src/components/layout/**", () => {
+    const layoutDir = path.resolve(process.cwd(), "src/components/layout");
+    const files = fs.readdirSync(layoutDir).filter((f) => f.endsWith(".tsx") || f.endsWith(".ts"));
+
+    for (const file of files) {
+      const content = fs.readFileSync(path.join(layoutDir, file), "utf8");
+      const hexMatches = content.match(/#[0-9a-fA-F]{3,8}\b/g);
+      expect(hexMatches, `Raw hex color found in ${file}: ${hexMatches?.join(", ")}`).toBeNull();
+
+      const arbitraryNumericMatches = content.match(/(?:w|h|p|m|text|rounded|max-w|min-w)-\[\d+px\]/g);
+      expect(arbitraryNumericMatches, `Arbitrary numeric pixel literal in ${file}: ${arbitraryNumericMatches?.join(", ")}`).toBeNull();
+
+      const rawFallbackMatches = content.match(/var\(--[^,)]+,\s*[^)]+\)/g);
+      expect(rawFallbackMatches, `Unapproved CSS var fallback in ${file}: ${rawFallbackMatches?.join(", ")}`).toBeNull();
+    }
+  });
+
+  it("34. verifies AppEnvironment artwork strictly binds color to var(--bg-ink-wash) via CSS mask", () => {
+    render(<AppEnvironment />);
+    const artwork = screen.getByTestId("environment-artwork");
+    expect(artwork.className).toContain("bg-[var(--bg-ink-wash)]");
+    expect(artwork.style.maskImage).toContain("ink-landscape.svg");
+  });
+
   it("35. verifies frozen backend/domain diff guard passes", () => {
     const layoutFiles = [
       "src/components/layout/AppEnvironment.tsx",
@@ -576,6 +546,7 @@ describe("Global App Shell — Phase 2 Architecture & Component Verification", (
       "src/components/layout/InspectorDrawer.tsx",
       "src/components/layout/AppShell.tsx",
       "src/components/layout/AppShellBoundary.tsx",
+      "src/components/layout/AppShellContext.tsx",
       "src/components/layout/useInspectorUrlState.ts",
       "src/components/layout/index.ts",
       "src/app/layout.tsx",

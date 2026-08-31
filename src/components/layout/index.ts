@@ -6,4 +6,5 @@ export * from "./MobileNav";
 export * from "./InspectorDrawer";
 export * from "./AppShell";
 export * from "./AppShellBoundary";
+export * from "./AppShellContext";
 export * from "./useInspectorUrlState";

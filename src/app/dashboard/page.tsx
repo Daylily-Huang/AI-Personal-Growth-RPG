@@ -25,10 +25,24 @@ import {
   ChevronRight,
 } from "lucide-react";
 
+import { useAppShell } from "@/components/layout/AppShellContext";
+
 export default function DashboardPage() {
   const router = useRouter();
-  const [dashboard, setDashboard] = useState<DashboardSnapshot | null>(null);
-  const [loading, setLoading] = useState(true);
+
+  let shellCtx: ReturnType<typeof useAppShell> | null = null;
+  try {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    shellCtx = useAppShell();
+  } catch {
+    // Standalone fallback
+  }
+
+  const [localDashboard, setLocalDashboard] = useState<DashboardSnapshot | null>(null);
+  const dashboard = shellCtx ? shellCtx.dashboard : localDashboard;
+  const setDashboard = shellCtx ? shellCtx.setDashboard : setLocalDashboard;
+
+  const [loading, setLoading] = useState(!dashboard);
   const [error, setError] = useState<string | null>(null);
   const [rawInput, setRawInput] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -50,7 +64,7 @@ export default function DashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, [router]);
+  }, [router, setDashboard]);
 
   useEffect(() => {
     let ignore = false;
@@ -76,7 +90,7 @@ export default function DashboardPage() {
     return () => {
       ignore = true;
     };
-  }, [router]);
+  }, [router, setDashboard]);
 
   async function handleQuickLog(e: React.FormEvent) {
     e.preventDefault();

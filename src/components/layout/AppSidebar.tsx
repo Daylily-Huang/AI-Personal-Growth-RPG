@@ -105,7 +105,7 @@ export function AppSidebar({
       className={`hidden md:flex flex-col fixed top-0 left-0 bottom-0 z-[var(--z-app-shell)] bg-[var(--surface-base)] backdrop-blur-[var(--glass-blur-lg)] border-r border-[var(--border-subtle)] transition-[width] duration-[var(--duration-normal)] ease-[var(--ease-in-out-subtle)] select-none ${
         collapsed
           ? "w-[var(--sidebar-width-collapsed)]"
-          : "w-[var(--sidebar-width-expanded)]"
+          : "w-[var(--sidebar-width-collapsed)] lg:w-[var(--sidebar-width-expanded)]"
       } ${className}`}
     >
       {/* Brand Header — Neutral Icon (Zero Progression Gold) */}
@@ -119,7 +119,7 @@ export function AppSidebar({
             <Shield className="w-5 h-5" />
           </div>
           {!collapsed && (
-            <div className="flex flex-col truncate">
+            <div className="hidden lg:flex flex-col truncate">
               <span className="font-serif font-[var(--font-weight-semibold)] text-sm tracking-[var(--tracking-wide)] text-[var(--text-primary)] truncate">
                 AI Personal Growth
               </span>
@@ -144,13 +144,13 @@ export function AppSidebar({
                 data-testid={`nav-item-disabled-${item.label}`}
                 title={collapsed ? `${item.label} (${item.badge})` : undefined}
                 className={`relative flex items-center gap-3 px-3 py-2 rounded-[var(--radius-md)] min-h-[var(--touch-target-min)] text-[var(--text-disabled)] cursor-not-allowed opacity-60 ${
-                  collapsed ? "justify-center" : ""
+                  collapsed ? "justify-center" : "justify-center lg:justify-start"
                 }`}
                 aria-disabled="true"
               >
                 <Icon className="w-5 h-5 shrink-0" />
                 {!collapsed && (
-                  <div className="flex items-center justify-between flex-1 truncate">
+                  <div className="hidden lg:flex items-center justify-between flex-1 truncate">
                     <span className="text-sm font-[var(--font-weight-medium)] truncate">
                       {item.label}
                     </span>
@@ -174,7 +174,7 @@ export function AppSidebar({
               aria-current={isActive ? "page" : undefined}
               title={collapsed ? item.label : undefined}
               className={`group relative flex items-center gap-3 px-3 py-2 rounded-[var(--radius-md)] min-h-[var(--touch-target-min)] transition-colors duration-[var(--duration-fast)] ${
-                collapsed ? "justify-center" : ""
+                collapsed ? "justify-center" : "justify-center lg:justify-start"
               } ${
                 isActive
                   ? "bg-[var(--selection-neutral-bg)] border border-[var(--selection-neutral-border)] text-[var(--selection-neutral-text)] shadow-sm"
@@ -194,7 +194,7 @@ export function AppSidebar({
                 }`}
               />
               {!collapsed && (
-                <span className="text-sm font-[var(--font-weight-medium)] truncate">
+                <span className="hidden lg:inline text-sm font-[var(--font-weight-medium)] truncate">
                   {item.label}
                 </span>
               )}
@@ -212,7 +212,7 @@ export function AppSidebar({
         <div
           data-testid="sidebar-identity-capsule"
           className={`flex items-center gap-2 p-1.5 rounded-[var(--radius-md)] bg-[var(--surface-ground)] border border-[var(--border-subtle)] ${
-            collapsed ? "justify-center" : ""
+            collapsed ? "justify-center" : "justify-center lg:justify-start"
           }`}
         >
           <div
@@ -222,7 +222,7 @@ export function AppSidebar({
             {initials}
           </div>
           {!collapsed && (
-            <div className="flex-1 min-w-0 flex items-center justify-between">
+            <div className="hidden lg:flex flex-1 min-w-0 items-center justify-between">
               <span className="text-xs text-[var(--text-secondary)] truncate">
                 {userEmail || "修行者"}
               </span>
@@ -238,7 +238,7 @@ export function AppSidebar({
           )}
         </div>
 
-        {/* Collapse / Expand Toggle Button */}
+        {/* Collapse / Expand Toggle Button (Visible on desktop for user manual toggle) */}
         <button
           type="button"
           onClick={onToggleCollapse}
@@ -252,8 +252,8 @@ export function AppSidebar({
           ) : (
             <>
               <ChevronLeft className="w-4 h-4" />
-              <span>折叠导航</span>
-              <kbd className="ml-auto text-xs font-mono px-1 py-0.5 rounded bg-[var(--surface-ground)] text-[var(--text-disabled)]">
+              <span className="hidden lg:inline">折叠导航</span>
+              <kbd className="hidden lg:inline ml-auto text-xs font-mono px-1 py-0.5 rounded bg-[var(--surface-ground)] text-[var(--text-disabled)]">
                 Ctrl+B
               </kbd>
             </>

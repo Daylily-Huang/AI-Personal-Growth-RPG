@@ -6,6 +6,8 @@ import { usePathname } from "next/navigation";
 import { ChevronRight, Sparkles, User } from "lucide-react";
 import type { DashboardSnapshot } from "@/lib/store/types";
 
+import { useAppShell } from "./AppShellContext";
+
 export interface AppHeaderProps {
   title?: string;
   breadcrumbs?: Array<{ label: string; href?: string }>;
@@ -26,12 +28,23 @@ const ROUTE_NAME_MAP: Record<string, string> = {
 export function AppHeader({
   title,
   breadcrumbs,
-  dashboard,
-  userEmail,
+  dashboard: propDashboard,
+  userEmail: propUserEmail,
   onLogout,
   className = "",
 }: AppHeaderProps) {
   const pathname = usePathname();
+
+  let shellCtx: ReturnType<typeof useAppShell> | null = null;
+  try {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    shellCtx = useAppShell();
+  } catch {
+    // Standalone fallback
+  }
+
+  const dashboard = propDashboard !== undefined ? propDashboard : (shellCtx ? shellCtx.dashboard : null);
+  const userEmail = propUserEmail !== undefined ? propUserEmail : (shellCtx ? shellCtx.userEmail : null);
 
   // Resolve current title from prop or route map
   const displayTitle = title || ROUTE_NAME_MAP[pathname] || "工作区";
@@ -57,14 +70,14 @@ export function AppHeader({
       data-testid="app-header"
       className={`sticky top-0 z-[var(--z-header)] h-[var(--header-height)] bg-[var(--surface-base)] backdrop-blur-[var(--glass-blur-md)] border-b border-[var(--border-subtle)] flex items-center justify-between px-4 lg:px-8 select-none ${className}`}
     >
-      {/* Left: Dynamic Breadcrumbs (Desktop) & Page Title */}
+      {/* Left: Title & Desktop-only Breadcrumbs */}
       <div className="flex items-center gap-3 min-w-0">
         <div className="flex flex-col min-w-0">
-          {/* Breadcrumbs Navigation — Hidden on mobile for compact layout */}
+          {/* Breadcrumbs Navigation — Hidden on Base and md, visible on lg/xl per frozen contract */}
           <nav
             aria-label="页面路径"
             data-testid="header-breadcrumbs"
-            className="hidden md:flex items-center gap-1.5 text-xs text-[var(--text-muted)]"
+            className="hidden lg:flex items-center gap-1.5 text-xs text-[var(--text-muted)]"
           >
             {resolvedBreadcrumbs.map((crumb, idx) => {
               const isLast = idx === resolvedBreadcrumbs.length - 1;
@@ -90,34 +103,47 @@ export function AppHeader({
             })}
           </nav>
 
-          {/* Section Title in Song-Serif */}
-          <h1
-            data-testid="header-page-title"
-            className="font-serif font-[var(--font-weight-semibold)] text-base lg:text-lg text-[var(--text-primary)] tracking-[var(--tracking-wide)] truncate"
-          >
-            {displayTitle}
-          </h1>
+          {/* Section Title in Song-Serif + Tablet Level Badge */}
+          <div className="flex items-center gap-2 truncate">
+            <h1
+              data-testid="header-page-title"
+              className="font-serif font-[var(--font-weight-semibold)] text-base lg:text-lg text-[var(--text-primary)] tracking-[var(--tracking-wide)] truncate"
+            >
+              {displayTitle}
+            </h1>
+
+            {/* Tablet (md) Level Badge only per frozen responsive contract */}
+            {typeof playerLevel === "number" && (
+              <span
+                data-testid="header-tablet-level-badge"
+                className="hidden md:inline-block lg:hidden font-mono font-[var(--font-weight-bold)] text-xs text-[var(--text-primary)] px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--surface-raised)] border border-[var(--border-raised)]"
+              >
+                LV.{playerLevel}
+              </span>
+            )}
+          </div>
         </div>
       </div>
 
       {/* Right: Progression Meter, Pending Indicator & User Identity */}
       <div className="flex items-center gap-3 lg:gap-5 shrink-0">
-        {/* Pending Assessment Pulse Pill (Rendered ONLY if data exists) */}
+        {/* Pending Assessment Indicator (Rendered ONLY if data exists) */}
         {pendingAssessmentsCount > 0 && (
           <div
             data-testid="pending-assessment-indicator"
-            className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[var(--state-warning-bg)] border border-[var(--state-warning-border)] text-[var(--state-warning-text)] text-xs font-[var(--font-weight-medium)] animate-pulse"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[var(--state-warning-bg)] border border-[var(--state-warning-border)] text-[var(--state-warning-text)] text-xs font-[var(--font-weight-medium)] animate-pulse"
           >
             <Sparkles className="w-3.5 h-3.5 shrink-0" />
-            <span>{pendingAssessmentsCount} 待确认评估</span>
+            <span className="hidden sm:inline">{pendingAssessmentsCount} 待确认评估</span>
+            <span className="sm:hidden font-mono font-bold">{pendingAssessmentsCount}</span>
           </div>
         )}
 
-        {/* Player Progression Capsule (Hidden on mobile for compact header) */}
+        {/* Desktop (lg/xl) Full Progression Capsule with XP Meter */}
         {typeof playerLevel === "number" && levelProgress && (
           <div
             data-testid="header-progression-capsule"
-            className="hidden md:flex items-center gap-2.5 px-3 py-1.5 rounded-[var(--radius-md)] bg-[var(--surface-ground)] border border-[var(--border-subtle)]"
+            className="hidden lg:flex items-center gap-2.5 px-3 py-1.5 rounded-[var(--radius-md)] bg-[var(--surface-ground)] border border-[var(--border-subtle)]"
           >
             {/* Level Readout */}
             <span
@@ -146,7 +172,7 @@ export function AppHeader({
               </div>
             </div>
 
-            {/* Optional Total XP */}
+            {/* Optional Total XP on xl */}
             {typeof totalXp === "number" && (
               <span
                 data-testid="header-total-xp"
