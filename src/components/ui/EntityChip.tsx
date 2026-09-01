@@ -108,7 +108,7 @@ export const EntityChip = forwardRef<HTMLSpanElement, EntityChipProps>(
             type="button"
             data-testid="entity-chip-button"
             onClick={onClick}
-            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full min-h-[var(--touch-target-min)] cursor-pointer hover:bg-white/5 focus-visible:outline-[var(--focus-ring-width)] focus-visible:outline-[var(--focus-ring-color)] focus-visible:outline-offset-[var(--focus-ring-offset)]"
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] cursor-pointer hover:bg-[var(--surface-hover-neutral)] focus-visible:outline-[var(--focus-ring-width)] focus-visible:outline-[var(--focus-ring-color)] focus-visible:outline-offset-[var(--focus-ring-offset)]"
           >
             {content}
           </button>
@@ -124,7 +124,7 @@ export const EntityChip = forwardRef<HTMLSpanElement, EntityChipProps>(
             data-testid="entity-chip-remove"
             aria-label={`移除 ${label}`}
             onClick={handleRemove}
-            className="inline-flex items-center justify-center w-8 h-8 mr-1 rounded-full min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-white/10 transition-colors cursor-pointer focus-visible:outline-[var(--focus-ring-width)] focus-visible:outline-[var(--focus-ring-color)]"
+            className="inline-flex items-center justify-center mr-1 rounded-full min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover-neutral)] transition-colors cursor-pointer focus-visible:outline-[var(--focus-ring-width)] focus-visible:outline-[var(--focus-ring-color)]"
           >
             <X className="w-3.5 h-3.5" />
           </button>

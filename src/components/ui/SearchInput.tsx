@@ -58,7 +58,7 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(
             onClick={handleClear}
             data-testid="search-input-clear"
             aria-label="清除搜索"
-            className="absolute right-0 top-0 bottom-0 min-w-[var(--touch-target-min)] min-h-[var(--touch-target-min)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-white/5 flex items-center justify-center transition-colors cursor-pointer rounded-r-[var(--radius-md)] focus-visible:outline-[var(--focus-ring-width)] focus-visible:outline-[var(--focus-ring-color)]"
+            className="absolute right-0 top-0 bottom-0 min-w-[var(--touch-target-min)] min-h-[var(--touch-target-min)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover-neutral)] flex items-center justify-center transition-colors cursor-pointer rounded-r-[var(--radius-md)] focus-visible:outline-[var(--focus-ring-width)] focus-visible:outline-[var(--focus-ring-color)]"
           >
             <X className="w-4 h-4" />
           </button>

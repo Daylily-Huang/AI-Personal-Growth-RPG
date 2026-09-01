@@ -72,12 +72,12 @@ export const XPProgress = forwardRef<HTMLDivElement, XPProgressProps>(
 
         <div
           data-testid="xp-progress-track"
-          className={`w-full rounded-full bg-[var(--surface-raised)] border border-[var(--border-subtle)] overflow-hidden ${track}`}
+          className={`w-full rounded-full bg-[var(--surface-hover-neutral)] border border-[var(--border-subtle)] overflow-hidden ${track}`}
         >
           <div
             data-testid="xp-progress-bar"
             style={{ width: `${percentage}%` }}
-            className="h-full bg-[var(--gold-400)] rounded-full transition-[width] duration-[var(--duration-normal)] ease-[var(--ease-out-gentle)] shadow-[var(--glow-gold-subtle)]"
+            className="h-full bg-gradient-to-r from-[var(--gold-500)] to-[var(--gold-300)] rounded-full transition-[width] duration-[var(--duration-normal)] ease-[var(--ease-out-gentle)] shadow-[var(--glow-gold-subtle)]"
           />
         </div>
       </div>

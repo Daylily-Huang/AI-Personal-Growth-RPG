@@ -6,8 +6,6 @@ import { X } from "lucide-react";
 const useIsomorphicLayoutEffect =
   typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
-export type ModalSize = "sm" | "md" | "lg";
-
 export interface BaseModalProps {
   open: boolean;
   onClose: () => void;
@@ -16,17 +14,10 @@ export interface BaseModalProps {
   descriptionId?: string;
   children: React.ReactNode;
   footer?: React.ReactNode;
-  size?: ModalSize;
   closeOnEscape?: boolean;
   closeOnBackdropClick?: boolean;
   className?: string;
 }
-
-const sizeClasses: Record<ModalSize, string> = {
-  sm: "md:max-w-[var(--modal-max-width-sm)]",
-  md: "md:max-w-[var(--modal-max-width-default)]",
-  lg: "md:max-w-[var(--modal-max-width-wide)]",
-};
 
 export function BaseModal({
   open,
@@ -36,7 +27,6 @@ export function BaseModal({
   descriptionId: externalDescId,
   children,
   footer,
-  size = "md",
   closeOnEscape = true,
   closeOnBackdropClick = true,
   className = "",
@@ -111,9 +101,12 @@ export function BaseModal({
   // 2. Keyboard handling: Escape & Focus Trap
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
+      if (e.defaultPrevented) return;
+
       if (e.key === "Escape" || e.key === "Esc") {
         if (closeOnEscape) {
           e.preventDefault();
+          e.stopPropagation();
           onClose();
         }
         return;
@@ -179,7 +172,7 @@ export function BaseModal({
         className="fixed inset-0 bg-[var(--surface-modal-backdrop)] backdrop-blur-[var(--glass-blur-md)] transition-opacity duration-[var(--duration-modal)]"
       />
 
-      {/* Modal Dialog Panel: Base Mobile = Fullscreen / Sheet, md+ = Centered Card */}
+      {/* Modal Dialog Panel: Base = Fullscreen Sheet, md = max-width-sm, lg = max-width-default, xl = max-width-wide */}
       <div
         ref={modalRef}
         role="dialog"
@@ -189,8 +182,7 @@ export function BaseModal({
         aria-label={!hasTitle ? "对话框" : undefined}
         tabIndex={-1}
         data-testid="base-modal-panel"
-        data-size={size}
-        className={`relative z-[var(--z-modal)] w-full h-full md:h-auto rounded-none md:rounded-[var(--radius-xl)] bg-[var(--surface-overlay)] border-0 md:border md:border-[var(--border-raised)] shadow-[var(--shadow-overlay)] flex flex-col overflow-hidden transition-transform duration-[var(--duration-modal)] ease-[var(--ease-out-gentle)] ${sizeClasses[size]} ${className}`}
+        className={`relative z-[var(--z-modal)] w-full h-full rounded-none md:h-auto md:max-w-[var(--modal-max-width-sm)] lg:max-w-[var(--modal-max-width-default)] xl:max-w-[var(--modal-max-width-wide)] md:rounded-[var(--radius-xl)] bg-[var(--surface-overlay)] border-0 md:border md:border-[var(--border-raised)] shadow-[var(--shadow-overlay)] flex flex-col overflow-hidden transition-transform duration-[var(--duration-modal)] ease-[var(--ease-out-gentle)] ${className}`}
       >
         {/* Modal Header */}
         {hasTitle && (

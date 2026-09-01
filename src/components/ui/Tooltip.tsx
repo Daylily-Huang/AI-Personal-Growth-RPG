@@ -65,7 +65,11 @@ export function Tooltip({
     },
     onKeyDown: (e: React.KeyboardEvent) => {
       children.props.onKeyDown?.(e);
-      if (e.key === "Escape") {
+      if (e.defaultPrevented) return;
+
+      if (e.key === "Escape" && visible) {
+        e.preventDefault();
+        e.stopPropagation();
         hideTooltip();
       }
     },

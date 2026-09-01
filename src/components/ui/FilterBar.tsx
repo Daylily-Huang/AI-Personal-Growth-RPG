@@ -69,7 +69,7 @@ export const FilterBar = forwardRef<HTMLDivElement, FilterBarProps>(
               data-selected={selected ? "true" : undefined}
               aria-pressed={selected}
               onClick={() => onChange(option.id)}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-[var(--font-weight-medium)] border transition-all duration-[var(--duration-fast)] cursor-pointer select-none min-h-[var(--touch-target-min)] focus-visible:outline-[var(--focus-ring-width)] focus-visible:outline-[var(--focus-ring-color)] focus-visible:outline-offset-[var(--focus-ring-offset)] ${
+              className={`inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-[var(--font-weight-medium)] border transition-all duration-[var(--duration-fast)] cursor-pointer select-none min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] focus-visible:outline-[var(--focus-ring-width)] focus-visible:outline-[var(--focus-ring-color)] focus-visible:outline-offset-[var(--focus-ring-offset)] ${
                 selected
                   ? "bg-[var(--selection-neutral-bg)] border-[var(--selection-neutral-border)] text-[var(--selection-neutral-text)] shadow-[var(--shadow-card)]"
                   : "bg-[var(--surface-base)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover-neutral)] hover:border-[var(--border-default)] hover:text-[var(--text-primary)]"
@@ -99,7 +99,7 @@ export const FilterBar = forwardRef<HTMLDivElement, FilterBarProps>(
             onClick={onReset}
             data-testid="filter-bar-reset"
             aria-label={resetLabel}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover-neutral)] min-h-[var(--touch-target-min)] transition-colors cursor-pointer focus-visible:outline-[var(--focus-ring-width)] focus-visible:outline-[var(--focus-ring-color)]"
+            className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-full text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover-neutral)] min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] transition-colors cursor-pointer focus-visible:outline-[var(--focus-ring-width)] focus-visible:outline-[var(--focus-ring-color)]"
           >
             <RotateCcw className="w-3.5 h-3.5" />
             <span>{resetLabel}</span>

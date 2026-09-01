@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useId } from "react";
-import { BaseModal, ModalSize } from "./BaseModal";
+import { BaseModal } from "./BaseModal";
 import { PrimaryButton } from "./PrimaryButton";
 import { SecondaryButton } from "./SecondaryButton";
 import { DangerButton } from "./DangerButton";
@@ -16,7 +16,6 @@ export interface ConfirmDialogProps {
   cancelLabel?: string;
   destructive?: boolean;
   loading?: boolean;
-  size?: ModalSize;
   className?: string;
 }
 
@@ -30,7 +29,6 @@ export function ConfirmDialog({
   cancelLabel = "取消",
   destructive = false,
   loading = false,
-  size = "sm",
   className = "",
 }: ConfirmDialogProps) {
   const descId = useId();
@@ -61,7 +59,6 @@ export function ConfirmDialog({
       onClose={onClose}
       title={title}
       descriptionId={`confirm-desc-${descId}`}
-      size={size}
       footer={footer}
       className={className}
     >

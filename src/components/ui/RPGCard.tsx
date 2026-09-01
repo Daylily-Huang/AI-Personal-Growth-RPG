@@ -58,11 +58,11 @@ export const RPGCard = forwardRef<HTMLDivElement, RPGCardProps>(
       onKeyDown?.(e);
       if (!interactive || e.defaultPrevented) return;
 
-      if (e.key === "Enter") {
-        onClick?.(e as unknown as React.MouseEvent<HTMLDivElement>);
-      } else if (e.key === " " || e.key === "Spacebar") {
-        e.preventDefault(); // Prevent page scroll on space
-        onClick?.(e as unknown as React.MouseEvent<HTMLDivElement>);
+      if (e.key === "Enter" || e.key === " " || e.key === "Spacebar") {
+        if (e.key === " " || e.key === "Spacebar") {
+          e.preventDefault(); // Prevent page scroll on space
+        }
+        e.currentTarget.click();
       }
     };
 
