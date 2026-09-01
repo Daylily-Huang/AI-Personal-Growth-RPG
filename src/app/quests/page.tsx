@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Quest, QuestSize, QuestStatus, QuestTreeNode, QuestType } from "@/lib/store/types";
 import {
-  Sparkles,
   Plus,
   Target,
   Crown,
@@ -12,15 +11,12 @@ import {
   CheckCircle2,
   FolderTree,
   ListFilter,
-  LogOut,
-  Database as DatabaseIcon,
   Play,
   Pause,
   Trash2,
   Calendar,
   Layers,
 } from "lucide-react";
-import { isSupabaseConfigured } from "@/lib/supabase/env";
 
 const QUEST_TYPE_CONFIG: Record<QuestType, { label: string; icon: string; color: string }> = {
   learning: { label: "学习吸收", icon: "📖", color: "text-blue-400 bg-blue-500/10 border-blue-500/20" },
@@ -48,8 +44,6 @@ export default function QuestsPage() {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"tree" | "active" | "all" | "completed">("tree");
   const [showCreateModal, setShowCreateModal] = useState(false);
-
-  const isConfigured = isSupabaseConfigured();
 
   const loadQuests = useCallback(async () => {
     try {
@@ -114,15 +108,6 @@ export default function QuestsPage() {
     };
   }, [router]);
 
-  async function handleLogout() {
-    try {
-      await fetch("/api/auth/logout", { method: "POST" });
-    } finally {
-      router.push("/login");
-      router.refresh();
-    }
-  }
-
   async function handleUpdateStatus(id: string, newStatus: QuestStatus) {
     try {
       const res = await fetch(`/api/quests/${id}`, {
@@ -173,43 +158,8 @@ export default function QuestsPage() {
   const mainQuest = flatQuests.find((q) => q.isMainQuest && q.status !== "archived");
 
   return (
-    <div className="min-h-screen bg-[#0b0f17] text-zinc-100">
-      {/* Header */}
-      <header className="border-b border-white/5 bg-[#0d1320]/80 backdrop-blur sticky top-0 z-50">
-        <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
-          <div className="flex items-center gap-2 font-semibold tracking-tight">
-            <Sparkles className="h-5 w-5 text-amber-300" />
-            AI Personal Growth RPG
-          </div>
-          <nav className="flex items-center gap-4 text-xs">
-            <a href="/dashboard" className="text-zinc-400 hover:text-zinc-200">
-              Dashboard
-            </a>
-            <a href="/quests" className="font-medium text-amber-300">
-              Quests
-            </a>
-            <a href="/skills" className="text-zinc-400 hover:text-zinc-200">
-              Skill Tree
-            </a>
-            <span className="hidden sm:inline-flex items-center gap-1 rounded bg-white/5 border border-white/10 px-2 py-0.5 text-[11px] text-zinc-400">
-              <DatabaseIcon className="h-3 w-3 text-emerald-400" />
-              {isConfigured ? "Supabase Realtime Engine" : "Demo Mode · Local Ledger"}
-            </span>
-            <button
-              onClick={handleLogout}
-              className="inline-flex items-center gap-1 text-zinc-400 hover:text-red-300 transition-colors cursor-pointer"
-              title="退出登录"
-            >
-              <LogOut className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">退出</span>
-            </button>
-          </nav>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-8 sm:px-6">
-        {/* Title Bar & Stats */}
+    <div className="flex w-full flex-col gap-6">
+      {/* Title Bar & Stats */}
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
@@ -353,7 +303,6 @@ export default function QuestsPage() {
               ))}
           </div>
         )}
-      </main>
 
       {/* Create Modal */}
       {showCreateModal ? (

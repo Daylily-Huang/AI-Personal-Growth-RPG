@@ -34,6 +34,7 @@ export const VISUAL_MIGRATION_SURFACES = [
   'public/assets/environment/',
   'docs/DesignSystem/',
   'tests/visual-foundation.test.ts',
+  'tests/global-app-shell.test.tsx',
 ];
 
 export function isVisualMigrationPath(filePath: string): boolean {

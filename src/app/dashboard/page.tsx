@@ -12,7 +12,6 @@ import type {
   XpTransaction,
 } from "@/lib/store/types";
 import {
-  Sparkles,
   Zap,
   Check,
   RefreshCw,
@@ -21,28 +20,42 @@ import {
   BookOpen,
   Plus,
   ShieldAlert,
-  LogOut,
-  Database as DatabaseIcon,
   Target,
   Crown,
   ChevronRight,
 } from "lucide-react";
-import { isSupabaseConfigured } from "@/lib/supabase/env";
+
+import { useOptionalAppShell } from "@/components/layout/AppShellContext";
 
 export default function DashboardPage() {
   const router = useRouter();
-  const [dashboard, setDashboard] = useState<DashboardSnapshot | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const shellCtx = useOptionalAppShell();
+
+  const [localDashboard, setLocalDashboard] = useState<DashboardSnapshot | null>(null);
+  const [localLoading, setLocalLoading] = useState<boolean>(!shellCtx?.dashboard);
+  const [localError, setLocalError] = useState<string | null>(null);
+
+  const dashboard = shellCtx ? shellCtx.dashboard : localDashboard;
+  const loading = shellCtx ? shellCtx.dashboardLoading : localLoading;
+  const error = (shellCtx ? shellCtx.dashboardError : null) || localError;
+
   const [rawInput, setRawInput] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
-  const isConfigured = isSupabaseConfigured();
-
   const load = useCallback(async () => {
-    setError(null);
+    setLocalError(null);
+    if (shellCtx) {
+      const res = await shellCtx.refreshDashboard();
+      if (res.status === 401) {
+        router.push("/login");
+      }
+      return;
+    }
+
+    // Standalone fallback
     try {
+      setLocalLoading(true);
       const res = await fetch("/api/dashboard");
       if (res.status === 401) {
         router.push("/login");
@@ -50,19 +63,31 @@ export default function DashboardPage() {
       }
       if (!res.ok) throw new Error("Failed to load dashboard");
       const data = await res.json();
-      setDashboard(data.dashboard);
+      setLocalDashboard(data.dashboard);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Unknown error");
+      setLocalError(e instanceof Error ? e.message : "Unknown error");
     } finally {
-      setLoading(false);
+      setLocalLoading(false);
     }
-  }, [router]);
+  }, [router, shellCtx]);
 
+  // Handle initial 401 unauthenticated redirect from AppShellProvider
   useEffect(() => {
-    let ignore = false;
+    if (shellCtx?.dashboardError === "unauthenticated") {
+      router.push("/login");
+    }
+  }, [shellCtx?.dashboardError, router]);
 
+  // Only run independent mount fetch if NOT inside AppShellProvider
+  useEffect(() => {
+    if (shellCtx) {
+      return;
+    }
+
+    let ignore = false;
     async function fetchDashboard() {
       try {
+        setLocalLoading(true);
         const res = await fetch("/api/dashboard");
         if (res.status === 401) {
           router.push("/login");
@@ -70,11 +95,11 @@ export default function DashboardPage() {
         }
         if (!res.ok) throw new Error("Failed to load dashboard");
         const data = await res.json();
-        if (!ignore) setDashboard(data.dashboard);
+        if (!ignore) setLocalDashboard(data.dashboard);
       } catch (e) {
-        if (!ignore) setError(e instanceof Error ? e.message : "Unknown error");
+        if (!ignore) setLocalError(e instanceof Error ? e.message : "Unknown error");
       } finally {
-        if (!ignore) setLoading(false);
+        if (!ignore) setLocalLoading(false);
       }
     }
 
@@ -82,16 +107,7 @@ export default function DashboardPage() {
     return () => {
       ignore = true;
     };
-  }, [router]);
-
-  async function handleLogout() {
-    try {
-      await fetch("/api/auth/logout", { method: "POST" });
-    } finally {
-      router.push("/login");
-      router.refresh();
-    }
-  }
+  }, [router, shellCtx]);
 
   async function handleQuickLog(e: React.FormEvent) {
     e.preventDefault();
@@ -99,7 +115,7 @@ export default function DashboardPage() {
     if (!text || submitting) return;
 
     setSubmitting(true);
-    setError(null);
+    setLocalError(null);
     try {
       const createRes = await fetch("/api/activities", {
         method: "POST",
@@ -120,10 +136,10 @@ export default function DashboardPage() {
       }
       if (!assessRes.ok) throw new Error("AI assessment failed, but your activity is saved");
       setRawInput("");
-      setLoading(true);
+      setLocalLoading(true);
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Unknown error");
+      setLocalError(e instanceof Error ? e.message : "Unknown error");
     } finally {
       setSubmitting(false);
     }
@@ -131,7 +147,7 @@ export default function DashboardPage() {
 
   async function handleConfirm(assessmentId: string) {
     setConfirmingId(assessmentId);
-    setError(null);
+    setLocalError(null);
     try {
       const res = await fetch(`/api/assessments/${assessmentId}/confirm`, { method: "POST" });
       if (res.status === 401) {
@@ -139,113 +155,64 @@ export default function DashboardPage() {
         return;
       }
       if (!res.ok) throw new Error("Failed to confirm assessment");
-      setLoading(true);
+      setLocalLoading(true);
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Unknown error");
+      setLocalError(e instanceof Error ? e.message : "Unknown error");
     } finally {
       setConfirmingId(null);
     }
   }
 
   if (loading && !dashboard) {
-    return <Shell onLogout={handleLogout} isConfigured={isConfigured}><LoadingState /></Shell>;
+    return <LoadingState />;
   }
 
   if (error && !dashboard) {
-    return <Shell onLogout={handleLogout} isConfigured={isConfigured}><ErrorState message={error} onRetry={load} /></Shell>;
+    return <ErrorState message={error} onRetry={load} />;
   }
 
   if (!dashboard) {
-    return <Shell onLogout={handleLogout} isConfigured={isConfigured}><EmptyState onRefresh={load} /></Shell>;
+    return <EmptyState onRefresh={load} />;
   }
 
   return (
-    <Shell onLogout={handleLogout} isConfigured={isConfigured}>
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-8 sm:px-6">
-        <PlayerHeader dashboard={dashboard} />
+    <div className="flex w-full flex-col gap-6">
+      <PlayerHeader dashboard={dashboard} />
 
-        {error ? (
-          <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-            {error}
-          </div>
-        ) : null}
-
-        <QuestsOverview
-          mainQuest={dashboard.mainQuest}
-          activeQuests={dashboard.activeQuests}
-        />
-
-        <QuickLogForm
-          rawInput={rawInput}
-          setRawInput={setRawInput}
-          onSubmit={handleQuickLog}
-          submitting={submitting}
-        />
-
-        <PendingProposals
-          assessments={dashboard.pendingAssessments}
-          confirmingId={confirmingId}
-          onConfirm={handleConfirm}
-        />
-
-        <PendingVerifications verifications={dashboard.pendingMasteryVerifications} />
-
-        <RecentGrowth transactions={dashboard.recentGrowth} />
-
-        <ActivityHistory activities={dashboard.activities} />
-
-        {dashboard.activities.length === 0 && dashboard.pendingAssessments.length === 0 ? (
-          <EmptyState onRefresh={load} />
-        ) : null}
-      </div>
-    </Shell>
-  );
-}
-
-function Shell({
-  children,
-  onLogout,
-  isConfigured,
-}: {
-  children: React.ReactNode;
-  onLogout: () => void;
-  isConfigured: boolean;
-}) {
-  return (
-    <div className="min-h-screen bg-[#0b0f17] text-zinc-100">
-      <header className="border-b border-white/5 bg-[#0d1320]/80 backdrop-blur sticky top-0 z-50">
-        <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
-          <div className="flex items-center gap-2 font-semibold tracking-tight">
-            <Sparkles className="h-5 w-5 text-amber-300" />
-            AI Personal Growth RPG
-          </div>
-          <nav className="flex items-center gap-4 text-xs">
-            <a href="/dashboard" className="font-medium text-amber-300">
-              Dashboard
-            </a>
-            <a href="/quests" className="text-zinc-400 hover:text-zinc-200">
-              Quests
-            </a>
-            <a href="/skills" className="text-zinc-400 hover:text-zinc-200">
-              Skill Tree
-            </a>
-            <span className="hidden sm:inline-flex items-center gap-1 rounded bg-white/5 border border-white/10 px-2 py-0.5 text-[11px] text-zinc-400">
-              <DatabaseIcon className="h-3 w-3 text-emerald-400" />
-              {isConfigured ? "Supabase Realtime Engine" : "Demo Mode · Local Ledger"}
-            </span>
-            <button
-              onClick={onLogout}
-              className="inline-flex items-center gap-1 text-zinc-400 hover:text-red-300 transition-colors cursor-pointer"
-              title="退出登录"
-            >
-              <LogOut className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">退出</span>
-            </button>
-          </nav>
+      {error ? (
+        <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+          {error}
         </div>
-      </header>
-      <main>{children}</main>
+      ) : null}
+
+      <QuestsOverview
+        mainQuest={dashboard.mainQuest}
+        activeQuests={dashboard.activeQuests}
+      />
+
+      <QuickLogForm
+        rawInput={rawInput}
+        setRawInput={setRawInput}
+        onSubmit={handleQuickLog}
+        submitting={submitting}
+      />
+
+      <PendingProposals
+        assessments={dashboard.pendingAssessments}
+        confirmingId={confirmingId}
+        onConfirm={handleConfirm}
+      />
+
+      <PendingVerifications verifications={dashboard.pendingMasteryVerifications} />
+
+      <RecentGrowth transactions={dashboard.recentGrowth} />
+
+      <ActivityHistory activities={dashboard.activities} />
+
+      {dashboard.activities.length === 0 && dashboard.pendingAssessments.length === 0 ? (
+        <EmptyState onRefresh={load} />
+      ) : null}
     </div>
   );
 }
