@@ -1279,7 +1279,7 @@ describe("Global App Shell — Phase 2 Architecture & Component Verification", (
     document.documentElement.style.removeProperty("--breakpoint-xl");
   });
 
-  it("56. verifies switching to xl before pending modal-focus RAF executes does NOT steal focus into push drawer", () => {
+  it("56. verifies switching to xl synchronously cancels pending modal RAF and updates isPush before paint", () => {
     document.documentElement.style.setProperty("--breakpoint-xl", "90rem");
     let isMatches = false;
     let changeListener: (() => void) | null = null;
@@ -1301,6 +1301,7 @@ describe("Global App Shell — Phase 2 Architecture & Component Verification", (
     }));
 
     let scheduledRafCallback: FrameRequestCallback | null = null;
+    let cancelCalledCount = 0;
     const originalRaf = window.requestAnimationFrame;
     const originalCancelRaf = window.cancelAnimationFrame;
     window.requestAnimationFrame = vi.fn().mockImplementation((cb: FrameRequestCallback) => {
@@ -1308,6 +1309,7 @@ describe("Global App Shell — Phase 2 Architecture & Component Verification", (
       return 999;
     });
     window.cancelAnimationFrame = vi.fn().mockImplementation(() => {
+      cancelCalledCount++;
       scheduledRafCallback = null;
     });
 
@@ -1333,21 +1335,23 @@ describe("Global App Shell — Phase 2 Architecture & Component Verification", (
     // 1. Open drawer below xl (modal mode) -> schedules RAF
     fireEvent.click(opener);
     expect(scheduledRafCallback).not.toBeNull();
+    const capturedStaleCb = scheduledRafCallback!;
 
-    // 2. Viewport switches to xl (push mode) before RAF is flushed
+    // 2. Viewport switches to xl (push mode)
     act(() => {
       isMatches = true;
       if (changeListener) changeListener();
     });
 
-    // 3. Execute the stale callback if any remained
-    if (scheduledRafCallback) {
-      act(() => {
-        (scheduledRafCallback as FrameRequestCallback)(performance.now());
-      });
-    }
+    // 3. Prove layout phase synchronously cancelled the pending RAF before paint
+    expect(cancelCalledCount).toBeGreaterThan(0);
 
-    // 4. Focus remains on opener and is NOT stolen
+    // 4. Even if stale callback reference is forcefully executed, pre-paint isPushRef blocks focus stealing
+    act(() => {
+      capturedStaleCb(performance.now());
+    });
+
+    // 5. Focus remains on opener and is NOT stolen into push drawer
     expect(document.activeElement).toBe(opener);
 
     window.requestAnimationFrame = originalRaf;

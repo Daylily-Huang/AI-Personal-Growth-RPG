@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useCallback, useSyncExternalStore } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useCallback, useSyncExternalStore } from "react";
 import { X } from "lucide-react";
 
 export interface InspectorDrawerProps {
@@ -13,6 +13,9 @@ export interface InspectorDrawerProps {
   mode?: "modal" | "push" | "auto";
   className?: string;
 }
+
+const useIsomorphicLayoutEffect =
+  typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 function getIsXlSnapshot(): boolean {
   if (typeof window === "undefined") return false;
@@ -76,9 +79,15 @@ export function InspectorDrawer({
   const isPushRef = useRef(isPush);
   const openRef = useRef(open);
 
-  useEffect(() => {
+  // Synchronous pre-paint ref update and pending RAF cancellation
+  useIsomorphicLayoutEffect(() => {
     isPushRef.current = isPush;
     openRef.current = open;
+
+    if ((!open || isPush) && rafIdRef.current !== null) {
+      cancelAnimationFrame(rafIdRef.current);
+      rafIdRef.current = null;
+    }
   }, [open, isPush]);
 
   // Helper to focus first focusable element inside drawer with stale-state guards
@@ -148,10 +157,11 @@ export function InspectorDrawer({
   }, [open, isPush, focusInsideDrawer]);
 
   // E. Cleanup on unmount while open
-  useEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     return () => {
       if (rafIdRef.current !== null) {
         cancelAnimationFrame(rafIdRef.current);
+        rafIdRef.current = null;
       }
       if (
         wasOpenRef.current &&
