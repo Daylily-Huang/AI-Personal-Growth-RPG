@@ -1154,4 +1154,467 @@ describe("Global App Shell — Phase 2 Architecture & Component Verification", (
     expect(screen.getByText("XP Lv.15")).toBeTruthy();
     expect(screen.getByText("2000 XP total")).toBeTruthy();
   });
+
+  it("54. verifies responsive transition (xl -> below-xl) followed by drawer close restores focus to ORIGINAL opener", async () => {
+    document.documentElement.style.setProperty("--breakpoint-xl", "90rem");
+    let isMatches = true;
+    let changeListener: (() => void) | null = null;
+
+    const originalMatchMedia = window.matchMedia;
+    window.matchMedia = vi.fn().mockImplementation((query) => ({
+      get matches() {
+        return isMatches;
+      },
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn((event, handler) => {
+        if (event === "change") changeListener = handler;
+      }),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }));
+
+    function TestFullCycle() {
+      const [open, setOpen] = React.useState(false);
+      return (
+        <div>
+          <button data-testid="lifecycle-opener" onClick={() => setOpen(true)}>
+            打开抽屉
+          </button>
+          <button data-testid="outside-ctrl">外部控件</button>
+          <InspectorDrawer open={open} onClose={() => setOpen(false)} mode="auto">
+            <button data-testid="drawer-inside-btn">抽屉内控件</button>
+          </InspectorDrawer>
+        </div>
+      );
+    }
+
+    render(<TestFullCycle />);
+    const opener = screen.getByTestId("lifecycle-opener");
+    opener.focus();
+    expect(document.activeElement).toBe(opener);
+
+    // 1. Open auto drawer at xl (push mode)
+    fireEvent.click(opener);
+    expect(document.activeElement).toBe(opener);
+
+    // 2. Focus outside workspace control
+    const outsideCtrl = screen.getByTestId("outside-ctrl");
+    outsideCtrl.focus();
+    expect(document.activeElement).toBe(outsideCtrl);
+
+    // 3. Viewport transitions xl -> below-xl (becomes modal)
+    act(() => {
+      isMatches = false;
+      if (changeListener) changeListener();
+    });
+
+    // Modal focus containment moves focus inside the drawer
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
+
+    const drawerClose = screen.getByTestId("inspector-drawer-close");
+    const drawerInside = screen.getByTestId("drawer-inside-btn");
+    const isInside = document.activeElement === drawerClose || document.activeElement === drawerInside;
+    expect(isInside).toBe(true);
+
+    // 4. Close drawer
+    fireEvent.click(drawerClose);
+
+    // 5. Verify focus returns to the ORIGINAL opener
+    expect(document.activeElement).toBe(opener);
+
+    window.matchMedia = originalMatchMedia;
+    document.documentElement.style.removeProperty("--breakpoint-xl");
+  });
+
+  it("55. verifies auto drawer at xl preserves normal Tab order and does not trap focus", () => {
+    document.documentElement.style.setProperty("--breakpoint-xl", "90rem");
+    const originalMatchMedia = window.matchMedia;
+    window.matchMedia = vi.fn().mockImplementation((query) => ({
+      matches: true,
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }));
+
+    function TestXlTabOrder() {
+      const [open, setOpen] = React.useState(true);
+      return (
+        <div>
+          <InspectorDrawer open={open} onClose={() => setOpen(false)} mode="auto">
+            <button data-testid="inside-first">内部第一按钮</button>
+            <button data-testid="inside-last">内部最后按钮</button>
+          </InspectorDrawer>
+          <button data-testid="outside-tab-target">外部下一个焦点目标</button>
+        </div>
+      );
+    }
+
+    render(<TestXlTabOrder />);
+    const insideLast = screen.getByTestId("inside-last");
+    insideLast.focus();
+    expect(document.activeElement).toBe(insideLast);
+
+    // Dispatch Tab keydown event on the last focusable element in push drawer
+    const event = new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true });
+    window.dispatchEvent(event);
+
+    // In structural push mode, event is NOT preventDefaulted (not trapped)
+    expect(event.defaultPrevented).toBe(false);
+
+    // Focus can freely advance to outside target in normal document flow
+    const outsideTarget = screen.getByTestId("outside-tab-target");
+    outsideTarget.focus();
+    expect(document.activeElement).toBe(outsideTarget);
+
+    window.matchMedia = originalMatchMedia;
+    document.documentElement.style.removeProperty("--breakpoint-xl");
+  });
+
+  it("56. verifies switching to xl before pending modal-focus RAF executes does NOT steal focus into push drawer", () => {
+    document.documentElement.style.setProperty("--breakpoint-xl", "90rem");
+    let isMatches = false;
+    let changeListener: (() => void) | null = null;
+
+    const originalMatchMedia = window.matchMedia;
+    window.matchMedia = vi.fn().mockImplementation((query) => ({
+      get matches() {
+        return isMatches;
+      },
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn((event, handler) => {
+        if (event === "change") changeListener = handler;
+      }),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }));
+
+    let scheduledRafCallback: FrameRequestCallback | null = null;
+    const originalRaf = window.requestAnimationFrame;
+    const originalCancelRaf = window.cancelAnimationFrame;
+    window.requestAnimationFrame = vi.fn().mockImplementation((cb: FrameRequestCallback) => {
+      scheduledRafCallback = cb;
+      return 999;
+    });
+    window.cancelAnimationFrame = vi.fn().mockImplementation(() => {
+      scheduledRafCallback = null;
+    });
+
+    function TestStaleRaf() {
+      const [open, setOpen] = React.useState(false);
+      return (
+        <div>
+          <button data-testid="stale-opener" onClick={() => setOpen(true)}>
+            打开抽屉
+          </button>
+          <InspectorDrawer open={open} onClose={() => setOpen(false)} mode="auto">
+            <button data-testid="stale-inside-btn">抽屉按钮</button>
+          </InspectorDrawer>
+        </div>
+      );
+    }
+
+    render(<TestStaleRaf />);
+    const opener = screen.getByTestId("stale-opener");
+    opener.focus();
+    expect(document.activeElement).toBe(opener);
+
+    // 1. Open drawer below xl (modal mode) -> schedules RAF
+    fireEvent.click(opener);
+    expect(scheduledRafCallback).not.toBeNull();
+
+    // 2. Viewport switches to xl (push mode) before RAF is flushed
+    act(() => {
+      isMatches = true;
+      if (changeListener) changeListener();
+    });
+
+    // 3. Execute the stale callback if any remained
+    if (scheduledRafCallback) {
+      act(() => {
+        (scheduledRafCallback as FrameRequestCallback)(performance.now());
+      });
+    }
+
+    // 4. Focus remains on opener and is NOT stolen
+    expect(document.activeElement).toBe(opener);
+
+    window.requestAnimationFrame = originalRaf;
+    window.cancelAnimationFrame = originalCancelRaf;
+    window.matchMedia = originalMatchMedia;
+    document.documentElement.style.removeProperty("--breakpoint-xl");
+  });
+
+  it("57. verifies Quick Log submission invokes POST /api/activities -> assess -> refreshDashboard and synchronizes AppHeader and DashboardPage", async () => {
+    let dashboardCallCount = 0;
+
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (url, options) => {
+      const urlStr = String(url);
+      if (urlStr === "/api/dashboard") {
+        dashboardCallCount++;
+        if (dashboardCallCount === 1) {
+          // Initial snapshot: Level 10, XP 1000, 0 pending
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              dashboard: {
+                player: { playerLevel: 10, totalXp: 1000, energy: 100, focus: 100, momentum: 1 },
+                levelProgress: { xpIntoLevel: 100, xpNeededForNext: 400, progress: 0.25 },
+                skills: [],
+                quests: [],
+                activeQuests: [],
+                mainQuest: null,
+                recentGrowth: [],
+                activities: [],
+                pendingAssessments: [],
+                pendingMasteryVerifications: [],
+              },
+            }),
+          } as Response;
+        }
+        // Refreshed snapshot after quick log & assessment: Level 11, XP 1250, 1 pending
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            dashboard: {
+              player: { playerLevel: 11, totalXp: 1250, energy: 90, focus: 85, momentum: 2 },
+              levelProgress: { xpIntoLevel: 250, xpNeededForNext: 500, progress: 0.5 },
+              skills: [],
+              quests: [],
+              activeQuests: [],
+              mainQuest: null,
+              recentGrowth: [],
+              activities: [
+                {
+                  id: "act-101",
+                  userId: "u-1",
+                  rawInput: "今天学习了 Rust 并写了测试",
+                  activityType: "coding",
+                  createdAt: new Date().toISOString(),
+                },
+              ],
+              pendingAssessments: [
+                {
+                  id: "ass-201",
+                  activityId: "act-101",
+                  userId: "u-1",
+                  proposal: {
+                    activity: { type: "coding" },
+                    evidence: { level: 2, explanation: "编写了并通过了单元测试" },
+                    affected_skills: [{ name: "Rust", reason: "学习核心语法" }],
+                    mastery_changes: [{ from_level: 0, proposed_level: 1, reason: "初次掌握基础" }],
+                    xp_semantics: { base_value: 50, difficulty: 0.5, novelty: 0.8, repetition_risk: "low" },
+                    uncertainty_notes: [],
+                  },
+                  modelName: "test-model",
+                  promptVersion: "1.0",
+                  rulesVersion: "1.0",
+                  confidence: 0.95,
+                  createdAt: new Date().toISOString(),
+                  confirmedAt: null,
+                },
+              ],
+              pendingMasteryVerifications: [],
+            },
+          }),
+        } as Response;
+      }
+
+      if (urlStr === "/api/activities" && options?.method === "POST") {
+        const body = JSON.parse(String(options?.body));
+        return {
+          ok: true,
+          status: 201,
+          json: async () => ({
+            activity: {
+              id: "act-101",
+              userId: "u-1",
+              rawInput: body.rawInput,
+              activityType: "coding",
+              createdAt: new Date().toISOString(),
+            },
+          }),
+        } as Response;
+      }
+
+      if (urlStr === "/api/activities/act-101/assess" && options?.method === "POST") {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            assessment: {
+              id: "ass-201",
+              activityId: "act-101",
+            },
+          }),
+        } as Response;
+      }
+
+      return { ok: true, status: 200, json: async () => ({}) } as Response;
+    });
+
+    render(
+      <AppShellProvider>
+        <AppHeader onLogout={vi.fn()} />
+        <DashboardPage />
+      </AppShellProvider>
+    );
+
+    // Initial load hydration
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 20));
+    });
+
+    // 1. Initial State assertions
+    expect(screen.getByText("XP Lv.10")).toBeTruthy();
+    expect(screen.getByText("1000 XP total")).toBeTruthy();
+    expect(screen.getByTestId("header-player-level").textContent).toBe("LV.10");
+    expect(screen.queryByTestId("pending-assessment-indicator")).toBeNull();
+
+    // 2. Submit Quick Log
+    const input = screen.getByPlaceholderText(/例如：今天读了 1.5 小时 LC 方法/);
+    fireEvent.change(input, { target: { value: "今天学习了 Rust 并写了测试" } });
+    const submitBtn = screen.getByRole("button", { name: /记录并评估/ });
+
+    await act(async () => {
+      fireEvent.click(submitBtn);
+      await new Promise((r) => setTimeout(r, 50));
+    });
+
+    // 3. Refreshed State assertions on both DashboardPage and AppHeader
+    expect(screen.getByText("XP Lv.11")).toBeTruthy();
+    expect(screen.getByText("1250 XP total")).toBeTruthy();
+    expect(screen.getByTestId("header-player-level").textContent).toBe("LV.11");
+    expect(screen.getByTestId("pending-assessment-indicator")).toBeTruthy();
+    expect(screen.getByTestId("pending-assessment-indicator").textContent).toContain("1 待确认评估");
+    expect(screen.getByText("待确认的 AI 评估")).toBeTruthy();
+  });
+
+  it("58. verifies Assessment Confirm invokes POST /api/assessments/:id/confirm -> refreshDashboard and synchronizes AppHeader and DashboardPage", async () => {
+    let dashboardCallCount = 0;
+
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (url, options) => {
+      const urlStr = String(url);
+      if (urlStr === "/api/dashboard") {
+        dashboardCallCount++;
+        if (dashboardCallCount === 1) {
+          // Initial snapshot with 1 pending assessment, Level 11, XP 1250
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              dashboard: {
+                player: { playerLevel: 11, totalXp: 1250, energy: 90, focus: 85, momentum: 2 },
+                levelProgress: { xpIntoLevel: 250, xpNeededForNext: 500, progress: 0.5 },
+                skills: [],
+                quests: [],
+                activeQuests: [],
+                mainQuest: null,
+                recentGrowth: [],
+                activities: [],
+                pendingAssessments: [
+                  {
+                    id: "ass-301",
+                    activityId: "act-301",
+                    userId: "u-1",
+                    proposal: {
+                      activity: { type: "coding" },
+                      evidence: { level: 2, explanation: "通过所有测试" },
+                      affected_skills: [{ name: "TypeScript", reason: "类型重构" }],
+                      mastery_changes: [{ from_level: 1, proposed_level: 2, reason: "进阶掌握" }],
+                      xp_semantics: { base_value: 100, difficulty: 0.6, novelty: 0.7, repetition_risk: "low" },
+                      uncertainty_notes: [],
+                    },
+                    modelName: "test-model",
+                    promptVersion: "1.0",
+                    rulesVersion: "1.0",
+                    confidence: 0.98,
+                    createdAt: new Date().toISOString(),
+                    confirmedAt: null,
+                  },
+                ],
+                pendingMasteryVerifications: [],
+              },
+            }),
+          } as Response;
+        }
+        // Refreshed snapshot after confirm: Level 12, XP 1600, 0 pending
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            dashboard: {
+              player: { playerLevel: 12, totalXp: 1600, energy: 95, focus: 90, momentum: 3 },
+              levelProgress: { xpIntoLevel: 100, xpNeededForNext: 600, progress: 0.166 },
+              skills: [],
+              quests: [],
+              activeQuests: [],
+              mainQuest: null,
+              recentGrowth: [],
+              activities: [],
+              pendingAssessments: [],
+              pendingMasteryVerifications: [],
+            },
+          }),
+        } as Response;
+      }
+
+      if (urlStr === "/api/assessments/ass-301/confirm" && options?.method === "POST") {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ success: true }),
+        } as Response;
+      }
+
+      return { ok: true, status: 200, json: async () => ({}) } as Response;
+    });
+
+    render(
+      <AppShellProvider>
+        <AppHeader onLogout={vi.fn()} />
+        <DashboardPage />
+      </AppShellProvider>
+    );
+
+    // Initial load hydration
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 20));
+    });
+
+    // 1. Initial State assertions
+    expect(screen.getByText("XP Lv.11")).toBeTruthy();
+    expect(screen.getByText("1250 XP total")).toBeTruthy();
+    expect(screen.getByTestId("header-player-level").textContent).toBe("LV.11");
+    expect(screen.getByTestId("pending-assessment-indicator")).toBeTruthy();
+    expect(screen.getByTestId("pending-assessment-indicator").textContent).toContain("1 待确认评估");
+
+    // 2. Click confirm button
+    const confirmBtn = screen.getByRole("button", { name: /确认并结算/ });
+    expect(confirmBtn).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.click(confirmBtn);
+      await new Promise((r) => setTimeout(r, 50));
+    });
+
+    // 3. Refreshed State assertions
+    expect(screen.getByText("XP Lv.12")).toBeTruthy();
+    expect(screen.getByText("1600 XP total")).toBeTruthy();
+    expect(screen.getByTestId("header-player-level").textContent).toBe("LV.12");
+    expect(screen.queryByTestId("pending-assessment-indicator")).toBeNull();
+  });
 });

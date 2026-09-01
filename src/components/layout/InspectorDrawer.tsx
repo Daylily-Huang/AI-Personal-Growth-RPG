@@ -73,14 +73,22 @@ export function InspectorDrawer({
   const isXl = useIsXlBreakpoint();
   const isPush = mode === "push" || (mode === "auto" && isXl);
 
-  // Helper to focus first focusable element inside drawer
+  const isPushRef = useRef(isPush);
+  const openRef = useRef(open);
+
+  useEffect(() => {
+    isPushRef.current = isPush;
+    openRef.current = open;
+  }, [open, isPush]);
+
+  // Helper to focus first focusable element inside drawer with stale-state guards
   const focusInsideDrawer = useCallback(() => {
     if (rafIdRef.current !== null) {
       cancelAnimationFrame(rafIdRef.current);
     }
     rafIdRef.current = requestAnimationFrame(() => {
       rafIdRef.current = null;
-      if (!drawerRef.current) return;
+      if (!openRef.current || isPushRef.current || !drawerRef.current) return;
       const focusable = drawerRef.current.querySelector<HTMLElement>(
         'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
       );
