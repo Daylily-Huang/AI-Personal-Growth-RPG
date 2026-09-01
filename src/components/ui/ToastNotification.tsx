@@ -97,9 +97,9 @@ export const ToastNotification = forwardRef<HTMLDivElement, ToastNotificationPro
             onClick={onDismiss}
             data-testid="toast-dismiss"
             aria-label="关闭提示"
-            className="w-6 h-6 rounded-full text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover-neutral)] flex items-center justify-center shrink-0 -mr-1 -mt-1 transition-colors cursor-pointer"
+            className="min-w-[var(--touch-target-min)] min-h-[var(--touch-target-min)] rounded-full text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover-neutral)] flex items-center justify-center shrink-0 -mr-2 -mt-2 transition-colors cursor-pointer focus-visible:outline-[var(--focus-ring-width)] focus-visible:outline-[var(--focus-ring-color)]"
           >
-            <X className="w-3.5 h-3.5" />
+            <X className="w-4 h-4" />
           </button>
         )}
       </div>

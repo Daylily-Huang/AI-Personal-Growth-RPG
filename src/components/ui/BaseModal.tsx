@@ -1,18 +1,19 @@
 "use client";
 
-import React, { useEffect, useLayoutEffect, useRef, useCallback } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useCallback, useId } from "react";
 import { X } from "lucide-react";
 
 const useIsomorphicLayoutEffect =
   typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
-export type ModalSize = "sm" | "md" | "lg" | "wide";
+export type ModalSize = "sm" | "md" | "lg";
 
 export interface BaseModalProps {
   open: boolean;
   onClose: () => void;
   title?: React.ReactNode;
   description?: React.ReactNode;
+  descriptionId?: string;
   children: React.ReactNode;
   footer?: React.ReactNode;
   size?: ModalSize;
@@ -22,10 +23,9 @@ export interface BaseModalProps {
 }
 
 const sizeClasses: Record<ModalSize, string> = {
-  sm: "max-w-[var(--modal-max-width-sm)]",
-  md: "max-w-[var(--modal-max-width-default)]",
-  lg: "max-w-[var(--modal-max-width-wide)]",
-  wide: "max-w-[var(--workspace-max-width)]",
+  sm: "md:max-w-[var(--modal-max-width-sm)]",
+  md: "md:max-w-[var(--modal-max-width-default)]",
+  lg: "md:max-w-[var(--modal-max-width-wide)]",
 };
 
 export function BaseModal({
@@ -33,6 +33,7 @@ export function BaseModal({
   onClose,
   title,
   description,
+  descriptionId: externalDescId,
   children,
   footer,
   size = "md",
@@ -43,6 +44,12 @@ export function BaseModal({
   const modalRef = useRef<HTMLDivElement>(null);
   const openerRef = useRef<HTMLElement | null>(null);
   const wasOpenRef = useRef(false);
+  const rafIdRef = useRef<number | null>(null);
+
+  const reactId = useId();
+  const defaultTitleId = `modal-title-${reactId}`;
+  const defaultDescId = `modal-desc-${reactId}`;
+  const resolvedDescId = externalDescId || (description ? defaultDescId : undefined);
 
   // 1. Focus capture on open & restoration on close / unmount
   useIsomorphicLayoutEffect(() => {
@@ -52,7 +59,8 @@ export function BaseModal({
         wasOpenRef.current = true;
 
         // Schedule focus inside modal on next frame
-        requestAnimationFrame(() => {
+        rafIdRef.current = requestAnimationFrame(() => {
+          rafIdRef.current = null;
           if (!modalRef.current) return;
           const focusable = modalRef.current.querySelector<HTMLElement>(
             'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
@@ -65,6 +73,10 @@ export function BaseModal({
         });
       }
     } else {
+      if (rafIdRef.current !== null) {
+        cancelAnimationFrame(rafIdRef.current);
+        rafIdRef.current = null;
+      }
       if (wasOpenRef.current) {
         wasOpenRef.current = false;
         if (
@@ -81,6 +93,10 @@ export function BaseModal({
   // Cleanup on unmount while open
   useIsomorphicLayoutEffect(() => {
     return () => {
+      if (rafIdRef.current !== null) {
+        cancelAnimationFrame(rafIdRef.current);
+        rafIdRef.current = null;
+      }
       if (
         wasOpenRef.current &&
         openerRef.current &&
@@ -149,12 +165,11 @@ export function BaseModal({
   if (!open) return null;
 
   const hasTitle = Boolean(title);
-  const hasDesc = Boolean(description);
 
   return (
     <div
       data-testid="base-modal-root"
-      className="fixed inset-0 z-[var(--z-modal-backdrop)] flex items-center justify-center p-4 sm:p-6 overflow-y-auto"
+      className="fixed inset-0 z-[var(--z-modal-backdrop)] flex items-end md:items-center justify-center p-0 md:p-6 overflow-y-auto"
     >
       {/* Modal Backdrop */}
       <div
@@ -164,17 +179,18 @@ export function BaseModal({
         className="fixed inset-0 bg-[var(--surface-modal-backdrop)] backdrop-blur-[var(--glass-blur-md)] transition-opacity duration-[var(--duration-modal)]"
       />
 
-      {/* Modal Dialog Panel */}
+      {/* Modal Dialog Panel: Base Mobile = Fullscreen / Sheet, md+ = Centered Card */}
       <div
         ref={modalRef}
         role="dialog"
         aria-modal="true"
-        aria-labelledby={hasTitle ? "base-modal-title" : undefined}
-        aria-describedby={hasDesc ? "base-modal-desc" : undefined}
+        aria-labelledby={hasTitle ? defaultTitleId : undefined}
+        aria-describedby={resolvedDescId}
         aria-label={!hasTitle ? "对话框" : undefined}
         tabIndex={-1}
         data-testid="base-modal-panel"
-        className={`relative z-[var(--z-modal)] w-full rounded-[var(--radius-xl)] bg-[var(--surface-overlay)] border border-[var(--border-raised)] shadow-[var(--shadow-overlay)] flex flex-col max-h-[90vh] overflow-hidden transition-transform duration-[var(--duration-modal)] ease-[var(--ease-out-gentle)] ${sizeClasses[size]} ${className}`}
+        data-size={size}
+        className={`relative z-[var(--z-modal)] w-full h-full md:h-auto rounded-none md:rounded-[var(--radius-xl)] bg-[var(--surface-overlay)] border-0 md:border md:border-[var(--border-raised)] shadow-[var(--shadow-overlay)] flex flex-col overflow-hidden transition-transform duration-[var(--duration-modal)] ease-[var(--ease-out-gentle)] ${sizeClasses[size]} ${className}`}
       >
         {/* Modal Header */}
         {hasTitle && (
@@ -184,7 +200,7 @@ export function BaseModal({
           >
             <div className="min-w-0">
               <h2
-                id="base-modal-title"
+                id={defaultTitleId}
                 data-testid="base-modal-title"
                 className="font-serif font-[var(--font-weight-semibold)] text-lg text-[var(--text-primary)] tracking-[var(--tracking-wide)] truncate"
               >
@@ -192,7 +208,7 @@ export function BaseModal({
               </h2>
               {description && (
                 <p
-                  id="base-modal-desc"
+                  id={defaultDescId}
                   data-testid="base-modal-desc"
                   className="text-xs text-[var(--text-muted)] mt-0.5 truncate"
                 >
@@ -206,7 +222,7 @@ export function BaseModal({
               onClick={onClose}
               data-testid="base-modal-close"
               aria-label="关闭对话框"
-              className="w-8 h-8 rounded-[var(--radius-md)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover-neutral)] flex items-center justify-center min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] transition-colors cursor-pointer"
+              className="rounded-[var(--radius-md)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover-neutral)] flex items-center justify-center min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] transition-colors cursor-pointer focus-visible:outline-[var(--focus-ring-width)] focus-visible:outline-[var(--focus-ring-color)]"
             >
               <X className="w-4 h-4" />
             </button>

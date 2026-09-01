@@ -48,7 +48,7 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(
           placeholder={placeholder}
           aria-label={ariaLabel}
           data-testid="search-input"
-          className="w-full h-10 pl-10 pr-9 rounded-[var(--radius-md)] bg-[var(--surface-base)] border border-[var(--border-default)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] transition-colors duration-[var(--duration-fast)] hover:border-[var(--border-hover-neutral)] focus:border-[var(--border-raised)] focus:bg-[var(--surface-raised)] focus:outline-none focus-visible:outline-[var(--focus-ring-width)] focus-visible:outline-[var(--focus-ring-color)] focus-visible:outline-offset-[var(--focus-ring-offset)]"
+          className="w-full min-h-[var(--touch-target-min)] pl-10 pr-12 rounded-[var(--radius-md)] bg-[var(--surface-base)] border border-[var(--border-default)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] transition-colors duration-[var(--duration-fast)] hover:border-[var(--border-hover-neutral)] focus:border-[var(--border-raised)] focus:bg-[var(--surface-raised)] focus:outline-none focus-visible:outline-[var(--focus-ring-width)] focus-visible:outline-[var(--focus-ring-color)] focus-visible:outline-offset-[var(--focus-ring-offset)]"
           {...props}
         />
 
@@ -58,9 +58,9 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(
             onClick={handleClear}
             data-testid="search-input-clear"
             aria-label="清除搜索"
-            className="absolute right-2.5 w-6 h-6 rounded-full text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover-neutral)] flex items-center justify-center transition-colors cursor-pointer"
+            className="absolute right-0 top-0 bottom-0 min-w-[var(--touch-target-min)] min-h-[var(--touch-target-min)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-white/5 flex items-center justify-center transition-colors cursor-pointer rounded-r-[var(--radius-md)] focus-visible:outline-[var(--focus-ring-width)] focus-visible:outline-[var(--focus-ring-color)]"
           >
-            <X className="w-3.5 h-3.5" />
+            <X className="w-4 h-4" />
           </button>
         )}
       </div>

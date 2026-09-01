@@ -42,8 +42,8 @@ export const ReusabilityMeter = forwardRef<HTMLDivElement, ReusabilityMeterProps
       >
         {showLabel && (
           <div className="flex items-center justify-between text-xs font-mono text-[var(--text-secondary)]">
-            <span className="flex items-center gap-1 text-[11px] uppercase tracking-wider text-[var(--text-muted)]">
-              <Gem className="w-3 h-3 text-[var(--entity-artifact-text)]" aria-hidden="true" />
+            <span className="flex items-center gap-1 text-xs uppercase tracking-wider text-[var(--text-muted)]">
+              <Gem className="w-3.5 h-3.5 text-[var(--entity-artifact-text)]" aria-hidden="true" />
               复用指数
             </span>
             <span

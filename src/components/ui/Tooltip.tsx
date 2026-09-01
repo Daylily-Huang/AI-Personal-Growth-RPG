@@ -37,9 +37,16 @@ export function Tooltip({
   const showTooltip = () => setVisible(true);
   const hideTooltip = () => setVisible(false);
 
-  // Clone child to attach accessible listeners and aria attributes
+  const existingDescribedBy = children.props["aria-describedby"];
+  const resolvedDescribedBy = visible
+    ? existingDescribedBy
+      ? `${existingDescribedBy} ${tooltipId}`
+      : tooltipId
+    : existingDescribedBy || undefined;
+
+  // Clone child to attach accessible listeners and preserve merged aria-describedby
   const trigger = cloneElement(children, {
-    "aria-describedby": visible ? tooltipId : undefined,
+    "aria-describedby": resolvedDescribedBy,
     onMouseEnter: (e: React.MouseEvent) => {
       children.props.onMouseEnter?.(e);
       showTooltip();

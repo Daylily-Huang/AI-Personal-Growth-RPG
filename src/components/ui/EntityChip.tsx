@@ -10,8 +10,8 @@ export interface EntityChipProps extends React.HTMLAttributes<HTMLSpanElement> {
   icon?: React.ReactNode;
   count?: number | string;
   removable?: boolean;
-  onRemove?: (e: React.MouseEvent) => void;
-  onClick?: (e: React.MouseEvent) => void;
+  onRemove?: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  onClick?: (e: React.MouseEvent<HTMLButtonElement | HTMLSpanElement>) => void;
   size?: "sm" | "md";
   className?: string;
 }
@@ -65,42 +65,56 @@ export const EntityChip = forwardRef<HTMLSpanElement, EntityChipProps>(
   ) => {
     const isInteractive = Boolean(onClick);
     const { classes, defaultIcon: DefaultIcon } = entityStyleMap[entityType];
-    const sizeClasses = size === "sm" ? "px-2 py-0.5 text-[11px] gap-1.5" : "px-2.5 py-1 text-xs gap-2";
 
-    const handleRemove = (e: React.MouseEvent) => {
+    const handleRemove = (e: React.MouseEvent<HTMLButtonElement>) => {
       e.stopPropagation();
       onRemove?.(e);
     };
 
-    return (
-      <span
-        ref={ref}
-        data-testid="entity-chip"
-        data-entity-type={entityType}
-        role={isInteractive ? "button" : undefined}
-        tabIndex={isInteractive ? 0 : undefined}
-        onClick={onClick}
-        className={`inline-flex items-center rounded-full border font-[var(--font-weight-medium)] select-none transition-colors duration-[var(--duration-fast)] ${classes} ${sizeClasses} ${
-          isInteractive ? "cursor-pointer hover:bg-opacity-80 focus-visible:outline-[var(--focus-ring-width)] focus-visible:outline-[var(--focus-ring-color)]" : ""
-        } ${className}`}
-        {...props}
-      >
+    const content = (
+      <>
         {icon ? (
           <span className="shrink-0">{icon}</span>
         ) : (
-          <DefaultIcon className="w-3 h-3 shrink-0" aria-hidden="true" />
+          <DefaultIcon className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
         )}
 
-        <span data-testid="entity-chip-label" className="truncate">
+        <span data-testid="entity-chip-label" className="truncate text-xs">
           {label}
         </span>
 
         {count !== undefined && (
           <span
             data-testid="entity-chip-count"
-            className="px-1.5 py-0.2 rounded-full bg-[var(--surface-ground)] text-[10px] font-mono opacity-80"
+            className="px-1.5 py-0.5 rounded-full bg-[var(--surface-ground)] text-xs font-mono opacity-80"
           >
             {count}
+          </span>
+        )}
+      </>
+    );
+
+    return (
+      <span
+        ref={ref}
+        data-testid="entity-chip"
+        data-entity-type={entityType}
+        data-size={size}
+        className={`inline-flex items-center rounded-full border font-[var(--font-weight-medium)] select-none transition-colors duration-[var(--duration-fast)] min-h-[var(--touch-target-min)] ${classes} ${className}`}
+        {...props}
+      >
+        {isInteractive ? (
+          <button
+            type="button"
+            data-testid="entity-chip-button"
+            onClick={onClick}
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full min-h-[var(--touch-target-min)] cursor-pointer hover:bg-white/5 focus-visible:outline-[var(--focus-ring-width)] focus-visible:outline-[var(--focus-ring-color)] focus-visible:outline-offset-[var(--focus-ring-offset)]"
+          >
+            {content}
+          </button>
+        ) : (
+          <span className="inline-flex items-center gap-2 px-3 py-1.5">
+            {content}
           </span>
         )}
 
@@ -110,9 +124,9 @@ export const EntityChip = forwardRef<HTMLSpanElement, EntityChipProps>(
             data-testid="entity-chip-remove"
             aria-label={`移除 ${label}`}
             onClick={handleRemove}
-            className="w-3.5 h-3.5 rounded-full hover:bg-[var(--surface-hover-neutral)] flex items-center justify-center -mr-0.5 ml-0.5 transition-colors"
+            className="inline-flex items-center justify-center w-8 h-8 mr-1 rounded-full min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-white/10 transition-colors cursor-pointer focus-visible:outline-[var(--focus-ring-width)] focus-visible:outline-[var(--focus-ring-color)]"
           >
-            <X className="w-2.5 h-2.5" />
+            <X className="w-3.5 h-3.5" />
           </button>
         )}
       </span>

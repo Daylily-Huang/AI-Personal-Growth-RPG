@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useId } from "react";
 import { BaseModal, ModalSize } from "./BaseModal";
 import { PrimaryButton } from "./PrimaryButton";
 import { SecondaryButton } from "./SecondaryButton";
@@ -33,6 +33,7 @@ export function ConfirmDialog({
   size = "sm",
   className = "",
 }: ConfirmDialogProps) {
+  const descId = useId();
   const ConfirmButtonComponent = destructive ? DangerButton : PrimaryButton;
 
   const footer = (
@@ -59,11 +60,16 @@ export function ConfirmDialog({
       open={open}
       onClose={onClose}
       title={title}
+      descriptionId={`confirm-desc-${descId}`}
       size={size}
       footer={footer}
       className={className}
     >
-      <div data-testid="confirm-dialog-description" className="text-sm text-[var(--text-secondary)] leading-relaxed">
+      <div
+        id={`confirm-desc-${descId}`}
+        data-testid="confirm-dialog-description"
+        className="text-sm text-[var(--text-secondary)] leading-relaxed"
+      >
         {description}
       </div>
     </BaseModal>

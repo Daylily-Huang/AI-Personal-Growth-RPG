@@ -60,7 +60,9 @@ export const GlassPanel = forwardRef<HTMLDivElement, GlassPanelProps>(
         data-variant={variant}
         data-border={border}
         className={`relative rounded-[var(--radius-lg)] ${variantClasses[variant]} ${blurClasses[blur]} ${borderClasses[border]} ${
-          highlightTop && border !== "none" ? "shadow-[inset_0_1px_0_0_var(--border-highlight-top)]" : ""
+          highlightTop && border !== "none"
+            ? "shadow-[inset_0_var(--border-width-default)_0_0_var(--border-highlight-top)]"
+            : ""
         } ${className}`}
         {...props}
       >

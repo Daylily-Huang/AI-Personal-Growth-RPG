@@ -44,7 +44,7 @@ export const QuestProgress = forwardRef<HTMLDivElement, QuestProgressProps>(
       >
         {showLabel && (
           <div className="flex items-center justify-between text-xs font-mono text-[var(--text-secondary)]">
-            <span className="text-[11px] uppercase tracking-wider text-[var(--text-muted)]">
+            <span className="text-xs uppercase tracking-wider text-[var(--text-muted)]">
               任务完成度
             </span>
             <span data-testid="quest-progress-percentage" className="font-[var(--font-weight-semibold)] text-[var(--entity-quest-text)]">
@@ -63,7 +63,7 @@ export const QuestProgress = forwardRef<HTMLDivElement, QuestProgressProps>(
               key={milestone}
               style={{ left: `${Math.min(100, Math.max(0, milestone))}%` }}
               aria-hidden="true"
-              className="absolute top-0 bottom-0 w-0.5 bg-[var(--border-raised)] z-[var(--z-canvas)] -ml-[1px]"
+              className="absolute top-0 bottom-0 w-0.5 bg-[var(--border-raised)] z-[var(--z-canvas)] -translate-x-1/2"
             />
           ))}
 

@@ -4,23 +4,22 @@ import React, { forwardRef } from "react";
 
 export interface MasteryBadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
   level: number; // Strictly 0 to 10 (M0 - M10)
-  showLabel?: boolean;
   size?: "sm" | "md" | "lg";
   className?: string;
 }
 
 const sizeClasses = {
   sm: {
-    container: "gap-1 px-1.5 py-0.5 text-[10px]",
-    diamondSize: 9,
+    container: "gap-1 px-1.5 py-0.5 text-xs",
+    diamondClass: "w-2.5 h-2.5",
   },
   md: {
-    container: "gap-1.5 px-2 py-1 text-xs",
-    diamondSize: 12,
+    container: "gap-1.5 px-2 py-0.5 text-xs",
+    diamondClass: "w-3 h-3",
   },
   lg: {
-    container: "gap-2 px-3 py-1.5 text-sm",
-    diamondSize: 15,
+    container: "gap-2 px-2.5 py-1 text-sm",
+    diamondClass: "w-3.5 h-3.5",
   },
 };
 
@@ -30,19 +29,17 @@ const sizeClasses = {
  * - "half":  ◐ (left half filled with gold)
  * - "full":  ◆ (solid gold filled)
  */
-function Diamond({ state, size }: { state: "empty" | "half" | "full"; size: number }) {
+function Diamond({ state, className }: { state: "empty" | "half" | "full"; className: string }) {
   const clipId = React.useId();
 
   return (
     <svg
-      width={size}
-      height={size}
       viewBox="0 0 24 24"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       data-state={state}
       aria-hidden="true"
-      className="shrink-0"
+      className={`shrink-0 ${className}`}
     >
       <defs>
         <clipPath id={clipId}>
@@ -86,7 +83,6 @@ export const MasteryBadge = forwardRef<HTMLSpanElement, MasteryBadgeProps>(
   (
     {
       level,
-      showLabel = true,
       size = "md",
       className = "",
       ...props
@@ -99,8 +95,6 @@ export const MasteryBadge = forwardRef<HTMLSpanElement, MasteryBadgeProps>(
       : 0;
 
     // Derive the exact 5-diamond states for 10 half-steps:
-    // fullCount = Math.floor(safeLevel / 2)
-    // hasHalf = safeLevel % 2 === 1
     const diamonds: Array<"empty" | "half" | "full"> = [];
     for (let i = 0; i < 5; i++) {
       const stepForDiamond = (i + 1) * 2;
@@ -113,7 +107,7 @@ export const MasteryBadge = forwardRef<HTMLSpanElement, MasteryBadgeProps>(
       }
     }
 
-    const { container, diamondSize } = sizeClasses[size];
+    const { container, diamondClass } = sizeClasses[size];
 
     return (
       <span
@@ -125,18 +119,16 @@ export const MasteryBadge = forwardRef<HTMLSpanElement, MasteryBadgeProps>(
         className={`inline-flex items-center rounded-[var(--radius-sm)] bg-[var(--surface-raised)] border border-[var(--border-subtle)] text-[var(--gold-400)] select-none font-mono ${container} ${className}`}
         {...props}
       >
-        {showLabel && (
-          <span
-            data-testid="mastery-badge-label"
-            className="font-[var(--font-weight-bold)] text-[var(--gold-400)] tracking-tight"
-          >
-            M{safeLevel}
-          </span>
-        )}
+        <span
+          data-testid="mastery-badge-label"
+          className="font-[var(--font-weight-bold)] text-[var(--gold-400)] tracking-tight"
+        >
+          M{safeLevel}
+        </span>
 
         <span data-testid="mastery-diamonds" className="inline-flex items-center gap-0.5">
           {diamonds.map((state, idx) => (
-            <Diamond key={idx} state={state} size={diamondSize} />
+            <Diamond key={idx} state={state} className={diamondClass} />
           ))}
         </span>
       </span>
