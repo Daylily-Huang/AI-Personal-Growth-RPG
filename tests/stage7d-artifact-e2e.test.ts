@@ -317,7 +317,7 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Full Product E2E: Artifact Lifecycl
 
       const actRes = await pg.query(
         `insert into public.activities (user_id, title, raw_input, activity_type, status, rules_version, total_minutes, effective_minutes)
-         values ($1, 'Refactor Core Engine', 'Refactor Core Engine', 'study', 'pending', '1.0.0', 45, 40) returning id`,
+         values ($1, 'Refactor Core Engine', 'Refactor Core Engine', 'study', 'pending_assessment', '1.0.0', 45, 40) returning id`,
         [userAId]
       );
       actId = actRes.rows[0].id;
@@ -415,7 +415,7 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Full Product E2E: Artifact Lifecycl
     test("Settlement with resolution=existing connects existing artifact with activityRole=modified", async () => {
       const actRes = await pg.query(
         `insert into public.activities (user_id, title, raw_input, activity_type, status, rules_version, total_minutes, effective_minutes)
-         values ($1, 'Iterate on Master Plan', 'Iterate on Master Plan', 'study', 'pending', '1.0.0', 45, 40) returning id`,
+         values ($1, 'Iterate on Master Plan', 'Iterate on Master Plan', 'study', 'pending_assessment', '1.0.0', 45, 40) returning id`,
         [userAId]
       );
       const actId = actRes.rows[0].id;
@@ -496,7 +496,7 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Full Product E2E: Artifact Lifecycl
     test("Settlement with resolution=ignore succeeds without creating unwanted artifacts", async () => {
       const actRes = await pg.query(
         `insert into public.activities (user_id, title, raw_input, activity_type, status, rules_version, total_minutes, effective_minutes)
-         values ($1, 'Quick Exploration', 'Quick Exploration', 'study', 'pending', '1.0.0', 30, 25) returning id`,
+         values ($1, 'Quick Exploration', 'Quick Exploration', 'study', 'pending_assessment', '1.0.0', 30, 25) returning id`,
         [userAId]
       );
       const actId = actRes.rows[0].id;
@@ -591,7 +591,7 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Full Product E2E: Artifact Lifecycl
       // User B creates an activity & assessment
       const actResB = await pg.query(
         `insert into public.activities (user_id, title, raw_input, activity_type, status, rules_version, total_minutes, effective_minutes)
-         values ($1, 'User B Activity', 'User B Activity', 'study', 'pending', '1.0.0', 45, 40) returning id`,
+         values ($1, 'User B Activity', 'User B Activity', 'study', 'pending_assessment', '1.0.0', 45, 40) returning id`,
         [userBId]
       );
       const actBId = actResB.rows[0].id;

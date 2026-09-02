@@ -167,7 +167,7 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Artifact Final Security, Cross-Tena
     userAKnowledgeId = knResA.rows[0].id;
 
     const actResA = await pg.query(
-      `insert into public.activities (user_id, title, raw_input, activity_type, status, rules_version, total_minutes, effective_minutes) values ($1, 'Audit Auth Boundary', 'Audit Auth Boundary', 'study', 'pending', '1.0.0', 45, 40) returning id`,
+      `insert into public.activities (user_id, title, raw_input, activity_type, status, rules_version, total_minutes, effective_minutes) values ($1, 'Audit Auth Boundary', 'Audit Auth Boundary', 'study', 'pending_assessment', '1.0.0', 45, 40) returning id`,
       [userAId]
     );
     userAActivityId = actResA.rows[0].id;
@@ -198,7 +198,7 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Artifact Final Security, Cross-Tena
     userBQuestId = questResB.rows[0].id;
 
     const actResB = await pg.query(
-      `insert into public.activities (user_id, title, raw_input, activity_type, status, rules_version, total_minutes, effective_minutes) values ($1, 'Sequence Alignment', 'Sequence Alignment', 'study', 'pending', '1.0.0', 60, 55) returning id`,
+      `insert into public.activities (user_id, title, raw_input, activity_type, status, rules_version, total_minutes, effective_minutes) values ($1, 'Sequence Alignment', 'Sequence Alignment', 'study', 'pending_assessment', '1.0.0', 60, 55) returning id`,
       [userBId]
     );
     userBActivityId = actResB.rows[0].id;
@@ -595,7 +595,7 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Artifact Final Security, Cross-Tena
       // Create an activity for User A
       const actRes = await pg.query(
         `insert into public.activities (user_id, title, raw_input, activity_type, status, rules_version, total_minutes, effective_minutes)
-         values ($1, 'Assessment Settlement Test', 'Assessment Settlement Test', 'study', 'pending', '1.0.0', 45, 40) returning id`,
+         values ($1, 'Assessment Settlement Test', 'Assessment Settlement Test', 'study', 'pending_assessment', '1.0.0', 45, 40) returning id`,
         [userAId]
       );
       activityId = actRes.rows[0].id;
@@ -716,7 +716,7 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Artifact Final Security, Cross-Tena
       expect(afterAssess.status).toBe(beforeAssess.status);
       expect(afterAct.status).toBe(beforeAct.status);
       expect(afterAssess.status).toBe("pending");
-      expect(afterAct.status).toBe("pending");
+      expect(afterAct.status).toBe("pending_assessment");
       expect(afterTxCount).toBe(beforeTxCount);
       expect(afterArtCount).toBe(beforeArtCount);
       expect(afterArtActCount).toBe(beforeArtActCount);
@@ -802,7 +802,7 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Artifact Final Security, Cross-Tena
       // Setup concurrent assessment fixture
       const actRes = await pg.query(
         `insert into public.activities (user_id, title, raw_input, activity_type, status, rules_version, total_minutes, effective_minutes)
-         values ($1, 'Concurrent Settlement Test', 'Concurrent Settlement Test', 'study', 'pending', '1.0.0', 45, 40) returning id`,
+         values ($1, 'Concurrent Settlement Test', 'Concurrent Settlement Test', 'study', 'pending_assessment', '1.0.0', 45, 40) returning id`,
         [userAId]
       );
       const concActId = actRes.rows[0].id;

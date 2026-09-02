@@ -373,10 +373,20 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Direct Database, RLS, RPC Privilege
     test("Anon role has all permissions denied across artifacts and join tables", async () => {
       await asAnon(async () => {
         await expect(pg.query(`select * from public.artifacts`)).rejects.toThrow(/permission denied/);
+      });
+      await asAnon(async () => {
         await expect(pg.query(`select * from public.artifact_skills`)).rejects.toThrow(/permission denied/);
+      });
+      await asAnon(async () => {
         await expect(pg.query(`select * from public.artifact_knowledge_nodes`)).rejects.toThrow(/permission denied/);
+      });
+      await asAnon(async () => {
         await expect(pg.query(`select * from public.artifact_quests`)).rejects.toThrow(/permission denied/);
+      });
+      await asAnon(async () => {
         await expect(pg.query(`select * from public.artifact_activities`)).rejects.toThrow(/permission denied/);
+      });
+      await asAnon(async () => {
         await expect(pg.query(`select * from public.artifact_evidence`)).rejects.toThrow(/permission denied/);
       });
     });
