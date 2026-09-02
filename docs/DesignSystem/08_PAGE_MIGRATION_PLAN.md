@@ -16,13 +16,13 @@ The migration to the new Global Visual System follows a strict, layered implemen
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                     LAYERED IMPLEMENTATION ROADMAP                      │
 │                                                                         │
-│   Phase 1: Visual Foundation & Tokens (Tailwind v4 @theme Architecture) │
+│   Phase 1: Visual Foundation & Tokens ✅ FINAL FROZEN                    │
 │                                ↓                                        │
-│   Phase 2: Global App Shell (Unified Background, Nav, Header, Drawer)   │
+│   Phase 2: Global App Shell ✅ FINAL FROZEN                             │
 │                                ↓                                        │
-│   Phase 3: Shared UI Primitives Library (Cards, Badges, Meters, Modals) │
+│   Phase 3: Shared UI Primitives Library ✅ FINAL FROZEN                 │
 │                                ↓                                        │
-│   Phase 4: Stage 7C Artifact UI (Gallery, Links Drawer, Confirm Picker) │
+│   Phase 4: Stage 7C Artifact UI (Gallery, Drawer, Confirm Picker) 🚀     │
 │                                ↓                                        │
 │   Phase 5: Core Screen Modernization (Dashboard -> Quests -> Skills)    │
 │                                ↓                                        │
@@ -55,36 +55,28 @@ The migration to the new Global Visual System follows a strict, layered implemen
 
 ## 3. Detailed Phase Breakdown
 
-### Phase 1 — Visual Foundation & Tokens (Tailwind CSS v4 Integration)
-- **Objective**: Establish global token runtime using existing Tailwind CSS v4 architecture.
-- **Deliverables**:
-  - Integrate tokens into `src/app/globals.css` using `@theme { ... }` for literal theme properties and `@theme inline { ... }` for CSS variable bindings.
-  - Declare CSS custom properties for all frozen tokens from `02_DESIGN_TOKENS.md`.
-  - Configure `--breakpoint-md`, `--breakpoint-lg`, `--breakpoint-xl` exactly as defined in `02_DESIGN_TOKENS.md`.
-  - Add atmospheric ink-wash vector silhouettes to `public/assets/environment/`.
+### Phase 1 — Visual Foundation & Tokens (Tailwind CSS v4 Integration) ✅ FINAL FROZEN
+- **Objective**: Establish global token runtime using existing Tailwind CSS v4 architecture with Light-first Modern Eastern Ink-Wash palette.
+- **Status**: **COMPLETE & MERGED (FINAL FROZEN)**.
 
-### Phase 2 — Unified Global App Shell
+### Phase 2 — Unified Global App Shell ✅ FINAL FROZEN
 - **Objective**: Replace per-page layouts with the global `AppShell`.
-- **Deliverables**:
-  - `src/components/layout/AppShell.tsx`: Root shell container with environmental background veil (`var(--bg-veil-overlay)`).
-  - `src/components/layout/AppSidebar.tsx`: Desktop expandable/collapsible sidebar with neutral active indicators (`var(--selection-neutral-*)`).
-  - `src/components/layout/AppHeader.tsx`: Top bar with Song-serif breadcrumbs, player level badge (`LevelBadge`), and XP bar (`XPProgress`).
-  - `src/components/layout/MobileNav.tsx`: Bottom navigation bar for mobile viewports.
-  - `src/components/layout/InspectorDrawer.tsx`: Standardized structural slide-over drawer shell.
+- **Status**: **COMPLETE & MERGED (FINAL FROZEN)** (PR #14).
 
-### Phase 3 — Shared UI Primitives Library
+### Phase 3 — Shared UI Primitives Library ✅ FINAL FROZEN
 - **Objective**: Build and test all presentation primitives in isolation.
-- **Deliverables**:
+- **Status**: **COMPLETE & MERGED (FINAL FROZEN)** (PR #15).
+- **Frozen Primitives**:
   - Surfaces: `GlassPanel`, `RPGCard`, `SectionCard`, `StatCard`.
   - Badges: `LevelBadge`, `MasteryBadge` (M0–M10 5-diamond meter), `ConfidenceBadge` (3 variants), `StatusBadge`, `EntityChip`.
   - Meters: `XPProgress`, `QuestProgress`, `ReusabilityMeter`.
   - Controls: `PrimaryButton` (Gold), `SecondaryButton` (Neutral), `DangerButton` (Functional Danger), `SearchInput`, `FilterBar`.
   - Overlays: `ConfirmDialog`, `BaseModal`, `ToastNotification`, `Tooltip`.
 
-### Phase 4 — Stage 7C: Artifact UI Implementation
-- **Objective**: Implement the complete Artifact user interface on top of frozen Stage 7B APIs.
+### Phase 4 — Stage 7C: Artifact UI Implementation 🚀 (ACTIVE NEXT)
+- **Objective**: Implement the complete Artifact user interface on top of frozen Stage 7B APIs using the frozen visual foundation, AppShell, and Shared UI Primitives.
 - **Deliverables**:
-  - `/artifacts` Gallery Page: Responsive grid of `ArtifactCard`s with type/status filters and search.
+  - `/artifacts` Workspace & Gallery Page: Responsive grid of `ArtifactCard`s with type/status filters and search.
   - `ArtifactInspectorContent`: Injected into `InspectorDrawer` with 5 relational accordions (Skills, Knowledge, Quests, Activities, Evidence).
   - Assessment Confirm Artifact Proposal Resolution UI (Create / Existing / Ignore selector bound by `proposalIndex`).
 
@@ -98,17 +90,7 @@ The migration to the new Global Visual System follows a strict, layered implemen
 ### Phase 6 — Knowledge Map Canvas Modernization
 - **Objective**: Modernize the force-directed graph canvas for Knowledge Nodes.
 - **Deliverables**:
-  - `/knowledge`: Emerald celadon styling, zoom LOD rendering, 5 Knowledge edge types (`prerequisite`, `contains`, `supports`, `contradicts`, `relates_to`), and accessible table view toggle (`KnowledgeInspectorContent`).
+  - Canvas graph viewport with semantic node clustering, edge authority filters, and real-time inspector linkage.
 
-### Phase 7 — Comprehensive Quality & A11y Verification
-- **Objective**: Complete end-to-end regression, contrast verification, and cross-device testing.
-- **Deliverables**:
-  - Composited contrast audit ($\ge 7:1$ on primary body, $\ge 4.5:1$ on normal text).
-  - Vitest + E2E browser tests execution across all migrated routes.
-
----
-
-## 4. Strict Boundary Rules During Freeze
-
-1. **No Out-of-Sequence Implementation**: Do not begin Phase 4 (Stage 7C) or Phase 5 (Page Migrations) until this Global Visual Design Freeze package is reviewed and APPROVED.
-2. **Zero Backend Changes**: Migration phases modify ONLY frontend presentation components. Backend routes, Supabase migrations, and domain services remain untouched.
+### Phase 7 — End-to-End A11y, Responsive & Motion Polish
+- **Objective**: Full keyboard navigation, screen reader conformance, responsive stress-testing, and motion tuning.
