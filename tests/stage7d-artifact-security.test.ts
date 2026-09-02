@@ -222,6 +222,7 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Artifact Final Security, Cross-Tena
         await pg.query(`delete from public.artifact_skills where user_id = $1`, [userAId]);
         await pg.query(`delete from public.artifacts where user_id = $1`, [userAId]);
         await pg.query(`delete from public.xp_transactions where user_id = $1`, [userAId]);
+        await pg.query(`delete from public.mastery_verifications where user_id = $1`, [userAId]);
         await pg.query(`delete from public.ai_assessments where user_id = $1`, [userAId]);
         await pg.query(`delete from public.evidence_records where user_id = $1`, [userAId]);
         await pg.query(`delete from public.activities where user_id = $1`, [userAId]);
@@ -242,6 +243,7 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Artifact Final Security, Cross-Tena
         await pg.query(`delete from public.artifact_skills where user_id = $1`, [userBId]);
         await pg.query(`delete from public.artifacts where user_id = $1`, [userBId]);
         await pg.query(`delete from public.xp_transactions where user_id = $1`, [userBId]);
+        await pg.query(`delete from public.mastery_verifications where user_id = $1`, [userBId]);
         await pg.query(`delete from public.ai_assessments where user_id = $1`, [userBId]);
         await pg.query(`delete from public.evidence_records where user_id = $1`, [userBId]);
         await pg.query(`delete from public.activities where user_id = $1`, [userBId]);
