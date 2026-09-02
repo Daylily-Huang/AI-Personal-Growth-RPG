@@ -30,15 +30,16 @@ graph TD
         V0[Visual System Documentation & Design Tokens] --> V1[AppShell & Primitives Spec]
     end
 
-    subgraph Stage 7C: Interactive UI [BLOCKED PENDING GLOBAL VISUAL DESIGN FREEZE PASS]
+    subgraph Stage 7C: Interactive UI [FINAL FROZEN]
         C1[Artifacts Gallery & List View] --> C2[Detail Inspector Drawer: 5 Relational Accordions]
         C2 --> C3[Create / Edit / Archive / Superseded Dialogs]
         C3 --> C4[Assessment Confirm Proposal Resolution Control]
     end
 
-    subgraph Stage 7D: E2E & Final Freeze [FUTURE]
-        D1[Full End-to-End Test Suite] --> D2[Cross-Tenant Security Audit]
-        D2 --> D3[Final Freeze Merge to main]
+    subgraph Stage 7D: E2E & Final Freeze [FINAL FROZEN]
+        D1[Full End-to-End Test Suite: 12/12 PASS] --> D2[Cross-Tenant Security Audit: 16/16 PASS]
+        D2 --> D3[Database & RPC Privilege Matrix: 15/15 PASS]
+        D3 --> D4[Final Freeze Merge to main: PR #17 MERGED]
     end
 
     Stage 7A --> Stage 7B --> Global Visual Design Freeze --> Stage 7C --> Stage 7D
@@ -76,15 +77,22 @@ graph TD
   - Atomic, idempotent settlement execution (zero duplicate mutations, repeat confirm preserves `409 Conflict` `already_confirmed`).
   - 15 required verification cases in HTTP integration test suite (`tests/stage7b-http-api.test.ts`, 41/41 PASS).
 
-### 2.3 Stage 7C — Artifacts Workspace UI (BLOCKED PENDING GLOBAL VISUAL DESIGN FREEZE PASS)
-- Consume the **FINAL FROZEN Global Visual Design System** (`AppShell`, `InspectorDrawer`, `GlassPanel`, `RPGCard`, and shared UI primitives).
-- Implement `/artifacts` page with Left filter bar (active, draft, archived, superseded, all), Center artifact gallery/list, and Right detail inspector (`ArtifactInspectorContent` with 5 relational accordions).
+### 2.3 Stage 7C — Artifacts Workspace UI (FINAL FROZEN)
+- Consumed the **FINAL FROZEN Global Visual Design System** (`AppShell`, `InspectorDrawer`, `GlassPanel`, `RPGCard`, and shared UI primitives).
+- Implemented `/artifacts` page with Left filter bar (active, draft, archived, superseded, all), Center artifact gallery/list, and Right detail inspector (`ArtifactInspectorContent` with 5 relational accordions).
 - Interactive Modals (Create, Edit, Manage Links, Archive/Delete confirmation, Restore Superseded).
 - Assessment confirmation dialog resolution picker integration bound to `proposalIndex`.
-- UI component and interaction test suite (`tests/stage7c-ui.test.tsx`).
+- UI component and interaction test suite (`tests/stage7c-ui.test.tsx`, 24/24 PASS).
+- Merged via PR #16.
 
-### 2.4 Stage 7D — E2E Integration, Security Isolation & Final Freeze
-- Full browser/HTTP lifecycle E2E tests in `tests/e2e-http-browser.test.ts`.
-- Live PostgreSQL hostile-client and security isolation audit (`tests/stage7d-security-isolation.test.ts`).
-- Credential leak and CI log sanitization audit.
-- Final documentation synchronization and freeze.
+### 2.4 Stage 7D — E2E Integration, Security Isolation & Final Freeze (FINAL FROZEN)
+- Full product HTTP/API lifecycle E2E tests in `tests/stage7d-artifact-e2e.test.ts` (12/12 PASS).
+- Live PostgreSQL hostile-client and security isolation audit in `tests/stage7d-artifact-security.test.ts` (16/16 PASS).
+- Live PostgreSQL RLS, transaction isolation, anon role rejection, and SECURITY DEFINER RPC privilege matrix in `tests/stage7d-artifact-db.test.ts` (15/15 PASS).
+- Merged via PR #17.
+
+### 2.5 Artifact System Overall Status: COMPLETE & FINAL FROZEN ✅
+- Stage 7A ✅ FINAL FROZEN
+- Stage 7B ✅ FINAL FROZEN
+- Stage 7C ✅ FINAL FROZEN
+- Stage 7D ✅ FINAL FROZEN

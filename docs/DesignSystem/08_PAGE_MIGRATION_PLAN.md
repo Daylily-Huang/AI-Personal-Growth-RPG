@@ -22,7 +22,7 @@ The migration to the new Global Visual System follows a strict, layered implemen
 │                                ↓                                        │
 │   Phase 3: Shared UI Primitives Library ✅ FINAL FROZEN                 │
 │                                ↓                                        │
-│   Phase 4: Stage 7C Artifact UI ✅ FINAL FROZEN                         │
+│   Phase 4: Stage 7C & 7D Artifact System ✅ FINAL FROZEN                 │
 │                                ↓                                        │
 │   Phase 5: Core Screen Modernization (Dashboard -> Quests -> Skills)    │
 │                                ↓                                        │
@@ -38,48 +38,42 @@ The migration to the new Global Visual System follows a strict, layered implemen
 
 ### 2.1 Allowed Frontend Modification Paths
 - `src/components/**` (Layouts, primitives, cards, drawers, dialogs)
-- `src/app/**` (**EXCLUDING** `src/app/api/**` — only page/layout presentation files)
-- `src/styles/**` (Design tokens, global styles imported into `src/app/globals.css`)
-- `public/assets/environment/**` (Atmospheric SVG ink-wash vectors)
-- Presentation-only helper utilities under `src/lib/**` (e.g. `src/lib/ui-utils.ts`) if strictly presentational with zero domain mutations and outside frozen namespaces.
+- `src/app/**` (Pages, route layouts, views)
+- `src/styles/**` (Design tokens, Tailwind extensions)
 
-### 2.2 Strictly Frozen Backend & Domain Denylist
-- `src/app/api/**` (Frozen RESTful endpoints)
-- `supabase/**` (Frozen SQL migrations `0001` through `0042` and database configuration)
-- `src/lib/store/**` (Frozen database repositories & settlement service)
-- `src/lib/ai/**` (Frozen AI prompt schemas & GM contracts)
-- `src/lib/growth-engine/**` (Deterministic XP & growth calculation engine)
-- Domain authority modules, `0041_artifact_management_authority.sql`, `0042_artifact_settlement_integration.sql`
+### 2.2 Strictly Denied Paths (FROZEN BACKEND / DOMAIN)
+- `src/lib/growth-engine/**` (Rule Engine — FROZEN)
+- `src/lib/ai/**` (GM AI Prompt & Schemas — FROZEN)
+- `supabase/migrations/**` (Database Schemas & RLS — FROZEN)
 
 ---
 
-## 3. Detailed Phase Breakdown
+## 3. Phase-by-Phase Execution Plan
 
-### Phase 1 — Visual Foundation & Tokens (Tailwind CSS v4 Integration) ✅ FINAL FROZEN
-- **Objective**: Establish global token runtime using existing Tailwind CSS v4 architecture with Light-first Modern Eastern Ink-Wash palette.
-- **Status**: **COMPLETE & MERGED (FINAL FROZEN)**.
+### Phase 1 — Global Visual Foundation & Token Architecture ✅ FINAL FROZEN
+- **Deliverables**: Tailwind CSS tokens, CSS variable architecture, typography scale, semantic borders, and interactive states.
 
-### Phase 2 — Unified Global App Shell ✅ FINAL FROZEN
-- **Objective**: Replace per-page layouts with the global `AppShell`.
-- **Status**: **COMPLETE & MERGED (FINAL FROZEN)** (PR #14).
+### Phase 2 — Global Application Shell Architecture ✅ FINAL FROZEN
+- **Deliverables**: Responsive layout shell, collapsible sidebar navigation, top header status bar, and inspector drawer.
 
 ### Phase 3 — Shared UI Primitives Library ✅ FINAL FROZEN
-- **Objective**: Build and test all presentation primitives in isolation.
-- **Status**: **COMPLETE & MERGED (FINAL FROZEN)** (PR #15).
-- **Frozen Primitives**:
+- **Deliverables**:
   - Surfaces: `GlassPanel`, `RPGCard`, `SectionCard`, `StatCard`.
   - Badges: `LevelBadge`, `MasteryBadge` (M0–M10 5-diamond meter), `ConfidenceBadge` (3 variants), `StatusBadge`, `EntityChip`.
   - Meters: `XPProgress`, `QuestProgress`, `ReusabilityMeter`.
   - Controls: `PrimaryButton` (Gold), `SecondaryButton` (Neutral), `DangerButton` (Functional Danger), `SearchInput`, `FilterBar`.
   - Overlays: `ConfirmDialog`, `BaseModal`, `ToastNotification`, `Tooltip`.
 
-### Phase 4 — Stage 7C: Artifact UI Implementation ✅ FINAL FROZEN
-- **Objective**: Implement the complete Artifact user interface on top of frozen Stage 7B APIs using the frozen visual foundation, AppShell, and Shared UI Primitives.
-- **Status**: **COMPLETE & MERGED (FINAL FROZEN)** (PR #16).
+### Phase 4 — Stage 7C & 7D: Artifact System & Audit ✅ FINAL FROZEN
+- **Objective**: Implement the complete Artifact user interface on top of frozen Stage 7B APIs and conduct comprehensive Stage 7D security, E2E, immutability, and freeze audit.
+- **Status**: **COMPLETE & MERGED (FINAL FROZEN)** (Stage 7C via PR #16, Stage 7D via PR #17).
 - **Deliverables**:
   - `/artifacts` Workspace & Gallery Page: Responsive grid of `ArtifactCard`s with type/status filters and search.
   - `ArtifactInspectorContent`: Injected into `InspectorDrawer` with 5 relational accordions (Skills, Knowledge, Quests, Activities, Evidence).
   - Assessment Confirm Artifact Proposal Resolution UI (Create / Existing / Ignore selector bound by `proposalIndex`).
+  - Stage 7D Final Security, E2E, Immutability & Freeze Audit suites (`stage7d-artifact-db.test.ts`, `stage7d-artifact-e2e.test.ts`, `stage7d-artifact-security.test.ts`).
+  - Comprehensive freeze guarantees: RLS tenant isolation, cross-category batch atomicity, full settlement rollback snapshot, duplicate confirm idempotency, concurrency mutex, SECURITY DEFINER privilege isolation, provenance / evidence immutability.
+  - **ARTIFACT SYSTEM — COMPLETE & FINAL FROZEN**.
 
 ### Phase 5 — Dashboard, Quests & Skills Migration
 - **Objective**: Modernize existing product pages onto the shared primitive system.

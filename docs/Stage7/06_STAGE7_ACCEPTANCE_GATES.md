@@ -49,20 +49,45 @@
 
 ---
 
-## 3. Gate 7C: Artifacts Workspace UI (BLOCKED PENDING GLOBAL VISUAL DESIGN FREEZE PASS)
-- [ ] **Prerequisite**: Global Visual Design Freeze PASS (Gates V1–V8);
-- [ ] Consume the **FINAL FROZEN Global Visual Design System** (`AppShell`, `InspectorDrawer`, `GlassPanel`, `RPGCard`, and shared primitives);
-- [ ] Complete 3-column workspace at `/artifacts`;
-- [ ] Interactive Artifact Cards with type badges, version pills, superseded status, and reusability meters;
-- [ ] Detail Drawer (`ArtifactInspectorContent`) with markdown rendering and 5 relational accordions (Skills, Knowledge, Quests, Activities, Evidence);
-- [ ] Create, Edit, Manage Links, and Archive/Delete confirmation modals with zero-mutation on cancel;
-- [ ] Assessment Confirmation Resolution UX (3-way Create / Existing / Ignore selector bound by `proposalIndex`);
-- [ ] Restore superseded work product action.
+## 3. Gate 7C: Artifacts Workspace UI (FINAL FROZEN - 24/24 PASS)
+- [x] **Prerequisite**: Global Visual Design Freeze PASS (Gates V1–V8);
+- [x] Consume the **FINAL FROZEN Global Visual Design System** (`AppShell`, `InspectorDrawer`, `GlassPanel`, `RPGCard`, and shared primitives);
+- [x] Complete 3-column workspace at `/artifacts`;
+- [x] Interactive Artifact Cards with type badges, version pills, superseded status, and reusability meters;
+- [x] Detail Drawer (`ArtifactInspectorContent`) with markdown rendering and 5 relational accordions (Skills, Knowledge, Quests, Activities, Evidence);
+- [x] Create, Edit, Manage Links, and Archive/Delete confirmation modals with zero-mutation on cancel;
+- [x] Assessment Confirmation Resolution UX (3-way Create / Existing / Ignore selector bound by `proposalIndex`);
+- [x] Restore superseded work product action;
+- [x] Merged via PR #16.
 
 ---
 
-## 4. Gate 7D: E2E Integration & Final Freeze (FUTURE)
-- [ ] Real browser/HTTP E2E test covering full artifact lifecycle;
-- [ ] Live PostgreSQL hostile-client and security isolation audit;
-- [ ] Zero credential leak & CI log sanitization audit;
-- [ ] Clean PR merge into main.
+## 4. Gate 7D: E2E Integration, Security Isolation & Final Freeze (FINAL FROZEN - 43/43 PASS)
+- [x] **Real HTTP/API Full Product Lifecycle E2E Suite** (`tests/stage7d-artifact-e2e.test.ts`, 12/12 PASS):
+  - Scenario A: Practitioner Full Lifecycle (Create -> Read -> Update -> Soft Delete -> Restore);
+  - Scenario B: Multi-Entity Association Lifecycle (5 categories attached -> batch updated -> query hydrated);
+  - Scenario C: Assessment Proposal Settlement Integration (CREATE & EXISTING resolutions atomic execution);
+  - Scenario D: Assessment Proposal IGNORE Resolution (Zero deliverable writes, zero deliverable links);
+  - Scenario E: Cross-User Attack (User B cannot link User A's artifact in settlement -> non-disclosing 404);
+  - Scenario F: Stage 7C UI Contract Bridge Verification (ArtifactCreateModal, ArtifactLinkManagerModal, ArtifactProposalResolutionPicker payload shapes accepted by live endpoints).
+- [x] **Hostile-Client & Security Isolation Audit** (`tests/stage7d-artifact-security.test.ts`, 16/16 PASS):
+  - Strict Cross-Tenant Isolation: No enumeration, non-disclosing 404s on foreign artifact access;
+  - Artifact CRUD Authority & Constraints: Canonical type validation, lifecycle coherence constraint checks;
+  - Relationship Authority & True Cross-Category Batch Atomicity: Fail-closed rollback on foreign entity, all-or-nothing commitment;
+  - Provenance & Evidence Deletion Protection: Fail-closed guard triggers prevent deleting referenced artifacts;
+  - Assessment Proposal Settlement Full Rollback: Authoritative snapshot (`snapshotSettlementState`) proves zero state mutation on failure across player, skills, mastery, evidence, knowledge, quests, artifacts, and relations;
+  - Duplicate Confirm Idempotency: Deep snapshot equality proves zero duplicate mutation on 409 rejection;
+  - Concurrency Audit: Parallel confirmation requests on same assessment yield mutex protection with exactly one success and zero duplicate mutations.
+- [x] **PostgreSQL RLS & RPC Privilege Matrix Audit** (`tests/stage7d-artifact-db.test.ts`, 15/15 PASS):
+  - Row Level Security (RLS) enforcement on all tables;
+  - Transaction isolation and non-blocking concurrency;
+  - Anonymous role full rejection across all artifact tables;
+  - Authoritative SECURITY DEFINER RPC privilege matrix on `settle_activity`:
+    - `public`: NO EXECUTE;
+    - `anon`: NO EXECUTE;
+    - `authenticated`: NO EXECUTE;
+    - `service_role`: EXECUTE;
+  - Direct SQL runtime attack attempts by `authenticated` and `anon` rejected with `permission denied`.
+- [x] **Clean PR Merge & Documentation Freeze**:
+  - PR #17 merged into `main` with 0 unresolved review threads and 0 production code delta;
+  - Artifact System officially declared **COMPLETE & FINAL FROZEN**.
