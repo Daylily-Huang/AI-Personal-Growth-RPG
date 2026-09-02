@@ -19,12 +19,12 @@
 }
 
 /* ==========================================================================
-   Global Base & Foundational Styles
+   Global Base & Foundational Styles (Light-first Eastern Ink-Wash)
    ========================================================================== */
 html {
   background-color: var(--bg-deep-void);
   color: var(--text-primary);
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 body {

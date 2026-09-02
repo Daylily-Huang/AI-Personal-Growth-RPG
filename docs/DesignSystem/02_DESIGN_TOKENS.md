@@ -3,6 +3,7 @@
 > **Document**: `02_DESIGN_TOKENS.md`  
 > **Status**: DESIGN FREEZE CANDIDATE — REVIEW PENDING  
 > **Milestone**: Global Visual Design Freeze  
+> **Visual North Star**: Light-first Modern Eastern Ink-Wash (现代东方水墨)  
 > **Dependencies**: Stage 0–6 (FROZEN), Stage 7A/7B (FROZEN), `01_GLOBAL_VISUAL_DIRECTION.md`  
 > **Related Documents**: `03_GLOBAL_APP_SHELL.md`, `04_SHARED_COMPONENT_SYSTEM.md`, `05_ENTITY_VISUAL_LANGUAGE.md`
 
@@ -28,22 +29,22 @@ The following numeric categories represent domain semantics, structural counts, 
 
 ## 2. Environmental, Surface & Structural Palette
 
-### 2.1 Environmental Background & Veil
+### 2.1 Environmental Background & Veil (Light Warm White & Mist Landscape)
 ```css
 :root {
   /* Environmental Backgrounds */
-  --bg-deep-void: #0a0d12;
-  --bg-ink-wash: #0f141c;
-  --bg-veil-overlay: rgba(10, 13, 18, 0.88);
+  --bg-deep-void: #f7f6f2;
+  --bg-ink-wash: #efece4;
+  --bg-veil-overlay: rgba(247, 246, 242, 0.90);
 
   /* Modal Backdrop Visual Surface (Separate from z-index) */
-  --surface-modal-backdrop: rgba(5, 7, 10, 0.75);
+  --surface-modal-backdrop: rgba(20, 24, 30, 0.45);
 
   /* Translucent Glass Surfaces (4-Tier Opacity Hierarchy) */
-  --surface-ground: rgba(15, 20, 28, 0.72);
-  --surface-base: rgba(22, 29, 41, 0.82);
-  --surface-raised: rgba(28, 37, 51, 0.90);
-  --surface-overlay: rgba(34, 45, 62, 0.96);
+  --surface-ground: rgba(239, 236, 228, 0.70);
+  --surface-base: rgba(255, 255, 255, 0.82);
+  --surface-raised: rgba(255, 255, 255, 0.92);
+  --surface-overlay: rgba(255, 255, 255, 0.98);
 
   /* Glass Blur Presets */
   --glass-blur-sm: 4px;
@@ -53,20 +54,20 @@ The following numeric categories represent domain semantics, structural counts, 
   --glass-blur-2xl: 40px;
 
   /* Neutral Borders & Surface Highlights */
-  --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-default: rgba(255, 255, 255, 0.14);
-  --border-raised: rgba(255, 255, 255, 0.20);
-  --border-highlight-top: rgba(255, 255, 255, 0.06);
+  --border-subtle: rgba(30, 36, 43, 0.07);
+  --border-default: rgba(30, 36, 43, 0.12);
+  --border-raised: rgba(30, 36, 43, 0.18);
+  --border-highlight-top: rgba(255, 255, 255, 0.85);
 
   /* Interactive Neutral States (For generic cards/buttons/lists) */
-  --surface-hover-neutral: rgba(255, 255, 255, 0.04);
-  --border-hover-neutral: rgba(255, 255, 255, 0.24);
+  --surface-hover-neutral: rgba(30, 36, 43, 0.04);
+  --border-hover-neutral: rgba(30, 36, 43, 0.25);
 
   /* Generic Selection States (Neutral, Non-Gold) */
-  --selection-neutral-bg: rgba(255, 255, 255, 0.08);
-  --selection-neutral-border: rgba(255, 255, 255, 0.35);
-  --selection-neutral-text: #ffffff;
-  --selection-neutral-indicator: #ffffff;
+  --selection-neutral-bg: rgba(71, 84, 103, 0.08);
+  --selection-neutral-border: rgba(71, 84, 103, 0.45);
+  --selection-neutral-text: #1c2127;
+  --selection-neutral-indicator: #1c2127;
 }
 ```
 
@@ -80,36 +81,36 @@ The following numeric categories represent domain semantics, structural counts, 
 ```css
 :root {
   /* Gold Progression Tiers */
-  --gold-50: #fbf7ec;
-  --gold-100: #f4ecce;
-  --gold-200: #e8d79b;
-  --gold-300: #e5c158;  /* High-tier Achievement / Accent Text */
-  --gold-400: #d4af37;  /* Primary Ancient Gold Base */
-  --gold-500: #c5a059;  /* Muted Antique Amber */
-  --gold-600: #a3823c;
-  --gold-700: #7b6228;
-  --gold-800: #524018;
-  --gold-900: #2d220a;
+  --gold-50: #fffdf5;
+  --gold-100: #fef8e2;
+  --gold-200: #faebba;
+  --gold-300: #f2d87e;  /* High-tier Achievement / Accent Text */
+  --gold-400: #d49a26;  /* Primary Ancient Warm Gold Base */
+  --gold-500: #b88218;  /* Muted Antique Amber */
+  --gold-600: #94660e;
+  --gold-700: #734d08;
+  --gold-800: #523504;
+  --gold-900: #331f01;
 
   /* Gold Luminescence & Focus */
-  --border-gold-subtle: rgba(212, 175, 55, 0.20);
-  --border-gold-strong: rgba(212, 175, 55, 0.50);
-  --glow-gold-subtle: 0 0 12px rgba(212, 175, 55, 0.12);
-  --glow-gold-focus: 0 0 20px rgba(212, 175, 55, 0.22);
-  --glow-gold-breakthrough: 0 0 32px rgba(229, 193, 88, 0.35);
-  --focus-ring-color: #d4af37;
+  --border-gold-subtle: rgba(184, 130, 24, 0.25);
+  --border-gold-strong: rgba(184, 130, 24, 0.55);
+  --glow-gold-subtle: 0 1px 3px rgba(184, 130, 24, 0.15);
+  --glow-gold-focus: 0 0 0 3px rgba(212, 154, 38, 0.25);
+  --glow-gold-breakthrough: 0 4px 16px rgba(184, 130, 24, 0.30);
+  --focus-ring-color: #d49a26;
 }
 ```
 
 ### 3.2 Typography & Text Neutrals (Calibrated for Composited Contrast)
 ```css
 :root {
-  --text-primary: #f0f6fc;      /* 95% White - Target >= 7:1 on composited base */
-  --text-secondary: #8b949e;    /* 75% Slate - Target >= 4.5:1 on composited base */
-  --text-muted: #949ba4;        /* Adjusted neutral for metadata >= 4.5:1 */
-  --text-disabled: #586069;     /* 38% Muted - Disabled actions (exempt) */
-  --text-gold-accent: #e5c158;  /* High-tier Achievement Text */
-  --text-inverse: #0d1117;      /* On Solid Gold/Accent Badges */
+  --text-primary: #1c2127;      /* Deep Ink Charcoal - Target >= 7:1 on composited base */
+  --text-secondary: #475467;    /* Slate Charcoal - Target >= 4.5:1 on composited base */
+  --text-muted: #667085;        /* Muted Ink Wash for metadata >= 4.5:1 */
+  --text-disabled: #98a2b3;     /* Muted disabled actions */
+  --text-gold-accent: #9a6700;  /* Restrained Achievement / Accent Text */
+  --text-inverse: #ffffff;      /* On Solid Gold/Dark Badges */
 }
 ```
 
@@ -117,25 +118,25 @@ The following numeric categories represent domain semantics, structural counts, 
 ```css
 :root {
   /* Functional Success */
-  --state-success-bg: rgba(46, 160, 67, 0.12);
-  --state-success-border: rgba(46, 160, 67, 0.35);
-  --state-success-text: #3fb950;
+  --state-success-bg: rgba(38, 128, 86, 0.08);
+  --state-success-border: rgba(38, 128, 86, 0.30);
+  --state-success-text: #166442;
 
   /* Functional Info */
-  --state-info-bg: rgba(56, 139, 253, 0.12);
-  --state-info-border: rgba(56, 139, 253, 0.35);
-  --state-info-text: #58a6ff;
+  --state-info-bg: rgba(43, 114, 186, 0.08);
+  --state-info-border: rgba(43, 114, 186, 0.30);
+  --state-info-text: #185694;
 
   /* Functional Warning */
-  --state-warning-bg: rgba(210, 153, 34, 0.12);
-  --state-warning-border: rgba(210, 153, 34, 0.35);
-  --state-warning-text: #d29922;
+  --state-warning-bg: rgba(184, 120, 20, 0.08);
+  --state-warning-border: rgba(184, 120, 20, 0.30);
+  --state-warning-text: #8c5506;
 
   /* Functional Danger / Destructive Action */
-  --state-danger-bg: rgba(248, 81, 73, 0.12);
-  --state-danger-border: rgba(248, 81, 73, 0.35);
-  --state-danger-text: #f85149;
-  --state-danger-hover: rgba(248, 81, 73, 0.22);
+  --state-danger-bg: rgba(204, 53, 41, 0.08);
+  --state-danger-border: rgba(204, 53, 41, 0.30);
+  --state-danger-text: #b32619;
+  --state-danger-hover: rgba(204, 53, 41, 0.15);
 }
 ```
 
@@ -143,19 +144,19 @@ The following numeric categories represent domain semantics, structural counts, 
 ```css
 :root {
   /* High Confidence (>= 0.80) */
-  --confidence-high-bg: rgba(46, 160, 67, 0.10);
-  --confidence-high-border: rgba(46, 160, 67, 0.30);
-  --confidence-high-text: #3fb950;
+  --confidence-high-bg: rgba(38, 128, 86, 0.08);
+  --confidence-high-border: rgba(38, 128, 86, 0.28);
+  --confidence-high-text: #166442;
 
   /* Medium Confidence (0.50 - 0.79) - Dedicated Amber Neutral, NOT progression Gold */
-  --confidence-medium-bg: rgba(219, 171, 9, 0.10);
-  --confidence-medium-border: rgba(219, 171, 9, 0.30);
-  --confidence-medium-text: #e3b341;
+  --confidence-medium-bg: rgba(184, 120, 20, 0.08);
+  --confidence-medium-border: rgba(184, 120, 20, 0.28);
+  --confidence-medium-text: #8c5506;
 
   /* Low Confidence (< 0.50) */
-  --confidence-low-bg: rgba(139, 148, 158, 0.10);
-  --confidence-low-border: rgba(139, 148, 158, 0.30);
-  --confidence-low-text: #8b949e;
+  --confidence-low-bg: rgba(102, 112, 133, 0.08);
+  --confidence-low-border: rgba(102, 112, 133, 0.25);
+  --confidence-low-text: #667085;
 }
 ```
 
@@ -163,24 +164,24 @@ The following numeric categories represent domain semantics, structural counts, 
 ```css
 :root {
   /* Verified Authority */
-  --authority-verified-bg: rgba(63, 185, 80, 0.12);
-  --authority-verified-border: rgba(63, 185, 80, 0.40);
-  --authority-verified-text: #56d364;
+  --authority-verified-bg: rgba(38, 128, 86, 0.08);
+  --authority-verified-border: rgba(38, 128, 86, 0.35);
+  --authority-verified-text: #166442;
 
   /* Inferred Authority */
-  --authority-inferred-bg: rgba(63, 185, 80, 0.06);
-  --authority-inferred-border: rgba(63, 185, 80, 0.25);
-  --authority-inferred-text: #3fb950;
+  --authority-inferred-bg: rgba(38, 128, 86, 0.04);
+  --authority-inferred-border: rgba(38, 128, 86, 0.20);
+  --authority-inferred-text: #1e7850;
 
   /* Rejected Authority */
-  --authority-rejected-bg: rgba(248, 81, 73, 0.08);
-  --authority-rejected-border: rgba(248, 81, 73, 0.25);
-  --authority-rejected-text: #f85149;
+  --authority-rejected-bg: rgba(204, 53, 41, 0.06);
+  --authority-rejected-border: rgba(204, 53, 41, 0.22);
+  --authority-rejected-text: #b32619;
 
   /* Superseded Authority (Knowledge Domain) */
-  --authority-superseded-bg: rgba(139, 148, 158, 0.08);
-  --authority-superseded-border: rgba(139, 148, 158, 0.25);
-  --authority-superseded-text: #8b949e;
+  --authority-superseded-bg: rgba(102, 112, 133, 0.06);
+  --authority-superseded-border: rgba(102, 112, 133, 0.22);
+  --authority-superseded-text: #667085;
 }
 ```
 
@@ -188,69 +189,69 @@ The following numeric categories represent domain semantics, structural counts, 
 ```css
 :root {
   /* Active State */
-  --status-active-bg: rgba(56, 139, 253, 0.10);
-  --status-active-border: rgba(56, 139, 253, 0.30);
-  --status-active-text: #58a6ff;
+  --status-active-bg: rgba(43, 114, 186, 0.08);
+  --status-active-border: rgba(43, 114, 186, 0.28);
+  --status-active-text: #185694;
 
   /* Draft State */
-  --status-draft-bg: rgba(139, 148, 158, 0.10);
-  --status-draft-border: rgba(139, 148, 158, 0.30);
-  --status-draft-text: #8b949e;
+  --status-draft-bg: rgba(102, 112, 133, 0.08);
+  --status-draft-border: rgba(102, 112, 133, 0.25);
+  --status-draft-text: #667085;
 
   /* Archived State (Separate from Superseded) */
-  --status-archived-bg: rgba(110, 118, 129, 0.10);
-  --status-archived-border: rgba(110, 118, 129, 0.25);
-  --status-archived-text: #949ba4;
+  --status-archived-bg: rgba(102, 112, 133, 0.06);
+  --status-archived-border: rgba(102, 112, 133, 0.20);
+  --status-archived-text: #667085;
 
   /* Superseded State (Artifact Lifecycle - Separate from Knowledge Authority) */
-  --status-superseded-bg: rgba(148, 155, 164, 0.10);
-  --status-superseded-border: rgba(148, 155, 164, 0.30);
-  --status-superseded-text: #949ba4;
+  --status-superseded-bg: rgba(102, 112, 133, 0.08);
+  --status-superseded-border: rgba(102, 112, 133, 0.25);
+  --status-superseded-text: #667085;
 
   /* Pending State */
-  --status-pending-bg: rgba(210, 153, 34, 0.10);
-  --status-pending-border: rgba(210, 153, 34, 0.30);
-  --status-pending-text: #d29922;
+  --status-pending-bg: rgba(184, 120, 20, 0.08);
+  --status-pending-border: rgba(184, 120, 20, 0.28);
+  --status-pending-text: #8c5506;
 
   /* Confirmed State */
-  --status-confirmed-bg: rgba(46, 160, 67, 0.10);
-  --status-confirmed-border: rgba(46, 160, 67, 0.30);
-  --status-confirmed-text: #3fb950;
+  --status-confirmed-bg: rgba(38, 128, 86, 0.08);
+  --status-confirmed-border: rgba(38, 128, 86, 0.28);
+  --status-confirmed-text: #166442;
 }
 ```
 
-### 3.7 Domain Entity Tokens (6 Isolated Entity Palettes)
+### 3.7 Domain Entity Tokens (6 Isolated Low-Saturation Ink-Wash Palettes)
 ```css
 :root {
   /* 1. Activity (Copper Ochre / 赭石暖铜) */
-  --entity-activity-bg: rgba(224, 159, 86, 0.10);
-  --entity-activity-border: rgba(224, 159, 86, 0.30);
-  --entity-activity-text: #f0ad6b;
+  --entity-activity-bg: rgba(196, 92, 46, 0.08);
+  --entity-activity-border: rgba(196, 92, 46, 0.28);
+  --entity-activity-text: #9c3d18;
 
-  /* 2. Skill (Ancient Gold / 墨金) - M0-M10 Mastery */
-  --entity-skill-bg: rgba(212, 175, 55, 0.10);
-  --entity-skill-border: rgba(212, 175, 55, 0.30);
-  --entity-skill-text: #e5c158;
+  /* 2. Skill (Ancient Bronze Gold / 墨金) - M0-M10 Mastery */
+  --entity-skill-bg: rgba(184, 130, 24, 0.08);
+  --entity-skill-border: rgba(184, 130, 24, 0.28);
+  --entity-skill-text: #8c5e08;
 
   /* 3. Knowledge (Emerald Celadon / 青瓷青绿) */
-  --entity-knowledge-bg: rgba(63, 185, 80, 0.10);
-  --entity-knowledge-border: rgba(63, 185, 80, 0.30);
-  --entity-knowledge-text: #56d364;
+  --entity-knowledge-bg: rgba(38, 128, 86, 0.08);
+  --entity-knowledge-border: rgba(38, 128, 86, 0.28);
+  --entity-knowledge-text: #166442;
 
   /* 4. Quest (Azure Horizon / 天青苍蓝) */
-  --entity-quest-bg: rgba(88, 166, 255, 0.10);
-  --entity-quest-border: rgba(88, 166, 255, 0.30);
-  --entity-quest-text: #79c0ff;
+  --entity-quest-bg: rgba(43, 114, 186, 0.08);
+  --entity-quest-border: rgba(43, 114, 186, 0.28);
+  --entity-quest-text: #185694;
 
   /* 5. Artifact (Amethyst Scholar / 紫霄玉简) */
-  --entity-artifact-bg: rgba(188, 140, 255, 0.10);
-  --entity-artifact-border: rgba(188, 140, 255, 0.30);
-  --entity-artifact-text: #d2a8ff;
+  --entity-artifact-bg: rgba(122, 78, 179, 0.08);
+  --entity-artifact-border: rgba(122, 78, 179, 0.28);
+  --entity-artifact-text: #5c348f;
 
   /* 6. Evidence (Vermilion Seal / 朱砂朱印) */
-  --entity-evidence-bg: rgba(248, 81, 73, 0.10);
-  --entity-evidence-border: rgba(248, 81, 73, 0.30);
-  --entity-evidence-text: #ff7b72;
+  --entity-evidence-bg: rgba(194, 59, 39, 0.08);
+  --entity-evidence-border: rgba(194, 59, 39, 0.28);
+  --entity-evidence-text: #992615;
 }
 ```
 
@@ -363,9 +364,9 @@ The following numeric categories represent domain semantics, structural counts, 
   --z-toast: 120;
   --z-tooltip: 150;
 
-  --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.35);
-  --shadow-raised: 0 8px 32px rgba(0, 0, 0, 0.45);
-  --shadow-overlay: 0 16px 48px rgba(0, 0, 0, 0.65);
+  --shadow-card: 0 1px 3px rgba(30, 36, 43, 0.06), 0 1px 2px rgba(30, 36, 43, 0.04);
+  --shadow-raised: 0 4px 16px rgba(30, 36, 43, 0.08), 0 2px 4px rgba(30, 36, 43, 0.04);
+  --shadow-overlay: 0 12px 32px rgba(30, 36, 43, 0.12), 0 4px 8px rgba(30, 36, 43, 0.06);
 }
 ```
 
@@ -409,6 +410,7 @@ The following numeric categories represent domain semantics, structural counts, 
 ```css
 /* In src/app/globals.css */
 @import "tailwindcss";
+@import "../styles/design-tokens.css";
 
 @theme {
   --breakpoint-md: 48rem;   /* 768px */

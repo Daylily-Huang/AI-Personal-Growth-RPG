@@ -114,31 +114,31 @@ describe('Visual Foundation & Design Tokens Runtime Verification', () => {
     expect(compiledCss).toContain("--font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace");
   });
 
-  it('2. verifies that design-tokens.css exists and declares all required token categories', () => {
+  it('2. verifies that design-tokens.css exists and declares all required Light-first Eastern Ink-Wash token categories', () => {
     // Environmental
-    expect(tokensCss).toContain('--bg-deep-void: #0a0d12;');
-    expect(tokensCss).toContain('--bg-ink-wash: #0f141c;');
-    expect(tokensCss).toContain('--bg-veil-overlay: rgba(10, 13, 18, 0.88);');
-    expect(tokensCss).toContain('--surface-modal-backdrop: rgba(5, 7, 10, 0.75);');
+    expect(tokensCss).toContain('--bg-deep-void: #f7f6f2;');
+    expect(tokensCss).toContain('--bg-ink-wash: #efece4;');
+    expect(tokensCss).toContain('--bg-veil-overlay: rgba(247, 246, 242, 0.90);');
+    expect(tokensCss).toContain('--surface-modal-backdrop: rgba(20, 24, 30, 0.45);');
 
     // Surfaces & Glass blur
-    expect(tokensCss).toContain('--surface-ground: rgba(15, 20, 28, 0.72);');
-    expect(tokensCss).toContain('--surface-base: rgba(22, 29, 41, 0.82);');
-    expect(tokensCss).toContain('--surface-raised: rgba(28, 37, 51, 0.90);');
-    expect(tokensCss).toContain('--surface-overlay: rgba(34, 45, 62, 0.96);');
+    expect(tokensCss).toContain('--surface-ground: rgba(239, 236, 228, 0.70);');
+    expect(tokensCss).toContain('--surface-base: rgba(255, 255, 255, 0.82);');
+    expect(tokensCss).toContain('--surface-raised: rgba(255, 255, 255, 0.92);');
+    expect(tokensCss).toContain('--surface-overlay: rgba(255, 255, 255, 0.98);');
     expect(tokensCss).toContain('--glass-blur-sm: 4px;');
     expect(tokensCss).toContain('--glass-blur-2xl: 40px;');
 
     // Gold scale
-    expect(tokensCss).toContain('--gold-400: #d4af37;');
-    expect(tokensCss).toContain('--gold-300: #e5c158;');
-    expect(tokensCss).toContain('--gold-500: #c5a059;');
-    expect(tokensCss).toContain('--focus-ring-color: #d4af37;');
+    expect(tokensCss).toContain('--gold-400: #d49a26;');
+    expect(tokensCss).toContain('--gold-300: #f2d87e;');
+    expect(tokensCss).toContain('--gold-500: #b88218;');
+    expect(tokensCss).toContain('--focus-ring-color: #d49a26;');
 
-    // Typography
-    expect(tokensCss).toContain('--text-primary: #f0f6fc;');
-    expect(tokensCss).toContain('--text-secondary: #8b949e;');
-    expect(tokensCss).toContain('--text-muted: #949ba4;');
+    // Typography (Deep Ink Charcoal Hierarchy)
+    expect(tokensCss).toContain('--text-primary: #1c2127;');
+    expect(tokensCss).toContain('--text-secondary: #475467;');
+    expect(tokensCss).toContain('--text-muted: #667085;');
     expect(tokensCss).toContain('--font-weight-semibold: 600;');
   });
 
@@ -154,12 +154,12 @@ describe('Visual Foundation & Design Tokens Runtime Verification', () => {
     // Artifact lifecycle superseded
     expect(tokensCss).toContain('--status-superseded-bg:');
     expect(tokensCss).toContain('--status-superseded-border:');
-    expect(tokensCss).toContain('--status-superseded-text: #949ba4;');
+    expect(tokensCss).toContain('--status-superseded-text: #667085;');
 
     // Knowledge authority superseded
     expect(tokensCss).toContain('--authority-superseded-bg:');
     expect(tokensCss).toContain('--authority-superseded-border:');
-    expect(tokensCss).toContain('--authority-superseded-text: #8b949e;');
+    expect(tokensCss).toContain('--authority-superseded-text: #667085;');
 
     // Assert they are distinct token identifiers
     expect(tokensCss).toMatch(/--status-superseded-text/);
@@ -168,22 +168,22 @@ describe('Visual Foundation & Design Tokens Runtime Verification', () => {
 
   it('5. verifies Gold whitelist governance and strictly asserts ONLY :focus-visible consumes Gold in global styles', () => {
     // 1. Declaration: Gold tokens are legitimately declared in design-tokens.css
-    expect(tokensCss).toContain('--gold-400: #d4af37;');
-    expect(tokensCss).toContain('--entity-skill-text: #e5c158;');
+    expect(tokensCss).toContain('--gold-400: #d49a26;');
+    expect(tokensCss).toContain('--entity-skill-text: #8c5e08;');
 
     // 2. Non-gold tokens do not alias or consume Gold
-    expect(tokensCss).toContain('--entity-activity-text: #f0ad6b;');
-    expect(tokensCss).not.toMatch(/--entity-activity-text:\s*#d4af37/);
+    expect(tokensCss).toContain('--entity-activity-text: #9c3d18;');
+    expect(tokensCss).not.toMatch(/--entity-activity-text:\s*#d49a26/);
     expect(tokensCss).not.toMatch(/--entity-activity-text:\s*var\(--gold/);
 
-    expect(tokensCss).toContain('--selection-neutral-bg: rgba(255, 255, 255, 0.08);');
-    expect(tokensCss).toContain('--selection-neutral-border: rgba(255, 255, 255, 0.35);');
-    expect(tokensCss).toContain('--selection-neutral-text: #ffffff;');
-    expect(tokensCss).not.toMatch(/--selection-neutral-[^:]+:\s*#d4af37/);
+    expect(tokensCss).toContain('--selection-neutral-bg: rgba(71, 84, 103, 0.08);');
+    expect(tokensCss).toContain('--selection-neutral-border: rgba(71, 84, 103, 0.45);');
+    expect(tokensCss).toContain('--selection-neutral-text: #1c2127;');
+    expect(tokensCss).not.toMatch(/--selection-neutral-[^:]+:\s*#d49a26/);
 
-    expect(tokensCss).toContain('--confidence-medium-text: #e3b341;'); // Dedicated amber neutral, not gold
-    expect(tokensCss).toContain('--state-danger-text: #f85149;');
-    expect(tokensCss).not.toMatch(/--confidence-medium-text:\s*#d4af37/);
+    expect(tokensCss).toContain('--confidence-medium-text: #8c5506;'); // Dedicated amber neutral, not gold
+    expect(tokensCss).toContain('--state-danger-text: #b32619;');
+    expect(tokensCss).not.toMatch(/--confidence-medium-text:\s*#d49a26/);
 
     // 3. Scan globals.css rules: verify that ONLY :focus-visible consumes Gold variables/colors
     const rulesOnly = globalsCss
@@ -201,7 +201,7 @@ describe('Visual Foundation & Design Tokens Runtime Verification', () => {
       if (
         declarations.includes('--gold') ||
         declarations.includes('--focus-ring-color') ||
-        declarations.includes('#d4af37')
+        declarations.includes('#d49a26')
       ) {
         goldConsumingSelectors.push(selector);
       }
@@ -276,8 +276,6 @@ describe('Visual Foundation & Design Tokens Runtime Verification', () => {
       Boolean(process.env.GITHUB_BASE_REF);
 
     if (!isPullRequest) {
-      // In push-to-main or non-PR event, PR delta assertion is not applicable
-      // Post-merge push-to-main CI will NOT fail because changedFiles is empty
       expect(true).toBe(true);
       return;
     }
@@ -306,7 +304,6 @@ describe('Visual Foundation & Design Tokens Runtime Verification', () => {
       }
     }
 
-    // In an actual pull_request event, diff resolution MUST fail closed if base comparison fails
     if (!diffSucceeded) {
       throw new Error(`[Fail-Closed] Failed to resolve PR changed files against base '${baseRef}': ${lastError?.message}`);
     }
