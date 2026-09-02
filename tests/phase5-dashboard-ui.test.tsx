@@ -524,7 +524,24 @@ describe("Phase 5 — Stage 5A-UI Dashboard Modernization Test Suite", () => {
       "src/proxy.ts",
     ];
 
-    const gitDiff = execSync("git diff --name-only main", { encoding: "utf8" });
+    function resolveBaseRefStrict(): string {
+      const candidates = [
+        process.env.GITHUB_BASE_REF ? `origin/${process.env.GITHUB_BASE_REF}` : null,
+        "origin/main",
+        "main",
+      ].filter(Boolean) as string[];
+
+      for (const candidate of candidates) {
+        try {
+          execSync(`git rev-parse --verify ${candidate}`, { stdio: "ignore" });
+          return candidate;
+        } catch {}
+      }
+      throw new Error("FAIL-CLOSED: Unable to resolve valid git base ref for backend delta guard.");
+    }
+
+    const baseRef = resolveBaseRefStrict();
+    const gitDiff = execSync(`git diff --name-only ${baseRef}...HEAD`, { encoding: "utf8" });
     const changedFiles = gitDiff
       .split("\n")
       .map((f) => f.trim())
