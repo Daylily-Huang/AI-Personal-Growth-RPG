@@ -2,7 +2,7 @@
 /**
  * Shared UI Primitives — Verification & Governance Test Suite
  * Authoritative source: docs/DesignSystem/04_SHARED_COMPONENT_SYSTEM.md
- * Phase: Phase 3
+ * Phase: Phase 3 (FINAL FROZEN)
  */
 
 import React from "react";
@@ -170,10 +170,33 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     expect(card.className).not.toContain("hover:border-[var(--entity-artifact-border)]");
   });
 
+  it("8. RPGCard with interactive=false + onClick is truly non-actionable across mouse and keyboard", () => {
+    const onClick = vi.fn();
+    render(
+      <RPGCard interactive={false} onClick={onClick}>
+        不可操作卡片
+      </RPGCard>
+    );
+
+    const card = screen.getByTestId("rpg-card");
+    expect(card.getAttribute("role")).toBeNull();
+    expect(card.getAttribute("tabindex")).toBeNull();
+    expect(card.className).not.toContain("cursor-pointer");
+
+    // Click mouse
+    fireEvent.click(card);
+    expect(onClick).not.toHaveBeenCalled();
+
+    // Keydown Enter / Space
+    fireEvent.keyDown(card, { key: "Enter" });
+    fireEvent.keyDown(card, { key: " " });
+    expect(onClick).not.toHaveBeenCalled();
+  });
+
   // ==========================================================================
   // 2. BADGES & ENTITY PRESENTATION
   // ==========================================================================
-  it("8. LevelBadge renders LV integer with octagonal seal silhouette", () => {
+  it("9. LevelBadge renders LV integer with octagonal seal silhouette", () => {
     render(<LevelBadge level={14} />);
     const badge = screen.getByTestId("level-badge");
     expect(badge.textContent).toBe("LV.14");
@@ -183,14 +206,14 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     expect(badge.getAttribute("aria-label")).toBe("玩家等级 LV.14");
   });
 
-  it("9. LevelBadge does not expose mastery semantics", () => {
+  it("10. LevelBadge does not expose mastery semantics", () => {
     render(<LevelBadge level={5} />);
     const badge = screen.getByTestId("level-badge");
     expect(badge.textContent).not.toContain("M");
     expect(badge.textContent).toBe("LV.5");
   });
 
-  it("10. MasteryBadge requires visible M label and renders M0 with 5 empty diamonds", () => {
+  it("11. MasteryBadge requires visible M label and renders M0 with 5 empty diamonds", () => {
     render(<MasteryBadge level={0} />);
     const badge = screen.getByTestId("mastery-badge");
     expect(screen.getByTestId("mastery-badge-label").textContent).toBe("M0");
@@ -201,7 +224,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     });
   });
 
-  it("11. MasteryBadge renders M10 with mandatory visible label and 5 full diamonds", () => {
+  it("12. MasteryBadge renders M10 with mandatory visible label and 5 full diamonds", () => {
     render(<MasteryBadge level={10} />);
     const badge = screen.getByTestId("mastery-badge");
     expect(screen.getByTestId("mastery-badge-label").textContent).toBe("M10");
@@ -212,7 +235,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     });
   });
 
-  it("12. MasteryBadge renders exactly five diamonds representing ten half-steps", () => {
+  it("13. MasteryBadge renders exactly five diamonds representing ten half-steps", () => {
     render(<MasteryBadge level={7} />);
     const badge = screen.getByTestId("mastery-badge");
     expect(screen.getByTestId("mastery-badge-label").textContent).toBe("M7");
@@ -220,7 +243,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     expect(diamonds.length).toBe(5);
   });
 
-  it("13. Every M0–M10 state is losslessly represented across the 5 diamonds", () => {
+  it("14. Every M0–M10 state is losslessly represented across the 5 diamonds", () => {
     const expectedStates: Array<Array<"empty" | "half" | "full">> = [
       ["empty", "empty", "empty", "empty", "empty"], // M0
       ["half", "empty", "empty", "empty", "empty"],  // M1
@@ -248,7 +271,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     }
   });
 
-  it("14. Invalid mastery values are safely normalized between 0 and 10", () => {
+  it("15. Invalid mastery values are safely normalized between 0 and 10", () => {
     const { unmount, rerender } = render(<MasteryBadge level={-5} />);
     let badge = screen.getByTestId("mastery-badge");
     expect(badge.getAttribute("data-mastery-level")).toBe("0");
@@ -261,7 +284,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     unmount();
   });
 
-  it("15. ConfidenceBadge mastery variant renders retention confidence", () => {
+  it("16. ConfidenceBadge mastery variant renders retention confidence", () => {
     render(<ConfidenceBadge variant="mastery" score={0.92} />);
     const badge = screen.getByTestId("confidence-badge");
     expect(badge.getAttribute("data-variant")).toBe("mastery");
@@ -270,7 +293,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     expect(badge.getAttribute("aria-label")).toContain("掌握保持置信度");
   });
 
-  it("16. ConfidenceBadge assessment variant renders AI proposal confidence", () => {
+  it("17. ConfidenceBadge assessment variant renders AI proposal confidence", () => {
     render(<ConfidenceBadge variant="assessment" score={0.75} />);
     const badge = screen.getByTestId("confidence-badge");
     expect(badge.getAttribute("data-variant")).toBe("assessment");
@@ -279,7 +302,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     expect(badge.getAttribute("aria-label")).toContain("AI评估置信度");
   });
 
-  it("17. ConfidenceBadge knowledge variant renders epistemic confidence", () => {
+  it("18. ConfidenceBadge knowledge variant renders epistemic confidence", () => {
     render(<ConfidenceBadge variant="knowledge" score={0.42} />);
     const badge = screen.getByTestId("confidence-badge");
     expect(badge.getAttribute("data-variant")).toBe("knowledge");
@@ -288,28 +311,28 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     expect(badge.getAttribute("aria-label")).toContain("知识图谱置信度");
   });
 
-  it("18. Confidence high threshold >= 0.80 uses functional green tokens", () => {
+  it("19. Confidence high threshold >= 0.80 uses functional green tokens", () => {
     render(<ConfidenceBadge variant="assessment" score={0.80} />);
     const badge = screen.getByTestId("confidence-badge");
     expect(badge.className).toContain("var(--confidence-high-bg)");
     expect(badge.className).toContain("var(--confidence-high-text)");
   });
 
-  it("19. Confidence medium threshold >= 0.50 and < 0.80 uses dedicated amber neutral", () => {
+  it("20. Confidence medium threshold >= 0.50 and < 0.80 uses dedicated amber neutral", () => {
     render(<ConfidenceBadge variant="assessment" score={0.65} />);
     const badge = screen.getByTestId("confidence-badge");
     expect(badge.className).toContain("var(--confidence-medium-bg)");
     expect(badge.className).toContain("var(--confidence-medium-text)");
   });
 
-  it("20. Confidence low threshold < 0.50 uses functional muted tokens", () => {
+  it("21. Confidence low threshold < 0.50 uses functional muted tokens", () => {
     render(<ConfidenceBadge variant="assessment" score={0.35} />);
     const badge = screen.getByTestId("confidence-badge");
     expect(badge.className).toContain("var(--confidence-low-bg)");
     expect(badge.className).toContain("var(--confidence-low-text)");
   });
 
-  it("21. ConfidenceBadge contains NO Gold tokens across all tiers", () => {
+  it("22. ConfidenceBadge contains NO Gold tokens across all tiers", () => {
     const scores = [0.95, 0.65, 0.35];
     scores.forEach((score) => {
       const { unmount } = render(<ConfidenceBadge variant="knowledge" score={score} />);
@@ -319,7 +342,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     });
   });
 
-  it("22. StatusBadge supports Artifact Lifecycle states", () => {
+  it("23. StatusBadge supports Artifact Lifecycle states", () => {
     render(<StatusBadge type="artifactLifecycle" state="active" />);
     const badge = screen.getByTestId("status-badge");
     expect(badge.getAttribute("data-namespace")).toBe("artifactLifecycle");
@@ -327,7 +350,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     expect(badge.textContent).toContain("生效中");
   });
 
-  it("23. StatusBadge supports Knowledge Authority states", () => {
+  it("24. StatusBadge supports Knowledge Authority states", () => {
     render(<StatusBadge type="knowledgeAuthority" state="verified" />);
     const badge = screen.getByTestId("status-badge");
     expect(badge.getAttribute("data-namespace")).toBe("knowledgeAuthority");
@@ -335,7 +358,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     expect(badge.textContent).toContain("已验证");
   });
 
-  it("24. Lifecycle superseded != Authority superseded token family", () => {
+  it("25. Lifecycle superseded != Authority superseded token family", () => {
     const { unmount, rerender } = render(
       <StatusBadge type="artifactLifecycle" state="superseded" />
     );
@@ -348,14 +371,14 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     unmount();
   });
 
-  it("25. StatusBadge pairs explicit icon with visible text label (never color alone)", () => {
+  it("26. StatusBadge pairs explicit icon with visible text label (never color alone)", () => {
     render(<StatusBadge type="knowledgeAuthority" state="rejected" />);
     const badge = screen.getByTestId("status-badge");
     expect(badge.querySelector("svg")).toBeTruthy();
     expect(screen.getByTestId("status-badge-label").textContent).toBe("已驳回");
   });
 
-  it("26. EntityChip has non-nested interactive structure and supports keyboard operation", () => {
+  it("27. EntityChip has non-nested interactive structure and supports keyboard operation", () => {
     const onRemove = vi.fn();
     const onClick = vi.fn();
 
@@ -386,7 +409,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     expect(onClick).toHaveBeenCalledTimes(1);
   });
 
-  it("27. EntityChip does NOT render remove control when onRemove is absent", () => {
+  it("28. EntityChip does NOT render remove control when onRemove is absent", () => {
     render(<EntityChip label="无删除实体" removable={true} />);
     expect(screen.queryByTestId("entity-chip-remove")).toBeNull();
   });
@@ -394,7 +417,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
   // ==========================================================================
   // 3. INTERACTIVE SEMANTICS & TOUCH TARGETS (44x44 Min Dimensions)
   // ==========================================================================
-  it("28. RPGCard Enter and Space keys trigger genuine DOM click and prevent scroll on Space", () => {
+  it("29. RPGCard Enter and Space keys trigger genuine DOM click and prevent scroll on Space", () => {
     const onClick = vi.fn((e) => {
       expect(e.type).toBe("click");
     });
@@ -408,7 +431,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     expect(onClick).toHaveBeenCalledTimes(2);
   });
 
-  it("29. RPGCard onKeyDown respects defaultPrevented and non-interactive card is not a button", () => {
+  it("30. RPGCard onKeyDown respects defaultPrevented and non-interactive card is not a button", () => {
     const onClick = vi.fn();
     const onKeyDown = vi.fn((e: React.KeyboardEvent) => {
       e.preventDefault();
@@ -433,7 +456,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     expect(plainCard.getAttribute("tabindex")).toBeNull();
   });
 
-  it("30. Buttons across all sizes satisfy Base/mobile min 44x44 touch target", () => {
+  it("31. Buttons across all sizes satisfy Base/mobile min 44x44 touch target", () => {
     const { unmount, rerender } = render(<PrimaryButton size="sm">小按钮</PrimaryButton>);
     let btn = screen.getByTestId("primary-button");
     expect(btn.className).toContain("min-h-[var(--touch-target-min)]");
@@ -451,7 +474,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     unmount();
   });
 
-  it("31. SearchInput and clear control satisfy min 44x44 touch target", () => {
+  it("32. SearchInput and clear control satisfy min 44x44 touch target", () => {
     render(<SearchInput value="关键词" onChange={vi.fn()} onClear={vi.fn()} />);
     const input = screen.getByTestId("search-input");
     expect(input.className).toContain("min-h-[var(--touch-target-min)]");
@@ -461,7 +484,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     expect(clearBtn.className).toContain("min-w-[var(--touch-target-min)]");
   });
 
-  it("32. FilterBar options and reset control satisfy min 44x44 touch target", () => {
+  it("33. FilterBar options and reset control satisfy min 44x44 touch target", () => {
     const options = [{ id: "opt1", label: "选项一" }];
     render(<FilterBar options={options} activeId="opt1" onChange={vi.fn()} onReset={vi.fn()} />);
 
@@ -474,7 +497,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     expect(resetBtn.className).toContain("min-w-[var(--touch-target-min)]");
   });
 
-  it("33. EntityChip and Toast dismiss satisfy min 44x44 touch target", () => {
+  it("34. EntityChip and Toast dismiss satisfy min 44x44 touch target", () => {
     render(
       <div>
         <EntityChip label="实体" onClick={vi.fn()} onRemove={vi.fn()} />
@@ -498,7 +521,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
   // ==========================================================================
   // 4. METERS & PROGRESS
   // ==========================================================================
-  it("34. XPProgress renders valid ARIA progressbar range (0 to 100) and tabular readout", () => {
+  it("35. XPProgress renders valid ARIA progressbar range (0 to 100) and tabular readout", () => {
     render(<XPProgress current={250} max={500} />);
     const meter = screen.getByTestId("xp-progress");
     expect(meter.getAttribute("aria-valuemin")).toBe("0");
@@ -509,7 +532,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     expect(screen.getByTestId("xp-progress-max").textContent).toBe("500 XP");
   });
 
-  it("35. XPProgress safely handles max=0, current>max, and negative values without NaN", () => {
+  it("36. XPProgress safely handles max=0, current>max, and negative values without NaN", () => {
     const { unmount, rerender } = render(<XPProgress current={100} max={0} />);
     let meter = screen.getByTestId("xp-progress");
     expect(meter.getAttribute("aria-valuenow")).toBe("0");
@@ -527,7 +550,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     unmount();
   });
 
-  it("36. XPProgress track uses surface-hover-neutral and fill uses approved Gold progression gradient", () => {
+  it("37. XPProgress track uses surface-hover-neutral and fill uses approved Gold progression gradient", () => {
     render(<XPProgress current={400} max={800} />);
     const track = screen.getByTestId("xp-progress-track");
     expect(track.className).toContain("bg-[var(--surface-hover-neutral)]");
@@ -538,7 +561,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     expect(bar.getAttribute("style")).toBe("width: 50%;");
   });
 
-  it("37. XPProgress size variants (sm, md, lg) all strictly consume progress-track-height token", () => {
+  it("38. XPProgress size variants (sm, md, lg) all strictly consume progress-track-height token", () => {
     const { unmount, rerender } = render(<XPProgress current={100} max={200} size="sm" />);
     let track = screen.getByTestId("xp-progress-track");
     expect(track.className).toContain("h-[var(--progress-track-height)]");
@@ -553,7 +576,30 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     unmount();
   });
 
-  it("38. QuestProgress renders semantic 0–100% with Azure Horizon tokens and NO Gold", () => {
+  it("39. XPProgress locks ARIA contract and resists hostile consumer overrides", () => {
+    render(
+      <XPProgress
+        current={40}
+        max={100}
+        {...({
+          role: "alert",
+          "aria-valuenow": 999,
+          "aria-valuemin": 50,
+          "aria-valuemax": 200,
+          "aria-valuetext": "hostile-override",
+        } as unknown as React.HTMLAttributes<HTMLDivElement>)}
+      />
+    );
+
+    const meter = screen.getByTestId("xp-progress");
+    expect(meter.getAttribute("role")).toBe("progressbar");
+    expect(meter.getAttribute("aria-valuenow")).toBe("40");
+    expect(meter.getAttribute("aria-valuemin")).toBe("0");
+    expect(meter.getAttribute("aria-valuemax")).toBe("100");
+    expect(meter.getAttribute("aria-valuetext")).toBe("40 / 100 XP (40%)");
+  });
+
+  it("40. QuestProgress renders semantic 0–100% with Azure Horizon tokens and NO Gold", () => {
     render(<QuestProgress progress={65} milestones={[25, 50, 75]} />);
     const meter = screen.getByTestId("quest-progress");
     expect(meter.getAttribute("aria-valuenow")).toBe("65");
@@ -563,7 +609,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     expect(bar.className).not.toContain("var(--gold-");
   });
 
-  it("39. ReusabilityMeter renders 0.00 to 1.00 score with Amethyst Scholar styling", () => {
+  it("41. ReusabilityMeter renders 0.00 to 1.00 score with Amethyst Scholar styling", () => {
     render(<ReusabilityMeter score={0.88} />);
     const meter = screen.getByTestId("reusability-meter");
     expect(meter.getAttribute("aria-valuenow")).toBe("0.88");
@@ -575,7 +621,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
   // ==========================================================================
   // 5. BASEMODAL PORTAL & OVERLAY STACK ARBITRATION
   // ==========================================================================
-  it("40. BaseModal renders via createPortal to document.body and escapes local ancestor stacking context", () => {
+  it("42. BaseModal renders via createPortal to document.body and escapes local ancestor stacking context", () => {
     render(
       <div data-testid="fake-canvas" className="relative z-[var(--z-canvas)]">
         <BaseModal open={true} onClose={vi.fn()} title="传送门模态框">
@@ -598,7 +644,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     expect(panel.className).toContain("z-[var(--z-modal)]");
   });
 
-  it("41. BaseModal panel simultaneously expresses the frozen responsive viewport matrix", () => {
+  it("43. BaseModal panel simultaneously expresses the frozen responsive viewport matrix", () => {
     render(
       <BaseModal open={true} onClose={vi.fn()} title="响应式模态框">
         <p>内容</p>
@@ -614,7 +660,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     expect(panel.className).not.toContain("workspace-max-width");
   });
 
-  it("42. BaseModal generates unique accessible IDs for multiple instances", () => {
+  it("44. BaseModal generates unique accessible IDs for multiple instances", () => {
     render(
       <div>
         <BaseModal open={true} onClose={vi.fn()} title="对话框一">
@@ -631,7 +677,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     expect(titles[0].id).not.toBe(titles[1].id);
   });
 
-  it("43. ConfirmDialog aria-describedby points to visible description and renders via portal", () => {
+  it("45. ConfirmDialog aria-describedby points to visible description and renders via portal", () => {
     render(
       <div data-testid="caller-wrapper">
         <ConfirmDialog
@@ -657,7 +703,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     expect(descElem.textContent).toBe("此操作将永久抹去该记录");
   });
 
-  it("44. BaseModal automatically transfers initial focus inside modal without manual focus call", () => {
+  it("46. BaseModal automatically transfers initial focus inside modal without manual focus call", () => {
     function TestFocusModal() {
       const [open, setOpen] = React.useState(false);
       return (
@@ -685,7 +731,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     expect(modalPanel.contains(document.activeElement)).toBe(true);
   });
 
-  it("45. BaseModal Tab cycles focus within dialog", () => {
+  it("47. BaseModal Tab cycles focus within dialog", () => {
     render(
       <BaseModal open={true} onClose={vi.fn()} title="Tab 测试">
         <button data-testid="btn-1">第一</button>
@@ -705,7 +751,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     expect(document.activeElement === btnClose || document.activeElement === btn1).toBe(true);
   });
 
-  it("46. BaseModal Shift+Tab cycles focus backwards", () => {
+  it("48. BaseModal Shift+Tab cycles focus backwards", () => {
     render(
       <BaseModal open={true} onClose={vi.fn()} title="Shift+Tab 测试">
         <button data-testid="btn-1">第一</button>
@@ -724,7 +770,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     expect(document.activeElement).toBe(btn2);
   });
 
-  it("47. BaseModal closes on Escape key when enabled, remains open when disabled", () => {
+  it("49. BaseModal closes on Escape key when enabled, remains open when disabled", () => {
     const onClose = vi.fn();
     const { rerender } = render(
       <BaseModal open={true} onClose={onClose} closeOnEscape={true} title="Escape 测试">
@@ -748,7 +794,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
-  it("48. BaseModal closes on backdrop click when enabled, remains open when disabled", () => {
+  it("50. BaseModal closes on backdrop click when enabled, remains open when disabled", () => {
     const onClose = vi.fn();
     const { rerender } = render(
       <BaseModal open={true} onClose={onClose} closeOnBackdropClick={true} title="Backdrop 测试">
@@ -772,7 +818,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
-  it("49. BaseModal restores focus to opener element upon close and unmount", () => {
+  it("51. BaseModal restores focus to opener element upon close and unmount", () => {
     function TestRestore() {
       const [open, setOpen] = React.useState(false);
       return (
@@ -801,7 +847,10 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     expect(document.activeElement).toBe(opener);
   });
 
-  it("50. Tooltip portals to document.body and escapes overflow-hidden ancestor with z-tooltip authority", () => {
+  // ==========================================================================
+  // 6. TOOLTIP GEOMETRY, COLLISION & OVERLAY STACK
+  // ==========================================================================
+  it("52. Tooltip portals to document.body and escapes overflow-hidden ancestor with z-tooltip authority", () => {
     render(
       <div data-testid="clipped-container" className="overflow-hidden relative z-10 w-32 h-10">
         <Tooltip content="全局提示信息">
@@ -822,7 +871,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     expect(tooltip.className).toContain("z-[var(--z-tooltip)]");
   });
 
-  it("51. Tooltip preserves and merges existing aria-describedby", () => {
+  it("53. Tooltip preserves and merges existing aria-describedby", () => {
     render(
       <Tooltip content="快捷提示信息">
         <button data-testid="tip-target" aria-describedby="existing-help-id">
@@ -844,7 +893,34 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     expect(target.getAttribute("aria-describedby")).toBe("existing-help-id");
   });
 
-  it("52. Real Overlay Stack: InspectorDrawer + BaseModal + Tooltip Escape arbitration", () => {
+  it("54. Tooltip viewport collision handling: flips and clamps properly", () => {
+    // Mock getBoundingClientRect for edge collision tests
+    const origInnerWidth = window.innerWidth;
+    const origInnerHeight = window.innerHeight;
+
+    window.innerWidth = 360; // 360px mobile viewport
+    window.innerHeight = 640;
+
+    const { unmount } = render(
+      <Tooltip content="长文本测试提示信息将在小屏幕上自动折行并限制最大宽度不会溢出屏幕外" position="top">
+        <button data-testid="collision-btn">边缘按钮</button>
+      </Tooltip>
+    );
+
+    const btn = screen.getByTestId("collision-btn");
+    fireEvent.mouseEnter(btn);
+
+    const tooltip = screen.getByTestId("tooltip-content");
+    expect(tooltip).toBeTruthy();
+    expect(tooltip.className).toContain("max-w-[calc(100vw-1rem)]");
+    expect(tooltip.className).toContain("break-words");
+
+    unmount();
+    window.innerWidth = origInnerWidth;
+    window.innerHeight = origInnerHeight;
+  });
+
+  it("55. Real Overlay Stack: InspectorDrawer + BaseModal + Tooltip Escape arbitration", () => {
     function FullOverlayStack() {
       const [drawerOpen, setDrawerOpen] = React.useState(true);
       const [modalOpen, setModalOpen] = React.useState(true);
@@ -888,7 +964,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     expect(screen.queryByTestId("inspector-drawer-root")).toBeNull();
   });
 
-  it("53. closeOnEscape=false Modal blocks Escape from reaching underlying InspectorDrawer", () => {
+  it("56. closeOnEscape=false Modal blocks Escape from reaching underlying InspectorDrawer", () => {
     function BlockedEscapeStack() {
       const [drawerOpen, setDrawerOpen] = React.useState(true);
       const [modalOpen, setModalOpen] = React.useState(true);
@@ -923,9 +999,9 @@ describe("Shared UI Primitives — Component Library Verification", () => {
   });
 
   // ==========================================================================
-  // 6. RESTORED BEHAVIOR TESTS (SEARCH, FILTER, CONFIRM, TOAST, BUTTON MOTION)
+  // 7. RESTORED BEHAVIOR TESTS (SEARCH, FILTER, CONFIRM, TOAST, BUTTON MOTION)
   // ==========================================================================
-  it("54. SearchInput controlled change, clear, disabled, and readOnly behavior", () => {
+  it("57. SearchInput controlled change, clear, disabled, and readOnly behavior", () => {
     const onChange = vi.fn();
     const onClear = vi.fn();
 
@@ -964,7 +1040,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     expect(screen.queryByTestId("search-input-clear")).toBeNull();
   });
 
-  it("55. FilterBar selection and reset behavior", () => {
+  it("58. FilterBar selection and reset behavior", () => {
     const options = [
       { id: "all", label: "全部", count: 12 },
       { id: "active", label: "生效中", count: 8 },
@@ -991,7 +1067,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     expect(screen.queryByTestId("filter-bar-reset")).toBeNull();
   });
 
-  it("56. ConfirmDialog confirm, cancel, and destructive DangerButton semantics", () => {
+  it("59. ConfirmDialog confirm, cancel, and destructive DangerButton semantics", () => {
     const onConfirm = vi.fn();
     const onClose = vi.fn();
 
@@ -1029,7 +1105,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     expect(dangerConfirmBtn.className).not.toContain("var(--gold-");
   });
 
-  it("57. ToastNotification live-region role and dismiss behavior", () => {
+  it("60. ToastNotification live-region role and dismiss behavior", () => {
     const onDismiss = vi.fn();
     const { rerender } = render(
       <ToastNotification variant="success" message="保存成功" onDismiss={onDismiss} />
@@ -1049,7 +1125,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     expect(toast.getAttribute("aria-live")).toBe("assertive");
   });
 
-  it("58. Button active press uses instant duration and ease-in-out-subtle motion tokens", () => {
+  it("61. Button active press uses instant duration and ease-in-out-subtle motion tokens", () => {
     render(<PrimaryButton>测试动画</PrimaryButton>);
     const btn = screen.getByTestId("primary-button");
     expect(btn.className).toContain("active:duration-[var(--duration-instant)]");
@@ -1057,25 +1133,37 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     expect(btn.className).toContain("active:[transform:var(--active-surface-depression)]");
   });
 
-  it("59. Buttons expose aria-busy and disabled state while loading", () => {
-    const { unmount, rerender } = render(<PrimaryButton loading>加载中</PrimaryButton>);
+  it("62. Buttons expose aria-busy and disabled state while loading and resist hostile consumer overrides", () => {
+    const { unmount, rerender } = render(
+      <PrimaryButton loading {...({ "aria-busy": false, disabled: false } as unknown as React.ButtonHTMLAttributes<HTMLButtonElement>)}>
+        加载中
+      </PrimaryButton>
+    );
     let btn = screen.getByTestId("primary-button");
     expect(btn.hasAttribute("disabled")).toBe(true);
     expect(btn.getAttribute("aria-busy")).toBe("true");
 
-    rerender(<SecondaryButton loading>次级加载</SecondaryButton>);
+    rerender(
+      <SecondaryButton loading {...({ "aria-busy": false, disabled: false } as unknown as React.ButtonHTMLAttributes<HTMLButtonElement>)}>
+        次级加载
+      </SecondaryButton>
+    );
     btn = screen.getByTestId("secondary-button");
     expect(btn.hasAttribute("disabled")).toBe(true);
     expect(btn.getAttribute("aria-busy")).toBe("true");
 
-    rerender(<DangerButton loading>危险加载</DangerButton>);
+    rerender(
+      <DangerButton loading {...({ "aria-busy": false, disabled: false } as unknown as React.ButtonHTMLAttributes<HTMLButtonElement>)}>
+        危险加载
+      </DangerButton>
+    );
     btn = screen.getByTestId("danger-button");
     expect(btn.hasAttribute("disabled")).toBe(true);
     expect(btn.getAttribute("aria-busy")).toBe("true");
     unmount();
   });
 
-  it("60. Tooltip appears on focus and hover and hides on blur and mouseLeave", () => {
+  it("63. Tooltip appears on focus and hover and hides on blur and mouseLeave", () => {
     render(
       <Tooltip content="操作详情提示">
         <button data-testid="tooltip-trigger">悬停按钮</button>
@@ -1101,9 +1189,9 @@ describe("Shared UI Primitives — Component Library Verification", () => {
   });
 
   // ==========================================================================
-  // 7. GOVERNANCE & ARCHITECTURAL AUDIT
+  // 8. GOVERNANCE & ARCHITECTURAL AUDIT
   // ==========================================================================
-  it("61. 100% of consumed CSS variables in src/components/ui/** exist in design-tokens.css", () => {
+  it("64. 100% of consumed CSS variables in src/components/ui/** exist in design-tokens.css", () => {
     const tokensFile = path.resolve(__dirname, "../src/styles/design-tokens.css");
     const tokensContent = fs.readFileSync(tokensFile, "utf-8");
 
@@ -1128,7 +1216,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     }
   });
 
-  it("62. zero private arbitrary design literals or ad-hoc white/black palette opacities exist in src/components/ui/**", () => {
+  it("65. zero private arbitrary design literals or ad-hoc white/black palette opacities exist in src/components/ui/**", () => {
     const uiDir = path.resolve(__dirname, "../src/components/ui");
     const files = fs.readdirSync(uiDir).filter((f) => f.endsWith(".tsx") || f.endsWith(".ts"));
 
@@ -1160,7 +1248,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     }
   });
 
-  it("63. Gold whitelist audit: Gold tokens are restricted to Level, XP, Mastery, Primary affirmative, and Focus ring", () => {
+  it("66. Gold whitelist audit: Gold tokens are restricted to Level, XP, Mastery, Primary affirmative, and Focus ring", () => {
     const uiDir = path.resolve(__dirname, "../src/components/ui");
     const files = fs.readdirSync(uiDir).filter((f) => f.endsWith(".tsx") || f.endsWith(".ts"));
 
@@ -1184,7 +1272,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     }
   });
 
-  it("64. real frozen backend/domain PR-delta guard rejects changes to frozen paths without permissive catch or HEAD~1 fallback", () => {
+  it("67. real frozen backend/domain PR-delta guard rejects changes to frozen paths without permissive catch or HEAD~1 fallback", () => {
     const forbiddenPathPrefixes = [
       "src/app/api/",
       "supabase/",
@@ -1241,7 +1329,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     expect(isForbidden).toBe(true);
   });
 
-  it("65. InspectorDrawer remains single existing implementation in src/components/layout", () => {
+  it("68. InspectorDrawer remains single existing implementation in src/components/layout", () => {
     const layoutInspector = path.resolve(__dirname, "../src/components/layout/InspectorDrawer.tsx");
     expect(fs.existsSync(layoutInspector)).toBe(true);
 
@@ -1249,14 +1337,14 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     expect(fs.existsSync(uiInspector)).toBe(false);
   });
 
-  it("66. ConfirmDialog composes BaseModal and does not create duplicate modal foundation", () => {
+  it("69. ConfirmDialog composes BaseModal and does not create duplicate modal foundation", () => {
     const confirmFile = path.resolve(__dirname, "../src/components/ui/ConfirmDialog.tsx");
     const content = fs.readFileSync(confirmFile, "utf-8");
     expect(content).toContain("import { BaseModal");
     expect(content).toContain("<BaseModal");
   });
 
-  it("67. No Stage7C domain UI exists in this PR", () => {
+  it("70. No Stage7C domain UI exists in this PR", () => {
     const uiDir = path.resolve(__dirname, "../src/components/ui");
     const files = fs.readdirSync(uiDir);
 
@@ -1265,7 +1353,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     expect(files).not.toContain("ArtifactGallery.tsx");
   });
 
-  it("68. Zero raw breakpoint constants exist in src/components/ui/**", () => {
+  it("71. Zero raw breakpoint constants exist in src/components/ui/**", () => {
     const uiDir = path.resolve(__dirname, "../src/components/ui");
     const files = fs.readdirSync(uiDir).filter((f) => f.endsWith(".tsx") || f.endsWith(".ts"));
 
@@ -1278,18 +1366,29 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     }
   });
 
-  it("69. Zero private z-index values exist in src/components/ui/**", () => {
+  it("72. Zero private or bracketed raw z-index values exist in src/components/ui/** and regex rejects synthetic invalid cases", () => {
     const uiDir = path.resolve(__dirname, "../src/components/ui");
     const files = fs.readdirSync(uiDir).filter((f) => f.endsWith(".tsx") || f.endsWith(".ts"));
 
+    // Pattern matches un-tokenized raw numeric z-indexes like z-50, z-9999, z-[50], z-[9999]
+    const rawZIndexRegex = /\bz-(?!\[var\(--z-)(?:\d+|\[\d+\])/g;
+
+    // Synthetic tests for regex authority:
+    expect("z-9999".match(rawZIndexRegex)).not.toBeNull();
+    expect("z-[9999]".match(rawZIndexRegex)).not.toBeNull();
+    expect("z-50".match(rawZIndexRegex)).not.toBeNull();
+    expect("z-[50]".match(rawZIndexRegex)).not.toBeNull();
+    expect("z-[var(--z-modal)]".match(rawZIndexRegex)).toBeNull();
+    expect("z-[var(--z-tooltip)]".match(rawZIndexRegex)).toBeNull();
+
     for (const file of files) {
       const content = fs.readFileSync(path.join(uiDir, file), "utf-8");
-      const rawZIndexMatch = content.match(/\bz-(?!\[var\(--z-)\d+/g);
+      const rawZIndexMatch = content.match(rawZIndexRegex);
       expect(rawZIndexMatch, `File ${file} contains raw z-index: ${rawZIndexMatch?.join(", ")}`).toBeNull();
     }
   });
 
-  it("70. BaseModal accessible name supports ariaLabel mode without visible title", () => {
+  it("73. BaseModal accessible name supports ariaLabel mode without visible title", () => {
     render(
       <BaseModal open={true} onClose={vi.fn()} ariaLabel="自定义无标题模态框">
         <p>无标题模态内容</p>
@@ -1301,7 +1400,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     expect(panel.getAttribute("aria-labelledby")).toBeNull();
   });
 
-  it("71. BaseModal with description without title renders description and sets valid aria-describedby without dangling IDs", () => {
+  it("74. BaseModal with description without title renders description and sets valid aria-describedby without dangling IDs", () => {
     render(
       <BaseModal open={true} onClose={vi.fn()} ariaLabel="描述测试模态框" description="此为无标题描述信息">
         <p>内容</p>
@@ -1317,7 +1416,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     expect(descElem.textContent).toBe("此为无标题描述信息");
   });
 
-  it("72. RPGCard public props interface does not expose unsafe 'as' polymorphism", () => {
+  it("75. RPGCard public props interface does not expose unsafe 'as' polymorphism", () => {
     const cardFile = path.resolve(__dirname, "../src/components/ui/RPGCard.tsx");
     const content = fs.readFileSync(cardFile, "utf-8");
     expect(content).not.toMatch(/as\?:/);

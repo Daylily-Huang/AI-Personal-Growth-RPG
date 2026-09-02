@@ -34,6 +34,7 @@ export function Tooltip({
 }: TooltipProps) {
   const isClient = useIsClient();
   const [visible, setVisible] = useState(false);
+  const [resolvedPosition, setResolvedPosition] = useState<TooltipPosition>(position);
   const [coords, setCoords] = useState<{ top: number; left: number; transform: string }>({
     top: 0,
     left: 0,
@@ -45,34 +46,60 @@ export function Tooltip({
 
   const updatePosition = useCallback(() => {
     const el = wrapperRef.current;
-    if (!el) return;
+    if (!el || typeof window === "undefined") return;
     const rect = el.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const padding = 8;
+
+    let effPos = position;
+
+    // Viewport collision flip detection
+    if (position === "top" && rect.top - 40 < padding) {
+      effPos = "bottom";
+    } else if (position === "bottom" && rect.bottom + 40 > viewportHeight - padding) {
+      effPos = "top";
+    } else if (position === "left" && rect.left - 100 < padding) {
+      effPos = "right";
+    } else if (position === "right" && rect.right + 100 > viewportWidth - padding) {
+      effPos = "left";
+    }
+
+    setResolvedPosition(effPos);
 
     let top = 0;
     let left = 0;
     let transform = "none";
 
-    switch (position) {
-      case "top":
-        top = rect.top - 8;
-        left = rect.left + rect.width / 2;
+    switch (effPos) {
+      case "top": {
+        top = Math.max(padding, rect.top - 8);
+        const rawX = rect.left + rect.width / 2;
+        left = Math.max(padding, Math.min(viewportWidth - padding, rawX));
         transform = "translate(-50%, -100%)";
         break;
-      case "bottom":
-        top = rect.bottom + 8;
-        left = rect.left + rect.width / 2;
+      }
+      case "bottom": {
+        top = Math.min(viewportHeight - padding, rect.bottom + 8);
+        const rawX = rect.left + rect.width / 2;
+        left = Math.max(padding, Math.min(viewportWidth - padding, rawX));
         transform = "translate(-50%, 0)";
         break;
-      case "left":
-        top = rect.top + rect.height / 2;
-        left = rect.left - 8;
+      }
+      case "left": {
+        const rawY = rect.top + rect.height / 2;
+        top = Math.max(padding, Math.min(viewportHeight - padding, rawY));
+        left = Math.max(padding, rect.left - 8);
         transform = "translate(-100%, -50%)";
         break;
-      case "right":
-        top = rect.top + rect.height / 2;
-        left = rect.right + 8;
+      }
+      case "right": {
+        const rawY = rect.top + rect.height / 2;
+        top = Math.max(padding, Math.min(viewportHeight - padding, rawY));
+        left = Math.min(viewportWidth - padding, rect.right + 8);
         transform = "translate(0, -50%)";
         break;
+      }
     }
 
     setCoords({ top, left, transform });
@@ -126,13 +153,13 @@ export function Tooltip({
         id={tooltipId}
         role="tooltip"
         data-testid="tooltip-content"
-        data-position={position}
+        data-position={resolvedPosition}
         style={{
           top: `${coords.top}px`,
           left: `${coords.left}px`,
           transform: coords.transform,
         }}
-        className={`fixed z-[var(--z-tooltip)] px-2.5 py-1.5 rounded-[var(--radius-sm)] bg-[var(--surface-overlay)] border border-[var(--border-default)] text-xs text-[var(--text-primary)] whitespace-nowrap shadow-[var(--shadow-card)] pointer-events-none transition-opacity duration-[var(--duration-fast)] select-none ${className}`}
+        className={`fixed z-[var(--z-tooltip)] px-2.5 py-1.5 rounded-[var(--radius-sm)] bg-[var(--surface-overlay)] border border-[var(--border-default)] text-xs text-[var(--text-primary)] max-w-[calc(100vw-1rem)] break-words shadow-[var(--shadow-card)] pointer-events-none transition-opacity duration-[var(--duration-fast)] select-none ${className}`}
       >
         {content}
       </div>,

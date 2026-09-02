@@ -44,7 +44,7 @@ export const RPGCard = forwardRef<HTMLDivElement, RPGCardProps>(
     },
     ref
   ) => {
-    // Actionable only when onClick is explicitly supplied
+    // Actionable only when onClick is explicitly supplied and interactive is not explicitly false
     const isActionable = Boolean(onClick) && interactive !== false;
 
     const borderStyleClasses = selected
@@ -75,15 +75,15 @@ export const RPGCard = forwardRef<HTMLDivElement, RPGCardProps>(
         variant="base"
         border="default"
         data-testid="rpg-card"
+        {...props}
         data-entity-type={entityType}
         data-selected={selected ? "true" : undefined}
         data-interactive={isActionable ? "true" : undefined}
         tabIndex={isActionable ? 0 : undefined}
         role={isActionable ? "button" : undefined}
-        onClick={onClick}
+        onClick={isActionable ? onClick : undefined}
         onKeyDown={isActionable ? handleKeyDown : onKeyDown}
         className={`p-4 lg:p-5 shadow-[var(--shadow-card)] ${borderStyleClasses} ${interactiveClasses} ${className}`}
-        {...props}
       >
         {children}
       </GlassPanel>

@@ -47,6 +47,7 @@ export const XPProgress = forwardRef<HTMLDivElement, XPProgressProps>(
     return (
       <div
         ref={ref}
+        {...props}
         data-testid="xp-progress"
         data-current={safeCurrent}
         data-max={safeMax}
@@ -57,7 +58,6 @@ export const XPProgress = forwardRef<HTMLDivElement, XPProgressProps>(
         aria-valuemax={100}
         aria-valuetext={`${safeCurrent} / ${safeMax} XP (${percentage}%)`}
         className={`flex flex-col gap-1 w-full ${className}`}
-        {...props}
       >
         {showReadout && (
           <div
