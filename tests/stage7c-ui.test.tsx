@@ -422,8 +422,43 @@ describe("Stage 7C Artifact UI Test Suite (Round 3 Final Frozen Closure)", () =>
 
       await waitFor(() => {
         expect(grid.getAttribute("data-inspector-open")).toBe("true");
-        expect(grid.className).toContain("2xl:grid-cols-2");
+        expect(grid.className).toContain("grid-cols-1");
+        expect(grid.className).not.toContain("2xl:grid-cols-2");
       });
+    });
+
+    it("toggles mobile inline collapsible filter panel without modal overlay traps", async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          artifacts: [mockArtifactWithCounts1],
+          total: 1,
+        }),
+      });
+
+      render(<ArtifactsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId("mobile-filter-toggle-btn")).toBeDefined();
+      });
+
+      const toggleBtn = screen.getByTestId("mobile-filter-toggle-btn");
+      expect(toggleBtn.getAttribute("aria-expanded")).toBe("false");
+      expect(screen.queryByTestId("mobile-filter-panel")).toBeNull();
+
+      // Click to expand inline filter panel
+      fireEvent.click(toggleBtn);
+      expect(toggleBtn.getAttribute("aria-expanded")).toBe("true");
+      expect(screen.getByTestId("mobile-filter-panel")).toBeDefined();
+
+      // Verify no modal overlay or backdrop
+      expect(screen.queryByRole("dialog")).toBeNull();
+
+      // Click to collapse
+      fireEvent.click(toggleBtn);
+      expect(toggleBtn.getAttribute("aria-expanded")).toBe("false");
+      expect(screen.queryByTestId("mobile-filter-panel")).toBeNull();
     });
   });
 
@@ -985,6 +1020,115 @@ describe("Stage 7C Artifact UI Test Suite (Round 3 Final Frozen Closure)", () =>
       // UI must strictly show the latest "react" results
       expect(screen.getByTestId(`select-existing-artifact-${UUID_ARTIFACT_1}`)).toBeDefined();
       expect(screen.queryByTestId(`select-existing-artifact-${UUID_ARTIFACT_2}`)).toBeNull();
+    });
+
+    it("clearing search input immediately invalidates stale in-flight responses", async () => {
+      let resolveSearch: (val: unknown) => void = () => {};
+      const promiseSearch = new Promise((resolve) => {
+        resolveSearch = resolve;
+      });
+
+      mockFetch.mockImplementation(async (url: string) => {
+        if (url.includes("search=react")) {
+          return promiseSearch;
+        }
+        return { ok: true, status: 200, json: async () => ({ artifacts: [] }) };
+      });
+
+      render(
+        <ArtifactProposalResolutionPicker
+          proposals={[proposals[0]]}
+          onChange={vi.fn()}
+        />
+      );
+
+      fireEvent.click(screen.getByTestId("proposal-0-resolution-existing"));
+
+      const searchInput = screen.getByTestId("proposal-0-existing-search-input");
+      // Search: "react"
+      fireEvent.change(searchInput, { target: { value: "react" } });
+
+      // Before request resolves, clear input
+      fireEvent.change(searchInput, { target: { value: "" } });
+
+      // Now late resolve the "react" request
+      resolveSearch({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          artifacts: [mockArtifactWithCounts1],
+          total: 1,
+        }),
+      });
+
+      await new Promise((r) => setTimeout(r, 50));
+
+      // Results must remain completely empty
+      expect(screen.queryByTestId(`select-existing-artifact-${UUID_ARTIFACT_1}`)).toBeNull();
+    });
+
+    it("selecting an existing artifact cancels pending search and prevents late response from reopening results", async () => {
+      let resolveSearch: (val: unknown) => void = () => {};
+      const promiseSearch = new Promise((resolve) => {
+        resolveSearch = resolve;
+      });
+
+      mockFetch.mockImplementation(async (url: string) => {
+        if (url.includes("search=spec")) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              artifacts: [mockArtifactWithCounts1],
+              total: 1,
+            }),
+          };
+        }
+        if (url.includes("search=slow")) {
+          return promiseSearch;
+        }
+        return { ok: true, status: 200, json: async () => ({ artifacts: [] }) };
+      });
+
+      render(
+        <ArtifactProposalResolutionPicker
+          proposals={[proposals[0]]}
+          onChange={vi.fn()}
+        />
+      );
+
+      fireEvent.click(screen.getByTestId("proposal-0-resolution-existing"));
+
+      const searchInput = screen.getByTestId("proposal-0-existing-search-input");
+      // Search: "spec"
+      fireEvent.change(searchInput, { target: { value: "spec" } });
+
+      await waitFor(() => {
+        expect(screen.getByTestId(`select-existing-artifact-${UUID_ARTIFACT_1}`)).toBeDefined();
+      });
+
+      // Type slow search
+      fireEvent.change(searchInput, { target: { value: "slow" } });
+
+      // Click select on artifact 1
+      fireEvent.click(screen.getByTestId(`select-existing-artifact-${UUID_ARTIFACT_1}`));
+
+      // Now late resolve the "slow" request with artifact 2
+      resolveSearch({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          artifacts: [mockArtifactWithCounts2],
+          total: 1,
+        }),
+      });
+
+      await new Promise((r) => setTimeout(r, 50));
+
+      // Results should remain closed and selection preserved
+      expect(screen.queryByTestId(`select-existing-artifact-${UUID_ARTIFACT_2}`)).toBeNull();
+      const idInput = screen.getByTestId("proposal-0-existing-artifact-id") as HTMLInputElement;
+      expect(idInput.value).toBe(UUID_ARTIFACT_1);
     });
 
     it("blocks invalid manual UUID from being marked as valid", () => {

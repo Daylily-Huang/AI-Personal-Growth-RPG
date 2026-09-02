@@ -167,14 +167,15 @@ export function ArtifactProposalResolutionPicker({
       abortControllersRef.current[idx].abort();
     }
 
+    // 3. Always increment sequence immediately to invalidate in-flight response
+    const currentSeq = (searchSeqRef.current[idx] || 0) + 1;
+    searchSeqRef.current[idx] = currentSeq;
+
     if (!query.trim()) {
       setExistingSearchResults((prev) => ({ ...prev, [idx]: [] }));
       setIsSearchingExisting((prev) => ({ ...prev, [idx]: false }));
       return;
     }
-
-    const currentSeq = (searchSeqRef.current[idx] || 0) + 1;
-    searchSeqRef.current[idx] = currentSeq;
 
     const controller = new AbortController();
     abortControllersRef.current[idx] = controller;
@@ -201,6 +202,34 @@ export function ArtifactProposalResolutionPicker({
       }
     }, 300);
   }, []);
+
+  const handleSelectExistingArtifact = useCallback(
+    (idx: number, art: ArtifactWithCounts) => {
+      // 1. Clear pending timer
+      if (timersRef.current[idx]) {
+        clearTimeout(timersRef.current[idx]);
+      }
+      // 2. Abort in-flight request
+      if (abortControllersRef.current[idx]) {
+        abortControllersRef.current[idx].abort();
+      }
+      // 3. Invalidate sequence
+      searchSeqRef.current[idx] = (searchSeqRef.current[idx] || 0) + 1;
+      // 4. Clear search results & loading
+      setExistingSearchResults((prev) => ({ ...prev, [idx]: [] }));
+      setIsSearchingExisting((prev) => ({ ...prev, [idx]: false }));
+      // 5. Update state
+      setOverrides((prev) => ({
+        ...prev,
+        [idx]: {
+          ...(prev[idx] || {}),
+          existingArtifactId: art.id,
+          selectedArtifactTitle: art.title,
+        },
+      }));
+    },
+    []
+  );
 
   if (proposals.length === 0) return null;
 
@@ -460,13 +489,7 @@ export function ArtifactProposalResolutionPicker({
                             <button
                               key={art.id}
                               type="button"
-                              onClick={() => {
-                                updateState(idx, {
-                                  existingArtifactId: art.id,
-                                  selectedArtifactTitle: art.title,
-                                });
-                                setExistingSearchResults((prev) => ({ ...prev, [idx]: [] }));
-                              }}
+                              onClick={() => handleSelectExistingArtifact(idx, art)}
                               data-testid={`select-existing-artifact-${art.id}`}
                               className="w-full flex items-center justify-between p-2 text-left hover:bg-[var(--surface-hover-neutral)] transition-colors cursor-pointer min-h-[var(--touch-target-min)]"
                             >

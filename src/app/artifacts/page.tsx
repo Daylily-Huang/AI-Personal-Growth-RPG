@@ -22,7 +22,6 @@ import {
   AlertCircle,
   SlidersHorizontal,
   ChevronDown,
-  X,
   Sparkles,
 } from "lucide-react";
 import type {
@@ -83,7 +82,7 @@ export default function ArtifactsPage() {
   const [detailError, setDetailError] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  // Mobile Filter Drawer
+  // Mobile Collapsible Filter Panel State
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
   const mobileFilterOpenerRef = useRef<HTMLButtonElement | null>(null);
 
@@ -121,20 +120,6 @@ export default function ArtifactsPage() {
     }, 300);
     return () => clearTimeout(timer);
   }, [searchQuery]);
-
-  // Mobile Filter Escape key listener & focus management
-  useEffect(() => {
-    if (!mobileFilterOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.stopPropagation();
-        setMobileFilterOpen(false);
-        mobileFilterOpenerRef.current?.focus();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [mobileFilterOpen]);
 
   // Fetch Artifact List with Cancellation & Stale Protection
   useEffect(() => {
@@ -413,8 +398,6 @@ export default function ArtifactsPage() {
                 onClick={() => {
                   setSelectedType(t.id);
                   setOffset(0);
-                  setMobileFilterOpen(false);
-                  mobileFilterOpenerRef.current?.focus();
                 }}
                 className={`w-full flex items-center justify-between px-3 py-2 rounded-[var(--radius-md)] text-xs transition-colors min-h-[var(--touch-target-min)] cursor-pointer ${
                   isSelected
@@ -444,8 +427,6 @@ export default function ArtifactsPage() {
                 onClick={() => {
                   setSelectedStatus(s.id);
                   setOffset(0);
-                  setMobileFilterOpen(false);
-                  mobileFilterOpenerRef.current?.focus();
                 }}
                 className={`w-full flex items-center justify-between px-3 py-2 rounded-[var(--radius-md)] text-xs transition-colors min-h-[var(--touch-target-min)] cursor-pointer ${
                   isSelected
@@ -473,8 +454,6 @@ export default function ArtifactsPage() {
               onClick={() => {
                 setSelectedSkillId("all");
                 setOffset(0);
-                setMobileFilterOpen(false);
-                mobileFilterOpenerRef.current?.focus();
               }}
               className={`w-full flex items-center justify-between px-3 py-1.5 rounded-[var(--radius-md)] text-xs transition-colors min-h-[var(--touch-target-min)] cursor-pointer ${
                 selectedSkillId === "all"
@@ -493,8 +472,6 @@ export default function ArtifactsPage() {
                   onClick={() => {
                     setSelectedSkillId(sk.id);
                     setOffset(0);
-                    setMobileFilterOpen(false);
-                    mobileFilterOpenerRef.current?.focus();
                   }}
                   className={`w-full flex items-center justify-between px-3 py-1.5 rounded-[var(--radius-md)] text-xs transition-colors min-h-[var(--touch-target-min)] cursor-pointer ${
                     isSelected
@@ -517,17 +494,6 @@ export default function ArtifactsPage() {
       {/* 1. Top Workspace Header & Action Toolbar */}
       <div className="p-4 lg:px-6 border-b border-[var(--border-subtle)] bg-[var(--surface-base)] flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 shrink-0">
         <div className="flex items-center gap-3 flex-1 max-w-lg">
-          {/* Mobile Filter Toggle */}
-          <button
-            ref={mobileFilterOpenerRef}
-            type="button"
-            onClick={() => setMobileFilterOpen(true)}
-            aria-label="打开筛选面板"
-            className="lg:hidden p-2.5 rounded-[var(--radius-md)] border border-[var(--border-default)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover-neutral)] hover:text-[var(--text-primary)] transition-colors shrink-0 min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] flex items-center justify-center cursor-pointer"
-          >
-            <SlidersHorizontal className="w-4 h-4" />
-          </button>
-
           <div className="flex-1">
             <SearchInput
               value={searchQuery}
@@ -573,6 +539,42 @@ export default function ArtifactsPage() {
           aria-label="造物陈列库"
           className="flex-1 min-w-0 overflow-y-auto p-4 lg:p-6 space-y-6"
         >
+          {/* Mobile Collapsible Inline Filter Panel */}
+          <div className="lg:hidden">
+            <button
+              ref={mobileFilterOpenerRef}
+              type="button"
+              onClick={() => setMobileFilterOpen((prev) => !prev)}
+              aria-expanded={mobileFilterOpen}
+              aria-controls="mobile-filter-panel"
+              data-testid="mobile-filter-toggle-btn"
+              className="w-full flex items-center justify-between p-3 rounded-[var(--radius-md)] bg-[var(--surface-base)] border border-[var(--border-default)] text-xs text-[var(--text-primary)] font-[var(--font-weight-medium)] min-h-[var(--touch-target-min)] cursor-pointer"
+            >
+              <div className="flex items-center gap-2">
+                <SlidersHorizontal className="w-4 h-4 text-[var(--text-muted)]" />
+                <span>成果分类与筛选</span>
+                {hasActiveFilters && (
+                  <span className="px-1.5 py-0.5 rounded-[var(--radius-sm)] text-xs bg-[var(--entity-artifact-bg)] text-[var(--entity-artifact-text)] font-mono">
+                    已过滤
+                  </span>
+                )}
+              </div>
+              <ChevronDown
+                className={`w-4 h-4 transition-transform ${mobileFilterOpen ? "rotate-180" : ""}`}
+              />
+            </button>
+
+            {mobileFilterOpen && (
+              <div
+                id="mobile-filter-panel"
+                data-testid="mobile-filter-panel"
+                className="mt-2 rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--surface-base)] overflow-hidden"
+              >
+                {FilterRailContent}
+              </div>
+            )}
+          </div>
+
           {loading && artifacts.length === 0 ? (
             <div
               data-testid="artifacts-loading-state"
@@ -623,13 +625,13 @@ export default function ArtifactsPage() {
             </GlassPanel>
           ) : (
             <div className="space-y-6">
-              {/* Responsive Gallery Grid: adjusts columns depending on whether Inspector is open to protect card density */}
+              {/* Responsive Gallery Grid: strictly single column when Inspector is open to prevent card cramming in bounded workspace */}
               <div
                 data-testid="artifacts-grid"
                 data-inspector-open={drawerOpen ? "true" : "false"}
                 className={`grid gap-4 ${
                   drawerOpen
-                    ? "grid-cols-1 md:grid-cols-1 2xl:grid-cols-2"
+                    ? "grid-cols-1"
                     : "grid-cols-1 md:grid-cols-2 xl:grid-cols-3"
                 }`}
               >
@@ -702,45 +704,6 @@ export default function ArtifactsPage() {
           )}
         </InspectorDrawer>
       </div>
-
-      {/* Mobile Filter Drawer Overlay with semantic z-index tokens */}
-      {mobileFilterOpen && (
-        <>
-          <button
-            type="button"
-            aria-label="关闭筛选面板"
-            onClick={() => {
-              setMobileFilterOpen(false);
-              mobileFilterOpenerRef.current?.focus();
-            }}
-            className="fixed inset-0 z-[var(--z-modal-backdrop)] bg-[var(--surface-modal-backdrop)] backdrop-blur-[var(--glass-blur-sm)] lg:hidden cursor-pointer"
-          />
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label="成果筛选面板"
-            className="fixed inset-y-0 left-0 z-[var(--z-drawer)] w-64 max-w-[85vw] flex flex-col border-r border-[var(--border-raised)] bg-[var(--surface-overlay)] shadow-[var(--shadow-overlay)] lg:hidden"
-          >
-            <div className="flex items-center justify-between border-b border-[var(--border-subtle)] px-4 py-3 shrink-0">
-              <span className="font-serif text-sm font-[var(--font-weight-semibold)] text-[var(--text-primary)]">
-                成果筛选
-              </span>
-              <button
-                type="button"
-                onClick={() => {
-                  setMobileFilterOpen(false);
-                  mobileFilterOpenerRef.current?.focus();
-                }}
-                aria-label="关闭"
-                className="p-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-[var(--radius-sm)] min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] flex items-center justify-center cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="flex-1 min-h-0 overflow-y-auto">{FilterRailContent}</div>
-          </div>
-        </>
-      )}
 
       {/* Modals */}
       <ArtifactCreateModal
