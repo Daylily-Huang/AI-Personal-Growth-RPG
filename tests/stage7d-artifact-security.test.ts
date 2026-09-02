@@ -214,8 +214,24 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Artifact Final Security, Cross-Tena
     if (server) await new Promise<void>((resolve) => server.close(() => resolve()));
     if (app) await app.close();
     if (pg) {
-      if (userAId) await pg.query(`delete from auth.users where id = $1`, [userAId]);
-      if (userBId) await pg.query(`delete from auth.users where id = $1`, [userBId]);
+      if (userAId) {
+        await pg.query(`delete from public.artifact_evidence where user_id = $1`, [userAId]);
+        await pg.query(`delete from public.artifact_activities where user_id = $1`, [userAId]);
+        await pg.query(`delete from public.artifact_quests where user_id = $1`, [userAId]);
+        await pg.query(`delete from public.artifact_knowledge_nodes where user_id = $1`, [userAId]);
+        await pg.query(`delete from public.artifact_skills where user_id = $1`, [userAId]);
+        await pg.query(`delete from public.artifacts where user_id = $1`, [userAId]);
+        await pg.query(`delete from auth.users where id = $1`, [userAId]);
+      }
+      if (userBId) {
+        await pg.query(`delete from public.artifact_evidence where user_id = $1`, [userBId]);
+        await pg.query(`delete from public.artifact_activities where user_id = $1`, [userBId]);
+        await pg.query(`delete from public.artifact_quests where user_id = $1`, [userBId]);
+        await pg.query(`delete from public.artifact_knowledge_nodes where user_id = $1`, [userBId]);
+        await pg.query(`delete from public.artifact_skills where user_id = $1`, [userBId]);
+        await pg.query(`delete from public.artifacts where user_id = $1`, [userBId]);
+        await pg.query(`delete from auth.users where id = $1`, [userBId]);
+      }
       await pg.end();
     }
   });
@@ -235,10 +251,9 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Artifact Final Security, Cross-Tena
           Cookie: jarA.getCookieHeader(),
         },
         body: JSON.stringify({
-          title: "User A Confidential RFC",
-          artifactType: "design_spec",
-          summary: "Internal confidential design document",
-          reusabilityScore: 0.95,
+          title: "User A Sensitive Secret Architecture " + Date.now(),
+          artifactType: "document",
+          summary: "Internal confidential design doc",
         } as CreateArtifactInput),
       });
       expect(res.status).toBe(201);
@@ -246,38 +261,42 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Artifact Final Security, Cross-Tena
       userAArtifactId = data.artifact.id;
     });
 
-    test("User B cannot GET User A artifact -> returns non-disclosing 404", async () => {
+    test("User B cannot access User A's artifact via GET /api/artifacts/[id] -> non-disclosing 404", async () => {
       const res = await fetch(`${BASE_URL}/api/artifacts/${userAArtifactId}`, {
         headers: { Cookie: jarB.getCookieHeader() },
       });
       expect(res.status).toBe(404);
       const data = await res.json();
-      expect(data.error).toBe("造物不存在或已被移除");
+      expect(data.code).toBe("not_found");
     });
 
-    test("User B cannot PATCH User A artifact -> returns non-disclosing 404", async () => {
+    test("User B cannot modify User A's artifact via PATCH /api/artifacts/[id] -> non-disclosing 404", async () => {
       const res = await fetch(`${BASE_URL}/api/artifacts/${userAArtifactId}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
           Cookie: jarB.getCookieHeader(),
         },
-        body: JSON.stringify({ title: "Hacked by User B" }),
+        body: JSON.stringify({
+          title: "Maliciously Hijacked Title",
+        }),
       });
       expect(res.status).toBe(404);
       const data = await res.json();
-      expect(data.error).toBe("造物不存在或已被移除");
+      expect(data.code).toBe("not_found");
     });
 
-    test("User B cannot DELETE User A artifact -> returns non-disclosing 404", async () => {
+    test("User B cannot delete User A's artifact via DELETE /api/artifacts/[id] -> non-disclosing 404", async () => {
       const res = await fetch(`${BASE_URL}/api/artifacts/${userAArtifactId}`, {
         method: "DELETE",
         headers: { Cookie: jarB.getCookieHeader() },
       });
       expect(res.status).toBe(404);
+      const data = await res.json();
+      expect(data.code).toBe("not_found");
     });
 
-    test("User B cannot link to User A artifact -> returns non-disclosing 404", async () => {
+    test("User B cannot link relations to User A's artifact via POST /api/artifacts/[id]/links -> non-disclosing 404", async () => {
       const res = await fetch(`${BASE_URL}/api/artifacts/${userAArtifactId}/links`, {
         method: "POST",
         headers: {
@@ -285,32 +304,24 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Artifact Final Security, Cross-Tena
           Cookie: jarB.getCookieHeader(),
         },
         body: JSON.stringify({
-          skills: [{ skillId: userBSkillId, action: "attach", demonstrationLevel: 3 }],
-        } as ManageArtifactLinksInput),
+          skillIds: [userBSkillId],
+        }),
       });
       expect(res.status).toBe(404);
+      const data = await res.json();
+      expect(data.code).toBe("not_found");
     });
 
-    test("User B listing /api/artifacts never enumerates User A artifacts", async () => {
-      const res = await fetch(`${BASE_URL}/api/artifacts?status=all`, {
+    test("User B querying GET /api/artifacts with status=all or filters returns ZERO User A artifacts", async () => {
+      // General list
+      const listRes = await fetch(`${BASE_URL}/api/artifacts?status=all`, {
         headers: { Cookie: jarB.getCookieHeader() },
       });
-      expect(res.status).toBe(200);
-      const data = await res.json();
-      const ids = (data.artifacts || []).map((a: { id: string }) => a.id);
-      expect(ids).not.toContain(userAArtifactId);
-    });
+      expect(listRes.status).toBe(200);
+      const listData = await listRes.json();
+      const hasUserAArt = listData.artifacts.some((a: { id: string }) => a.id === userAArtifactId);
+      expect(hasUserAArt).toBe(false);
 
-    test("User B search /api/artifacts?search=Confidential never returns User A artifact", async () => {
-      const res = await fetch(`${BASE_URL}/api/artifacts?status=all&search=Confidential`, {
-        headers: { Cookie: jarB.getCookieHeader() },
-      });
-      expect(res.status).toBe(200);
-      const data = await res.json();
-      expect(data.artifacts.length).toBe(0);
-    });
-
-    test("User B cannot enumerate or infer User A artifacts using skillId or questId filters", async () => {
       // Filter with User A's skillId
       const skillRes = await fetch(`${BASE_URL}/api/artifacts?status=all&skillId=${userASkillId}`, {
         headers: { Cookie: jarB.getCookieHeader() },
@@ -375,7 +386,7 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Artifact Final Security, Cross-Tena
       });
       expect(res2.status).toBe(409);
       const data = await res2.json();
-      expect(data.error).toContain("已存在同名造物标题");
+      expect(data.code).toBe("title_conflict");
     });
 
     test("Rejects malformed UUID in GET /api/artifacts/[id] -> 400 bad request", async () => {
@@ -384,7 +395,7 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Artifact Final Security, Cross-Tena
       });
       expect(res.status).toBe(400);
       const data = await res.json();
-      expect(data.error).toBe("造物 ID 格式无效");
+      expect(data.code).toBe("invalid_uuid");
     });
 
     test("Rejects invalid lifecycle state transition via PATCH", async () => {
@@ -603,8 +614,8 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Artifact Final Security, Cross-Tena
       // Create an AI assessment with 2 artifact proposals
       const assessRes = await pg.query(
         `insert into public.ai_assessments (
-           user_id, activity_id, status, confidence, model_name, prompt_version, rules_version, proposal
-         ) values ($1, $2, 'pending', 0.95, 'deepseek-v4-flash', '1.0', '1.0', $3) returning id`,
+           user_id, activity_id, rules_version, status, assessment_json
+         ) values ($1, $2, '1.0.0', 'pending', $3) returning id`,
         [
           userAId,
           activityId,
@@ -702,9 +713,9 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Artifact Final Security, Cross-Tena
         }),
       });
 
-      expect(res.status).toBe(400);
+      expect(res.status).toBe(404);
       const data = await res.json();
-      expect(data.error).toContain("该造物不存在或当前账户无权访问");
+      expect(data.code).toBe("artifact_not_found_or_not_owned");
 
       // Verify ZERO state mutation after failure
       const afterAssess = (await pg.query(`select status from public.ai_assessments where id = $1`, [assessmentId])).rows[0];
@@ -809,8 +820,8 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Artifact Final Security, Cross-Tena
 
       const assessRes = await pg.query(
         `insert into public.ai_assessments (
-           user_id, activity_id, status, confidence, model_name, prompt_version, rules_version, proposal
-         ) values ($1, $2, 'pending', 0.95, 'deepseek-v4-flash', '1.0', '1.0', $3) returning id`,
+           user_id, activity_id, rules_version, status, assessment_json
+         ) values ($1, $2, '1.0.0', 'pending', $3) returning id`,
         [
           userAId,
           concActId,

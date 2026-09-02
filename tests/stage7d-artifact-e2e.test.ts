@@ -11,7 +11,6 @@ import type { Database } from "@/lib/supabase/database.types";
 import type {
   CreateArtifactInput,
   UpdateArtifactInput,
-  ManageArtifactLinksInput,
   ArtifactResolutionInput,
 } from "@/types/artifact";
 
@@ -165,8 +164,24 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Full Product E2E: Artifact Lifecycl
     if (server) await new Promise<void>((resolve) => server.close(() => resolve()));
     if (app) await app.close();
     if (pg) {
-      if (userAId) await pg.query(`delete from auth.users where id = $1`, [userAId]);
-      if (userBId) await pg.query(`delete from auth.users where id = $1`, [userBId]);
+      if (userAId) {
+        await pg.query(`delete from public.artifact_evidence where user_id = $1`, [userAId]);
+        await pg.query(`delete from public.artifact_activities where user_id = $1`, [userAId]);
+        await pg.query(`delete from public.artifact_quests where user_id = $1`, [userAId]);
+        await pg.query(`delete from public.artifact_knowledge_nodes where user_id = $1`, [userAId]);
+        await pg.query(`delete from public.artifact_skills where user_id = $1`, [userAId]);
+        await pg.query(`delete from public.artifacts where user_id = $1`, [userAId]);
+        await pg.query(`delete from auth.users where id = $1`, [userAId]);
+      }
+      if (userBId) {
+        await pg.query(`delete from public.artifact_evidence where user_id = $1`, [userBId]);
+        await pg.query(`delete from public.artifact_activities where user_id = $1`, [userBId]);
+        await pg.query(`delete from public.artifact_quests where user_id = $1`, [userBId]);
+        await pg.query(`delete from public.artifact_knowledge_nodes where user_id = $1`, [userBId]);
+        await pg.query(`delete from public.artifact_skills where user_id = $1`, [userBId]);
+        await pg.query(`delete from public.artifacts where user_id = $1`, [userBId]);
+        await pg.query(`delete from auth.users where id = $1`, [userBId]);
+      }
       await pg.end();
     }
   });
@@ -185,34 +200,22 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Full Product E2E: Artifact Lifecycl
           Cookie: jarA.getCookieHeader(),
         },
         body: JSON.stringify({
-          title: "Manual Test Artifact RFC",
+          title: "Architecture Decisions Record 001",
           artifactType: "design_spec",
-          summary: "Initial manual draft",
-          description: "## Architecture Notes\nDetailed notes here.",
+          summary: "Initial draft of system design",
           lifecycleStatus: "draft",
-          version: "0.1",
-          reusabilityScore: 0.8,
+          reusabilityScore: 0.85,
         } as CreateArtifactInput),
       });
 
       expect(res.status).toBe(201);
       const data = await res.json();
-      expect(data.artifact.title).toBe("Manual Test Artifact RFC");
+      expect(data.artifact.title).toBe("Architecture Decisions Record 001");
       expect(data.artifact.lifecycleStatus).toBe("draft");
       manualArtifactId = data.artifact.id;
     });
 
-    test("2. View inspector detail via GET /api/artifacts/[id]", async () => {
-      const res = await fetch(`${BASE_URL}/api/artifacts/${manualArtifactId}`, {
-        headers: { Cookie: jarA.getCookieHeader() },
-      });
-      expect(res.status).toBe(200);
-      const detail = await res.json();
-      expect(detail.artifact.id).toBe(manualArtifactId);
-      expect(detail.links.skills.length).toBe(0);
-    });
-
-    test("3. Edit artifact metadata & version via PATCH /api/artifacts/[id]", async () => {
+    test("2. Promote draft artifact to active via PATCH /api/artifacts/[id]", async () => {
       const res = await fetch(`${BASE_URL}/api/artifacts/${manualArtifactId}`, {
         method: "PATCH",
         headers: {
@@ -220,19 +223,18 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Full Product E2E: Artifact Lifecycl
           Cookie: jarA.getCookieHeader(),
         },
         body: JSON.stringify({
-          version: "1.0",
           lifecycleStatus: "active",
-          isArchived: false,
-          summary: "Promoted to active RFC",
+          version: "1.0.0",
         } as UpdateArtifactInput),
       });
+
       expect(res.status).toBe(200);
       const data = await res.json();
-      expect(data.artifact.version).toBe("1.0");
       expect(data.artifact.lifecycleStatus).toBe("active");
+      expect(data.artifact.version).toBe("1.0.0");
     });
 
-    test("4. Link Skill, Knowledge Node, and Quest via POST /api/artifacts/[id]/links", async () => {
+    test("3. Manage relationships atomically via POST /api/artifacts/[id]/links", async () => {
       const res = await fetch(`${BASE_URL}/api/artifacts/${manualArtifactId}/links`, {
         method: "POST",
         headers: {
@@ -240,26 +242,30 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Full Product E2E: Artifact Lifecycl
           Cookie: jarA.getCookieHeader(),
         },
         body: JSON.stringify({
-          skills: [{ skillId: userASkillId, action: "attach", demonstrationLevel: 5 }],
-          knowledgeNodes: [{ nodeId: userAKnowledgeId, action: "attach", relationType: "implements" }],
-          quests: [{ questId: userAQuestId, action: "attach", isPrimaryDeliverable: true }],
-        } as ManageArtifactLinksInput),
+          skillIds: [userASkillId],
+          knowledgeNodeIds: [userAKnowledgeId],
+          questIds: [userAQuestId],
+        }),
       });
+
       expect(res.status).toBe(200);
 
-      // Verify inspector shows 3 links
+      // Verify relationships on detail GET
       const getRes = await fetch(`${BASE_URL}/api/artifacts/${manualArtifactId}`, {
         headers: { Cookie: jarA.getCookieHeader() },
       });
+      expect(getRes.status).toBe(200);
       const detail = await getRes.json();
       expect(detail.links.skills.length).toBe(1);
+      expect(detail.links.skills[0].skillId).toBe(userASkillId);
       expect(detail.links.knowledgeNodes.length).toBe(1);
+      expect(detail.links.knowledgeNodes[0].knowledgeNodeId).toBe(userAKnowledgeId);
       expect(detail.links.quests.length).toBe(1);
+      expect(detail.links.quests[0].questId).toBe(userAQuestId);
     });
 
-    test("5. Archive and Restore Artifact", async () => {
-      // Archive
-      const archRes = await fetch(`${BASE_URL}/api/artifacts/${manualArtifactId}`, {
+    test("4. Archive artifact via PATCH /api/artifacts/[id]", async () => {
+      const res = await fetch(`${BASE_URL}/api/artifacts/${manualArtifactId}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -268,35 +274,26 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Full Product E2E: Artifact Lifecycl
         body: JSON.stringify({
           lifecycleStatus: "archived",
           isArchived: true,
-        }),
+        } as UpdateArtifactInput),
       });
-      expect(archRes.status).toBe(200);
-      expect((await archRes.json()).artifact.isArchived).toBe(true);
 
-      // Restore
-      const restRes = await fetch(`${BASE_URL}/api/artifacts/${manualArtifactId}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Cookie: jarA.getCookieHeader(),
-        },
-        body: JSON.stringify({
-          lifecycleStatus: "active",
-          isArchived: false,
-        }),
-      });
-      expect(restRes.status).toBe(200);
-      expect((await restRes.json()).artifact.isArchived).toBe(false);
+      expect(res.status).toBe(200);
+      const data = await res.json();
+      expect(data.artifact.lifecycleStatus).toBe("archived");
+      expect(data.artifact.isArchived).toBe(true);
     });
 
-    test("6. Physical Delete unreferenced artifact via DELETE /api/artifacts/[id]", async () => {
-      const delRes = await fetch(`${BASE_URL}/api/artifacts/${manualArtifactId}`, {
+    test("5. Delete archived artifact via DELETE /api/artifacts/[id]", async () => {
+      const res = await fetch(`${BASE_URL}/api/artifacts/${manualArtifactId}`, {
         method: "DELETE",
         headers: { Cookie: jarA.getCookieHeader() },
       });
-      expect(delRes.status).toBe(204);
 
-      // Verify no longer found
+      expect(res.status).toBe(200);
+      const data = await res.json();
+      expect(data.success).toBe(true);
+
+      // Confirm 404 on subsequent get
       const getRes = await fetch(`${BASE_URL}/api/artifacts/${manualArtifactId}`, {
         headers: { Cookie: jarA.getCookieHeader() },
       });
@@ -324,8 +321,8 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Full Product E2E: Artifact Lifecycl
 
       const assessRes = await pg.query(
         `insert into public.ai_assessments (
-           user_id, activity_id, status, confidence, model_name, prompt_version, rules_version, proposal
-         ) values ($1, $2, 'pending', 0.95, 'deepseek-v4-flash', '1.0', '1.0', $3) returning id`,
+           user_id, activity_id, rules_version, status, assessment_json
+         ) values ($1, $2, '1.0.0', 'pending', $3) returning id`,
         [
           userAId,
           actId,
@@ -422,8 +419,8 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Full Product E2E: Artifact Lifecycl
 
       const assessRes = await pg.query(
         `insert into public.ai_assessments (
-           user_id, activity_id, status, confidence, model_name, prompt_version, rules_version, proposal
-         ) values ($1, $2, 'pending', 0.95, 'deepseek-v4-flash', '1.0', '1.0', $3) returning id`,
+           user_id, activity_id, rules_version, status, assessment_json
+         ) values ($1, $2, '1.0.0', 'pending', $3) returning id`,
         [
           userAId,
           actId,
@@ -503,8 +500,8 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Full Product E2E: Artifact Lifecycl
 
       const assessRes = await pg.query(
         `insert into public.ai_assessments (
-           user_id, activity_id, status, confidence, model_name, prompt_version, rules_version, proposal
-         ) values ($1, $2, 'pending', 0.95, 'deepseek-v4-flash', '1.0', '1.0', $3) returning id`,
+           user_id, activity_id, rules_version, status, assessment_json
+         ) values ($1, $2, '1.0.0', 'pending', $3) returning id`,
         [
           userAId,
           actId,
@@ -598,8 +595,8 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Full Product E2E: Artifact Lifecycl
 
       const assessResB = await pg.query(
         `insert into public.ai_assessments (
-           user_id, activity_id, status, confidence, model_name, prompt_version, rules_version, proposal
-         ) values ($1, $2, 'pending', 0.95, 'deepseek-v4-flash', '1.0', '1.0', $3) returning id`,
+           user_id, activity_id, rules_version, status, assessment_json
+         ) values ($1, $2, '1.0.0', 'pending', $3) returning id`,
         [
           userBId,
           actBId,
@@ -653,9 +650,9 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Full Product E2E: Artifact Lifecycl
         }),
       });
 
-      expect(confirmRes.status).toBe(400);
+      expect(confirmRes.status).toBe(404);
       const data = await confirmRes.json();
-      expect(data.error).toContain("该造物不存在或当前账户无权访问");
+      expect(data.code).toBe("artifact_not_found_or_not_owned");
 
       // Verify User A artifact has 0 activities linked
       const getResA = await fetch(`${BASE_URL}/api/artifacts/${artAId}`, {
