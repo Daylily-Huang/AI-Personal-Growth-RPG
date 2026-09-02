@@ -6,7 +6,7 @@ import next from "next";
 import { describe, expect, test, beforeAll, afterAll } from "vitest";
 import { Client } from "pg";
 import { createServerClient } from "@supabase/ssr";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
 import type {
   ArtifactResolutionInput,
@@ -18,19 +18,9 @@ const DATABASE_URL = process.env.XP_RPG_TEST_DB_URL;
 const TEST_PORT = 3097;
 const BASE_URL = `http://127.0.0.1:${TEST_PORT}`;
 
-const DEFAULT_LOCAL_ANON_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0";
-const DEFAULT_LOCAL_SERVICE_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU";
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54321";
-const SUPABASE_PUBLISHABLE_KEY =
-  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || DEFAULT_LOCAL_ANON_KEY;
-
-process.env.NEXT_PUBLIC_SUPABASE_URL = SUPABASE_URL;
-process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = SUPABASE_PUBLISHABLE_KEY;
-process.env.SUPABASE_SECRET_KEY = process.env.SUPABASE_SECRET_KEY || DEFAULT_LOCAL_SERVICE_KEY;
-
-const adminClient = createClient<Database>(SUPABASE_URL, process.env.SUPABASE_SECRET_KEY!);
+const SUPABASE_PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || "";
+const SUPABASE_SECRET_KEY = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 
 function createCookieJar() {
   const store = new Map<string, string>();
@@ -73,6 +63,7 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Artifact Final Security, Cross-Tena
   let app: ReturnType<typeof next>;
   let server: http.Server;
   let pg: Client;
+  let adminClient: SupabaseClient<Database>;
 
   let userAId: string;
   let userBId: string;
@@ -80,19 +71,29 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Artifact Final Security, Cross-Tena
   const userBEmail = `stage7d_sec_b_${Date.now()}@growth.rpg`;
   const testPassword = "Password123!Safe";
 
-  const jarA = createCookieJar();
-  const jarB = createCookieJar();
+  let jarA: ReturnType<typeof createCookieJar>;
+  let jarB: ReturnType<typeof createCookieJar>;
 
   // Test Fixture IDs
   let userASkillId: string;
   let userBSkillId: string;
   let userAQuestId: string;
+  let userBQuestId: string;
   let userAKnowledgeId: string;
   let userAActivityId: string;
   let userBActivityId: string;
   let userAEvidenceId: string;
+  let userBEvidenceId: string;
 
   beforeAll(async () => {
+    if (!SUPABASE_PUBLISHABLE_KEY || !SUPABASE_SECRET_KEY) {
+      throw new Error("Missing required Supabase keys (NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, SUPABASE_SECRET_KEY)");
+    }
+
+    adminClient = createClient<Database>(SUPABASE_URL, SUPABASE_SECRET_KEY);
+    jarA = createCookieJar();
+    jarB = createCookieJar();
+
     pg = new Client({ connectionString: DATABASE_URL });
     await pg.connect();
 
@@ -140,9 +141,9 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Artifact Final Security, Cross-Tena
     });
     if (sErrB || !sessB.session) throw new Error(`User B login failed: ${sErrB?.message}`);
 
-    // Seed domain fixtures for User A
+    // Seed domain fixtures for User A with slug
     const domResA = await pg.query(
-      `insert into public.domains (user_id, name) values ($1, 'AI Security') returning id`,
+      `insert into public.domains (user_id, name, slug) values ($1, 'AI Security', 'ai-security') returning id`,
       [userAId]
     );
     const domainAId = domResA.rows[0].id;
@@ -177,9 +178,9 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Artifact Final Security, Cross-Tena
     );
     userAEvidenceId = evResA.rows[0].id;
 
-    // Seed domain fixtures for User B
+    // Seed domain fixtures for User B with slug
     const domResB = await pg.query(
-      `insert into public.domains (user_id, name) values ($1, 'Bioinformatics') returning id`,
+      `insert into public.domains (user_id, name, slug) values ($1, 'Bioinformatics', 'bioinformatics') returning id`,
       [userBId]
     );
     const domainBId = domResB.rows[0].id;
@@ -190,11 +191,23 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Artifact Final Security, Cross-Tena
     );
     userBSkillId = skillResB.rows[0].id;
 
+    const questResB = await pg.query(
+      `insert into public.quests (user_id, title, status) values ($1, 'Genome Sequencing Quest', 'active') returning id`,
+      [userBId]
+    );
+    userBQuestId = questResB.rows[0].id;
+
     const actResB = await pg.query(
       `insert into public.activities (user_id, title, activity_type, status, completed_at) values ($1, 'Sequence Alignment', 'learning', 'pending', now()) returning id`,
       [userBId]
     );
     userBActivityId = actResB.rows[0].id;
+
+    const evResB = await pg.query(
+      `insert into public.evidence_records (user_id, activity_id, evidence_level, description, verified) values ($1, $2, 3, 'Mass Spec Transcript', true) returning id`,
+      [userBId, userBActivityId]
+    );
+    userBEvidenceId = evResB.rows[0].id;
   }, 45000);
 
   afterAll(async () => {
@@ -297,6 +310,32 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Artifact Final Security, Cross-Tena
       expect(data.artifacts.length).toBe(0);
     });
 
+    test("User B cannot enumerate or infer User A artifacts using skillId or questId filters", async () => {
+      // Filter with User A's skillId
+      const skillRes = await fetch(`${BASE_URL}/api/artifacts?status=all&skillId=${userASkillId}`, {
+        headers: { Cookie: jarB.getCookieHeader() },
+      });
+      expect(skillRes.status).toBe(200);
+      const skillData = await skillRes.json();
+      expect(skillData.artifacts.length).toBe(0);
+
+      // Filter with User A's questId
+      const questRes = await fetch(`${BASE_URL}/api/artifacts?status=all&questId=${userAQuestId}`, {
+        headers: { Cookie: jarB.getCookieHeader() },
+      });
+      expect(questRes.status).toBe(200);
+      const questData = await questRes.json();
+      expect(questData.artifacts.length).toBe(0);
+
+      // User A filters with User B's questId -> returns 0 items
+      const questResA = await fetch(`${BASE_URL}/api/artifacts?status=all&questId=${userBQuestId}`, {
+        headers: { Cookie: jarA.getCookieHeader() },
+      });
+      expect(questResA.status).toBe(200);
+      const questDataA = await questResA.json();
+      expect(questDataA.artifacts.length).toBe(0);
+    });
+
     test("Unauthenticated request to /api/artifacts returns 401", async () => {
       const res = await fetch(`${BASE_URL}/api/artifacts`);
       expect(res.status).toBe(401);
@@ -381,9 +420,9 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Artifact Final Security, Cross-Tena
   });
 
   // ==========================================
-  // 3. Relationship Authority & True Batch Atomicity
+  // 3. Relationship Authority & True Cross-Category Batch Atomicity
   // ==========================================
-  describe("3. Relationship Authority & True Batch Atomicity", () => {
+  describe("3. Relationship Authority & True Cross-Category Batch Atomicity", () => {
     let testArtifactId: string;
 
     beforeAll(async () => {
@@ -394,7 +433,7 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Artifact Final Security, Cross-Tena
           Cookie: jarA.getCookieHeader(),
         },
         body: JSON.stringify({
-          title: "Atomicity Verification Artifact " + Date.now(),
+          title: "Cross Category Atomicity Artifact " + Date.now(),
           artifactType: "code_repository",
         } as CreateArtifactInput),
       });
@@ -402,8 +441,8 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Artifact Final Security, Cross-Tena
       testArtifactId = (await res.json()).artifact.id;
     });
 
-    test("Rejects batch containing a foreign tenant skill ID and ensures ZERO partial write", async () => {
-      // User A attempts to attach User A skill + User B skill (foreign)
+    test("Exact cross-category atomicity failure: valid skill + valid knowledge + valid quest + foreign evidence -> ZERO partial write", async () => {
+      // User A submits batch with valid skill, valid knowledge, valid quest, but foreign User B evidence
       const res = await fetch(`${BASE_URL}/api/artifacts/${testArtifactId}/links`, {
         method: "POST",
         headers: {
@@ -411,35 +450,33 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Artifact Final Security, Cross-Tena
           Cookie: jarA.getCookieHeader(),
         },
         body: JSON.stringify({
-          skills: [
-            { skillId: userASkillId, action: "attach", demonstrationLevel: 4 },
-            { skillId: userBSkillId, action: "attach", demonstrationLevel: 4 }, // Foreign!
-          ],
+          skills: [{ skillId: userASkillId, action: "attach", demonstrationLevel: 4 }],
+          knowledgeNodes: [{ nodeId: userAKnowledgeId, action: "attach", relationType: "implements" }],
+          quests: [{ questId: userAQuestId, action: "attach", isPrimaryDeliverable: true }],
+          evidence: [{ evidenceId: userBEvidenceId, action: "attach" }], // Foreign User B Evidence!
         } as ManageArtifactLinksInput),
       });
       expect(res.status).toBe(400);
 
-      // Verify that User A skill was NOT attached (atomic rollback)
+      // Verify ZERO partial writes across ALL relation tables
       const getRes = await fetch(`${BASE_URL}/api/artifacts/${testArtifactId}`, {
         headers: { Cookie: jarA.getCookieHeader() },
       });
       expect(getRes.status).toBe(200);
       const detail = await getRes.json();
       expect(detail.links.skills.length).toBe(0);
-    });
+      expect(detail.links.knowledgeNodes.length).toBe(0);
+      expect(detail.links.quests.length).toBe(0);
+      expect(detail.links.evidence.length).toBe(0);
+      expect(detail.links.activities.length).toBe(0);
 
-    test("Rejects attaching foreign tenant activity ID to artifact -> 400 bad request", async () => {
-      const res = await fetch(`${BASE_URL}/api/artifacts/${testArtifactId}/links`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Cookie: jarA.getCookieHeader(),
-        },
-        body: JSON.stringify({
-          activities: [{ activityId: userBActivityId, action: "attach", activityRole: "produced" }],
-        } as ManageArtifactLinksInput),
-      });
-      expect(res.status).toBe(400);
+      // Also directly query DB to guarantee zero writes
+      const skillCount = await pg.query(`select count(*) from public.artifact_skills where artifact_id = $1`, [testArtifactId]);
+      const knCount = await pg.query(`select count(*) from public.artifact_knowledge_nodes where artifact_id = $1`, [testArtifactId]);
+      const questCount = await pg.query(`select count(*) from public.artifact_quests where artifact_id = $1`, [testArtifactId]);
+      expect(parseInt(skillCount.rows[0].count)).toBe(0);
+      expect(parseInt(knCount.rows[0].count)).toBe(0);
+      expect(parseInt(questCount.rows[0].count)).toBe(0);
     });
 
     test("Successfully applies multi-category batch link operations atomically", async () => {
@@ -548,9 +585,9 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Artifact Final Security, Cross-Tena
   });
 
   // ==========================================
-  // 5. Assessment Proposal Settlement & Idempotency
+  // 5. Assessment Proposal Settlement Rollback & Idempotency
   // ==========================================
-  describe("5. Assessment Proposal Settlement & Idempotency", () => {
+  describe("5. Assessment Proposal Settlement Rollback & Idempotency", () => {
     let assessmentId: string;
     let activityId: string;
 
@@ -621,7 +658,14 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Artifact Final Security, Cross-Tena
       assessmentId = assessRes.rows[0].id;
     });
 
-    test("Rejects settlement when user attempts to link User B artifact -> non-disclosing error", async () => {
+    test("Failed settlement (linking foreign User B artifact) proves FULL rollback and ZERO mutation", async () => {
+      // Record baseline snapshot
+      const beforeAssess = (await pg.query(`select status from public.ai_assessments where id = $1`, [assessmentId])).rows[0];
+      const beforeAct = (await pg.query(`select status from public.activities where id = $1`, [activityId])).rows[0];
+      const beforeTxCount = parseInt((await pg.query(`select count(*) from public.xp_transactions where user_id = $1`, [userAId])).rows[0].count);
+      const beforeArtCount = parseInt((await pg.query(`select count(*) from public.artifacts where user_id = $1`, [userAId])).rows[0].count);
+      const beforeArtActCount = parseInt((await pg.query(`select count(*) from public.artifact_activities where user_id = $1`, [userAId])).rows[0].count);
+
       // User B creates an artifact
       const bRes = await fetch(`${BASE_URL}/api/artifacts`, {
         method: "POST",
@@ -661,15 +705,31 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Artifact Final Security, Cross-Tena
       expect(res.status).toBe(400);
       const data = await res.json();
       expect(data.error).toContain("该造物不存在或当前账户无权访问");
+
+      // Verify ZERO state mutation after failure
+      const afterAssess = (await pg.query(`select status from public.ai_assessments where id = $1`, [assessmentId])).rows[0];
+      const afterAct = (await pg.query(`select status from public.activities where id = $1`, [activityId])).rows[0];
+      const afterTxCount = parseInt((await pg.query(`select count(*) from public.xp_transactions where user_id = $1`, [userAId])).rows[0].count);
+      const afterArtCount = parseInt((await pg.query(`select count(*) from public.artifacts where user_id = $1`, [userAId])).rows[0].count);
+      const afterArtActCount = parseInt((await pg.query(`select count(*) from public.artifact_activities where user_id = $1`, [userAId])).rows[0].count);
+
+      expect(afterAssess.status).toBe(beforeAssess.status);
+      expect(afterAct.status).toBe(beforeAct.status);
+      expect(afterAssess.status).toBe("pending");
+      expect(afterAct.status).toBe("pending");
+      expect(afterTxCount).toBe(beforeTxCount);
+      expect(afterArtCount).toBe(beforeArtCount);
+      expect(afterArtActCount).toBe(beforeArtActCount);
     });
 
-    test("Successfully settles assessment and proves absolute idempotency on duplicate confirmation", async () => {
+    test("Successfully settles assessment and proves comprehensive idempotency across all domain entities on duplicate confirm", async () => {
+      const artTitle = "Security Assessment Whitepaper Confirmed " + Date.now();
       const resolutions: ArtifactResolutionInput[] = [
         {
           proposalIndex: 0,
           resolution: "create",
           approvedOverrides: {
-            title: "Security Assessment Whitepaper Confirmed " + Date.now(),
+            title: artTitle,
             artifactType: "document",
             reusabilityScore: 0.9,
           },
@@ -691,12 +751,20 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Artifact Final Security, Cross-Tena
       });
       expect(res1.status).toBe(200);
 
-      // Verify transaction & ledger state
-      const txRes = await pg.query(
-        `select count(*) from public.xp_transactions where activity_id = $1`,
-        [activityId]
-      );
-      expect(parseInt(txRes.rows[0].count)).toBe(1);
+      // Record snapshot after successful 1st settlement
+      const txRes1 = await pg.query(`select * from public.xp_transactions where activity_id = $1`, [activityId]);
+      expect(txRes1.rows.length).toBe(1);
+      const firstTx = txRes1.rows[0];
+
+      const artRes1 = await pg.query(`select * from public.artifacts where user_id = $1 and title = $2`, [userAId, artTitle]);
+      expect(artRes1.rows.length).toBe(1);
+      const createdArtId = artRes1.rows[0].id;
+
+      const artActRes1 = await pg.query(`select count(*) from public.artifact_activities where activity_id = $1`, [activityId]);
+      expect(parseInt(artActRes1.rows[0].count)).toBe(1);
+
+      const assessRow1 = (await pg.query(`select status from public.ai_assessments where id = $1`, [assessmentId])).rows[0];
+      expect(assessRow1.status).toBe("confirmed");
 
       // 2. Duplicate Confirm -> rejected with 409 already_confirmed
       const res2 = await fetch(`${BASE_URL}/api/assessments/${assessmentId}/confirm`, {
@@ -711,12 +779,17 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Artifact Final Security, Cross-Tena
       const errData = await res2.json();
       expect(errData.code).toBe("already_confirmed");
 
-      // Verify ZERO duplicate XP transactions or double writes
-      const txRes2 = await pg.query(
-        `select count(*) from public.xp_transactions where activity_id = $1`,
-        [activityId]
-      );
-      expect(parseInt(txRes2.rows[0].count)).toBe(1);
+      // Verify strict idempotency: zero duplicate transactions, zero duplicate artifacts, zero duplicate links
+      const txRes2 = await pg.query(`select * from public.xp_transactions where activity_id = $1`, [activityId]);
+      expect(txRes2.rows.length).toBe(1);
+      expect(txRes2.rows[0].id).toBe(firstTx.id);
+
+      const artRes2 = await pg.query(`select * from public.artifacts where user_id = $1 and title = $2`, [userAId, artTitle]);
+      expect(artRes2.rows.length).toBe(1);
+      expect(artRes2.rows[0].id).toBe(createdArtId);
+
+      const artActRes2 = await pg.query(`select count(*) from public.artifact_activities where activity_id = $1`, [activityId]);
+      expect(parseInt(artActRes2.rows[0].count)).toBe(1);
     });
   });
 
@@ -725,6 +798,7 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Artifact Final Security, Cross-Tena
   // ==========================================
   describe("6. Concurrency Audit", () => {
     test("Two simultaneous confirmation requests on the same assessment result in exactly ONE success and ZERO duplicate mutations", async () => {
+      const concTitle = "Concurrent Artifact " + Date.now();
       // Setup concurrent assessment fixture
       const actRes = await pg.query(
         `insert into public.activities (user_id, title, activity_type, status, completed_at)
@@ -762,7 +836,7 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Artifact Final Security, Cross-Tena
             uncertainty_notes: [],
             artifactProposals: [
               {
-                title: "Concurrent Artifact " + Date.now(),
+                title: concTitle,
                 artifactType: "code_repository",
                 reusabilityScore: 0.8,
               },
@@ -805,6 +879,13 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Artifact Final Security, Cross-Tena
       // Exactly one must be 200 (Success) and the other 409 (already_confirmed)
       expect(statuses).toEqual([200, 409]);
 
+      // Verify exactly ONE assessment was confirmed
+      const assessConfirmedCount = await pg.query(
+        `select count(*) from public.ai_assessments where id = $1 and status = 'confirmed'`,
+        [concAssessId]
+      );
+      expect(parseInt(assessConfirmedCount.rows[0].count)).toBe(1);
+
       // Verify exactly ONE transaction was recorded in DB
       const txCount = await pg.query(
         `select count(*) from public.xp_transactions where activity_id = $1`,
@@ -812,12 +893,19 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Artifact Final Security, Cross-Tena
       );
       expect(parseInt(txCount.rows[0].count)).toBe(1);
 
-      // Verify exactly ONE artifact was created from this activity
+      // Verify exactly ONE artifact was created in public.artifacts
       const artCount = await pg.query(
+        `select count(*) from public.artifacts where user_id = $1 and title = $2`,
+        [userAId, concTitle]
+      );
+      expect(parseInt(artCount.rows[0].count)).toBe(1);
+
+      // Verify exactly ONE artifact_activities relationship
+      const artActCount = await pg.query(
         `select count(*) from public.artifact_activities where user_id = $1 and activity_id = $2`,
         [userAId, concActId]
       );
-      expect(parseInt(artCount.rows[0].count)).toBe(1);
+      expect(parseInt(artActCount.rows[0].count)).toBe(1);
     });
   });
 });

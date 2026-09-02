@@ -1,4 +1,4 @@
-// tests/stage7d-artifact-e2e.spec.ts
+// tests/stage7d-artifact-e2e.test.ts
 // Stage 7D: Artifact E2E Complete Product Lifecycle & Settlement Integration Test Suite
 
 import http from "node:http";
@@ -6,7 +6,7 @@ import next from "next";
 import { describe, expect, test, beforeAll, afterAll } from "vitest";
 import { Client } from "pg";
 import { createServerClient } from "@supabase/ssr";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
 import type {
   CreateArtifactInput,
@@ -19,19 +19,9 @@ const DATABASE_URL = process.env.XP_RPG_TEST_DB_URL;
 const TEST_PORT = 3096;
 const BASE_URL = `http://127.0.0.1:${TEST_PORT}`;
 
-const DEFAULT_LOCAL_ANON_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0";
-const DEFAULT_LOCAL_SERVICE_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU";
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54321";
-const SUPABASE_PUBLISHABLE_KEY =
-  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || DEFAULT_LOCAL_ANON_KEY;
-
-process.env.NEXT_PUBLIC_SUPABASE_URL = SUPABASE_URL;
-process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = SUPABASE_PUBLISHABLE_KEY;
-process.env.SUPABASE_SECRET_KEY = process.env.SUPABASE_SECRET_KEY || DEFAULT_LOCAL_SERVICE_KEY;
-
-const adminClient = createClient<Database>(SUPABASE_URL, process.env.SUPABASE_SECRET_KEY!);
+const SUPABASE_PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || "";
+const SUPABASE_SECRET_KEY = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 
 function createCookieJar() {
   const store = new Map<string, string>();
@@ -74,6 +64,7 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Full Product E2E: Artifact Lifecycl
   let app: ReturnType<typeof next>;
   let server: http.Server;
   let pg: Client;
+  let adminClient: SupabaseClient<Database>;
 
   let userAId: string;
   let userBId: string;
@@ -81,14 +72,22 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Full Product E2E: Artifact Lifecycl
   const userBEmail = `stage7d_e2e_b_${Date.now()}@growth.rpg`;
   const testPassword = "Password123!Safe";
 
-  const jarA = createCookieJar();
-  const jarB = createCookieJar();
+  let jarA: ReturnType<typeof createCookieJar>;
+  let jarB: ReturnType<typeof createCookieJar>;
 
   let userASkillId: string;
   let userAKnowledgeId: string;
   let userAQuestId: string;
 
   beforeAll(async () => {
+    if (!SUPABASE_PUBLISHABLE_KEY || !SUPABASE_SECRET_KEY) {
+      throw new Error("Missing required Supabase keys (NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, SUPABASE_SECRET_KEY)");
+    }
+
+    adminClient = createClient<Database>(SUPABASE_URL, SUPABASE_SECRET_KEY);
+    jarA = createCookieJar();
+    jarB = createCookieJar();
+
     pg = new Client({ connectionString: DATABASE_URL });
     await pg.connect();
 
@@ -136,9 +135,9 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Full Product E2E: Artifact Lifecycl
     });
     if (sErrB || !sessB.session) throw new Error(`User B login failed: ${sErrB?.message}`);
 
-    // Seed domain fixtures for User A
+    // Seed domain fixtures for User A with required 'slug' column
     const domRes = await pg.query(
-      `insert into public.domains (user_id, name) values ($1, 'Software Engineering') returning id`,
+      `insert into public.domains (user_id, name, slug) values ($1, 'Software Engineering', 'software-engineering') returning id`,
       [userAId]
     );
     const domainId = domRes.rows[0].id;

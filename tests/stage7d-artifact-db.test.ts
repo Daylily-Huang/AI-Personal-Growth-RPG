@@ -1,5 +1,5 @@
 // tests/stage7d-artifact-db.test.ts
-// Stage 7D: Direct Database & RLS Adversarial Attack Audit (PostgreSQL Hardened Authority)
+// Stage 7D: Direct Database, RLS, RPC Privilege & Trigger Adversarial Audit (PostgreSQL Hardened Authority)
 
 import { describe, expect, test, beforeAll, afterAll } from "vitest";
 import { Client } from "pg";
@@ -23,25 +23,28 @@ const EVIDENCE_B = "7dee0002-bbbb-4000-b000-000000000002";
 const ART_A1 = "7da00001-aaaa-4000-a000-000000000001";
 const ART_B1 = "7da00001-bbbb-4000-b000-000000000001";
 
-describe.skipIf(!DATABASE_URL)("Stage 7D — Direct Database, RLS & Trigger Adversarial Audit (Live PostgreSQL)", () => {
+describe.skipIf(!DATABASE_URL)("Stage 7D — Direct Database, RLS, RPC Privilege & Trigger Adversarial Audit (Live PostgreSQL)", () => {
   let pg: Client;
 
   async function asUser(userId: string, fn: () => Promise<void>) {
-    await pg.query("set role authenticated");
-    await pg.query("select set_config('request.jwt.claim.sub', $1, false)", [userId]);
+    await pg.query("begin");
+    await pg.query("set local role authenticated");
+    await pg.query("select set_config('request.jwt.claim.sub', $1, true)", [userId]);
     try {
       await fn();
     } finally {
-      await pg.query("reset role");
+      await pg.query("rollback");
     }
   }
 
   async function asAnon(fn: () => Promise<void>) {
-    await pg.query("set role anon");
+    await pg.query("begin");
+    await pg.query("set local role anon");
+    await pg.query("select set_config('request.jwt.claim.sub', '', true)");
     try {
       await fn();
     } finally {
-      await pg.query("reset role");
+      await pg.query("rollback");
     }
   }
 
@@ -74,11 +77,11 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Direct Database, RLS & Trigger Adve
       ('${USER_B}', 'stage7d_db_b@growth.rpg');
     `);
 
-    // Insert Base Fixtures
+    // Insert Base Fixtures with required 'slug' column
     await pg.query(`
-      insert into public.domains (id, user_id, name) values
-      ('${DOMAIN_A}', '${USER_A}', 'Security Systems'),
-      ('${DOMAIN_B}', '${USER_B}', 'Bio Systems');
+      insert into public.domains (id, user_id, name, slug) values
+      ('${DOMAIN_A}', '${USER_A}', 'Security Systems', 'security-systems'),
+      ('${DOMAIN_B}', '${USER_B}', 'Bio Systems', 'bio-systems');
 
       insert into public.skills (id, user_id, domain_id, name, level) values
       ('${SKILL_A}', '${USER_A}', '${DOMAIN_A}', 'Formal Verification', 4),
@@ -272,9 +275,101 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Direct Database, RLS & Trigger Adve
   });
 
   // ==========================================
-  // 4. Anonymous Role Rejection
+  // 4. Lifecycle Coherence & State Transitions
   // ==========================================
-  describe("4. Anonymous Role Rejection", () => {
+  describe("4. Lifecycle Coherence & State Transitions", () => {
+    test("Enforces trigger-maintained timestamps and coherence across all valid transitions", async () => {
+      const artId = "7da99999-aaaa-4000-a000-000000000001";
+      // 1. draft creation
+      await pg.query(`
+        insert into public.artifacts (id, user_id, title, artifact_type, lifecycle_status, is_archived)
+        values ('${artId}', '${USER_A}', 'Coherence Test Spec', 'design_spec', 'draft', false);
+      `);
+
+      // 2. draft -> active
+      await pg.query(`
+        update public.artifacts set lifecycle_status = 'active' where id = '${artId}';
+      `);
+      let res = await pg.query(`select lifecycle_status, is_archived, archived_at from public.artifacts where id = '${artId}'`);
+      expect(res.rows[0].lifecycle_status).toBe("active");
+      expect(res.rows[0].is_archived).toBe(false);
+      expect(res.rows[0].archived_at).toBeNull();
+
+      // 3. active -> archived
+      await pg.query(`
+        update public.artifacts set lifecycle_status = 'archived', is_archived = true where id = '${artId}';
+      `);
+      res = await pg.query(`select lifecycle_status, is_archived, archived_at from public.artifacts where id = '${artId}'`);
+      expect(res.rows[0].lifecycle_status).toBe("archived");
+      expect(res.rows[0].is_archived).toBe(true);
+      expect(res.rows[0].archived_at).not.toBeNull();
+
+      // 4. archived -> active
+      await pg.query(`
+        update public.artifacts set lifecycle_status = 'active', is_archived = false where id = '${artId}';
+      `);
+      res = await pg.query(`select lifecycle_status, is_archived, archived_at from public.artifacts where id = '${artId}'`);
+      expect(res.rows[0].lifecycle_status).toBe("active");
+      expect(res.rows[0].is_archived).toBe(false);
+      expect(res.rows[0].archived_at).toBeNull();
+
+      // 5. superseded -> active
+      await pg.query(`
+        update public.artifacts set lifecycle_status = 'superseded' where id = '${artId}';
+      `);
+      await pg.query(`
+        update public.artifacts set lifecycle_status = 'active' where id = '${artId}';
+      `);
+      res = await pg.query(`select lifecycle_status, is_archived, archived_at from public.artifacts where id = '${artId}'`);
+      expect(res.rows[0].lifecycle_status).toBe("active");
+      expect(res.rows[0].is_archived).toBe(false);
+      expect(res.rows[0].archived_at).toBeNull();
+
+      // 6. Contradictory states are rejected
+      await expect(
+        pg.query(`update public.artifacts set lifecycle_status = 'archived', is_archived = false where id = '${artId}'`)
+      ).rejects.toThrow(/Lifecycle status is archived but is_archived is false/);
+
+      await expect(
+        pg.query(`update public.artifacts set lifecycle_status = 'active', is_archived = true where id = '${artId}'`)
+      ).rejects.toThrow(/Lifecycle status is active but is_archived is true/);
+
+      // Cleanup
+      await pg.query(`delete from public.artifacts where id = '${artId}'`);
+    });
+  });
+
+  // ==========================================
+  // 5. SECURITY DEFINER / RPC Privilege Audit
+  // ==========================================
+  describe("5. SECURITY DEFINER / RPC Privilege Audit", () => {
+    test("Direct execution of settle_activity RPC is denied for authenticated and anon roles", async () => {
+      // Authenticated role attempt
+      await asUser(USER_A, async () => {
+        await expect(
+          pg.query(`select public.settle_activity($1, $2)`, [
+            USER_B,
+            JSON.stringify({ malicious: true }),
+          ])
+        ).rejects.toThrow(/permission denied for function settle_activity/);
+      });
+
+      // Anon role attempt
+      await asAnon(async () => {
+        await expect(
+          pg.query(`select public.settle_activity($1, $2)`, [
+            USER_B,
+            JSON.stringify({ malicious: true }),
+          ])
+        ).rejects.toThrow(/permission denied for function settle_activity/);
+      });
+    });
+  });
+
+  // ==========================================
+  // 6. Anonymous Role Rejection
+  // ==========================================
+  describe("6. Anonymous Role Rejection", () => {
     test("Anon role has all permissions denied across artifacts and join tables", async () => {
       await asAnon(async () => {
         await expect(pg.query(`select * from public.artifacts`)).rejects.toThrow(/permission denied/);
