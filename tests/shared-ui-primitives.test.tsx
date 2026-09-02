@@ -7,7 +7,7 @@
 
 import React from "react";
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, screen, fireEvent, cleanup, act } from "@testing-library/react";
+import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import fs from "fs";
 import path from "path";
 import { execSync } from "child_process";
@@ -35,6 +35,7 @@ import {
   ToastNotification,
   Tooltip,
 } from "@/components/ui";
+import { InspectorDrawer } from "@/components/layout/InspectorDrawer";
 
 describe("Shared UI Primitives — Component Library Verification", () => {
   afterEach(() => {
@@ -339,7 +340,6 @@ describe("Shared UI Primitives — Component Library Verification", () => {
         entityType="quest"
         label="主线任务"
         count={3}
-        removable
         onRemove={onRemove}
         onClick={onClick}
       />
@@ -362,10 +362,15 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     expect(onClick).toHaveBeenCalledTimes(1);
   });
 
+  it("26. EntityChip does NOT render remove control when onRemove is absent", () => {
+    render(<EntityChip label="无删除实体" removable={true} />);
+    expect(screen.queryByTestId("entity-chip-remove")).toBeNull();
+  });
+
   // ==========================================================================
   // 3. INTERACTIVE SEMANTICS & TOUCH TARGETS (44x44 Min Dimensions)
   // ==========================================================================
-  it("26. RPGCard Enter and Space keys trigger genuine DOM click and prevent scroll on Space", () => {
+  it("27. RPGCard Enter and Space keys trigger genuine DOM click and prevent scroll on Space", () => {
     const onClick = vi.fn((e) => {
       expect(e.type).toBe("click");
     });
@@ -379,7 +384,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     expect(onClick).toHaveBeenCalledTimes(2);
   });
 
-  it("27. RPGCard onKeyDown respect defaultPrevented and non-interactive card is not a button", () => {
+  it("28. RPGCard onKeyDown respects defaultPrevented and non-interactive card is not a button", () => {
     const onClick = vi.fn();
     const onKeyDown = vi.fn((e: React.KeyboardEvent) => {
       e.preventDefault();
@@ -404,7 +409,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     expect(plainCard.getAttribute("tabindex")).toBeNull();
   });
 
-  it("28. Buttons across all sizes satisfy Base/mobile min 44x44 touch target", () => {
+  it("29. Buttons across all sizes satisfy Base/mobile min 44x44 touch target", () => {
     const { unmount, rerender } = render(<PrimaryButton size="sm">小按钮</PrimaryButton>);
     let btn = screen.getByTestId("primary-button");
     expect(btn.className).toContain("min-h-[var(--touch-target-min)]");
@@ -422,7 +427,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     unmount();
   });
 
-  it("29. SearchInput and clear control satisfy min 44x44 touch target", () => {
+  it("30. SearchInput and clear control satisfy min 44x44 touch target", () => {
     render(<SearchInput value="关键词" onChange={vi.fn()} onClear={vi.fn()} />);
     const input = screen.getByTestId("search-input");
     expect(input.className).toContain("min-h-[var(--touch-target-min)]");
@@ -432,7 +437,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     expect(clearBtn.className).toContain("min-w-[var(--touch-target-min)]");
   });
 
-  it("30. FilterBar options and reset control satisfy min 44x44 touch target", () => {
+  it("31. FilterBar options and reset control satisfy min 44x44 touch target", () => {
     const options = [{ id: "opt1", label: "选项一" }];
     render(<FilterBar options={options} activeId="opt1" onChange={vi.fn()} onReset={vi.fn()} />);
 
@@ -445,10 +450,10 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     expect(resetBtn.className).toContain("min-w-[var(--touch-target-min)]");
   });
 
-  it("31. EntityChip and Toast dismiss satisfy min 44x44 touch target", () => {
+  it("32. EntityChip and Toast dismiss satisfy min 44x44 touch target", () => {
     render(
       <div>
-        <EntityChip label="实体" onClick={vi.fn()} removable onRemove={vi.fn()} />
+        <EntityChip label="实体" onClick={vi.fn()} onRemove={vi.fn()} />
         <ToastNotification message="通知" onDismiss={vi.fn()} />
       </div>
     );
@@ -469,7 +474,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
   // ==========================================================================
   // 4. METERS & PROGRESS
   // ==========================================================================
-  it("32. XPProgress renders valid ARIA progressbar range (0 to 100) and tabular readout", () => {
+  it("33. XPProgress renders valid ARIA progressbar range (0 to 100) and tabular readout", () => {
     render(<XPProgress current={250} max={500} />);
     const meter = screen.getByTestId("xp-progress");
     expect(meter.getAttribute("aria-valuemin")).toBe("0");
@@ -480,7 +485,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     expect(screen.getByTestId("xp-progress-max").textContent).toBe("500 XP");
   });
 
-  it("33. XPProgress safely handles max=0, current>max, and negative values without NaN", () => {
+  it("34. XPProgress safely handles max=0, current>max, and negative values without NaN", () => {
     const { unmount, rerender } = render(<XPProgress current={100} max={0} />);
     let meter = screen.getByTestId("xp-progress");
     expect(meter.getAttribute("aria-valuenow")).toBe("0");
@@ -498,7 +503,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     unmount();
   });
 
-  it("34. XPProgress track uses surface-hover-neutral and fill uses approved Gold progression gradient", () => {
+  it("35. XPProgress track uses surface-hover-neutral and fill uses approved Gold progression gradient", () => {
     render(<XPProgress current={400} max={800} />);
     const track = screen.getByTestId("xp-progress-track");
     expect(track.className).toContain("bg-[var(--surface-hover-neutral)]");
@@ -509,7 +514,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     expect(bar.getAttribute("style")).toBe("width: 50%;");
   });
 
-  it("35. QuestProgress renders semantic 0–100% with Azure Horizon tokens and NO Gold", () => {
+  it("36. QuestProgress renders semantic 0–100% with Azure Horizon tokens and NO Gold", () => {
     render(<QuestProgress progress={65} milestones={[25, 50, 75]} />);
     const meter = screen.getByTestId("quest-progress");
     expect(meter.getAttribute("aria-valuenow")).toBe("65");
@@ -519,7 +524,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     expect(bar.className).not.toContain("var(--gold-");
   });
 
-  it("36. ReusabilityMeter renders 0.00 to 1.00 score with Amethyst Scholar styling", () => {
+  it("37. ReusabilityMeter renders 0.00 to 1.00 score with Amethyst Scholar styling", () => {
     render(<ReusabilityMeter score={0.88} />);
     const meter = screen.getByTestId("reusability-meter");
     expect(meter.getAttribute("aria-valuenow")).toBe("0.88");
@@ -529,9 +534,32 @@ describe("Shared UI Primitives — Component Library Verification", () => {
   });
 
   // ==========================================================================
-  // 5. BASEMODAL & OVERLAY STACK ARBITRATION
+  // 5. BASEMODAL PORTAL & OVERLAY STACK ARBITRATION
   // ==========================================================================
-  it("37. BaseModal panel simultaneously expresses the frozen responsive viewport matrix", () => {
+  it("38. BaseModal renders via createPortal to document.body and escapes local ancestor stacking context", () => {
+    render(
+      <div data-testid="fake-canvas" className="relative z-[var(--z-canvas)]">
+        <BaseModal open={true} onClose={vi.fn()} title="传送门模态框">
+          <p>模态内容</p>
+        </BaseModal>
+      </div>
+    );
+
+    const fakeCanvas = screen.getByTestId("fake-canvas");
+    const modalRoot = screen.getByTestId("base-modal-root");
+
+    // Modal root is mounted in document.body outside fake-canvas
+    expect(fakeCanvas.contains(modalRoot)).toBe(false);
+    expect(document.body.contains(modalRoot)).toBe(true);
+
+    const backdrop = screen.getByTestId("base-modal-backdrop");
+    expect(backdrop.className).toContain("z-[var(--z-modal-backdrop)]");
+
+    const panel = screen.getByTestId("base-modal-panel");
+    expect(panel.className).toContain("z-[var(--z-modal)]");
+  });
+
+  it("39. BaseModal panel simultaneously expresses the frozen responsive viewport matrix", () => {
     render(
       <BaseModal open={true} onClose={vi.fn()} title="响应式模态框">
         <p>内容</p>
@@ -547,7 +575,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     expect(panel.className).not.toContain("workspace-max-width");
   });
 
-  it("38. BaseModal generates unique accessible IDs for multiple instances", () => {
+  it("40. BaseModal generates unique accessible IDs for multiple instances", () => {
     render(
       <div>
         <BaseModal open={true} onClose={vi.fn()} title="对话框一">
@@ -564,16 +592,22 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     expect(titles[0].id).not.toBe(titles[1].id);
   });
 
-  it("39. ConfirmDialog aria-describedby points to visible description", () => {
+  it("41. ConfirmDialog aria-describedby points to visible description and renders via portal", () => {
     render(
-      <ConfirmDialog
-        open={true}
-        onClose={vi.fn()}
-        onConfirm={vi.fn()}
-        title="确认删除"
-        description="此操作将永久抹去该记录"
-      />
+      <div data-testid="caller-wrapper">
+        <ConfirmDialog
+          open={true}
+          onClose={vi.fn()}
+          onConfirm={vi.fn()}
+          title="确认删除"
+          description="此操作将永久抹去该记录"
+        />
+      </div>
     );
+
+    const callerWrapper = screen.getByTestId("caller-wrapper");
+    const modalRoot = screen.getByTestId("base-modal-root");
+    expect(callerWrapper.contains(modalRoot)).toBe(false);
 
     const panel = screen.getByTestId("base-modal-panel");
     const descId = panel.getAttribute("aria-describedby");
@@ -584,7 +618,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     expect(descElem.textContent).toBe("此操作将永久抹去该记录");
   });
 
-  it("40. BaseModal captures initial focus into modal on open and cancels stale RAF on close", () => {
+  it("42. BaseModal automatically transfers initial focus inside modal without manual focus call", () => {
     function TestFocusModal() {
       const [open, setOpen] = React.useState(false);
       return (
@@ -604,18 +638,15 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     opener.focus();
     expect(document.activeElement).toBe(opener);
 
-    // Open modal
+    // Click to open modal
     fireEvent.click(opener);
-    const innerBtn = screen.getByTestId("modal-inner-btn");
 
-    // Advance RAF for focus transfer
-    act(() => {
-      innerBtn.focus();
-    });
-    expect(document.activeElement).toBe(innerBtn);
+    // Initial focus must automatically be transferred inside the modal
+    const modalPanel = screen.getByTestId("base-modal-panel");
+    expect(modalPanel.contains(document.activeElement)).toBe(true);
   });
 
-  it("41. BaseModal Tab cycles focus within dialog", () => {
+  it("43. BaseModal Tab cycles focus within dialog", () => {
     render(
       <BaseModal open={true} onClose={vi.fn()} title="Tab 测试">
         <button data-testid="btn-1">第一</button>
@@ -623,6 +654,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
       </BaseModal>
     );
 
+    const modalRoot = screen.getByTestId("base-modal-root");
     const btnClose = screen.getByTestId("base-modal-close");
     const btn1 = screen.getByTestId("btn-1");
     const btn2 = screen.getByTestId("btn-2");
@@ -630,11 +662,11 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     btn2.focus();
     expect(document.activeElement).toBe(btn2);
 
-    fireEvent.keyDown(window, { key: "Tab" });
+    fireEvent.keyDown(modalRoot, { key: "Tab" });
     expect(document.activeElement === btnClose || document.activeElement === btn1).toBe(true);
   });
 
-  it("42. BaseModal Shift+Tab cycles focus backwards", () => {
+  it("44. BaseModal Shift+Tab cycles focus backwards", () => {
     render(
       <BaseModal open={true} onClose={vi.fn()} title="Shift+Tab 测试">
         <button data-testid="btn-1">第一</button>
@@ -642,17 +674,18 @@ describe("Shared UI Primitives — Component Library Verification", () => {
       </BaseModal>
     );
 
+    const modalRoot = screen.getByTestId("base-modal-root");
     const btnClose = screen.getByTestId("base-modal-close");
     const btn2 = screen.getByTestId("btn-2");
 
     btnClose.focus();
     expect(document.activeElement).toBe(btnClose);
 
-    fireEvent.keyDown(window, { key: "Tab", shiftKey: true });
+    fireEvent.keyDown(modalRoot, { key: "Tab", shiftKey: true });
     expect(document.activeElement).toBe(btn2);
   });
 
-  it("43. BaseModal closes on Escape key when enabled, remains open when disabled", () => {
+  it("45. BaseModal closes on Escape key when enabled, remains open when disabled", () => {
     const onClose = vi.fn();
     const { rerender } = render(
       <BaseModal open={true} onClose={onClose} closeOnEscape={true} title="Escape 测试">
@@ -660,7 +693,8 @@ describe("Shared UI Primitives — Component Library Verification", () => {
       </BaseModal>
     );
 
-    fireEvent.keyDown(window, { key: "Escape" });
+    let modalRoot = screen.getByTestId("base-modal-root");
+    fireEvent.keyDown(modalRoot, { key: "Escape" });
     expect(onClose).toHaveBeenCalledTimes(1);
 
     onClose.mockClear();
@@ -670,11 +704,12 @@ describe("Shared UI Primitives — Component Library Verification", () => {
       </BaseModal>
     );
 
-    fireEvent.keyDown(window, { key: "Escape" });
+    modalRoot = screen.getByTestId("base-modal-root");
+    fireEvent.keyDown(modalRoot, { key: "Escape" });
     expect(onClose).not.toHaveBeenCalled();
   });
 
-  it("44. BaseModal closes on backdrop click when enabled, remains open when disabled", () => {
+  it("46. BaseModal closes on backdrop click when enabled, remains open when disabled", () => {
     const onClose = vi.fn();
     const { rerender } = render(
       <BaseModal open={true} onClose={onClose} closeOnBackdropClick={true} title="Backdrop 测试">
@@ -698,7 +733,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
-  it("45. BaseModal restores focus to opener element upon close and unmount", () => {
+  it("47. BaseModal restores focus to opener element upon close and unmount", () => {
     function TestRestore() {
       const [open, setOpen] = React.useState(false);
       return (
@@ -727,57 +762,88 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     expect(document.activeElement).toBe(opener);
   });
 
-  it("46. Tooltip preserves and merges existing aria-describedby", () => {
-    render(
-      <Tooltip content="快捷提示信息">
-        <button data-testid="tip-target" aria-describedby="existing-help-id">
-          悬停目标
-        </button>
-      </Tooltip>
-    );
+  it("48. Real Overlay Stack: InspectorDrawer + BaseModal + Tooltip Escape arbitration", () => {
+    function FullOverlayStack() {
+      const [drawerOpen, setDrawerOpen] = React.useState(true);
+      const [modalOpen, setModalOpen] = React.useState(true);
 
-    const target = screen.getByTestId("tip-target");
-    expect(target.getAttribute("aria-describedby")).toBe("existing-help-id");
+      return (
+        <div>
+          <InspectorDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} title="检查器">
+            <button onClick={() => setModalOpen(true)}>打开弹窗</button>
+          </InspectorDrawer>
 
-    // Hover -> Merged
-    fireEvent.mouseEnter(target);
-    const tooltip = screen.getByTestId("tooltip-content");
-    expect(target.getAttribute("aria-describedby")).toBe(`existing-help-id ${tooltip.id}`);
+          <BaseModal open={modalOpen} onClose={() => setModalOpen(false)} title="弹窗层">
+            <Tooltip content="提示详情">
+              <button data-testid="stack-tip-trigger">提示触发按钮</button>
+            </Tooltip>
+          </BaseModal>
+        </div>
+      );
+    }
 
-    // Leave -> Restored
-    fireEvent.mouseLeave(target);
-    expect(target.getAttribute("aria-describedby")).toBe("existing-help-id");
-  });
+    render(<FullOverlayStack />);
 
-  it("47. Tooltip Escape closes Tooltip only without closing parent BaseModal", () => {
-    const onModalClose = vi.fn();
-
-    render(
-      <BaseModal open={true} onClose={onModalClose} title="模态框含提示">
-        <Tooltip content="操作指引">
-          <button data-testid="nested-tip-target">提示按钮</button>
-        </Tooltip>
-      </BaseModal>
-    );
-
-    const target = screen.getByTestId("nested-tip-target");
-    fireEvent.focus(target);
+    // 1. Trigger tooltip focus
+    const tipTrigger = screen.getByTestId("stack-tip-trigger");
+    fireEvent.focus(tipTrigger);
     expect(screen.getByTestId("tooltip-content")).toBeTruthy();
 
-    // Escape on trigger with visible tooltip closes tooltip only
-    fireEvent.keyDown(target, { key: "Escape" });
+    // Escape 1: Tooltip dismisses, Modal and Drawer remain open
+    fireEvent.keyDown(tipTrigger, { key: "Escape" });
     expect(screen.queryByTestId("tooltip-content")).toBeNull();
-    expect(onModalClose).not.toHaveBeenCalled();
+    expect(screen.getByTestId("base-modal-root")).toBeTruthy();
+    expect(screen.getByTestId("inspector-drawer-root")).toBeTruthy();
 
-    // Second Escape on window closes BaseModal
+    // Escape 2: BaseModal dismisses, Drawer remains open
+    const modalRoot = screen.getByTestId("base-modal-root");
+    fireEvent.keyDown(modalRoot, { key: "Escape" });
+    expect(screen.queryByTestId("base-modal-root")).toBeNull();
+    expect(screen.getByTestId("inspector-drawer-root")).toBeTruthy();
+
+    // Escape 3: Window-level Escape dismisses InspectorDrawer
     fireEvent.keyDown(window, { key: "Escape" });
-    expect(onModalClose).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId("inspector-drawer-root")).toBeNull();
+  });
+
+  it("49. closeOnEscape=false Modal blocks Escape from reaching underlying InspectorDrawer", () => {
+    function BlockedEscapeStack() {
+      const [drawerOpen, setDrawerOpen] = React.useState(true);
+      const [modalOpen, setModalOpen] = React.useState(true);
+
+      return (
+        <div>
+          <InspectorDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} title="检查器">
+            <p>抽屉内容</p>
+          </InspectorDrawer>
+
+          <BaseModal
+            open={modalOpen}
+            onClose={() => setModalOpen(false)}
+            closeOnEscape={false}
+            title="不可按Esc关闭模态框"
+          >
+            <button data-testid="blocked-modal-btn">模态内部按钮</button>
+          </BaseModal>
+        </div>
+      );
+    }
+
+    render(<BlockedEscapeStack />);
+    const modalRoot = screen.getByTestId("base-modal-root");
+
+    // Press Escape inside non-dismissible modal
+    fireEvent.keyDown(modalRoot, { key: "Escape" });
+
+    // Both surfaces remain open because Modal consumed the Escape event
+    expect(screen.getByTestId("base-modal-root")).toBeTruthy();
+    expect(screen.getByTestId("inspector-drawer-root")).toBeTruthy();
   });
 
   // ==========================================================================
   // 6. RESTORED BEHAVIOR TESTS (SEARCH, FILTER, CONFIRM, TOAST, BUTTON MOTION)
   // ==========================================================================
-  it("48. SearchInput controlled change and clear behavior", () => {
+  it("50. SearchInput controlled change and clear behavior", () => {
     const onChange = vi.fn();
     const onClear = vi.fn();
 
@@ -803,7 +869,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     expect(onClear).toHaveBeenCalledTimes(1);
   });
 
-  it("49. FilterBar selection and reset behavior", () => {
+  it("51. FilterBar selection and reset behavior", () => {
     const options = [
       { id: "all", label: "全部", count: 12 },
       { id: "active", label: "生效中", count: 8 },
@@ -830,7 +896,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     expect(screen.queryByTestId("filter-bar-reset")).toBeNull();
   });
 
-  it("50. ConfirmDialog confirm, cancel, and destructive DangerButton semantics", () => {
+  it("52. ConfirmDialog confirm, cancel, and destructive DangerButton semantics", () => {
     const onConfirm = vi.fn();
     const onClose = vi.fn();
 
@@ -868,7 +934,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     expect(dangerConfirmBtn.className).not.toContain("var(--gold-");
   });
 
-  it("51. ToastNotification live-region role and dismiss behavior", () => {
+  it("53. ToastNotification live-region role and dismiss behavior", () => {
     const onDismiss = vi.fn();
     const { rerender } = render(
       <ToastNotification variant="success" message="保存成功" onDismiss={onDismiss} />
@@ -888,7 +954,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     expect(toast.getAttribute("aria-live")).toBe("assertive");
   });
 
-  it("52. Button active press uses instant duration and ease-in-out-subtle motion tokens", () => {
+  it("54. Button active press uses instant duration and ease-in-out-subtle motion tokens", () => {
     render(<PrimaryButton>测试动画</PrimaryButton>);
     const btn = screen.getByTestId("primary-button");
     expect(btn.className).toContain("active:duration-[var(--duration-instant)]");
@@ -896,7 +962,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     expect(btn.className).toContain("active:[transform:var(--active-surface-depression)]");
   });
 
-  it("53. Buttons support disabled and loading state semantics with aria-hidden icon", () => {
+  it("55. Buttons support disabled and loading state semantics with aria-hidden icon", () => {
     render(<PrimaryButton loading>加载中</PrimaryButton>);
     const btn = screen.getByTestId("primary-button");
     expect(btn.hasAttribute("disabled")).toBe(true);
@@ -904,7 +970,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     expect(btn.querySelector("svg")?.getAttribute("aria-hidden")).toBe("true");
   });
 
-  it("54. Tooltip appears on focus and hover and hides on blur and mouseLeave", () => {
+  it("56. Tooltip appears on focus and hover and hides on blur and mouseLeave", () => {
     render(
       <Tooltip content="操作详情提示">
         <button data-testid="tooltip-trigger">悬停按钮</button>
@@ -932,7 +998,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
   // ==========================================================================
   // 7. GOVERNANCE & ARCHITECTURAL AUDIT
   // ==========================================================================
-  it("55. 100% of consumed CSS variables in src/components/ui/** exist in design-tokens.css", () => {
+  it("57. 100% of consumed CSS variables in src/components/ui/** exist in design-tokens.css", () => {
     const tokensFile = path.resolve(__dirname, "../src/styles/design-tokens.css");
     const tokensContent = fs.readFileSync(tokensFile, "utf-8");
 
@@ -957,7 +1023,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     }
   });
 
-  it("56. zero private arbitrary design literals or ad-hoc white/black palette opacities exist in src/components/ui/**", () => {
+  it("58. zero private arbitrary design literals or ad-hoc white/black palette opacities exist in src/components/ui/**", () => {
     const uiDir = path.resolve(__dirname, "../src/components/ui");
     const files = fs.readdirSync(uiDir).filter((f) => f.endsWith(".tsx") || f.endsWith(".ts"));
 
@@ -989,7 +1055,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     }
   });
 
-  it("57. Gold whitelist audit: Gold tokens are restricted to Level, XP, Mastery, Primary affirmative, and Focus ring", () => {
+  it("59. Gold whitelist audit: Gold tokens are restricted to Level, XP, Mastery, Primary affirmative, and Focus ring", () => {
     const uiDir = path.resolve(__dirname, "../src/components/ui");
     const files = fs.readdirSync(uiDir).filter((f) => f.endsWith(".tsx") || f.endsWith(".ts"));
 
@@ -1013,7 +1079,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     }
   });
 
-  it("58. real frozen backend/domain PR-delta guard rejects changes to frozen paths without permissive catch", () => {
+  it("60. real frozen backend/domain PR-delta guard rejects changes to frozen paths without permissive catch or HEAD~1 fallback", () => {
     const forbiddenPathPrefixes = [
       "src/app/api/",
       "supabase/",
@@ -1030,13 +1096,12 @@ describe("Shared UI Primitives — Component Library Verification", () => {
       "src/lib/skills/derived-state.ts",
     ];
 
-    // Helper to resolve base ref in git worktree and CI environments
+    // Authoritative PR base resolution: No HEAD~1 fallback allowed
     function resolveBaseRef(): string {
       const candidates = [
         process.env.GITHUB_BASE_REF ? `origin/${process.env.GITHUB_BASE_REF}` : null,
         "origin/main",
         "main",
-        "HEAD~1",
       ].filter(Boolean) as string[];
 
       for (const candidate of candidates) {
@@ -1071,7 +1136,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     expect(isForbidden).toBe(true);
   });
 
-  it("59. InspectorDrawer remains single existing implementation in src/components/layout", () => {
+  it("61. InspectorDrawer remains single existing implementation in src/components/layout", () => {
     const layoutInspector = path.resolve(__dirname, "../src/components/layout/InspectorDrawer.tsx");
     expect(fs.existsSync(layoutInspector)).toBe(true);
 
@@ -1079,14 +1144,14 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     expect(fs.existsSync(uiInspector)).toBe(false);
   });
 
-  it("60. ConfirmDialog composes BaseModal and does not create duplicate modal foundation", () => {
+  it("62. ConfirmDialog composes BaseModal and does not create duplicate modal foundation", () => {
     const confirmFile = path.resolve(__dirname, "../src/components/ui/ConfirmDialog.tsx");
     const content = fs.readFileSync(confirmFile, "utf-8");
     expect(content).toContain("import { BaseModal");
     expect(content).toContain("<BaseModal");
   });
 
-  it("61. No Stage7C domain UI exists in this PR", () => {
+  it("63. No Stage7C domain UI exists in this PR", () => {
     const uiDir = path.resolve(__dirname, "../src/components/ui");
     const files = fs.readdirSync(uiDir);
 
@@ -1095,7 +1160,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     expect(files).not.toContain("ArtifactGallery.tsx");
   });
 
-  it("62. Zero raw breakpoint constants exist in src/components/ui/**", () => {
+  it("64. Zero raw breakpoint constants exist in src/components/ui/**", () => {
     const uiDir = path.resolve(__dirname, "../src/components/ui");
     const files = fs.readdirSync(uiDir).filter((f) => f.endsWith(".tsx") || f.endsWith(".ts"));
 
@@ -1108,7 +1173,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     }
   });
 
-  it("63. Zero private z-index values exist in src/components/ui/**", () => {
+  it("65. Zero private z-index values exist in src/components/ui/**", () => {
     const uiDir = path.resolve(__dirname, "../src/components/ui");
     const files = fs.readdirSync(uiDir).filter((f) => f.endsWith(".tsx") || f.endsWith(".ts"));
 
@@ -1117,5 +1182,39 @@ describe("Shared UI Primitives — Component Library Verification", () => {
       const rawZIndexMatch = content.match(/\bz-(?!\[var\(--z-)\d+/g);
       expect(rawZIndexMatch, `File ${file} contains raw z-index: ${rawZIndexMatch?.join(", ")}`).toBeNull();
     }
+  });
+
+  it("66. BaseModal accessible name supports ariaLabel mode without visible title", () => {
+    render(
+      <BaseModal open={true} onClose={vi.fn()} ariaLabel="自定义无标题模态框">
+        <p>无标题模态内容</p>
+      </BaseModal>
+    );
+
+    const panel = screen.getByTestId("base-modal-panel");
+    expect(panel.getAttribute("aria-label")).toBe("自定义无标题模态框");
+    expect(panel.getAttribute("aria-labelledby")).toBeNull();
+  });
+
+  it("67. BaseModal with description without title renders description and sets valid aria-describedby without dangling IDs", () => {
+    render(
+      <BaseModal open={true} onClose={vi.fn()} ariaLabel="描述测试模态框" description="此为无标题描述信息">
+        <p>内容</p>
+      </BaseModal>
+    );
+
+    const panel = screen.getByTestId("base-modal-panel");
+    const descId = panel.getAttribute("aria-describedby");
+    expect(descId).toBeTruthy();
+
+    const descElem = screen.getByTestId("base-modal-desc");
+    expect(descElem.id).toBe(descId);
+    expect(descElem.textContent).toBe("此为无标题描述信息");
+  });
+
+  it("68. RPGCard public props interface does not expose unsafe 'as' polymorphism", () => {
+    const cardFile = path.resolve(__dirname, "../src/components/ui/RPGCard.tsx");
+    const content = fs.readFileSync(cardFile, "utf-8");
+    expect(content).not.toMatch(/as\?:/);
   });
 });

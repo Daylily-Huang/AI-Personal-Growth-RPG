@@ -54,7 +54,7 @@ export const EntityChip = forwardRef<HTMLSpanElement, EntityChipProps>(
       label,
       icon,
       count,
-      removable = false,
+      removable,
       onRemove,
       onClick,
       size = "md",
@@ -64,6 +64,7 @@ export const EntityChip = forwardRef<HTMLSpanElement, EntityChipProps>(
     ref
   ) => {
     const isInteractive = Boolean(onClick);
+    const canRemove = Boolean(onRemove) && removable !== false;
     const { classes, defaultIcon: DefaultIcon } = entityStyleMap[entityType];
 
     const handleRemove = (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -118,7 +119,7 @@ export const EntityChip = forwardRef<HTMLSpanElement, EntityChipProps>(
           </span>
         )}
 
-        {removable && (
+        {canRemove && (
           <button
             type="button"
             data-testid="entity-chip-remove"

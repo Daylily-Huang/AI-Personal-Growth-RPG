@@ -16,7 +16,6 @@ export interface RPGCardProps extends React.HTMLAttributes<HTMLDivElement> {
   entityType?: EntityType;
   selected?: boolean;
   interactive?: boolean;
-  as?: React.ElementType;
   children?: React.ReactNode;
   className?: string;
 }
@@ -37,7 +36,6 @@ export const RPGCard = forwardRef<HTMLDivElement, RPGCardProps>(
       entityType = "generic",
       selected = false,
       interactive = false,
-      as = "div",
       children,
       className = "",
       onClick,
@@ -69,7 +67,6 @@ export const RPGCard = forwardRef<HTMLDivElement, RPGCardProps>(
     return (
       <GlassPanel
         ref={ref}
-        as={as}
         variant="base"
         border={selected ? "none" : "default"}
         data-testid="rpg-card"
