@@ -221,6 +221,18 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Artifact Final Security, Cross-Tena
         await pg.query(`delete from public.artifact_knowledge_nodes where user_id = $1`, [userAId]);
         await pg.query(`delete from public.artifact_skills where user_id = $1`, [userAId]);
         await pg.query(`delete from public.artifacts where user_id = $1`, [userAId]);
+        await pg.query(`delete from public.xp_transactions where user_id = $1`, [userAId]);
+        await pg.query(`delete from public.xp_ledger where user_id = $1`, [userAId]);
+        await pg.query(`delete from public.ai_assessments where user_id = $1`, [userAId]);
+        await pg.query(`delete from public.evidence_records where user_id = $1`, [userAId]);
+        await pg.query(`delete from public.activities where user_id = $1`, [userAId]);
+        await pg.query(`delete from public.quests where user_id = $1`, [userAId]);
+        await pg.query(`delete from public.knowledge_edges where user_id = $1`, [userAId]);
+        await pg.query(`delete from public.knowledge_nodes where user_id = $1`, [userAId]);
+        await pg.query(`delete from public.skill_edges where user_id = $1`, [userAId]);
+        await pg.query(`delete from public.skills where user_id = $1`, [userAId]);
+        await pg.query(`delete from public.domains where user_id = $1`, [userAId]);
+        await pg.query(`delete from public.profiles where user_id = $1`, [userAId]);
         await pg.query(`delete from auth.users where id = $1`, [userAId]);
       }
       if (userBId) {
@@ -230,6 +242,18 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Artifact Final Security, Cross-Tena
         await pg.query(`delete from public.artifact_knowledge_nodes where user_id = $1`, [userBId]);
         await pg.query(`delete from public.artifact_skills where user_id = $1`, [userBId]);
         await pg.query(`delete from public.artifacts where user_id = $1`, [userBId]);
+        await pg.query(`delete from public.xp_transactions where user_id = $1`, [userBId]);
+        await pg.query(`delete from public.xp_ledger where user_id = $1`, [userBId]);
+        await pg.query(`delete from public.ai_assessments where user_id = $1`, [userBId]);
+        await pg.query(`delete from public.evidence_records where user_id = $1`, [userBId]);
+        await pg.query(`delete from public.activities where user_id = $1`, [userBId]);
+        await pg.query(`delete from public.quests where user_id = $1`, [userBId]);
+        await pg.query(`delete from public.knowledge_edges where user_id = $1`, [userBId]);
+        await pg.query(`delete from public.knowledge_nodes where user_id = $1`, [userBId]);
+        await pg.query(`delete from public.skill_edges where user_id = $1`, [userBId]);
+        await pg.query(`delete from public.skills where user_id = $1`, [userBId]);
+        await pg.query(`delete from public.domains where user_id = $1`, [userBId]);
+        await pg.query(`delete from public.profiles where user_id = $1`, [userBId]);
         await pg.query(`delete from auth.users where id = $1`, [userBId]);
       }
       await pg.end();
@@ -386,7 +410,7 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Artifact Final Security, Cross-Tena
       });
       expect(res2.status).toBe(409);
       const data = await res2.json();
-      expect(data.code).toBe("title_conflict");
+      expect(data.code).toBe("artifact_title_conflict");
     });
 
     test("Rejects malformed UUID in GET /api/artifacts/[id] -> 400 bad request", async () => {
@@ -467,7 +491,9 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Artifact Final Security, Cross-Tena
           evidence: [{ evidenceId: userBEvidenceId, action: "attach" }], // Foreign User B Evidence!
         } as ManageArtifactLinksInput),
       });
-      expect(res.status).toBe(400);
+      expect(res.status).toBe(404);
+      const data = await res.json();
+      expect(data.code).toBe("not_found");
 
       // Verify ZERO partial writes across ALL relation tables
       const getRes = await fetch(`${BASE_URL}/api/artifacts/${testArtifactId}`, {

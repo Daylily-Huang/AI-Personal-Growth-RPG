@@ -11,6 +11,7 @@ import type { Database } from "@/lib/supabase/database.types";
 import type {
   CreateArtifactInput,
   UpdateArtifactInput,
+  ManageArtifactLinksInput,
   ArtifactResolutionInput,
 } from "@/types/artifact";
 
@@ -171,6 +172,18 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Full Product E2E: Artifact Lifecycl
         await pg.query(`delete from public.artifact_knowledge_nodes where user_id = $1`, [userAId]);
         await pg.query(`delete from public.artifact_skills where user_id = $1`, [userAId]);
         await pg.query(`delete from public.artifacts where user_id = $1`, [userAId]);
+        await pg.query(`delete from public.xp_transactions where user_id = $1`, [userAId]);
+        await pg.query(`delete from public.xp_ledger where user_id = $1`, [userAId]);
+        await pg.query(`delete from public.ai_assessments where user_id = $1`, [userAId]);
+        await pg.query(`delete from public.evidence_records where user_id = $1`, [userAId]);
+        await pg.query(`delete from public.activities where user_id = $1`, [userAId]);
+        await pg.query(`delete from public.quests where user_id = $1`, [userAId]);
+        await pg.query(`delete from public.knowledge_edges where user_id = $1`, [userAId]);
+        await pg.query(`delete from public.knowledge_nodes where user_id = $1`, [userAId]);
+        await pg.query(`delete from public.skill_edges where user_id = $1`, [userAId]);
+        await pg.query(`delete from public.skills where user_id = $1`, [userAId]);
+        await pg.query(`delete from public.domains where user_id = $1`, [userAId]);
+        await pg.query(`delete from public.profiles where user_id = $1`, [userAId]);
         await pg.query(`delete from auth.users where id = $1`, [userAId]);
       }
       if (userBId) {
@@ -180,6 +193,18 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Full Product E2E: Artifact Lifecycl
         await pg.query(`delete from public.artifact_knowledge_nodes where user_id = $1`, [userBId]);
         await pg.query(`delete from public.artifact_skills where user_id = $1`, [userBId]);
         await pg.query(`delete from public.artifacts where user_id = $1`, [userBId]);
+        await pg.query(`delete from public.xp_transactions where user_id = $1`, [userBId]);
+        await pg.query(`delete from public.xp_ledger where user_id = $1`, [userBId]);
+        await pg.query(`delete from public.ai_assessments where user_id = $1`, [userBId]);
+        await pg.query(`delete from public.evidence_records where user_id = $1`, [userBId]);
+        await pg.query(`delete from public.activities where user_id = $1`, [userBId]);
+        await pg.query(`delete from public.quests where user_id = $1`, [userBId]);
+        await pg.query(`delete from public.knowledge_edges where user_id = $1`, [userBId]);
+        await pg.query(`delete from public.knowledge_nodes where user_id = $1`, [userBId]);
+        await pg.query(`delete from public.skill_edges where user_id = $1`, [userBId]);
+        await pg.query(`delete from public.skills where user_id = $1`, [userBId]);
+        await pg.query(`delete from public.domains where user_id = $1`, [userBId]);
+        await pg.query(`delete from public.profiles where user_id = $1`, [userBId]);
         await pg.query(`delete from auth.users where id = $1`, [userBId]);
       }
       await pg.end();
@@ -242,10 +267,10 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Full Product E2E: Artifact Lifecycl
           Cookie: jarA.getCookieHeader(),
         },
         body: JSON.stringify({
-          skillIds: [userASkillId],
-          knowledgeNodeIds: [userAKnowledgeId],
-          questIds: [userAQuestId],
-        }),
+          skills: [{ skillId: userASkillId, action: "attach", demonstrationLevel: 4 }],
+          knowledgeNodes: [{ nodeId: userAKnowledgeId, action: "attach", relationType: "implements" }],
+          quests: [{ questId: userAQuestId, action: "attach", isPrimaryDeliverable: true }],
+        } as ManageArtifactLinksInput),
       });
 
       expect(res.status).toBe(200);
@@ -289,9 +314,7 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Full Product E2E: Artifact Lifecycl
         headers: { Cookie: jarA.getCookieHeader() },
       });
 
-      expect(res.status).toBe(200);
-      const data = await res.json();
-      expect(data.success).toBe(true);
+      expect(res.status).toBe(204);
 
       // Confirm 404 on subsequent get
       const getRes = await fetch(`${BASE_URL}/api/artifacts/${manualArtifactId}`, {
