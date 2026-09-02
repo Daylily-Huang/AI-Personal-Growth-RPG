@@ -893,13 +893,13 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     expect(target.getAttribute("aria-describedby")).toBe("existing-help-id");
   });
 
-  it("54. Tooltip viewport collision handling: flips and clamps properly", () => {
-    // Mock getBoundingClientRect for edge collision tests
+  it("54. Tooltip viewport collision handling: flips and clamps properly across all 4 boundaries and 360px screen", () => {
     const origInnerWidth = window.innerWidth;
     const origInnerHeight = window.innerHeight;
 
     window.innerWidth = 360; // 360px mobile viewport
     window.innerHeight = 640;
+    const padding = 8;
 
     const { unmount } = render(
       <Tooltip content="长文本测试提示信息将在小屏幕上自动折行并限制最大宽度不会溢出屏幕外" position="top">
@@ -912,8 +912,16 @@ describe("Shared UI Primitives — Component Library Verification", () => {
 
     const tooltip = screen.getByTestId("tooltip-content");
     expect(tooltip).toBeTruthy();
-    expect(tooltip.className).toContain("max-w-[calc(100vw-1rem)]");
+    expect(tooltip.className).toContain("max-w-[calc(100vw-16px)]");
     expect(tooltip.className).toContain("break-words");
+
+    const topVal = parseFloat(tooltip.style.top || "0");
+    const leftVal = parseFloat(tooltip.style.left || "0");
+
+    expect(topVal).toBeGreaterThanOrEqual(padding);
+    expect(topVal).toBeLessThanOrEqual(window.innerHeight - padding);
+    expect(leftVal).toBeGreaterThanOrEqual(padding);
+    expect(leftVal).toBeLessThanOrEqual(window.innerWidth - padding);
 
     unmount();
     window.innerWidth = origInnerWidth;

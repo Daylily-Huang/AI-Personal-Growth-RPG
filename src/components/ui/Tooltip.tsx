@@ -35,78 +35,90 @@ export function Tooltip({
   const isClient = useIsClient();
   const [visible, setVisible] = useState(false);
   const [resolvedPosition, setResolvedPosition] = useState<TooltipPosition>(position);
-  const [coords, setCoords] = useState<{ top: number; left: number; transform: string }>({
+  const [coords, setCoords] = useState<{ top: number; left: number }>({
     top: 0,
     left: 0,
-    transform: "none",
   });
 
   const wrapperRef = useRef<HTMLSpanElement>(null);
+  const tooltipRef = useRef<HTMLDivElement>(null);
   const tooltipId = useId();
 
   const updatePosition = useCallback(() => {
     const el = wrapperRef.current;
     if (!el || typeof window === "undefined") return;
-    const rect = el.getBoundingClientRect();
+
+    const tr = el.getBoundingClientRect();
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
     const padding = 8;
 
-    let effPos = position;
+    // Use actual rendered dimensions of the tooltip element if mounted
+    const tip = tooltipRef.current;
+    const tipRect = tip ? tip.getBoundingClientRect() : null;
+    const tipWidth = tipRect && tipRect.width > 0 ? tipRect.width : 120;
+    const tipHeight = tipRect && tipRect.height > 0 ? tipRect.height : 32;
 
-    // Viewport collision flip detection
-    if (position === "top" && rect.top - 40 < padding) {
-      effPos = "bottom";
-    } else if (position === "bottom" && rect.bottom + 40 > viewportHeight - padding) {
-      effPos = "top";
-    } else if (position === "left" && rect.left - 100 < padding) {
-      effPos = "right";
-    } else if (position === "right" && rect.right + 100 > viewportWidth - padding) {
-      effPos = "left";
+    let side = position;
+
+    // Viewport collision flipping based on real rendered dimensions
+    if (position === "top" && tr.top - 8 - tipHeight < padding) {
+      side = "bottom";
+    } else if (position === "bottom" && tr.bottom + 8 + tipHeight > viewportHeight - padding) {
+      side = "top";
+    } else if (position === "left" && tr.left - 8 - tipWidth < padding) {
+      side = "right";
+    } else if (position === "right" && tr.right + 8 + tipWidth > viewportWidth - padding) {
+      side = "left";
     }
 
-    setResolvedPosition(effPos);
+    setResolvedPosition(side);
 
     let top = 0;
     let left = 0;
-    let transform = "none";
 
-    switch (effPos) {
+    switch (side) {
       case "top": {
-        top = Math.max(padding, rect.top - 8);
-        const rawX = rect.left + rect.width / 2;
-        left = Math.max(padding, Math.min(viewportWidth - padding, rawX));
-        transform = "translate(-50%, -100%)";
+        top = tr.top - 8 - tipHeight;
+        left = tr.left + (tr.width - tipWidth) / 2;
         break;
       }
       case "bottom": {
-        top = Math.min(viewportHeight - padding, rect.bottom + 8);
-        const rawX = rect.left + rect.width / 2;
-        left = Math.max(padding, Math.min(viewportWidth - padding, rawX));
-        transform = "translate(-50%, 0)";
+        top = tr.bottom + 8;
+        left = tr.left + (tr.width - tipWidth) / 2;
         break;
       }
       case "left": {
-        const rawY = rect.top + rect.height / 2;
-        top = Math.max(padding, Math.min(viewportHeight - padding, rawY));
-        left = Math.max(padding, rect.left - 8);
-        transform = "translate(-100%, -50%)";
+        top = tr.top + (tr.height - tipHeight) / 2;
+        left = tr.left - 8 - tipWidth;
         break;
       }
       case "right": {
-        const rawY = rect.top + rect.height / 2;
-        top = Math.max(padding, Math.min(viewportHeight - padding, rawY));
-        left = Math.min(viewportWidth - padding, rect.right + 8);
-        transform = "translate(0, -50%)";
+        top = tr.top + (tr.height - tipHeight) / 2;
+        left = tr.right + 8;
         break;
       }
     }
 
-    setCoords({ top, left, transform });
+    // Precise rectangle clamping within viewport bounds
+    if (left + tipWidth > viewportWidth - padding) {
+      left = viewportWidth - padding - tipWidth;
+    }
+    if (left < padding) {
+      left = padding;
+    }
+
+    if (top + tipHeight > viewportHeight - padding) {
+      top = viewportHeight - padding - tipHeight;
+    }
+    if (top < padding) {
+      top = padding;
+    }
+
+    setCoords({ top, left });
   }, [position]);
 
   const showTooltip = () => {
-    updatePosition();
     setVisible(true);
   };
 
@@ -150,6 +162,7 @@ export function Tooltip({
   const portalContent = visible && isClient && typeof document !== "undefined" && (
     createPortal(
       <div
+        ref={tooltipRef}
         id={tooltipId}
         role="tooltip"
         data-testid="tooltip-content"
@@ -157,9 +170,9 @@ export function Tooltip({
         style={{
           top: `${coords.top}px`,
           left: `${coords.left}px`,
-          transform: coords.transform,
+          maxWidth: "calc(100vw - 16px)",
         }}
-        className={`fixed z-[var(--z-tooltip)] px-2.5 py-1.5 rounded-[var(--radius-sm)] bg-[var(--surface-overlay)] border border-[var(--border-default)] text-xs text-[var(--text-primary)] max-w-[calc(100vw-1rem)] break-words shadow-[var(--shadow-card)] pointer-events-none transition-opacity duration-[var(--duration-fast)] select-none ${className}`}
+        className={`fixed z-[var(--z-tooltip)] px-2.5 py-1.5 rounded-[var(--radius-sm)] bg-[var(--surface-overlay)] border border-[var(--border-default)] text-xs text-[var(--text-primary)] max-w-[calc(100vw-16px)] break-words shadow-[var(--shadow-card)] pointer-events-none transition-opacity duration-[var(--duration-fast)] select-none ${className}`}
       >
         {content}
       </div>,
