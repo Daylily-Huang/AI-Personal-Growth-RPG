@@ -343,6 +343,38 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Direct Database, RLS, RPC Privilege
   // 5. SECURITY DEFINER / RPC Privilege Audit
   // ==========================================
   describe("5. SECURITY DEFINER / RPC Privilege Audit", () => {
+    test("Authoritative ACL catalog & has_function_privilege matrix for settle_activity", async () => {
+      // 1. Exact DB catalog has_function_privilege matrix
+      const privRes = await pg.query(`
+        SELECT
+          has_function_privilege('public', 'public.settle_activity(uuid, jsonb)', 'execute') AS has_public,
+          has_function_privilege('anon', 'public.settle_activity(uuid, jsonb)', 'execute') AS has_anon,
+          has_function_privilege('authenticated', 'public.settle_activity(uuid, jsonb)', 'execute') AS has_authenticated,
+          has_function_privilege('service_role', 'public.settle_activity(uuid, jsonb)', 'execute') AS has_service_role
+      `);
+      const row = privRes.rows[0];
+      expect(row.has_public).toBe(false);
+      expect(row.has_anon).toBe(false);
+      expect(row.has_authenticated).toBe(false);
+      expect(row.has_service_role).toBe(true);
+
+      // 2. Direct catalog check on pg_proc + aclexplode
+      const aclRes = await pg.query(`
+        SELECT
+          coalesce(grantee::regrole::text, 'public') AS grantee,
+          privilege_type
+        FROM pg_proc p
+        CROSS JOIN LATERAL aclexplode(p.proacl)
+        WHERE p.proname = 'settle_activity'
+          AND p.pronamespace = 'public'::regnamespace
+      `);
+      const grantees = aclRes.rows.map((r: { grantee: string; privilege_type: string }) => r.grantee);
+      expect(grantees).toContain("service_role");
+      expect(grantees).not.toContain("public");
+      expect(grantees).not.toContain("anon");
+      expect(grantees).not.toContain("authenticated");
+    });
+
     test("Direct execution of settle_activity RPC is denied for authenticated and anon roles", async () => {
       // Authenticated role attempt
       await asUser(USER_A, async () => {

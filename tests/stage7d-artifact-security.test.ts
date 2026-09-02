@@ -624,16 +624,249 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Artifact Final Security, Cross-Tena
   // ==========================================
   // 5. Assessment Proposal Settlement Rollback & Idempotency
   // ==========================================
+  interface SettlementStateSnapshot {
+    player: { total_xp: number; player_level: number } | null;
+    primarySkill: { id: string; name: string; xp: number; level: number; mastery_level: number; mastery_confidence: number | null } | null;
+    assessment: { id: string; status: string; confirmed_at: string | null } | null;
+    activity: { id: string; status: string } | null;
+    xpTransactions: Array<{ id: string; amount: number; xp_type: string; skill_id: string }>;
+    evidenceRecords: Array<{ id: string; evidence_level: number; description: string; verified: boolean }>;
+    masteryVerifications: Array<{ id: string; status: string; from_level: number; to_level: number }>;
+    masteryEvents: Array<{ id: string; from_level: number; to_level: number }>;
+    knowledgeNodesCount: number;
+    knowledgeEdgesCount: number;
+    quest: { id: string; progress: number; status: string } | null;
+    artifacts: Array<{ id: string; title: string; artifact_type: string; lifecycle_status: string }>;
+    artifactActivities: Array<{ artifact_id: string; activity_id: string; activity_role: string }>;
+    artifactSkills: Array<{ artifact_id: string; skill_id: string }>;
+    artifactKnowledgeNodes: Array<{ artifact_id: string; node_id: string }>;
+    artifactQuests: Array<{ artifact_id: string; quest_id: string }>;
+    artifactEvidence: Array<{ artifact_id: string; evidence_id: string }>;
+  }
+
+  async function snapshotSettlementState(
+    userId: string,
+    activityId?: string,
+    assessmentId?: string,
+    skillId?: string,
+    questId?: string
+  ): Promise<SettlementStateSnapshot> {
+    const pRes = await pg.query(
+      `select total_xp, player_level from public.player_states where user_id = $1`,
+      [userId]
+    );
+    const player = pRes.rows[0]
+      ? {
+          total_xp: Number(pRes.rows[0].total_xp),
+          player_level: Number(pRes.rows[0].player_level),
+        }
+      : null;
+
+    let primarySkill = null;
+    if (skillId) {
+      const sRes = await pg.query(
+        `select id, name, xp, level, mastery_level, mastery_confidence from public.skills where id = $1`,
+        [skillId]
+      );
+      if (sRes.rows[0]) {
+        primarySkill = {
+          id: sRes.rows[0].id,
+          name: sRes.rows[0].name,
+          xp: Number(sRes.rows[0].xp),
+          level: Number(sRes.rows[0].level),
+          mastery_level: Number(sRes.rows[0].mastery_level),
+          mastery_confidence: sRes.rows[0].mastery_confidence !== null ? Number(sRes.rows[0].mastery_confidence) : null,
+        };
+      }
+    }
+
+    let assessment = null;
+    if (assessmentId) {
+      const aRes = await pg.query(
+        `select id, status, confirmed_at from public.ai_assessments where id = $1`,
+        [assessmentId]
+      );
+      if (aRes.rows[0]) {
+        assessment = {
+          id: aRes.rows[0].id,
+          status: aRes.rows[0].status,
+          confirmed_at: aRes.rows[0].confirmed_at ? new Date(aRes.rows[0].confirmed_at).toISOString() : null,
+        };
+      }
+    }
+
+    let activity = null;
+    if (activityId) {
+      const actRes = await pg.query(
+        `select id, status from public.activities where id = $1`,
+        [activityId]
+      );
+      if (actRes.rows[0]) {
+        activity = {
+          id: actRes.rows[0].id,
+          status: actRes.rows[0].status,
+        };
+      }
+    }
+
+    const txRes = await pg.query(
+      `select id, amount, xp_type, skill_id from public.xp_transactions where user_id = $1 order by id asc`,
+      [userId]
+    );
+    const xpTransactions = txRes.rows.map((r: { id: string; amount: string | number; xp_type: string; skill_id: string }) => ({
+      id: r.id,
+      amount: Number(r.amount),
+      xp_type: r.xp_type,
+      skill_id: r.skill_id,
+    }));
+
+    const evRes = await pg.query(
+      `select id, evidence_level, description, verified from public.evidence_records where user_id = $1 order by id asc`,
+      [userId]
+    );
+    const evidenceRecords = evRes.rows.map((r: { id: string; evidence_level: string | number; description: string; verified: boolean }) => ({
+      id: r.id,
+      evidence_level: Number(r.evidence_level),
+      description: r.description,
+      verified: Boolean(r.verified),
+    }));
+
+    const mvRes = await pg.query(
+      `select id, status, from_level, to_level from public.mastery_verifications where user_id = $1 order by id asc`,
+      [userId]
+    );
+    const masteryVerifications = mvRes.rows.map((r: { id: string; status: string; from_level: string | number; to_level: string | number }) => ({
+      id: r.id,
+      status: r.status,
+      from_level: Number(r.from_level),
+      to_level: Number(r.to_level),
+    }));
+
+    const meRes = await pg.query(
+      `select id, from_level, to_level from public.mastery_events where user_id = $1 order by id asc`,
+      [userId]
+    );
+    const masteryEvents = meRes.rows.map((r: { id: string; from_level: string | number; to_level: string | number }) => ({
+      id: r.id,
+      from_level: Number(r.from_level),
+      to_level: Number(r.to_level),
+    }));
+
+    const knRes = await pg.query(
+      `select count(*) from public.knowledge_nodes where user_id = $1`,
+      [userId]
+    );
+    const knowledgeNodesCount = Number(knRes.rows[0].count);
+
+    const keRes = await pg.query(
+      `select count(*) from public.knowledge_edges where user_id = $1`,
+      [userId]
+    );
+    const knowledgeEdgesCount = Number(keRes.rows[0].count);
+
+    let quest = null;
+    if (questId) {
+      const qRes = await pg.query(
+        `select id, progress, status from public.quests where id = $1`,
+        [questId]
+      );
+      if (qRes.rows[0]) {
+        quest = {
+          id: qRes.rows[0].id,
+          progress: Number(qRes.rows[0].progress),
+          status: qRes.rows[0].status,
+        };
+      }
+    }
+
+    const artRes = await pg.query(
+      `select id, title, artifact_type, lifecycle_status from public.artifacts where user_id = $1 order by id asc`,
+      [userId]
+    );
+    const artifacts = artRes.rows.map((r: { id: string; title: string; artifact_type: string; lifecycle_status: string }) => ({
+      id: r.id,
+      title: r.title,
+      artifact_type: r.artifact_type,
+      lifecycle_status: r.lifecycle_status,
+    }));
+
+    const aaRes = await pg.query(
+      `select artifact_id, activity_id, activity_role from public.artifact_activities where user_id = $1 order by artifact_id asc, activity_id asc`,
+      [userId]
+    );
+    const artifactActivities = aaRes.rows.map((r: { artifact_id: string; activity_id: string; activity_role: string }) => ({
+      artifact_id: r.artifact_id,
+      activity_id: r.activity_id,
+      activity_role: r.activity_role,
+    }));
+
+    const asRes = await pg.query(
+      `select artifact_id, skill_id from public.artifact_skills where user_id = $1 order by artifact_id asc, skill_id asc`,
+      [userId]
+    );
+    const artifactSkills = asRes.rows.map((r: { artifact_id: string; skill_id: string }) => ({
+      artifact_id: r.artifact_id,
+      skill_id: r.skill_id,
+    }));
+
+    const aknRes = await pg.query(
+      `select artifact_id, node_id from public.artifact_knowledge_nodes where user_id = $1 order by artifact_id asc, node_id asc`,
+      [userId]
+    );
+    const artifactKnowledgeNodes = aknRes.rows.map((r: { artifact_id: string; node_id: string }) => ({
+      artifact_id: r.artifact_id,
+      node_id: r.node_id,
+    }));
+
+    const aqRes = await pg.query(
+      `select artifact_id, quest_id from public.artifact_quests where user_id = $1 order by artifact_id asc, quest_id asc`,
+      [userId]
+    );
+    const artifactQuests = aqRes.rows.map((r: { artifact_id: string; quest_id: string }) => ({
+      artifact_id: r.artifact_id,
+      quest_id: r.quest_id,
+    }));
+
+    const aeRes = await pg.query(
+      `select artifact_id, evidence_id from public.artifact_evidence where user_id = $1 order by artifact_id asc, evidence_id asc`,
+      [userId]
+    );
+    const artifactEvidence = aeRes.rows.map((r: { artifact_id: string; evidence_id: string }) => ({
+      artifact_id: r.artifact_id,
+      evidence_id: r.evidence_id,
+    }));
+
+    return {
+      player,
+      primarySkill,
+      assessment,
+      activity,
+      xpTransactions,
+      evidenceRecords,
+      masteryVerifications,
+      masteryEvents,
+      knowledgeNodesCount,
+      knowledgeEdgesCount,
+      quest,
+      artifacts,
+      artifactActivities,
+      artifactSkills,
+      artifactKnowledgeNodes,
+      artifactQuests,
+      artifactEvidence,
+    };
+  }
+
   describe("5. Assessment Proposal Settlement Rollback & Idempotency", () => {
     let assessmentId: string;
     let activityId: string;
 
     beforeAll(async () => {
-      // Create an activity for User A
+      // Create an activity for User A linked to quest
       const actRes = await pg.query(
-        `insert into public.activities (user_id, title, raw_input, activity_type, status, rules_version, total_minutes, effective_minutes)
-         values ($1, 'Assessment Settlement Test', 'Assessment Settlement Test', 'study', 'pending_assessment', '1.0.0', 45, 40) returning id`,
-        [userAId]
+        `insert into public.activities (user_id, title, raw_input, activity_type, status, rules_version, total_minutes, effective_minutes, quest_id)
+         values ($1, 'Assessment Settlement Test', 'Assessment Settlement Test', 'study', 'pending_assessment', '1.0.0', 45, 40, $2) returning id`,
+        [userAId, userAQuestId]
       );
       activityId = actRes.rows[0].id;
 
@@ -696,12 +929,14 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Artifact Final Security, Cross-Tena
     });
 
     test("Failed settlement (linking foreign User B artifact) proves FULL rollback and ZERO mutation", async () => {
-      // Record baseline snapshot
-      const beforeAssess = (await pg.query(`select status from public.ai_assessments where id = $1`, [assessmentId])).rows[0];
-      const beforeAct = (await pg.query(`select status from public.activities where id = $1`, [activityId])).rows[0];
-      const beforeTxCount = parseInt((await pg.query(`select count(*) from public.xp_transactions where user_id = $1`, [userAId])).rows[0].count);
-      const beforeArtCount = parseInt((await pg.query(`select count(*) from public.artifacts where user_id = $1`, [userAId])).rows[0].count);
-      const beforeArtActCount = parseInt((await pg.query(`select count(*) from public.artifact_activities where user_id = $1`, [userAId])).rows[0].count);
+      // Record baseline snapshot across all domain entities
+      const beforeSnapshot = await snapshotSettlementState(
+        userAId,
+        activityId,
+        assessmentId,
+        userASkillId,
+        userAQuestId
+      );
 
       // User B creates an artifact
       const bRes = await fetch(`${BASE_URL}/api/artifacts`, {
@@ -743,20 +978,18 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Artifact Final Security, Cross-Tena
       const data = await res.json();
       expect(data.code).toBe("artifact_not_found_or_not_owned");
 
-      // Verify ZERO state mutation after failure
-      const afterAssess = (await pg.query(`select status from public.ai_assessments where id = $1`, [assessmentId])).rows[0];
-      const afterAct = (await pg.query(`select status from public.activities where id = $1`, [activityId])).rows[0];
-      const afterTxCount = parseInt((await pg.query(`select count(*) from public.xp_transactions where user_id = $1`, [userAId])).rows[0].count);
-      const afterArtCount = parseInt((await pg.query(`select count(*) from public.artifacts where user_id = $1`, [userAId])).rows[0].count);
-      const afterArtActCount = parseInt((await pg.query(`select count(*) from public.artifact_activities where user_id = $1`, [userAId])).rows[0].count);
+      // Verify FULL rollback across ALL domain entities: afterSnapshot must deep-equal beforeSnapshot
+      const afterSnapshot = await snapshotSettlementState(
+        userAId,
+        activityId,
+        assessmentId,
+        userASkillId,
+        userAQuestId
+      );
 
-      expect(afterAssess.status).toBe(beforeAssess.status);
-      expect(afterAct.status).toBe(beforeAct.status);
-      expect(afterAssess.status).toBe("pending");
-      expect(afterAct.status).toBe("pending_assessment");
-      expect(afterTxCount).toBe(beforeTxCount);
-      expect(afterArtCount).toBe(beforeArtCount);
-      expect(afterArtActCount).toBe(beforeArtActCount);
+      expect(afterSnapshot).toEqual(beforeSnapshot);
+      expect(afterSnapshot.assessment?.status).toBe("pending");
+      expect(afterSnapshot.activity?.status).toBe("pending_assessment");
     });
 
     test("Successfully settles assessment and proves comprehensive idempotency across all domain entities on duplicate confirm", async () => {
@@ -789,19 +1022,19 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Artifact Final Security, Cross-Tena
       expect(res1.status).toBe(200);
 
       // Record snapshot after successful 1st settlement
-      const txRes1 = await pg.query(`select * from public.xp_transactions where activity_id = $1`, [activityId]);
-      expect(txRes1.rows.length).toBe(1);
-      const firstTx = txRes1.rows[0];
+      const snapshotAfterFirst = await snapshotSettlementState(
+        userAId,
+        activityId,
+        assessmentId,
+        userASkillId,
+        userAQuestId
+      );
 
-      const artRes1 = await pg.query(`select * from public.artifacts where user_id = $1 and title = $2`, [userAId, artTitle]);
-      expect(artRes1.rows.length).toBe(1);
-      const createdArtId = artRes1.rows[0].id;
-
-      const artActRes1 = await pg.query(`select count(*) from public.artifact_activities where activity_id = $1`, [activityId]);
-      expect(parseInt(artActRes1.rows[0].count)).toBe(1);
-
-      const assessRow1 = (await pg.query(`select status from public.ai_assessments where id = $1`, [assessmentId])).rows[0];
-      expect(assessRow1.status).toBe("confirmed");
+      expect(snapshotAfterFirst.assessment?.status).toBe("confirmed");
+      expect(snapshotAfterFirst.activity?.status).toBe("confirmed");
+      expect(snapshotAfterFirst.xpTransactions.length).toBe(1);
+      expect(snapshotAfterFirst.artifacts.some((a) => a.title === artTitle)).toBe(true);
+      expect(snapshotAfterFirst.artifactActivities.length).toBe(1);
 
       // 2. Duplicate Confirm -> rejected with 409 already_confirmed
       const res2 = await fetch(`${BASE_URL}/api/assessments/${assessmentId}/confirm`, {
@@ -816,17 +1049,16 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Artifact Final Security, Cross-Tena
       const errData = await res2.json();
       expect(errData.code).toBe("already_confirmed");
 
-      // Verify strict idempotency: zero duplicate transactions, zero duplicate artifacts, zero duplicate links
-      const txRes2 = await pg.query(`select * from public.xp_transactions where activity_id = $1`, [activityId]);
-      expect(txRes2.rows.length).toBe(1);
-      expect(txRes2.rows[0].id).toBe(firstTx.id);
+      // Verify comprehensive idempotency: snapshotAfterSecond MUST deep-equal snapshotAfterFirst
+      const snapshotAfterSecond = await snapshotSettlementState(
+        userAId,
+        activityId,
+        assessmentId,
+        userASkillId,
+        userAQuestId
+      );
 
-      const artRes2 = await pg.query(`select * from public.artifacts where user_id = $1 and title = $2`, [userAId, artTitle]);
-      expect(artRes2.rows.length).toBe(1);
-      expect(artRes2.rows[0].id).toBe(createdArtId);
-
-      const artActRes2 = await pg.query(`select count(*) from public.artifact_activities where activity_id = $1`, [activityId]);
-      expect(parseInt(artActRes2.rows[0].count)).toBe(1);
+      expect(snapshotAfterSecond).toEqual(snapshotAfterFirst);
     });
   });
 
@@ -836,11 +1068,11 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Artifact Final Security, Cross-Tena
   describe("6. Concurrency Audit", () => {
     test("Two simultaneous confirmation requests on the same assessment result in exactly ONE success and ZERO duplicate mutations", async () => {
       const concTitle = "Concurrent Artifact " + Date.now();
-      // Setup concurrent assessment fixture
+      // Setup concurrent assessment fixture linked to quest
       const actRes = await pg.query(
-        `insert into public.activities (user_id, title, raw_input, activity_type, status, rules_version, total_minutes, effective_minutes)
-         values ($1, 'Concurrent Settlement Test', 'Concurrent Settlement Test', 'study', 'pending_assessment', '1.0.0', 45, 40) returning id`,
-        [userAId]
+        `insert into public.activities (user_id, title, raw_input, activity_type, status, rules_version, total_minutes, effective_minutes, quest_id)
+         values ($1, 'Concurrent Settlement Test', 'Concurrent Settlement Test', 'study', 'pending_assessment', '1.0.0', 45, 40, $2) returning id`,
+        [userAId, userAQuestId]
       );
       const concActId = actRes.rows[0].id;
 
@@ -883,6 +1115,15 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Artifact Final Security, Cross-Tena
       );
       const concAssessId = assessRes.rows[0].id;
 
+      // Baseline authoritative snapshot before concurrency
+      const baselineSnapshot = await snapshotSettlementState(
+        userAId,
+        concActId,
+        concAssessId,
+        userASkillId,
+        userAQuestId
+      );
+
       const payload = {
         artifactResolutions: [
           {
@@ -916,28 +1157,48 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Artifact Final Security, Cross-Tena
       // Exactly one must be 200 (Success) and the other 409 (already_confirmed)
       expect(statuses).toEqual([200, 409]);
 
-      // Verify exactly ONE assessment was confirmed
+      // Final authoritative snapshot after concurrency
+      const finalSnapshot = await snapshotSettlementState(
+        userAId,
+        concActId,
+        concAssessId,
+        userASkillId,
+        userAQuestId
+      );
+
+      // Verify all domain entities mutated EXACTLY ONCE
+      expect(finalSnapshot.assessment?.status).toBe("confirmed");
+      expect(finalSnapshot.activity?.status).toBe("confirmed");
+      expect(finalSnapshot.player?.total_xp).toBe((baselineSnapshot.player?.total_xp || 0) + 50);
+      expect(finalSnapshot.primarySkill?.xp).toBe((baselineSnapshot.primarySkill?.xp || 0) + 50);
+      expect(finalSnapshot.xpTransactions.length).toBe(baselineSnapshot.xpTransactions.length + 1);
+      expect(finalSnapshot.evidenceRecords.length).toBe(baselineSnapshot.evidenceRecords.length + 1);
+      expect(finalSnapshot.artifacts.length).toBe(baselineSnapshot.artifacts.length + 1);
+      expect(finalSnapshot.artifactActivities.length).toBe(baselineSnapshot.artifactActivities.length + 1);
+      expect(finalSnapshot.quest?.progress).toBe((baselineSnapshot.quest?.progress || 0) + 20);
+      expect(finalSnapshot.masteryVerifications.length).toBe(baselineSnapshot.masteryVerifications.length);
+      expect(finalSnapshot.knowledgeNodesCount).toBe(baselineSnapshot.knowledgeNodesCount);
+      expect(finalSnapshot.knowledgeEdgesCount).toBe(baselineSnapshot.knowledgeEdgesCount);
+
+      // Verify DB constraints directly
       const assessConfirmedCount = await pg.query(
         `select count(*) from public.ai_assessments where id = $1 and status = 'confirmed'`,
         [concAssessId]
       );
       expect(parseInt(assessConfirmedCount.rows[0].count)).toBe(1);
 
-      // Verify exactly ONE transaction was recorded in DB
       const txCount = await pg.query(
         `select count(*) from public.xp_transactions where activity_id = $1`,
         [concActId]
       );
       expect(parseInt(txCount.rows[0].count)).toBe(1);
 
-      // Verify exactly ONE artifact was created in public.artifacts
       const artCount = await pg.query(
         `select count(*) from public.artifacts where user_id = $1 and title = $2`,
         [userAId, concTitle]
       );
       expect(parseInt(artCount.rows[0].count)).toBe(1);
 
-      // Verify exactly ONE artifact_activities relationship
       const artActCount = await pg.query(
         `select count(*) from public.artifact_activities where user_id = $1 and activity_id = $2`,
         [userAId, concActId]
