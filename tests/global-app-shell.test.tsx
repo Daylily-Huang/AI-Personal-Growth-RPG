@@ -663,9 +663,9 @@ describe("Global App Shell — Phase 2 Architecture & Component Verification", (
     expect(questLink.getAttribute("aria-label")).toBe("任务志");
     expect(questLink.getAttribute("title")).toBe("任务志");
 
-    const disabledArtifact = screen.getByTestId("nav-item-disabled-产出台");
-    expect(disabledArtifact.getAttribute("aria-label")).toBe("产出台，即将开放");
-    expect(disabledArtifact.getAttribute("title")).toBe("产出台 (即将开放)");
+    const artifactLink = screen.getByTestId("nav-item-artifacts");
+    expect(artifactLink.getAttribute("aria-label")).toBe("产出台");
+    expect(artifactLink.getAttribute("title")).toBe("产出台");
   });
 
   it("39. verifies AppHeader progression skeleton reserves the Total XP segment for zero layout shift at xl", () => {
