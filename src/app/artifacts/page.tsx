@@ -23,6 +23,7 @@ import {
   SlidersHorizontal,
   ChevronDown,
   X,
+  Sparkles,
 } from "lucide-react";
 import type {
   ArtifactWithCounts,
@@ -61,6 +62,8 @@ export default function ArtifactsPage() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedType, setSelectedType] = useState("all");
   const [selectedStatus, setSelectedStatus] = useState("active");
+  const [selectedSkillId, setSelectedSkillId] = useState("all");
+  const [availableSkills, setAvailableSkills] = useState<Array<{ id: string; name: string }>>([]);
   const [refreshKey, setRefreshKey] = useState(0);
 
   // Pagination State
@@ -82,6 +85,7 @@ export default function ArtifactsPage() {
 
   // Mobile Filter Drawer
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
+  const mobileFilterOpenerRef = useRef<HTMLButtonElement | null>(null);
 
   // Modal States
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -92,6 +96,23 @@ export default function ArtifactsPage() {
   const detailRequestIdRef = useRef(0);
   const listRequestIdRef = useRef(0);
 
+  // Load available skills for left rail filter
+  useEffect(() => {
+    fetch("/api/skills")
+      .then((r) => r.json())
+      .then((d: { nodes?: Array<{ id: string; name?: string; title?: string; data?: { name?: string } }> }) => {
+        if (d.nodes) {
+          setAvailableSkills(
+            d.nodes.map((n) => ({
+              id: n.id,
+              name: n.data?.name || n.name || n.title || n.id,
+            }))
+          );
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   // 300ms Search Debounce
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -100,6 +121,20 @@ export default function ArtifactsPage() {
     }, 300);
     return () => clearTimeout(timer);
   }, [searchQuery]);
+
+  // Mobile Filter Escape key listener & focus management
+  useEffect(() => {
+    if (!mobileFilterOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        setMobileFilterOpen(false);
+        mobileFilterOpenerRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [mobileFilterOpen]);
 
   // Fetch Artifact List with Cancellation & Stale Protection
   useEffect(() => {
@@ -119,6 +154,7 @@ export default function ArtifactsPage() {
       if (selectedType !== "all") params.set("type", selectedType);
       // Requirement 4: Always explicitly send status (especially status=all)
       params.set("status", selectedStatus);
+      if (selectedSkillId !== "all") params.set("skillId", selectedSkillId);
       if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
       params.set("limit", String(PAGE_SIZE));
       params.set("offset", String(offset));
@@ -175,7 +211,7 @@ export default function ArtifactsPage() {
       ignore = true;
       controller.abort();
     };
-  }, [selectedType, selectedStatus, debouncedSearch, offset, refreshKey, router]);
+  }, [selectedType, selectedStatus, selectedSkillId, debouncedSearch, offset, refreshKey, router]);
 
   const refreshArtifacts = useCallback(() => {
     setRefreshKey((k) => k + 1);
@@ -234,7 +270,7 @@ export default function ArtifactsPage() {
     setDetailError(null);
   };
 
-  // Status Change (Archive / Restore) strictly bound to artifactId
+  // Status Change (Archive / Restore) strictly bound to targetArtifactId
   const handleStatusChange = async (
     targetArtifactId: string,
     newStatus: ArtifactLifecycleStatus,
@@ -269,7 +305,7 @@ export default function ArtifactsPage() {
     refreshArtifacts();
   };
 
-  // Delete Artifact strictly bound to artifactId
+  // Delete Artifact strictly bound to targetArtifactId
   const handleDeleteArtifact = async (
     targetArtifactId: string
   ): Promise<{
@@ -333,11 +369,12 @@ export default function ArtifactsPage() {
   };
 
   const hasActiveFilters =
-    selectedType !== "all" || selectedStatus !== "active" || searchQuery !== "";
+    selectedType !== "all" || selectedStatus !== "active" || selectedSkillId !== "all" || searchQuery !== "";
 
   const handleResetFilters = () => {
     setSelectedType("all");
     setSelectedStatus("active");
+    setSelectedSkillId("all");
     setSearchQuery("");
     setOffset(0);
   };
@@ -354,7 +391,7 @@ export default function ArtifactsPage() {
           <button
             type="button"
             onClick={handleResetFilters}
-            className="text-xs text-[var(--text-accent)] hover:underline cursor-pointer"
+            className="text-xs text-[var(--text-accent)] hover:underline cursor-pointer min-h-[var(--touch-target-min)]"
           >
             重置
           </button>
@@ -377,6 +414,7 @@ export default function ArtifactsPage() {
                   setSelectedType(t.id);
                   setOffset(0);
                   setMobileFilterOpen(false);
+                  mobileFilterOpenerRef.current?.focus();
                 }}
                 className={`w-full flex items-center justify-between px-3 py-2 rounded-[var(--radius-md)] text-xs transition-colors min-h-[var(--touch-target-min)] cursor-pointer ${
                   isSelected
@@ -407,6 +445,7 @@ export default function ArtifactsPage() {
                   setSelectedStatus(s.id);
                   setOffset(0);
                   setMobileFilterOpen(false);
+                  mobileFilterOpenerRef.current?.focus();
                 }}
                 className={`w-full flex items-center justify-between px-3 py-2 rounded-[var(--radius-md)] text-xs transition-colors min-h-[var(--touch-target-min)] cursor-pointer ${
                   isSelected
@@ -420,6 +459,56 @@ export default function ArtifactsPage() {
           })}
         </div>
       </div>
+
+      {/* 4. Linked Skill Filter Section */}
+      {availableSkills.length > 0 && (
+        <div className="space-y-2 pt-3 border-t border-[var(--border-subtle)]">
+          <label className="text-xs font-[var(--font-weight-semibold)] text-[var(--text-muted)] uppercase tracking-wider flex items-center gap-1.5">
+            <Sparkles className="w-3.5 h-3.5 text-[var(--entity-skill-text)]" />
+            <span>关联技能 (Linked Skill)</span>
+          </label>
+          <div className="space-y-1 max-h-48 overflow-y-auto">
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedSkillId("all");
+                setOffset(0);
+                setMobileFilterOpen(false);
+                mobileFilterOpenerRef.current?.focus();
+              }}
+              className={`w-full flex items-center justify-between px-3 py-1.5 rounded-[var(--radius-md)] text-xs transition-colors min-h-[var(--touch-target-min)] cursor-pointer ${
+                selectedSkillId === "all"
+                  ? "bg-[var(--selection-neutral-bg)] text-[var(--selection-neutral-text)] border border-[var(--selection-neutral-border)] font-[var(--font-weight-semibold)]"
+                  : "text-[var(--text-secondary)] hover:bg-[var(--surface-hover-neutral)] hover:text-[var(--text-primary)]"
+              }`}
+            >
+              <span>全部技能</span>
+            </button>
+            {availableSkills.map((sk) => {
+              const isSelected = selectedSkillId === sk.id;
+              return (
+                <button
+                  key={sk.id}
+                  type="button"
+                  onClick={() => {
+                    setSelectedSkillId(sk.id);
+                    setOffset(0);
+                    setMobileFilterOpen(false);
+                    mobileFilterOpenerRef.current?.focus();
+                  }}
+                  className={`w-full flex items-center justify-between px-3 py-1.5 rounded-[var(--radius-md)] text-xs transition-colors min-h-[var(--touch-target-min)] cursor-pointer ${
+                    isSelected
+                      ? "bg-[var(--selection-neutral-bg)] text-[var(--selection-neutral-text)] border border-[var(--selection-neutral-border)] font-[var(--font-weight-semibold)]"
+                      : "text-[var(--text-secondary)] hover:bg-[var(--surface-hover-neutral)] hover:text-[var(--text-primary)]"
+                  }`}
+                >
+                  <span className="truncate max-w-[170px] text-left">{sk.name}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 
@@ -430,6 +519,7 @@ export default function ArtifactsPage() {
         <div className="flex items-center gap-3 flex-1 max-w-lg">
           {/* Mobile Filter Toggle */}
           <button
+            ref={mobileFilterOpenerRef}
             type="button"
             onClick={() => setMobileFilterOpen(true)}
             aria-label="打开筛选面板"
@@ -533,10 +623,15 @@ export default function ArtifactsPage() {
             </GlassPanel>
           ) : (
             <div className="space-y-6">
-              {/* Gallery Grid */}
+              {/* Responsive Gallery Grid: adjusts columns depending on whether Inspector is open to protect card density */}
               <div
                 data-testid="artifacts-grid"
-                className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"
+                data-inspector-open={drawerOpen ? "true" : "false"}
+                className={`grid gap-4 ${
+                  drawerOpen
+                    ? "grid-cols-1 md:grid-cols-1 2xl:grid-cols-2"
+                    : "grid-cols-1 md:grid-cols-2 xl:grid-cols-3"
+                }`}
               >
                 {artifacts.map((art) => (
                   <ArtifactCard
@@ -608,25 +703,36 @@ export default function ArtifactsPage() {
         </InspectorDrawer>
       </div>
 
-      {/* Mobile Filter Drawer Overlay */}
+      {/* Mobile Filter Drawer Overlay with semantic z-index tokens */}
       {mobileFilterOpen && (
         <>
           <button
             type="button"
             aria-label="关闭筛选面板"
-            onClick={() => setMobileFilterOpen(false)}
-            className="fixed inset-0 z-40 bg-[var(--surface-modal-backdrop)] backdrop-blur-[var(--glass-blur-sm)] lg:hidden"
+            onClick={() => {
+              setMobileFilterOpen(false);
+              mobileFilterOpenerRef.current?.focus();
+            }}
+            className="fixed inset-0 z-[var(--z-modal-backdrop)] bg-[var(--surface-modal-backdrop)] backdrop-blur-[var(--glass-blur-sm)] lg:hidden cursor-pointer"
           />
-          <div className="fixed inset-y-0 left-0 z-50 w-64 max-w-[85vw] flex flex-col border-r border-[var(--border-raised)] bg-[var(--surface-overlay)] shadow-[var(--shadow-overlay)] lg:hidden">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="成果筛选面板"
+            className="fixed inset-y-0 left-0 z-[var(--z-drawer)] w-64 max-w-[85vw] flex flex-col border-r border-[var(--border-raised)] bg-[var(--surface-overlay)] shadow-[var(--shadow-overlay)] lg:hidden"
+          >
             <div className="flex items-center justify-between border-b border-[var(--border-subtle)] px-4 py-3 shrink-0">
               <span className="font-serif text-sm font-[var(--font-weight-semibold)] text-[var(--text-primary)]">
-                筛选
+                成果筛选
               </span>
               <button
                 type="button"
-                onClick={() => setMobileFilterOpen(false)}
+                onClick={() => {
+                  setMobileFilterOpen(false);
+                  mobileFilterOpenerRef.current?.focus();
+                }}
                 aria-label="关闭"
-                className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-[var(--radius-sm)]"
+                className="p-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-[var(--radius-sm)] min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] flex items-center justify-center cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>

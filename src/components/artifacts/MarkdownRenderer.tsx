@@ -8,6 +8,28 @@ interface MarkdownRendererProps {
 }
 
 /**
+ * Validates whether a URL uses a safe protocol for linking.
+ * Disallows dangerous schemes like javascript:, data:, vbscript:, etc.
+ */
+function isSafeUrl(url: string): boolean {
+  if (!url) return false;
+  const trimmed = url.trim().toLowerCase();
+  // Safe absolute protocols
+  if (
+    trimmed.startsWith("https://") ||
+    trimmed.startsWith("http://") ||
+    trimmed.startsWith("mailto:")
+  ) {
+    return true;
+  }
+  // Safe relative paths
+  if (trimmed.startsWith("/") || trimmed.startsWith("#")) {
+    return true;
+  }
+  return false;
+}
+
+/**
  * Safe, presentation-only Markdown renderer.
  * Converts markdown text into structured React elements without raw HTML or XSS vulnerability.
  */
@@ -79,17 +101,22 @@ export function MarkdownRenderer({ content, className = "" }: MarkdownRendererPr
         const linkMatch = token.match(/\[([^\]]+)\]\(([^)]+)\)/);
         if (linkMatch) {
           const [, label, href] = linkMatch;
-          parts.push(
-            <a
-              key={`a-${subKey++}`}
-              href={href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[var(--text-accent)] underline hover:text-[var(--text-primary)] transition-colors inline-flex items-center gap-0.5"
-            >
-              {label}
-            </a>
-          );
+          if (isSafeUrl(href)) {
+            parts.push(
+              <a
+                key={`a-${subKey++}`}
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[var(--text-accent)] underline hover:text-[var(--text-primary)] transition-colors inline-flex items-center gap-0.5"
+              >
+                {label}
+              </a>
+            );
+          } else {
+            // Unsafe URL scheme (javascript:, data:, vbscript:, etc.) -> Render as plain text label
+            parts.push(label);
+          }
         } else {
           parts.push(token);
         }
@@ -118,7 +145,7 @@ export function MarkdownRenderer({ content, className = "" }: MarkdownRendererPr
             className="my-3 rounded-[var(--radius-md)] bg-[var(--surface-ground)] border border-[var(--border-default)] overflow-hidden"
           >
             {codeBlockLang && (
-              <div className="px-3 py-1 bg-[var(--surface-raised)] border-b border-[var(--border-subtle)] text-[10px] font-mono text-[var(--text-muted)] uppercase">
+              <div className="px-3 py-1 bg-[var(--surface-raised)] border-b border-[var(--border-subtle)] text-xs font-mono text-[var(--text-muted)] uppercase">
                 {codeBlockLang}
               </div>
             )}

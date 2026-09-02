@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { BaseModal } from "@/components/ui/BaseModal";
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import { SecondaryButton } from "@/components/ui/SecondaryButton";
+import { isValidUuid } from "./ArtifactProposalResolutionPicker";
 import {
   Sparkles,
   Network,
@@ -131,11 +132,10 @@ function ArtifactLinkManagerModalInner({
   const [detachedActivityIds, setDetachedActivityIds] = useState<string[]>([]);
   const [detachedEvidenceIds, setDetachedEvidenceIds] = useState<string[]>([]);
 
-  // Available options loaded from read APIs
+  // Available options loaded from read APIs with robust graph property parsing
   const [availableSkills, setAvailableSkills] = useState<Array<{ id: string; name: string; level: number }>>([]);
   const [availableKnowledge, setAvailableKnowledge] = useState<Array<{ id: string; title: string; nodeType: string }>>([]);
   const [availableQuests, setAvailableQuests] = useState<Array<{ id: string; title: string }>>([]);
-  const [availableActivities, setAvailableActivities] = useState<Array<{ id: string; title: string }>>([]);
 
   // Form Inputs for Adding Links
   const [skillIdInput, setSkillIdInput] = useState("");
@@ -163,13 +163,13 @@ function ArtifactLinkManagerModalInner({
   useEffect(() => {
     fetch("/api/skills")
       .then((r) => r.json())
-      .then((data: { nodes?: Array<{ id: string; name?: string; title?: string; level?: number }> }) => {
+      .then((data: { nodes?: Array<{ id: string; name?: string; title?: string; level?: number; data?: { name?: string; level?: number } }> }) => {
         if (data.nodes) {
           setAvailableSkills(
             data.nodes.map((n) => ({
               id: n.id,
-              name: n.name || n.title || n.id,
-              level: n.level ?? 1,
+              name: n.data?.name || n.name || n.title || n.id,
+              level: n.data?.level || n.level || 1,
             }))
           );
         }
@@ -178,13 +178,13 @@ function ArtifactLinkManagerModalInner({
 
     fetch("/api/knowledge")
       .then((r) => r.json())
-      .then((data: { nodes?: Array<{ id: string; title?: string; node_type?: string }> }) => {
+      .then((data: { nodes?: Array<{ id: string; title?: string; nodeType?: string; node_type?: string }> }) => {
         if (data.nodes) {
           setAvailableKnowledge(
             data.nodes.map((n) => ({
               id: n.id,
               title: n.title || n.id,
-              nodeType: n.node_type || "concept",
+              nodeType: n.nodeType || n.node_type || "concept",
             }))
           );
         }
@@ -204,20 +204,6 @@ function ArtifactLinkManagerModalInner({
         }
       })
       .catch(() => {});
-
-    fetch("/api/activities")
-      .then((r) => r.json())
-      .then((data: { activities?: Array<{ id: string; title?: string; raw_input?: string }> }) => {
-        if (data.activities) {
-          setAvailableActivities(
-            data.activities.map((a) => ({
-              id: a.id,
-              title: a.title || a.raw_input || a.id,
-            }))
-          );
-        }
-      })
-      .catch(() => {});
   }, []);
 
   const { artifact } = detail;
@@ -227,6 +213,10 @@ function ArtifactLinkManagerModalInner({
     e.preventDefault();
     const id = skillIdInput.trim();
     if (!id) return;
+    if (!isValidUuid(id)) {
+      setErrorMessage("请输入有效的 36 位技能 UUID 格式");
+      return;
+    }
     if (stagedSkills.some((s) => s.skillId === id)) {
       setErrorMessage("该技能已在关联列表中");
       return;
@@ -259,6 +249,10 @@ function ArtifactLinkManagerModalInner({
     e.preventDefault();
     const id = knowledgeNodeIdInput.trim();
     if (!id) return;
+    if (!isValidUuid(id)) {
+      setErrorMessage("请输入有效的 36 位知识节点 UUID 格式");
+      return;
+    }
     if (stagedKnowledge.some((k) => k.nodeId === id)) {
       setErrorMessage("该知识节点已在关联列表中");
       return;
@@ -292,6 +286,10 @@ function ArtifactLinkManagerModalInner({
     e.preventDefault();
     const id = questIdInput.trim();
     if (!id) return;
+    if (!isValidUuid(id)) {
+      setErrorMessage("请输入有效的 36 位任务 UUID 格式");
+      return;
+    }
     if (stagedQuests.some((q) => q.questId === id)) {
       setErrorMessage("该任务已在关联列表中");
       return;
@@ -324,16 +322,19 @@ function ArtifactLinkManagerModalInner({
     e.preventDefault();
     const id = activityIdInput.trim();
     if (!id) return;
+    if (!isValidUuid(id)) {
+      setErrorMessage("请输入有效的 36 位活动 UUID 格式");
+      return;
+    }
     if (stagedActivities.some((a) => a.activityId === id)) {
       setErrorMessage("该活动已在关联列表中");
       return;
     }
-    const found = availableActivities.find((a) => a.id === id);
     setStagedActivities((prev) => [
       ...prev,
       {
         activityId: id,
-        title: found ? found.title : `Activity (${id.slice(0, 8)})`,
+        title: `Activity (${id.slice(0, 8)})`,
         activityRole,
         isNew: true,
       },
@@ -355,6 +356,10 @@ function ArtifactLinkManagerModalInner({
     e.preventDefault();
     const id = evidenceIdInput.trim();
     if (!id) return;
+    if (!isValidUuid(id)) {
+      setErrorMessage("请输入有效的 36 位实证记录 UUID 格式");
+      return;
+    }
     if (stagedEvidence.some((ev) => ev.evidenceId === id)) {
       setErrorMessage("该实证已在关联列表中");
       return;
@@ -525,7 +530,10 @@ function ArtifactLinkManagerModalInner({
             type="button"
             role="tab"
             aria-selected={activeTab === "skills"}
-            onClick={() => setActiveTab("skills")}
+            onClick={() => {
+              setActiveTab("skills");
+              setErrorMessage(null);
+            }}
             data-testid="link-tab-skills"
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius-sm)] text-xs font-[var(--font-weight-medium)] transition-colors shrink-0 cursor-pointer min-h-[var(--touch-target-min)] ${
               activeTab === "skills"
@@ -541,7 +549,10 @@ function ArtifactLinkManagerModalInner({
             type="button"
             role="tab"
             aria-selected={activeTab === "knowledge"}
-            onClick={() => setActiveTab("knowledge")}
+            onClick={() => {
+              setActiveTab("knowledge");
+              setErrorMessage(null);
+            }}
             data-testid="link-tab-knowledge"
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius-sm)] text-xs font-[var(--font-weight-medium)] transition-colors shrink-0 cursor-pointer min-h-[var(--touch-target-min)] ${
               activeTab === "knowledge"
@@ -557,7 +568,10 @@ function ArtifactLinkManagerModalInner({
             type="button"
             role="tab"
             aria-selected={activeTab === "quests"}
-            onClick={() => setActiveTab("quests")}
+            onClick={() => {
+              setActiveTab("quests");
+              setErrorMessage(null);
+            }}
             data-testid="link-tab-quests"
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius-sm)] text-xs font-[var(--font-weight-medium)] transition-colors shrink-0 cursor-pointer min-h-[var(--touch-target-min)] ${
               activeTab === "quests"
@@ -573,7 +587,10 @@ function ArtifactLinkManagerModalInner({
             type="button"
             role="tab"
             aria-selected={activeTab === "activities"}
-            onClick={() => setActiveTab("activities")}
+            onClick={() => {
+              setActiveTab("activities");
+              setErrorMessage(null);
+            }}
             data-testid="link-tab-activities"
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius-sm)] text-xs font-[var(--font-weight-medium)] transition-colors shrink-0 cursor-pointer min-h-[var(--touch-target-min)] ${
               activeTab === "activities"
@@ -589,7 +606,10 @@ function ArtifactLinkManagerModalInner({
             type="button"
             role="tab"
             aria-selected={activeTab === "evidence"}
-            onClick={() => setActiveTab("evidence")}
+            onClick={() => {
+              setActiveTab("evidence");
+              setErrorMessage(null);
+            }}
             data-testid="link-tab-evidence"
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius-sm)] text-xs font-[var(--font-weight-medium)] transition-colors shrink-0 cursor-pointer min-h-[var(--touch-target-min)] ${
               activeTab === "evidence"
@@ -615,7 +635,7 @@ function ArtifactLinkManagerModalInner({
                     value={skillIdInput}
                     onChange={(e) => setSkillIdInput(e.target.value)}
                     data-testid="link-skill-select"
-                    className="w-full px-3 py-1.5 text-xs rounded-[var(--radius-md)] bg-[var(--surface-ground)] border border-[var(--border-default)] text-[var(--text-primary)] cursor-pointer"
+                    className="w-full px-3 py-1.5 text-xs rounded-[var(--radius-md)] bg-[var(--surface-ground)] border border-[var(--border-default)] text-[var(--text-primary)] cursor-pointer min-h-[var(--touch-target-min)]"
                   >
                     <option value="">-- 选择已有技能 --</option>
                     {availableSkills.map((s) => (
@@ -630,7 +650,7 @@ function ArtifactLinkManagerModalInner({
                     value={skillDemoLevel}
                     onChange={(e) => setSkillDemoLevel(Number(e.target.value))}
                     data-testid="link-skill-demo-level-select"
-                    className="w-full px-3 py-1.5 text-xs rounded-[var(--radius-md)] bg-[var(--surface-ground)] border border-[var(--border-default)] text-[var(--text-primary)] cursor-pointer"
+                    className="w-full px-3 py-1.5 text-xs rounded-[var(--radius-md)] bg-[var(--surface-ground)] border border-[var(--border-default)] text-[var(--text-primary)] cursor-pointer min-h-[var(--touch-target-min)]"
                   >
                     {[1, 2, 3, 4, 5].map((lvl) => (
                       <option key={lvl} value={lvl}>
@@ -645,9 +665,9 @@ function ArtifactLinkManagerModalInner({
                   type="text"
                   value={skillIdInput}
                   onChange={(e) => setSkillIdInput(e.target.value)}
-                  placeholder="或直接输入/粘贴技能 UUID (skillId)"
+                  placeholder="或直接输入/粘贴技能 36 位 UUID (skillId)"
                   data-testid="link-skill-id-input"
-                  className="flex-1 px-3 py-1.5 text-xs rounded-[var(--radius-md)] bg-[var(--surface-ground)] border border-[var(--border-default)] font-mono text-[var(--text-primary)]"
+                  className="flex-1 px-3 py-1.5 text-xs rounded-[var(--radius-md)] bg-[var(--surface-ground)] border border-[var(--border-default)] font-mono text-[var(--text-primary)] min-h-[var(--touch-target-min)]"
                 />
                 <PrimaryButton
                   type="submit"
@@ -710,7 +730,7 @@ function ArtifactLinkManagerModalInner({
                     value={knowledgeNodeIdInput}
                     onChange={(e) => setKnowledgeNodeIdInput(e.target.value)}
                     data-testid="link-knowledge-select"
-                    className="w-full px-3 py-1.5 text-xs rounded-[var(--radius-md)] bg-[var(--surface-ground)] border border-[var(--border-default)] text-[var(--text-primary)] cursor-pointer"
+                    className="w-full px-3 py-1.5 text-xs rounded-[var(--radius-md)] bg-[var(--surface-ground)] border border-[var(--border-default)] text-[var(--text-primary)] cursor-pointer min-h-[var(--touch-target-min)]"
                   >
                     <option value="">-- 选择已有知识节点 --</option>
                     {availableKnowledge.map((k) => (
@@ -729,7 +749,7 @@ function ArtifactLinkManagerModalInner({
                       )
                     }
                     data-testid="link-knowledge-relation-select"
-                    className="w-full px-3 py-1.5 text-xs rounded-[var(--radius-md)] bg-[var(--surface-ground)] border border-[var(--border-default)] text-[var(--text-primary)] cursor-pointer"
+                    className="w-full px-3 py-1.5 text-xs rounded-[var(--radius-md)] bg-[var(--surface-ground)] border border-[var(--border-default)] text-[var(--text-primary)] cursor-pointer min-h-[var(--touch-target-min)]"
                   >
                     <option value="synthesizes">synthesizes (综合)</option>
                     <option value="implements">implements (实现)</option>
@@ -743,9 +763,9 @@ function ArtifactLinkManagerModalInner({
                   type="text"
                   value={knowledgeNodeIdInput}
                   onChange={(e) => setKnowledgeNodeIdInput(e.target.value)}
-                  placeholder="或直接输入/粘贴节点 UUID (nodeId)"
+                  placeholder="或直接输入/粘贴节点 36 位 UUID (nodeId)"
                   data-testid="link-knowledge-id-input"
-                  className="flex-1 px-3 py-1.5 text-xs rounded-[var(--radius-md)] bg-[var(--surface-ground)] border border-[var(--border-default)] font-mono text-[var(--text-primary)]"
+                  className="flex-1 px-3 py-1.5 text-xs rounded-[var(--radius-md)] bg-[var(--surface-ground)] border border-[var(--border-default)] font-mono text-[var(--text-primary)] min-h-[var(--touch-target-min)]"
                 />
                 <PrimaryButton
                   type="submit"
@@ -806,7 +826,7 @@ function ArtifactLinkManagerModalInner({
                 value={questIdInput}
                 onChange={(e) => setQuestIdInput(e.target.value)}
                 data-testid="link-quest-select"
-                className="w-full px-3 py-1.5 text-xs rounded-[var(--radius-md)] bg-[var(--surface-ground)] border border-[var(--border-default)] text-[var(--text-primary)] cursor-pointer"
+                className="w-full px-3 py-1.5 text-xs rounded-[var(--radius-md)] bg-[var(--surface-ground)] border border-[var(--border-default)] text-[var(--text-primary)] cursor-pointer min-h-[var(--touch-target-min)]"
               >
                 <option value="">-- 选择已有任务 --</option>
                 {availableQuests.map((q) => (
@@ -831,9 +851,9 @@ function ArtifactLinkManagerModalInner({
                   type="text"
                   value={questIdInput}
                   onChange={(e) => setQuestIdInput(e.target.value)}
-                  placeholder="或直接输入任务 UUID (questId)"
+                  placeholder="或直接输入任务 36 位 UUID (questId)"
                   data-testid="link-quest-id-input"
-                  className="flex-1 px-3 py-1.5 text-xs rounded-[var(--radius-md)] bg-[var(--surface-ground)] border border-[var(--border-default)] font-mono text-[var(--text-primary)]"
+                  className="flex-1 px-3 py-1.5 text-xs rounded-[var(--radius-md)] bg-[var(--surface-ground)] border border-[var(--border-default)] font-mono text-[var(--text-primary)] min-h-[var(--touch-target-min)]"
                 />
                 <PrimaryButton
                   type="submit"
@@ -885,28 +905,23 @@ function ArtifactLinkManagerModalInner({
           </div>
         )}
 
-        {/* Tab 4: Activities */}
+        {/* Tab 4: Activities (Advanced UUID fallback) */}
         {activeTab === "activities" && (
           <div role="tabpanel" className="space-y-4">
             <form onSubmit={handleStageActivity} className="p-3 rounded-[var(--radius-md)] bg-[var(--surface-base)] border border-[var(--border-subtle)] space-y-3">
               <div className="text-xs font-[var(--font-weight-semibold)] text-[var(--text-primary)]">
-                添加活动关联 (Attach Activity)
+                添加活动关联 (Attach Activity UUID)
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 <div className="sm:col-span-2">
-                  <select
+                  <input
+                    type="text"
                     value={activityIdInput}
                     onChange={(e) => setActivityIdInput(e.target.value)}
-                    data-testid="link-activity-select"
-                    className="w-full px-3 py-1.5 text-xs rounded-[var(--radius-md)] bg-[var(--surface-ground)] border border-[var(--border-default)] text-[var(--text-primary)] cursor-pointer"
-                  >
-                    <option value="">-- 选择已有活动记录 --</option>
-                    {availableActivities.map((a) => (
-                      <option key={a.id} value={a.id}>
-                        {a.title}
-                      </option>
-                    ))}
-                  </select>
+                    placeholder="输入活动记录 36 位 UUID (activityId)"
+                    data-testid="link-activity-id-input"
+                    className="w-full px-3 py-1.5 text-xs rounded-[var(--radius-md)] bg-[var(--surface-ground)] border border-[var(--border-default)] font-mono text-[var(--text-primary)] min-h-[var(--touch-target-min)]"
+                  />
                 </div>
                 <div>
                   <select
@@ -917,7 +932,7 @@ function ArtifactLinkManagerModalInner({
                       )
                     }
                     data-testid="link-activity-role-select"
-                    className="w-full px-3 py-1.5 text-xs rounded-[var(--radius-md)] bg-[var(--surface-ground)] border border-[var(--border-default)] text-[var(--text-primary)] cursor-pointer"
+                    className="w-full px-3 py-1.5 text-xs rounded-[var(--radius-md)] bg-[var(--surface-ground)] border border-[var(--border-default)] text-[var(--text-primary)] cursor-pointer min-h-[var(--touch-target-min)]"
                   >
                     <option value="produced">produced (产出)</option>
                     <option value="modified">modified (修改)</option>
@@ -925,22 +940,14 @@ function ArtifactLinkManagerModalInner({
                   </select>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={activityIdInput}
-                  onChange={(e) => setActivityIdInput(e.target.value)}
-                  placeholder="或直接输入活动 UUID (activityId)"
-                  data-testid="link-activity-id-input"
-                  className="flex-1 px-3 py-1.5 text-xs rounded-[var(--radius-md)] bg-[var(--surface-ground)] border border-[var(--border-default)] font-mono text-[var(--text-primary)]"
-                />
+              <div className="flex justify-end">
                 <PrimaryButton
                   type="submit"
                   disabled={!activityIdInput.trim()}
                   icon={<Plus className="w-3.5 h-3.5" />}
                   data-testid="link-activity-submit"
                 >
-                  暂存关联
+                  暂存活动关联
                 </PrimaryButton>
               </div>
             </form>
@@ -995,9 +1002,9 @@ function ArtifactLinkManagerModalInner({
                     type="text"
                     value={evidenceIdInput}
                     onChange={(e) => setEvidenceIdInput(e.target.value)}
-                    placeholder="输入实证记录 UUID (evidenceId)"
+                    placeholder="输入实证记录 36 位 UUID (evidenceId)"
                     data-testid="link-evidence-id-input"
-                    className="w-full px-3 py-1.5 text-xs rounded-[var(--radius-md)] bg-[var(--surface-ground)] border border-[var(--border-default)] font-mono text-[var(--text-primary)]"
+                    className="w-full px-3 py-1.5 text-xs rounded-[var(--radius-md)] bg-[var(--surface-ground)] border border-[var(--border-default)] font-mono text-[var(--text-primary)] min-h-[var(--touch-target-min)]"
                   />
                 </div>
                 <div>
@@ -1005,7 +1012,7 @@ function ArtifactLinkManagerModalInner({
                     value={evidenceLevelInput}
                     onChange={(e) => setEvidenceLevelInput(Number(e.target.value))}
                     data-testid="link-evidence-level-select"
-                    className="w-full px-3 py-1.5 text-xs rounded-[var(--radius-md)] bg-[var(--surface-ground)] border border-[var(--border-default)] text-[var(--text-primary)] cursor-pointer"
+                    className="w-full px-3 py-1.5 text-xs rounded-[var(--radius-md)] bg-[var(--surface-ground)] border border-[var(--border-default)] text-[var(--text-primary)] cursor-pointer min-h-[var(--touch-target-min)]"
                   >
                     {[0, 1, 2, 3, 4, 5, 6].map((lvl) => (
                       <option key={lvl} value={lvl}>
@@ -1021,7 +1028,7 @@ function ArtifactLinkManagerModalInner({
                   value={evidenceDescInput}
                   onChange={(e) => setEvidenceDescInput(e.target.value)}
                   placeholder="实证描述备注 (可选)"
-                  className="flex-1 px-3 py-1.5 text-xs rounded-[var(--radius-md)] bg-[var(--surface-ground)] border border-[var(--border-default)] text-[var(--text-primary)]"
+                  className="flex-1 px-3 py-1.5 text-xs rounded-[var(--radius-md)] bg-[var(--surface-ground)] border border-[var(--border-default)] text-[var(--text-primary)] min-h-[var(--touch-target-min)]"
                 />
                 <PrimaryButton
                   type="submit"

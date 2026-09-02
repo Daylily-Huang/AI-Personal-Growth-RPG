@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // tests/stage7c-ui.test.tsx
-// Phase 4 — Stage 7C Artifact UI & Proposal Resolution Comprehensive Test Suite (Round 2 Closure)
+// Phase 4 — Stage 7C Artifact UI & Proposal Resolution Comprehensive Test Suite (Round 3 Final Frozen Closure)
 
 import React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
@@ -10,8 +10,10 @@ import { AppShellBoundary } from "@/components/layout/AppShellBoundary";
 import {
   ArtifactInspectorContent,
   ArtifactCreateModal,
+  ArtifactEditModal,
   ArtifactLinkManagerModal,
   ArtifactProposalResolutionPicker,
+  MarkdownRenderer,
 } from "@/components/artifacts";
 import ArtifactsPage from "@/app/artifacts/page";
 import DashboardPage from "@/app/dashboard/page";
@@ -22,9 +24,12 @@ import type {
 } from "@/types/artifact";
 import type { DashboardSnapshot, Assessment } from "@/lib/store/types";
 
-// Mock next/navigation
-const mockPush = vi.fn();
-const mockRefresh = vi.fn();
+// 1. Next/navigation hoisted mock pattern eliminating TDZ risk
+const { mockPush, mockRefresh } = vi.hoisted(() => ({
+  mockPush: vi.fn(),
+  mockRefresh: vi.fn(),
+}));
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
     push: mockPush,
@@ -33,7 +38,7 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/artifacts",
 }));
 
-// Valid RFC 4122 UUID fixtures
+// Valid RFC 4122 v4 UUID fixtures
 const UUID_ARTIFACT_1 = "11111111-1111-4111-8111-111111111111";
 const UUID_ARTIFACT_2 = "22222222-2222-4222-8222-222222222222";
 const UUID_SKILL_1 = "33333333-3333-4333-8333-333333333333";
@@ -52,7 +57,7 @@ const mockArtifactWithCounts1: ArtifactWithCounts = {
   normalizedTitle: "reactflow 架构设计规范 rfc",
   artifactType: "design_spec",
   summary: "针对 Stage 6C 知识图谱画布的三列布局与 CAS 模态框技术架构。",
-  description: "## 核心规范\n详细记录了节点扩展与交互契约。\n\n```typescript\nconst a = 1;\n```",
+  description: "## 核心规范\n详细记录了节点扩展与交互契约。\n\n```typescript\nconst a = 1;\n```\n[官方链接](https://example.com/spec)",
   lifecycleStatus: "active",
   version: "1.2",
   storagePath: null,
@@ -80,12 +85,12 @@ const mockArtifactWithCounts2: ArtifactWithCounts = {
   artifactType: "data_analysis",
   summary: "LTP 与 LTD 机制在长期记忆巩固中的量化分析与统计模型。",
   description: "统计了 45 篇近期高水平文献的实验数据。",
-  lifecycleStatus: "active",
+  lifecycleStatus: "superseded",
   version: "2.0",
   storagePath: null,
   externalUrl: null,
   reusabilityScore: 0.85,
-  metadata: {},
+  metadata: { dataset: "synaptic_v2" },
   isArchived: false,
   archivedAt: null,
   createdAt: "2026-08-26T11:00:00Z",
@@ -199,23 +204,24 @@ const mockArtifactDetail2: ArtifactDetail = {
   },
 };
 
-describe("Stage 7C Artifact UI Test Suite", () => {
+describe("Stage 7C Artifact UI Test Suite (Round 3 Final Frozen Closure)", () => {
   const mockFetch = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
-    global.fetch = mockFetch as unknown as typeof fetch;
+    vi.stubGlobal("fetch", mockFetch);
   });
 
   afterEach(() => {
     cleanup();
+    vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
 
   // ==========================================
   // 1. AppShell Single-Instance Verification
   // ==========================================
-  describe("AppShell Single-Instance Verification", () => {
+  describe("1. AppShell Single-Instance Verification", () => {
     it("verifies exactly ONE AppShell root, ONE AppSidebar, and ONE AppHeader when rendered under AppShellBoundary", () => {
       mockFetch.mockResolvedValue({
         ok: true,
@@ -241,7 +247,7 @@ describe("Stage 7C Artifact UI Test Suite", () => {
       const mobileNavs = screen.getAllByTestId("mobile-nav");
       expect(mobileNavs.length).toBe(1);
 
-      // Verify page workspace is directly rendered inside main
+      // Verify page workspace is directly rendered inside main without nested AppShell
       expect(screen.getByTestId("artifacts-workspace")).toBeDefined();
     });
   });
@@ -249,7 +255,7 @@ describe("Stage 7C Artifact UI Test Suite", () => {
   // ==========================================
   // 2. 3-Column Workspace Layout & Query Contracts
   // ==========================================
-  describe("3-Column Workspace Layout & Query Contracts", () => {
+  describe("2. 3-Column Workspace Layout & Query Contracts", () => {
     it("renders 3-column elements: Filter rail on left, Gallery in center, InspectorDrawer on right", async () => {
       mockFetch.mockImplementation(async (url: string) => {
         if (url === `/api/artifacts/${UUID_ARTIFACT_1}`) {
@@ -314,6 +320,45 @@ describe("Stage 7C Artifact UI Test Suite", () => {
       });
     });
 
+    it("supports linked skill filter query in Left Rail", async () => {
+      mockFetch.mockImplementation(async (url: string) => {
+        if (url.includes("/api/skills")) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              nodes: [
+                { id: UUID_SKILL_1, data: { name: "前端工程化", level: 4 } },
+              ],
+            }),
+          };
+        }
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            artifacts: [mockArtifactWithCounts1],
+            total: 1,
+          }),
+        };
+      });
+
+      render(<ArtifactsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText("前端工程化")).toBeDefined();
+      });
+
+      fireEvent.click(screen.getByText("前端工程化"));
+
+      await waitFor(() => {
+        expect(mockFetch).toHaveBeenCalledWith(
+          expect.stringContaining(`skillId=${UUID_SKILL_1}`),
+          expect.any(Object)
+        );
+      });
+    });
+
     it("supports pagination / load more for >PAGE_SIZE artifacts", async () => {
       mockFetch.mockResolvedValue({
         ok: true,
@@ -341,12 +386,51 @@ describe("Stage 7C Artifact UI Test Suite", () => {
         );
       });
     });
+
+    it("adjusts gallery grid density when Inspector is opened vs closed", async () => {
+      mockFetch.mockImplementation(async (url: string) => {
+        if (url === `/api/artifacts/${UUID_ARTIFACT_1}`) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => mockArtifactDetail1,
+          };
+        }
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            artifacts: [mockArtifactWithCounts1],
+            total: 1,
+          }),
+        };
+      });
+
+      render(<ArtifactsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId("artifacts-grid")).toBeDefined();
+      });
+
+      // Inspector closed
+      const grid = screen.getByTestId("artifacts-grid");
+      expect(grid.getAttribute("data-inspector-open")).toBe("false");
+      expect(grid.className).toContain("xl:grid-cols-3");
+
+      // Open inspector
+      fireEvent.click(screen.getByText("ReactFlow 架构设计规范 RFC"));
+
+      await waitFor(() => {
+        expect(grid.getAttribute("data-inspector-open")).toBe("true");
+        expect(grid.className).toContain("2xl:grid-cols-2");
+      });
+    });
   });
 
   // ==========================================
   // 3. Artifact Selection & Stale Detail Race Guard
   // ==========================================
-  describe("Artifact Selection & Detail Race Guard", () => {
+  describe("3. Artifact Selection & Detail Race Guard", () => {
     it("discards slow A detail response if B was selected subsequently", async () => {
       let resolveA: (val: unknown) => void = () => {};
       const promiseA = new Promise((resolve) => {
@@ -446,19 +530,22 @@ describe("Stage 7C Artifact UI Test Suite", () => {
   });
 
   // ==========================================
-  // 4. ArtifactInspectorContent & Markdown Rendering
+  // 4. ArtifactInspectorContent & Actions
   // ==========================================
-  describe("ArtifactInspectorContent & Markdown Rendering", () => {
-    it("renders safe Markdown headings, lists, and code blocks in description", () => {
+  describe("4. ArtifactInspectorContent & Actions", () => {
+    it("renders safe Markdown headings, code blocks, timestamps, and metadata", () => {
       render(<ArtifactInspectorContent detail={mockArtifactDetail1} />);
 
       expect(screen.getByTestId("inspector-artifact-title").textContent).toContain("ReactFlow 架构设计规范 RFC");
       expect(screen.getByTestId("inspector-artifact-version").textContent).toContain("v1.2");
+      expect(screen.getByTestId("inspector-artifact-timestamps")).toBeDefined();
+      expect(screen.getByTestId("inspector-artifact-metadata")).toBeDefined();
 
       // Check Markdown rendering inside description
       const desc = screen.getByTestId("inspector-artifact-description");
       expect(desc.querySelector("h3")?.textContent).toContain("核心规范");
       expect(desc.querySelector("code")?.textContent).toContain("const a = 1;");
+      expect(desc.querySelector("a")?.getAttribute("href")).toBe("https://example.com/spec");
     });
 
     it("handles archive with ConfirmDialog and cancel zero mutation", async () => {
@@ -491,6 +578,25 @@ describe("Stage 7C Artifact UI Test Suite", () => {
       });
     });
 
+    it("renders Restore Superseded action for superseded artifact and executes status change", async () => {
+      const handleStatusChange = vi.fn().mockResolvedValue(undefined);
+      render(
+        <ArtifactInspectorContent
+          detail={mockArtifactDetail2}
+          onStatusChange={handleStatusChange}
+        />
+      );
+
+      const restoreSupersededBtn = screen.getByTestId("inspector-restore-superseded-btn");
+      expect(restoreSupersededBtn).toBeDefined();
+
+      fireEvent.click(restoreSupersededBtn);
+
+      await waitFor(() => {
+        expect(handleStatusChange).toHaveBeenCalledWith(UUID_ARTIFACT_2, "active", false);
+      });
+    });
+
     it("handles delete with 409 referenced_by_provenance fail-closed error feedback", async () => {
       const handleDelete = vi.fn().mockResolvedValue({
         ok: false,
@@ -520,8 +626,8 @@ describe("Stage 7C Artifact UI Test Suite", () => {
   // ==========================================
   // 5. ArtifactCreateModal & Initial Relationships
   // ==========================================
-  describe("ArtifactCreateModal", () => {
-    it("submits POST /api/artifacts with optional initial relationships and cancels with zero mutation", async () => {
+  describe("5. ArtifactCreateModal & Initial Lifecycle Status", () => {
+    it("submits POST /api/artifacts with active/draft lifecycleStatus and cancels with zero mutation", async () => {
       const handleCreated = vi.fn();
       const handleClose = vi.fn();
 
@@ -533,6 +639,7 @@ describe("Stage 7C Artifact UI Test Suite", () => {
             ...mockArtifactWithCounts1,
             id: UUID_ARTIFACT_1,
             title: "全脑图谱白皮书",
+            lifecycleStatus: "draft",
           },
         }),
       });
@@ -555,6 +662,10 @@ describe("Stage 7C Artifact UI Test Suite", () => {
       const titleInput = screen.getByTestId("create-artifact-title");
       fireEvent.change(titleInput, { target: { value: "全脑图谱白皮书" } });
 
+      // Change status to draft
+      const statusSelect = screen.getByTestId("create-artifact-status");
+      fireEvent.change(statusSelect, { target: { value: "draft" } });
+
       const submitBtn = screen.getByTestId("create-artifact-submit");
       fireEvent.click(submitBtn);
 
@@ -563,10 +674,86 @@ describe("Stage 7C Artifact UI Test Suite", () => {
           "/api/artifacts",
           expect.objectContaining({
             method: "POST",
-            body: expect.stringContaining("全脑图谱白皮书"),
+            body: expect.stringContaining('"lifecycleStatus":"draft"'),
           })
         );
         expect(handleCreated).toHaveBeenCalled();
+      });
+    });
+
+    it("blocks submission when evidence UUID is invalid", async () => {
+      render(
+        <ArtifactCreateModal
+          open={true}
+          onClose={vi.fn()}
+          onCreated={vi.fn()}
+        />
+      );
+
+      // Fill title
+      fireEvent.change(screen.getByTestId("create-artifact-title"), { target: { value: "测试造物" } });
+
+      // Open initial links
+      fireEvent.click(screen.getByTestId("create-initial-links-toggle"));
+
+      // Enter invalid evidence UUID
+      const evInput = screen.getByTestId("create-evidence-id-input");
+      fireEvent.change(evInput, { target: { value: "invalid-uuid" } });
+
+      expect(evInput.getAttribute("aria-invalid")).toBe("true");
+      expect(screen.getByText("请输入有效的 36 位 UUID 格式")).toBeDefined();
+
+      const submitBtn = screen.getByTestId("create-artifact-submit") as HTMLButtonElement;
+      expect(submitBtn.disabled).toBe(true);
+    });
+
+    it("submits PATCH /api/artifacts/[id] from ArtifactEditModal with updated fields", async () => {
+      const handleUpdated = vi.fn();
+      const handleClose = vi.fn();
+
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          artifact: {
+            ...mockArtifactWithCounts1,
+            title: "Updated Title RFC",
+            version: "2.0",
+          },
+        }),
+      });
+
+      render(
+        <ArtifactEditModal
+          open={true}
+          artifact={mockArtifactWithCounts1}
+          onClose={handleClose}
+          onUpdated={handleUpdated}
+        />
+      );
+
+      // Cancel with zero mutation
+      mockFetch.mockClear();
+      fireEvent.click(screen.getByTestId("edit-artifact-cancel"));
+      expect(handleClose).toHaveBeenCalled();
+      expect(mockFetch).not.toHaveBeenCalled();
+
+      // Change title
+      const titleInput = screen.getByTestId("edit-artifact-title");
+      fireEvent.change(titleInput, { target: { value: "Updated Title RFC" } });
+
+      const submitBtn = screen.getByTestId("edit-artifact-submit");
+      fireEvent.click(submitBtn);
+
+      await waitFor(() => {
+        expect(mockFetch).toHaveBeenCalledWith(
+          `/api/artifacts/${UUID_ARTIFACT_1}`,
+          expect.objectContaining({
+            method: "PATCH",
+            body: expect.stringContaining('"title":"Updated Title RFC"'),
+          })
+        );
+        expect(handleUpdated).toHaveBeenCalled();
       });
     });
   });
@@ -574,7 +761,7 @@ describe("Stage 7C Artifact UI Test Suite", () => {
   // ==========================================
   // 6. ArtifactLinkManagerModal (Batch + Cancel Zero-Mutation)
   // ==========================================
-  describe("ArtifactLinkManagerModal (Batch + Cancel Zero-Mutation)", () => {
+  describe("6. ArtifactLinkManagerModal (Batch + Cancel Zero-Mutation)", () => {
     it("discards staged changes on Cancel with zero network mutations", () => {
       const handleLinksUpdated = vi.fn();
       const handleClose = vi.fn();
@@ -644,12 +831,29 @@ describe("Stage 7C Artifact UI Test Suite", () => {
         expect(handleClose).toHaveBeenCalled();
       });
     });
+
+    it("blocks invalid UUID from being added to staged links", () => {
+      render(
+        <ArtifactLinkManagerModal
+          open={true}
+          detail={mockArtifactDetail1}
+          onClose={vi.fn()}
+          onLinksUpdated={vi.fn()}
+        />
+      );
+
+      const skillInput = screen.getByTestId("link-skill-id-input");
+      fireEvent.change(skillInput, { target: { value: "invalid-uuid-format" } });
+      fireEvent.click(screen.getByTestId("link-skill-submit"));
+
+      expect(screen.getByTestId("link-manager-error").textContent).toContain("请输入有效的 36 位技能 UUID 格式");
+    });
   });
 
   // ==========================================
-  // 7. Assessment Proposal Resolution Explicit Contract
+  // 7. Assessment Proposal Resolution Explicit Contract & Search Race
   // ==========================================
-  describe("Assessment Proposal Resolution Explicit Contract", () => {
+  describe("7. Assessment Proposal Resolution Explicit Contract & Search Race", () => {
     const proposals: ArtifactProposal[] = [
       {
         title: "神经可塑性综述论文",
@@ -720,18 +924,71 @@ describe("Stage 7C Artifact UI Test Suite", () => {
       );
     });
 
-    it("supports search lookup when resolving as existing artifact", async () => {
-      const handleChange = vi.fn();
+    it("supports search lookup and ignores stale deferred search responses (rea vs react race)", async () => {
+      let resolveRea: (val: unknown) => void = () => {};
+      const promiseRea = new Promise((resolve) => {
+        resolveRea = resolve;
+      });
 
-      mockFetch.mockResolvedValue({
+      mockFetch.mockImplementation(async (url: string) => {
+        if (url.includes("search=rea%20slow") || url.includes("search=rea")) {
+          if (!url.includes("search=react")) {
+            return promiseRea;
+          }
+        }
+        if (url.includes("search=react")) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              artifacts: [mockArtifactWithCounts1],
+              total: 1,
+            }),
+          };
+        }
+        return { ok: true, status: 200, json: async () => ({ artifacts: [] }) };
+      });
+
+      render(
+        <ArtifactProposalResolutionPicker
+          proposals={[proposals[0]]}
+          onChange={vi.fn()}
+        />
+      );
+
+      fireEvent.click(screen.getByTestId("proposal-0-resolution-existing"));
+
+      const searchInput = screen.getByTestId("proposal-0-existing-search-input");
+      // Search 1: "rea"
+      fireEvent.change(searchInput, { target: { value: "rea" } });
+
+      // Quickly search 2: "react"
+      fireEvent.change(searchInput, { target: { value: "react" } });
+
+      // Request 2 finishes first
+      await waitFor(() => {
+        expect(screen.getByTestId(`select-existing-artifact-${UUID_ARTIFACT_1}`)).toBeDefined();
+      });
+
+      // Now resolve slow Request 1 with completely different data
+      resolveRea({
         ok: true,
         status: 200,
         json: async () => ({
-          artifacts: [mockArtifactWithCounts1],
+          artifacts: [mockArtifactWithCounts2],
           total: 1,
         }),
       });
 
+      await new Promise((r) => setTimeout(r, 50));
+
+      // UI must strictly show the latest "react" results
+      expect(screen.getByTestId(`select-existing-artifact-${UUID_ARTIFACT_1}`)).toBeDefined();
+      expect(screen.queryByTestId(`select-existing-artifact-${UUID_ARTIFACT_2}`)).toBeNull();
+    });
+
+    it("blocks invalid manual UUID from being marked as valid", () => {
+      const handleChange = vi.fn();
       render(
         <ArtifactProposalResolutionPicker
           proposals={[proposals[0]]}
@@ -739,41 +996,48 @@ describe("Stage 7C Artifact UI Test Suite", () => {
         />
       );
 
-      // Click Existing
       fireEvent.click(screen.getByTestId("proposal-0-resolution-existing"));
+
+      const idInput = screen.getByTestId("proposal-0-existing-artifact-id");
+      fireEvent.change(idInput, { target: { value: "abc" } });
+
+      expect(idInput.getAttribute("aria-invalid")).toBe("true");
+      expect(screen.getByTestId("proposal-0-uuid-error")).toBeDefined();
       expect(handleChange).toHaveBeenLastCalledWith(expect.any(Array), false);
-
-      // Search existing artifact
-      const searchInput = screen.getByTestId("proposal-0-existing-search-input");
-      fireEvent.change(searchInput, { target: { value: "ReactFlow" } });
-
-      await waitFor(() => {
-        expect(screen.getByTestId(`select-existing-artifact-${UUID_ARTIFACT_1}`)).toBeDefined();
-      });
-
-      // Select from results
-      fireEvent.click(screen.getByTestId(`select-existing-artifact-${UUID_ARTIFACT_1}`));
-
-      await waitFor(() => {
-        expect(handleChange).toHaveBeenLastCalledWith(
-          [
-            {
-              proposalIndex: 0,
-              resolution: "existing",
-              artifactId: UUID_ARTIFACT_1,
-              activityRole: "modified",
-            },
-          ],
-          true
-        );
-      });
     });
   });
 
   // ==========================================
-  // 8. Dashboard Assessment Confirm & Error Handling
+  // 8. Markdown Security Protocol Allowlist
   // ==========================================
-  describe("Dashboard Assessment Confirm & Error Handling", () => {
+  describe("8. Markdown Security Protocol Allowlist", () => {
+    it("renders safe https and http links as clickable anchors", () => {
+      const safeMarkdown = "[Safe HTTPS Link](https://example.com) and [Safe HTTP Link](http://example.org)";
+      render(<MarkdownRenderer content={safeMarkdown} />);
+
+      const links = screen.getAllByRole("link");
+      expect(links.length).toBe(2);
+      expect(links[0].getAttribute("href")).toBe("https://example.com");
+      expect(links[1].getAttribute("href")).toBe("http://example.org");
+    });
+
+    it("downgrades hostile javascript, data, and vbscript schemes to plain text", () => {
+      const hostileMarkdown =
+        "[Hostile JS](javascript:alert(1)) and [Hostile Data](data:text/html,<script>alert(1)</script>) and [Hostile VB](vbscript:msgbox)";
+      render(<MarkdownRenderer content={hostileMarkdown} />);
+
+      // No clickable links should be rendered
+      expect(screen.queryByRole("link")).toBeNull();
+      expect(screen.getByText(/Hostile JS/)).toBeDefined();
+      expect(screen.getByText(/Hostile Data/)).toBeDefined();
+      expect(screen.getByText(/Hostile VB/)).toBeDefined();
+    });
+  });
+
+  // ==========================================
+  // 9. Dashboard Assessment Confirm & Error Handling
+  // ==========================================
+  describe("9. Dashboard Assessment Confirm & Error Handling", () => {
     const mockAssessmentWithProposals: Assessment = {
       id: "assess-1",
       activityId: UUID_ACT_1,
@@ -941,9 +1205,9 @@ describe("Stage 7C Artifact UI Test Suite", () => {
   });
 
   // ==========================================
-  // 9. Fail-Closed Frozen Backend Delta Guard
+  // 10. Fail-Closed Frozen Backend Delta Guard
   // ==========================================
-  describe("Fail-Closed Frozen Backend Delta Guard", () => {
+  describe("10. Fail-Closed Frozen Backend Delta Guard", () => {
     it("ensures zero changes were made to frozen backend paths and strictly fails if base ref is missing", () => {
       const forbiddenPathPrefixes = [
         "src/app/api/",

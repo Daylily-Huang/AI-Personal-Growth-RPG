@@ -23,6 +23,8 @@ import {
   ChevronDown,
   ChevronUp,
   AlertTriangle,
+  Clock,
+  Code2,
 } from "lucide-react";
 import type {
   ArtifactDetail,
@@ -95,7 +97,7 @@ export function ArtifactInspectorContent({
     }
   };
 
-  const handleRestore = async () => {
+  const handleRestoreArchived = async () => {
     if (!onStatusChange) return;
     setIsUpdatingStatus(true);
     setStatusError(null);
@@ -103,6 +105,19 @@ export function ArtifactInspectorContent({
       await onStatusChange(artifactId, "active", false);
     } catch (err) {
       setStatusError(err instanceof Error ? err.message : "恢复操作失败");
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
+  const handleRestoreSuperseded = async () => {
+    if (!onStatusChange) return;
+    setIsUpdatingStatus(true);
+    setStatusError(null);
+    try {
+      await onStatusChange(artifactId, "active", false);
+    } catch (err) {
+      setStatusError(err instanceof Error ? err.message : "恢复更替成果失败");
     } finally {
       setIsUpdatingStatus(false);
     }
@@ -130,6 +145,8 @@ export function ArtifactInspectorContent({
       setIsDeleting(false);
     }
   };
+
+  const hasMetadata = artifact.metadata && Object.keys(artifact.metadata).length > 0;
 
   return (
     <div
@@ -177,6 +194,7 @@ export function ArtifactInspectorContent({
             href={artifact.externalUrl}
             target="_blank"
             rel="noopener noreferrer"
+            aria-label="在新标签页打开外部成果链接"
             data-testid="inspector-external-url"
             className="inline-flex items-center gap-1.5 text-xs text-[var(--entity-artifact-text)] hover:underline break-all"
           >
@@ -184,6 +202,25 @@ export function ArtifactInspectorContent({
             <span>{artifact.externalUrl}</span>
           </a>
         )}
+
+        {/* Timestamps: Created At & Updated At */}
+        <div
+          data-testid="inspector-artifact-timestamps"
+          className="flex items-center gap-4 text-xs text-[var(--text-muted)] flex-wrap pt-1"
+        >
+          {artifact.createdAt && (
+            <span className="flex items-center gap-1" title="创建时间">
+              <Clock className="w-3.5 h-3.5" />
+              <span>创建: {new Date(artifact.createdAt).toLocaleString("zh-CN", { hour12: false })}</span>
+            </span>
+          )}
+          {artifact.updatedAt && (
+            <span className="flex items-center gap-1" title="最后更新时间">
+              <Clock className="w-3.5 h-3.5" />
+              <span>更新: {new Date(artifact.updatedAt).toLocaleString("zh-CN", { hour12: false })}</span>
+            </span>
+          )}
+        </div>
       </div>
 
       {/* 2. Reusability Meter */}
@@ -228,7 +265,23 @@ export function ArtifactInspectorContent({
         </div>
       )}
 
-      {/* 4. Action Toolbar */}
+      {/* 4. Metadata (when present) */}
+      {hasMetadata && (
+        <div className="space-y-1.5">
+          <h4 className="text-xs font-[var(--font-weight-semibold)] text-[var(--text-muted)] uppercase tracking-wider flex items-center gap-1.5">
+            <Code2 className="w-3.5 h-3.5" />
+            <span>结构化元数据 (Metadata)</span>
+          </h4>
+          <div
+            data-testid="inspector-artifact-metadata"
+            className="p-3 rounded-[var(--radius-md)] bg-[var(--surface-ground)] border border-[var(--border-subtle)] overflow-x-auto text-xs font-mono text-[var(--text-secondary)] leading-relaxed"
+          >
+            <pre className="whitespace-pre-wrap">{JSON.stringify(artifact.metadata, null, 2)}</pre>
+          </div>
+        </div>
+      )}
+
+      {/* 5. Action Toolbar */}
       <div className="flex items-center flex-wrap gap-2.5 pt-2 border-t border-[var(--border-subtle)]">
         {onEdit && (
           <SecondaryButton
@@ -256,13 +309,24 @@ export function ArtifactInspectorContent({
           artifact.lifecycleStatus === "archived" ? (
             <SecondaryButton
               size="sm"
-              onClick={handleRestore}
+              onClick={handleRestoreArchived}
               disabled={isUpdatingStatus}
               loading={isUpdatingStatus}
               icon={<RotateCcw className="w-3.5 h-3.5" />}
               data-testid="inspector-restore-btn"
             >
               恢复生效
+            </SecondaryButton>
+          ) : artifact.lifecycleStatus === "superseded" ? (
+            <SecondaryButton
+              size="sm"
+              onClick={handleRestoreSuperseded}
+              disabled={isUpdatingStatus}
+              loading={isUpdatingStatus}
+              icon={<RotateCcw className="w-3.5 h-3.5" />}
+              data-testid="inspector-restore-superseded-btn"
+            >
+              恢复更替成果 (Restore Superseded)
             </SecondaryButton>
           ) : (
             <SecondaryButton
@@ -293,7 +357,7 @@ export function ArtifactInspectorContent({
         )}
       </div>
 
-      {/* 5. Relational Accordions */}
+      {/* 6. Relational Accordions */}
       <div className="space-y-3 pt-2">
         <h3 className="font-serif font-[var(--font-weight-semibold)] text-sm text-[var(--text-primary)]">
           关联拓扑 (Relational Topology)
@@ -307,7 +371,7 @@ export function ArtifactInspectorContent({
             aria-expanded={skillsOpen}
             aria-controls={skillsRegionId}
             data-testid="accordion-skills-toggle"
-            className="w-full flex items-center justify-between p-3 text-left hover:bg-[var(--surface-hover-neutral)] transition-colors cursor-pointer"
+            className="w-full flex items-center justify-between p-3 text-left hover:bg-[var(--surface-hover-neutral)] transition-colors cursor-pointer min-h-[var(--touch-target-min)]"
           >
             <div className="flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-[var(--entity-skill-text)]" />
@@ -362,7 +426,7 @@ export function ArtifactInspectorContent({
             aria-expanded={knowledgeOpen}
             aria-controls={knowledgeRegionId}
             data-testid="accordion-knowledge-toggle"
-            className="w-full flex items-center justify-between p-3 text-left hover:bg-[var(--surface-hover-neutral)] transition-colors cursor-pointer"
+            className="w-full flex items-center justify-between p-3 text-left hover:bg-[var(--surface-hover-neutral)] transition-colors cursor-pointer min-h-[var(--touch-target-min)]"
           >
             <div className="flex items-center gap-2">
               <Network className="w-4 h-4 text-[var(--entity-knowledge-text)]" />
@@ -420,7 +484,7 @@ export function ArtifactInspectorContent({
             aria-expanded={questsOpen}
             aria-controls={questsRegionId}
             data-testid="accordion-quests-toggle"
-            className="w-full flex items-center justify-between p-3 text-left hover:bg-[var(--surface-hover-neutral)] transition-colors cursor-pointer"
+            className="w-full flex items-center justify-between p-3 text-left hover:bg-[var(--surface-hover-neutral)] transition-colors cursor-pointer min-h-[var(--touch-target-min)]"
           >
             <div className="flex items-center gap-2">
               <Scroll className="w-4 h-4 text-[var(--entity-quest-text)]" />
@@ -469,7 +533,7 @@ export function ArtifactInspectorContent({
             aria-expanded={activitiesOpen}
             aria-controls={activitiesRegionId}
             data-testid="accordion-activities-toggle"
-            className="w-full flex items-center justify-between p-3 text-left hover:bg-[var(--surface-hover-neutral)] transition-colors cursor-pointer"
+            className="w-full flex items-center justify-between p-3 text-left hover:bg-[var(--surface-hover-neutral)] transition-colors cursor-pointer min-h-[var(--touch-target-min)]"
           >
             <div className="flex items-center gap-2">
               <Zap className="w-4 h-4 text-[var(--entity-activity-text)]" />
@@ -516,7 +580,7 @@ export function ArtifactInspectorContent({
             aria-expanded={evidenceOpen}
             aria-controls={evidenceRegionId}
             data-testid="accordion-evidence-toggle"
-            className="w-full flex items-center justify-between p-3 text-left hover:bg-[var(--surface-hover-neutral)] transition-colors cursor-pointer"
+            className="w-full flex items-center justify-between p-3 text-left hover:bg-[var(--surface-hover-neutral)] transition-colors cursor-pointer min-h-[var(--touch-target-min)]"
           >
             <div className="flex items-center gap-2">
               <ShieldCheck className="w-4 h-4 text-[var(--authority-verified-text)]" />
@@ -556,7 +620,7 @@ export function ArtifactInspectorContent({
         </div>
       </div>
 
-      {/* 6. Archive Confirmation Dialog */}
+      {/* 7. Archive Confirmation Dialog */}
       <ConfirmDialog
         open={archiveDialogOpen}
         onClose={() => {
@@ -570,7 +634,7 @@ export function ArtifactInspectorContent({
         loading={isUpdatingStatus}
       />
 
-      {/* 7. Delete Confirmation Dialog */}
+      {/* 8. Delete Confirmation Dialog */}
       <ConfirmDialog
         open={deleteDialogOpen}
         onClose={() => {

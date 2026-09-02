@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { ArtifactTypeBadge, ARTIFACT_TYPE_LABELS } from "./ArtifactTypeBadge";
 import type {
   ArtifactProposal,
@@ -37,6 +37,12 @@ const CANONICAL_TYPES: ArtifactType[] = [
   "other",
 ];
 
+const RFC_UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+export function isValidUuid(id: string): boolean {
+  return RFC_UUID_REGEX.test(id.trim());
+}
+
 export function ArtifactProposalResolutionPicker({
   proposals,
   onChange,
@@ -49,6 +55,21 @@ export function ArtifactProposalResolutionPicker({
   const [existingSearchQueries, setExistingSearchQueries] = useState<Record<number, string>>({});
   const [existingSearchResults, setExistingSearchResults] = useState<Record<number, ArtifactWithCounts[]>>({});
   const [isSearchingExisting, setIsSearchingExisting] = useState<Record<number, boolean>>({});
+
+  // Ref-based state machine for timers, abort controllers, and sequence guards
+  const timersRef = useRef<Record<number, NodeJS.Timeout>>({});
+  const abortControllersRef = useRef<Record<number, AbortController>>({});
+  const searchSeqRef = useRef<Record<number, number>>({});
+
+  // Cleanup on unmount
+  useEffect(() => {
+    const currentTimers = timersRef.current;
+    const currentControllers = abortControllersRef.current;
+    return () => {
+      Object.values(currentTimers).forEach((timer) => clearTimeout(timer));
+      Object.values(currentControllers).forEach((ctrl) => ctrl.abort());
+    };
+  }, []);
 
   // Compute effective states (initial resolution is null unless user selected one)
   const states: ProposalItemState[] = useMemo(() => {
@@ -66,7 +87,7 @@ export function ArtifactProposalResolutionPicker({
     });
   }, [proposals, overrides]);
 
-  // Compute resolutions and validity strictly based on explicit N-of-N resolution
+  // Compute resolutions and validity strictly based on explicit N-of-N resolution & UUID validation
   const { resolutions, isValid } = useMemo(() => {
     if (proposals.length === 0) {
       return { resolutions: [], isValid: true };
@@ -98,8 +119,8 @@ export function ArtifactProposalResolutionPicker({
         });
       } else if (s.resolution === "existing") {
         const artId = s.existingArtifactId.trim();
-        // Check for non-empty ID (can be valid UUID or selected artifact ID)
-        if (!artId) {
+        // Strict RFC UUID check
+        if (!isValidUuid(artId)) {
           allValid = false;
         }
 
@@ -132,39 +153,54 @@ export function ArtifactProposalResolutionPicker({
     onChangeRef.current(resolutions, isValid);
   }, [resolutions, isValid]);
 
-  // Existing Artifact Search with AbortController and 300ms Debounce
-  const handleExistingSearch = (idx: number, query: string) => {
+  // Existing Artifact Search with Ref-based Timer, AbortController, and Sequence Guard
+  const handleExistingSearch = useCallback((idx: number, query: string) => {
     setExistingSearchQueries((prev) => ({ ...prev, [idx]: query }));
+
+    // 1. Clear previous timer for this index
+    if (timersRef.current[idx]) {
+      clearTimeout(timersRef.current[idx]);
+    }
+
+    // 2. Abort previous in-flight request for this index
+    if (abortControllersRef.current[idx]) {
+      abortControllersRef.current[idx].abort();
+    }
 
     if (!query.trim()) {
       setExistingSearchResults((prev) => ({ ...prev, [idx]: [] }));
+      setIsSearchingExisting((prev) => ({ ...prev, [idx]: false }));
       return;
     }
 
-    setIsSearchingExisting((prev) => ({ ...prev, [idx]: true }));
-    const controller = new AbortController();
+    const currentSeq = (searchSeqRef.current[idx] || 0) + 1;
+    searchSeqRef.current[idx] = currentSeq;
 
-    const timer = setTimeout(async () => {
+    const controller = new AbortController();
+    abortControllersRef.current[idx] = controller;
+    setIsSearchingExisting((prev) => ({ ...prev, [idx]: true }));
+
+    timersRef.current[idx] = setTimeout(async () => {
       try {
         const res = await fetch(`/api/artifacts?status=all&search=${encodeURIComponent(query.trim())}`, {
           signal: controller.signal,
         });
         if (res.ok) {
           const data = await res.json();
-          setExistingSearchResults((prev) => ({ ...prev, [idx]: data.artifacts || [] }));
+          // Sequence guard: only accept result if it is still the latest request
+          if (searchSeqRef.current[idx] === currentSeq) {
+            setExistingSearchResults((prev) => ({ ...prev, [idx]: data.artifacts || [] }));
+          }
         }
       } catch (err: unknown) {
         if (err instanceof Error && err.name === "AbortError") return;
       } finally {
-        setIsSearchingExisting((prev) => ({ ...prev, [idx]: false }));
+        if (searchSeqRef.current[idx] === currentSeq) {
+          setIsSearchingExisting((prev) => ({ ...prev, [idx]: false }));
+        }
       }
     }, 300);
-
-    return () => {
-      clearTimeout(timer);
-      controller.abort();
-    };
-  };
+  }, []);
 
   if (proposals.length === 0) return null;
 
@@ -200,7 +236,7 @@ export function ArtifactProposalResolutionPicker({
             className="inline-flex items-center gap-1.5 px-2 py-1 rounded-[var(--radius-sm)] text-xs text-[var(--state-warning-text)] bg-[var(--state-warning-bg)] border border-[var(--state-warning-border)]"
           >
             <AlertCircle className="w-3.5 h-3.5" />
-            <span>需完成全部 {proposals.length} 项选择后方可结算</span>
+            <span>需完成全部 {proposals.length} 项有效选择后方可结算</span>
           </span>
         )}
       </div>
@@ -209,6 +245,7 @@ export function ArtifactProposalResolutionPicker({
         {proposals.map((proposal, idx) => {
           const s = states[idx];
           const isResolved = s.resolution !== null;
+          const isExistingInvalid = s.resolution === "existing" && s.existingArtifactId.trim() !== "" && !isValidUuid(s.existingArtifactId);
 
           return (
             <div
@@ -334,7 +371,7 @@ export function ArtifactProposalResolutionPicker({
                         value={s.titleOverride}
                         onChange={(e) => updateState(idx, { titleOverride: e.target.value })}
                         data-testid={`proposal-${idx}-title-override`}
-                        className="w-full px-3 py-2 rounded-[var(--radius-sm)] bg-[var(--surface-base)] border border-[var(--border-default)] text-[var(--text-primary)]"
+                        className="w-full px-3 py-2 rounded-[var(--radius-sm)] bg-[var(--surface-base)] border border-[var(--border-default)] text-[var(--text-primary)] min-h-[var(--touch-target-min)]"
                       />
                     </div>
 
@@ -351,7 +388,7 @@ export function ArtifactProposalResolutionPicker({
                           value={s.typeOverride}
                           onChange={(e) => updateState(idx, { typeOverride: e.target.value as ArtifactType })}
                           data-testid={`proposal-${idx}-type-override`}
-                          className="w-full px-3 py-2 rounded-[var(--radius-sm)] bg-[var(--surface-base)] border border-[var(--border-default)] text-[var(--text-primary)] cursor-pointer"
+                          className="w-full px-3 py-2 rounded-[var(--radius-sm)] bg-[var(--surface-base)] border border-[var(--border-default)] text-[var(--text-primary)] cursor-pointer min-h-[var(--touch-target-min)]"
                         >
                           {CANONICAL_TYPES.map((t) => (
                             <option key={t} value={t}>
@@ -377,7 +414,7 @@ export function ArtifactProposalResolutionPicker({
                           value={s.reusabilityOverride}
                           onChange={(e) => updateState(idx, { reusabilityOverride: parseFloat(e.target.value) })}
                           data-testid={`proposal-${idx}-reusability-override`}
-                          className="w-full cursor-pointer accent-[var(--entity-artifact-text)] mt-1"
+                          className="w-full cursor-pointer accent-[var(--entity-artifact-text)] mt-1 min-h-[var(--touch-target-min)]"
                         />
                       </div>
                     </div>
@@ -405,7 +442,7 @@ export function ArtifactProposalResolutionPicker({
                           onChange={(e) => handleExistingSearch(idx, e.target.value)}
                           placeholder="输入关键词搜索已有造物..."
                           data-testid={`proposal-${idx}-existing-search-input`}
-                          className="w-full pl-8 pr-3 py-2 rounded-[var(--radius-sm)] bg-[var(--surface-base)] border border-[var(--border-default)] text-[var(--text-primary)]"
+                          className="w-full pl-8 pr-3 py-2 rounded-[var(--radius-sm)] bg-[var(--surface-base)] border border-[var(--border-default)] text-[var(--text-primary)] min-h-[var(--touch-target-min)]"
                         />
                         <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
                         {isSearchingExisting[idx] && (
@@ -431,11 +468,11 @@ export function ArtifactProposalResolutionPicker({
                                 setExistingSearchResults((prev) => ({ ...prev, [idx]: [] }));
                               }}
                               data-testid={`select-existing-artifact-${art.id}`}
-                              className="w-full flex items-center justify-between p-2 text-left hover:bg-[var(--surface-hover-neutral)] transition-colors cursor-pointer"
+                              className="w-full flex items-center justify-between p-2 text-left hover:bg-[var(--surface-hover-neutral)] transition-colors cursor-pointer min-h-[var(--touch-target-min)]"
                             >
                               <div className="flex items-center gap-2">
                                 <ArtifactTypeBadge type={art.artifactType} />
-                                <span className="font-[var(--font-weight-medium)] text-[var(--text-primary)] truncate max-w-[200px]">
+                                <span className="font-[var(--font-weight-medium)] text-[var(--text-primary)] truncate max-w-xs">
                                   {art.title}
                                 </span>
                               </div>
@@ -460,11 +497,31 @@ export function ArtifactProposalResolutionPicker({
                         id={`proposal-${idx}-existing-id-input`}
                         type="text"
                         value={s.existingArtifactId}
-                        onChange={(e) => updateState(idx, { existingArtifactId: e.target.value })}
-                        placeholder="选择上方搜索结果或直接输入有效 UUID"
+                        aria-invalid={isExistingInvalid ? "true" : undefined}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          updateState(idx, {
+                            existingArtifactId: val,
+                            selectedArtifactTitle: undefined,
+                          });
+                        }}
+                        placeholder="选择上方搜索结果或直接输入有效 36 位 UUID"
                         data-testid={`proposal-${idx}-existing-artifact-id`}
-                        className="w-full px-3 py-2 rounded-[var(--radius-sm)] bg-[var(--surface-base)] border border-[var(--border-default)] font-mono text-[var(--text-primary)]"
+                        className={`w-full px-3 py-2 rounded-[var(--radius-sm)] bg-[var(--surface-base)] border font-mono text-[var(--text-primary)] min-h-[var(--touch-target-min)] ${
+                          isExistingInvalid
+                            ? "border-[var(--state-danger-border)] focus:border-[var(--state-danger-border)] text-[var(--state-danger-text)]"
+                            : "border-[var(--border-default)]"
+                        }`}
                       />
+                      {isExistingInvalid && (
+                        <div
+                          data-testid={`proposal-${idx}-uuid-error`}
+                          className="text-xs text-[var(--state-danger-text)] flex items-center gap-1 pt-0.5"
+                        >
+                          <AlertCircle className="w-3 h-3 shrink-0" />
+                          <span>请输入有效的 36 位 UUID 格式 (例如 11111111-1111-4111-8111-111111111111)</span>
+                        </div>
+                      )}
                       {s.selectedArtifactTitle && (
                         <div className="text-xs text-[var(--entity-artifact-text)] font-[var(--font-weight-medium)] pt-0.5">
                           ✓ 已关联：{s.selectedArtifactTitle}
@@ -489,7 +546,7 @@ export function ArtifactProposalResolutionPicker({
                           })
                         }
                         data-testid={`proposal-${idx}-activity-role`}
-                        className="w-full px-3 py-2 rounded-[var(--radius-sm)] bg-[var(--surface-base)] border border-[var(--border-default)] text-[var(--text-primary)] cursor-pointer"
+                        className="w-full px-3 py-2 rounded-[var(--radius-sm)] bg-[var(--surface-base)] border border-[var(--border-default)] text-[var(--text-primary)] cursor-pointer min-h-[var(--touch-target-min)]"
                       >
                         <option value="modified">modified (本次活动修改/迭代了该造物)</option>
                         <option value="referenced">referenced (本次活动引用/参考了该造物)</option>
