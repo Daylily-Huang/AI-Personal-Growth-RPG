@@ -11,9 +11,9 @@ export interface XPProgressProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 const sizeClasses = {
-  sm: { track: "h-1", text: "text-xs" },
+  sm: { track: "h-[var(--progress-track-height)]", text: "text-xs" },
   md: { track: "h-[var(--progress-track-height)]", text: "text-xs" },
-  lg: { track: "h-2.5", text: "text-sm" },
+  lg: { track: "h-[var(--progress-track-height)]", text: "text-sm" },
 };
 
 export const XPProgress = forwardRef<HTMLDivElement, XPProgressProps>(

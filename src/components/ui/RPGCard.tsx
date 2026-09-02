@@ -35,7 +35,7 @@ export const RPGCard = forwardRef<HTMLDivElement, RPGCardProps>(
     {
       entityType = "generic",
       selected = false,
-      interactive = false,
+      interactive,
       children,
       className = "",
       onClick,
@@ -44,17 +44,22 @@ export const RPGCard = forwardRef<HTMLDivElement, RPGCardProps>(
     },
     ref
   ) => {
-    const selectedClasses = selected
+    // Actionable only when onClick is explicitly supplied
+    const isActionable = Boolean(onClick) && interactive !== false;
+
+    const borderStyleClasses = selected
       ? "border-[var(--selection-neutral-border)] bg-[var(--selection-neutral-bg)] shadow-[var(--shadow-card)]"
       : "";
 
-    const interactiveClasses = interactive
-      ? `cursor-pointer transition-all duration-[var(--duration-fast)] ease-[var(--ease-out-gentle)] hover:[transform:var(--hover-surface-elevation)] focus-visible:outline-[var(--focus-ring-width)] focus-visible:outline-[var(--focus-ring-color)] focus-visible:outline-offset-[var(--focus-ring-offset)] ${entityHoverBorderClasses[entityType]}`
+    const interactiveClasses = isActionable
+      ? `cursor-pointer transition-all duration-[var(--duration-fast)] ease-[var(--ease-out-gentle)] hover:[transform:var(--hover-surface-elevation)] focus-visible:outline-[var(--focus-ring-width)] focus-visible:outline-[var(--focus-ring-color)] focus-visible:outline-offset-[var(--focus-ring-offset)] ${
+          selected ? "" : entityHoverBorderClasses[entityType]
+        }`
       : "";
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
       onKeyDown?.(e);
-      if (!interactive || e.defaultPrevented) return;
+      if (!isActionable || e.defaultPrevented) return;
 
       if (e.key === "Enter" || e.key === " " || e.key === "Spacebar") {
         if (e.key === " " || e.key === "Spacebar") {
@@ -68,16 +73,16 @@ export const RPGCard = forwardRef<HTMLDivElement, RPGCardProps>(
       <GlassPanel
         ref={ref}
         variant="base"
-        border={selected ? "none" : "default"}
+        border="default"
         data-testid="rpg-card"
         data-entity-type={entityType}
         data-selected={selected ? "true" : undefined}
-        data-interactive={interactive ? "true" : undefined}
-        tabIndex={interactive ? 0 : undefined}
-        role={interactive ? "button" : undefined}
+        data-interactive={isActionable ? "true" : undefined}
+        tabIndex={isActionable ? 0 : undefined}
+        role={isActionable ? "button" : undefined}
         onClick={onClick}
-        onKeyDown={handleKeyDown}
-        className={`p-4 lg:p-5 shadow-[var(--shadow-card)] ${selectedClasses} ${interactiveClasses} ${className}`}
+        onKeyDown={isActionable ? handleKeyDown : onKeyDown}
+        className={`p-4 lg:p-5 shadow-[var(--shadow-card)] ${borderStyleClasses} ${interactiveClasses} ${className}`}
         {...props}
       >
         {children}

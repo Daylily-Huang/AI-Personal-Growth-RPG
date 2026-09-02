@@ -12,7 +12,6 @@ export interface EntityChipProps extends React.HTMLAttributes<HTMLSpanElement> {
   removable?: boolean;
   onRemove?: (e: React.MouseEvent<HTMLButtonElement>) => void;
   onClick?: (e: React.MouseEvent<HTMLButtonElement | HTMLSpanElement>) => void;
-  size?: "sm" | "md";
   className?: string;
 }
 
@@ -57,7 +56,6 @@ export const EntityChip = forwardRef<HTMLSpanElement, EntityChipProps>(
       removable,
       onRemove,
       onClick,
-      size = "md",
       className = "",
       ...props
     },
@@ -100,7 +98,6 @@ export const EntityChip = forwardRef<HTMLSpanElement, EntityChipProps>(
         ref={ref}
         data-testid="entity-chip"
         data-entity-type={entityType}
-        data-size={size}
         className={`inline-flex items-center rounded-full border font-[var(--font-weight-medium)] select-none transition-colors duration-[var(--duration-fast)] min-h-[var(--touch-target-min)] ${classes} ${className}`}
         {...props}
       >

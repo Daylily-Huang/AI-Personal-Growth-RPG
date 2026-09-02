@@ -20,17 +20,20 @@ export const DangerButton = forwardRef<HTMLButtonElement, ButtonProps>(
       children,
       className = "",
       type = "button",
+      "aria-busy": customAriaBusy,
       ...props
     },
     ref
   ) => {
     const isDisabled = disabled || loading;
+    const isBusy = customAriaBusy !== undefined ? customAriaBusy : loading ? true : undefined;
 
     return (
       <button
         ref={ref}
         type={type}
         disabled={isDisabled}
+        aria-busy={isBusy}
         data-testid="danger-button"
         className={`inline-flex items-center justify-center gap-2 rounded-[var(--radius-md)] font-[var(--font-weight-medium)] bg-[var(--state-danger-bg)] border border-[var(--state-danger-border)] text-[var(--state-danger-text)] transition-all duration-[var(--duration-fast)] ease-[var(--ease-out-gentle)] hover:bg-[var(--state-danger-hover)] active:duration-[var(--duration-instant)] active:ease-[var(--ease-in-out-subtle)] active:[transform:var(--active-surface-depression)] disabled:opacity-50 disabled:cursor-not-allowed disabled:active:[transform:none] cursor-pointer focus-visible:outline-[var(--focus-ring-width)] focus-visible:outline-[var(--focus-ring-color)] focus-visible:outline-offset-[var(--focus-ring-offset)] select-none ${sizeClasses[size]} ${className}`}
         {...props}
