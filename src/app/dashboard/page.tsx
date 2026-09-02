@@ -26,6 +26,8 @@ import {
 } from "lucide-react";
 
 import { useOptionalAppShell } from "@/components/layout/AppShellContext";
+import { ArtifactProposalResolutionPicker } from "@/components/artifacts/ArtifactProposalResolutionPicker";
+import type { ArtifactResolutionInput } from "@/types/artifact";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -145,16 +147,46 @@ export default function DashboardPage() {
     }
   }
 
-  async function handleConfirm(assessmentId: string) {
+  async function handleConfirm(
+    assessmentId: string,
+    resolutions?: import("@/types/artifact").ArtifactResolutionInput[]
+  ) {
     setConfirmingId(assessmentId);
     setLocalError(null);
     try {
-      const res = await fetch(`/api/assessments/${assessmentId}/confirm`, { method: "POST" });
+      const payload =
+        resolutions && resolutions.length > 0
+          ? { artifactResolutions: resolutions }
+          : {};
+
+      const res = await fetch(`/api/assessments/${assessmentId}/confirm`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
       if (res.status === 401) {
         router.push("/login");
         return;
       }
-      if (!res.ok) throw new Error("Failed to confirm assessment");
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        if (res.status === 409 && errData.code === "artifact_title_conflict") {
+          throw new Error("结算失败：新建造物标题与已有造物冲突，请在提案中修改标题");
+        }
+        if (res.status === 409 && errData.code === "already_confirmed") {
+          throw new Error("该评估已完成结算，请刷新页面");
+        }
+        if (res.status === 404) {
+          throw new Error("该造物不存在或当前账户无权访问。");
+        }
+        if (res.status === 400) {
+          throw new Error(errData.error || "造物提案解析参数不完整或存在索引错误");
+        }
+        throw new Error(errData.error || "Failed to confirm assessment");
+      }
+
       setLocalLoading(true);
       await load();
     } catch (e) {
@@ -322,7 +354,7 @@ function PendingProposals({
 }: {
   assessments: Assessment[];
   confirmingId: string | null;
-  onConfirm: (id: string) => void;
+  onConfirm: (id: string, resolutions?: ArtifactResolutionInput[]) => void;
 }) {
   if (assessments.length === 0) return null;
   return (
@@ -331,65 +363,124 @@ function PendingProposals({
         待确认的 AI 评估
       </h2>
       {assessments.map((assessment) => (
-        <div key={assessment.id} className="rounded-xl border border-amber-300/20 bg-amber-300/[0.04] p-5">
-          <div className="mb-3 flex items-start justify-between gap-4">
-            <div>
-              <div className="text-sm text-zinc-400">Activity</div>
-              <div className="font-medium">{assessment.proposal.activity.type}</div>
-            </div>
-            <div className="text-right text-xs text-zinc-500">
-              Confidence {Math.round(assessment.confidence * 100)}%
-              <br />
-              {assessment.modelName}
-            </div>
-          </div>
-          <div className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
-            <InfoBox label="Evidence" value={`E${assessment.proposal.evidence.level}`} detail={assessment.proposal.evidence.explanation} />
-            <InfoBox
-              label="Mastery"
-              value={assessment.proposal.mastery_changes[0]
-                ? `M${assessment.proposal.mastery_changes[0].from_level} → M${assessment.proposal.mastery_changes[0].proposed_level}`
-                : "—"}
-              detail={assessment.proposal.mastery_changes[0]?.reason}
-            />
-            <InfoBox
-              label="Affected Skill"
-              value={assessment.proposal.affected_skills[0]?.name ?? "—"}
-              detail={assessment.proposal.affected_skills[0]?.reason}
-            />
-            <InfoBox
-              label="XP Semantics"
-              value={`base ${assessment.proposal.xp_semantics.base_value}`}
-              detail={`difficulty ${Math.round(assessment.proposal.xp_semantics.difficulty * 100)}% · novelty ${Math.round(assessment.proposal.xp_semantics.novelty * 100)}%`}
-            />
-            <InfoBox
-              label="重复风险（AI 估算）"
-              value={assessment.proposal.xp_semantics.repetition_risk}
-              detail="非最终判定；服务器确认时重新计算"
-            />
-          </div>
-          {assessment.proposal.uncertainty_notes.length > 0 ? (
-            <div className="mt-3 text-xs text-zinc-500">
-              {assessment.proposal.uncertainty_notes.join(" ")}
-            </div>
-          ) : null}
-          <div className="mt-4 flex justify-end">
-            <button
-              onClick={() => onConfirm(assessment.id)}
-              disabled={confirmingId === assessment.id}
-              className="inline-flex items-center gap-2 rounded-lg bg-emerald-400 px-4 py-2 text-sm font-semibold text-black transition hover:bg-emerald-300 disabled:opacity-50 cursor-pointer"
-            >
-              {confirmingId === assessment.id ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Check className="h-4 w-4" />
-              )}
-              确认并结算
-            </button>
-          </div>
-        </div>
+        <PendingAssessmentItem
+          key={assessment.id}
+          assessment={assessment}
+          confirmingId={confirmingId}
+          onConfirm={onConfirm}
+        />
       ))}
     </section>
+  );
+}
+
+function PendingAssessmentItem({
+  assessment,
+  confirmingId,
+  onConfirm,
+}: {
+  assessment: Assessment;
+  confirmingId: string | null;
+  onConfirm: (id: string, resolutions?: ArtifactResolutionInput[]) => void;
+}) {
+  const artifactProposals = assessment.proposal?.artifactProposals || [];
+  const hasProposals = artifactProposals.length > 0;
+
+  const [resolutions, setResolutions] = useState<ArtifactResolutionInput[]>([]);
+  const [resolutionsValid, setResolutionsValid] = useState<boolean>(!hasProposals);
+
+  const handleResolutionsChange = useCallback(
+    (newResolutions: ArtifactResolutionInput[], isValid: boolean) => {
+      setResolutions(newResolutions);
+      setResolutionsValid(isValid);
+    },
+    []
+  );
+
+  const isConfirming = confirmingId === assessment.id;
+
+  return (
+    <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-base)] p-5 space-y-4 shadow-[var(--shadow-card)]">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <div className="text-sm text-[var(--text-muted)]">Activity</div>
+          <div className="font-medium text-[var(--text-primary)]">{assessment.proposal.activity.type}</div>
+        </div>
+        <div className="text-right text-xs text-[var(--text-muted)]">
+          Confidence {Math.round(assessment.confidence * 100)}%
+          <br />
+          {assessment.modelName}
+        </div>
+      </div>
+      <div className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+        <InfoBox
+          label="Evidence"
+          value={`E${assessment.proposal.evidence.level}`}
+          detail={assessment.proposal.evidence.explanation}
+        />
+        <InfoBox
+          label="Mastery"
+          value={
+            assessment.proposal.mastery_changes[0]
+              ? `M${assessment.proposal.mastery_changes[0].from_level} → M${assessment.proposal.mastery_changes[0].proposed_level}`
+              : "—"
+          }
+          detail={assessment.proposal.mastery_changes[0]?.reason}
+        />
+        <InfoBox
+          label="Affected Skill"
+          value={assessment.proposal.affected_skills[0]?.name ?? "—"}
+          detail={assessment.proposal.affected_skills[0]?.reason}
+        />
+        <InfoBox
+          label="XP Semantics"
+          value={`base ${assessment.proposal.xp_semantics.base_value}`}
+          detail={`difficulty ${Math.round(
+            assessment.proposal.xp_semantics.difficulty * 100
+          )}% · novelty ${Math.round(
+            assessment.proposal.xp_semantics.novelty * 100
+          )}%`}
+        />
+        <InfoBox
+          label="重复风险（AI 估算）"
+          value={assessment.proposal.xp_semantics.repetition_risk}
+          detail="非最终判定；服务器确认时重新计算"
+        />
+      </div>
+      {assessment.proposal.uncertainty_notes.length > 0 ? (
+        <div className="text-xs text-zinc-500">
+          {assessment.proposal.uncertainty_notes.join(" ")}
+        </div>
+      ) : null}
+
+      {/* Artifact Deliverable Proposals Resolution */}
+      {hasProposals && (
+        <div className="pt-3 border-t border-white/10">
+          <ArtifactProposalResolutionPicker
+            proposals={artifactProposals}
+            onChange={handleResolutionsChange}
+          />
+        </div>
+      )}
+
+      <div className="flex justify-end pt-2">
+        <button
+          onClick={() =>
+            onConfirm(assessment.id, hasProposals ? resolutions : undefined)
+          }
+          disabled={isConfirming || !resolutionsValid}
+          data-testid={`confirm-assessment-btn-${assessment.id}`}
+          className="inline-flex items-center gap-2 rounded-lg bg-emerald-400 px-4 py-2 text-sm font-semibold text-black transition hover:bg-emerald-300 disabled:opacity-50 cursor-pointer"
+        >
+          {isConfirming ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Check className="h-4 w-4" />
+          )}
+          确认并结算
+        </button>
+      </div>
+    </div>
   );
 }
 

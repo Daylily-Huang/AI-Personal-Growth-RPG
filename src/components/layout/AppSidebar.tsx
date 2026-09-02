@@ -47,8 +47,6 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/artifacts",
     label: "产出台",
     icon: FolderGit2,
-    disabled: true,
-    badge: "即将开放",
   },
 ];
 
