@@ -38,7 +38,7 @@ export function ArtifactCard({
           {artifact.version ? (
             <span
               data-testid="artifact-version"
-              className="px-1.5 py-0.5 rounded-[var(--radius-sm)] text-[11px] font-mono text-[var(--text-muted)] bg-[var(--surface-hover-neutral)] border border-[var(--border-subtle)]"
+              className="px-1.5 py-0.5 rounded-[var(--radius-sm)] text-xs font-mono text-[var(--text-muted)] bg-[var(--surface-hover-neutral)] border border-[var(--border-subtle)]"
             >
               v{artifact.version.replace(/^v/i, "")}
             </span>
@@ -82,7 +82,7 @@ export function ArtifactCard({
       {counts ? (
         <div
           data-testid="artifact-relation-counts"
-          className="flex items-center gap-3 pt-2 border-t border-[var(--border-subtle)] text-[11px] text-[var(--text-muted)] flex-wrap"
+          className="flex items-center gap-3 pt-2 border-t border-[var(--border-subtle)] text-xs text-[var(--text-muted)] flex-wrap"
         >
           {counts.skills > 0 && (
             <span className="flex items-center gap-1" title={`${counts.skills} 个关联技能`}>

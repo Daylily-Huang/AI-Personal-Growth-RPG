@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useId } from "react";
 import { ArtifactTypeBadge } from "./ArtifactTypeBadge";
 import { StatusBadge, type KnowledgeAuthorityState } from "@/components/ui/StatusBadge";
 import { ReusabilityMeter } from "@/components/ui/ReusabilityMeter";
 import { SecondaryButton } from "@/components/ui/SecondaryButton";
 import { DangerButton } from "@/components/ui/DangerButton";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { MarkdownRenderer } from "./MarkdownRenderer";
 import {
   ExternalLink,
   Edit3,
@@ -30,11 +31,18 @@ import type {
 
 export interface ArtifactInspectorContentProps {
   detail: ArtifactDetail;
-  onEdit?: () => void;
-  onManageLinks?: () => void;
-  onStatusChange?: (newStatus: ArtifactLifecycleStatus, isArchived: boolean) => Promise<void>;
-  onDelete?: () => Promise<{ ok: boolean; error?: string; code?: string }>;
-  loading?: boolean;
+  onEdit?: (artifactId: string) => void;
+  onManageLinks?: (artifactId: string) => void;
+  onStatusChange?: (
+    artifactId: string,
+    newStatus: ArtifactLifecycleStatus,
+    isArchived: boolean
+  ) => Promise<void>;
+  onDelete?: (artifactId: string) => Promise<{
+    ok: boolean;
+    error?: string;
+    code?: string;
+  }>;
   className?: string;
 }
 
@@ -44,95 +52,104 @@ export function ArtifactInspectorContent({
   onManageLinks,
   onStatusChange,
   onDelete,
-  loading = false,
   className = "",
 }: ArtifactInspectorContentProps) {
   const { artifact, links } = detail;
+  const artifactId = artifact.id;
 
-  // Accordion open/collapse states
+  // Accordion open states
   const [skillsOpen, setSkillsOpen] = useState(true);
   const [knowledgeOpen, setKnowledgeOpen] = useState(true);
   const [questsOpen, setQuestsOpen] = useState(true);
   const [activitiesOpen, setActivitiesOpen] = useState(true);
   const [evidenceOpen, setEvidenceOpen] = useState(true);
 
-  // Dialog states
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  const [deleteError, setDeleteError] = useState<{ message: string; isProvenance: boolean } | null>(null);
-  const [actionLoading, setActionLoading] = useState(false);
+  // Dialog & Action States
+  const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<{
+    message: string;
+    code?: string;
+  } | null>(null);
+  const [statusError, setStatusError] = useState<string | null>(null);
 
-  const isArchived = artifact.isArchived || artifact.lifecycleStatus === "archived";
-  const isSuperseded = artifact.lifecycleStatus === "superseded";
+  const skillsRegionId = useId();
+  const knowledgeRegionId = useId();
+  const questsRegionId = useId();
+  const activitiesRegionId = useId();
+  const evidenceRegionId = useId();
 
-  const handleToggleArchive = async () => {
-    if (!onStatusChange || actionLoading) return;
-    setActionLoading(true);
+  const handleConfirmArchive = async () => {
+    if (!onStatusChange) return;
+    setIsUpdatingStatus(true);
+    setStatusError(null);
     try {
-      if (isArchived) {
-        await onStatusChange("active", false);
-      } else {
-        await onStatusChange("archived", true);
-      }
+      await onStatusChange(artifactId, "archived", true);
+      setArchiveDialogOpen(false);
+    } catch (err) {
+      setStatusError(err instanceof Error ? err.message : "归档操作失败");
     } finally {
-      setActionLoading(false);
+      setIsUpdatingStatus(false);
     }
   };
 
-  const handleRestoreSuperseded = async () => {
-    if (!onStatusChange || actionLoading) return;
-    setActionLoading(true);
+  const handleRestore = async () => {
+    if (!onStatusChange) return;
+    setIsUpdatingStatus(true);
+    setStatusError(null);
     try {
-      await onStatusChange("active", false);
+      await onStatusChange(artifactId, "active", false);
+    } catch (err) {
+      setStatusError(err instanceof Error ? err.message : "恢复操作失败");
     } finally {
-      setActionLoading(false);
+      setIsUpdatingStatus(false);
     }
   };
 
   const handleConfirmDelete = async () => {
-    if (!onDelete || actionLoading) return;
-    setActionLoading(true);
+    if (!onDelete) return;
+    setIsDeleting(true);
     setDeleteError(null);
     try {
-      const res = await onDelete();
+      const res = await onDelete(artifactId);
       if (!res.ok) {
-        const isProvenance = res.code === "referenced_by_provenance";
         setDeleteError({
-          message: res.error || "删除失败，该造物可能已被其他记录引用",
-          isProvenance,
+          message: res.error || "删除操作失败",
+          code: res.code,
         });
       } else {
-        setDeleteConfirmOpen(false);
+        setDeleteDialogOpen(false);
       }
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const formatDate = (isoStr?: string | null) => {
-    if (!isoStr) return "—";
-    try {
-      const d = new Date(isoStr);
-      return d.toLocaleDateString("zh-CN", {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
+    } catch (err) {
+      setDeleteError({
+        message: err instanceof Error ? err.message : "网络错误，删除失败",
       });
-    } catch {
-      return isoStr;
+    } finally {
+      setIsDeleting(false);
     }
   };
-
-  const metadataKeys = artifact.metadata ? Object.keys(artifact.metadata) : [];
 
   return (
     <div
       data-testid="artifact-inspector-content"
+      data-artifact-id={artifactId}
       className={`space-y-6 text-left ${className}`}
     >
-      {/* 1. Header & Badges */}
-      <div className="space-y-3 pb-4 border-b border-[var(--border-subtle)]">
+      {/* Error feedback banner */}
+      {statusError && (
+        <div
+          data-testid="inspector-status-error"
+          className="flex items-start gap-2 p-3 rounded-[var(--radius-md)] bg-[var(--state-danger-bg)] border border-[var(--state-danger-border)] text-[var(--state-danger-text)] text-xs"
+        >
+          <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+          <span>{statusError}</span>
+        </div>
+      )}
+
+      {/* 1. Header: Type, Version & Status */}
+      <div className="space-y-3 border-b border-[var(--border-subtle)] pb-4">
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <div className="flex items-center gap-2">
             <ArtifactTypeBadge type={artifact.artifactType} />
@@ -155,186 +172,223 @@ export function ArtifactInspectorContent({
           {artifact.title}
         </h2>
 
-        {artifact.externalUrl ? (
-          <div className="pt-1">
-            <a
-              href={artifact.externalUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              data-testid="inspector-external-url"
-              className="inline-flex items-center gap-1.5 text-xs text-[var(--entity-artifact-text)] hover:underline focus-visible:outline-[var(--focus-ring-width)] focus-visible:outline-[var(--focus-ring-color)] rounded-[var(--radius-sm)]"
-              aria-label={`在新标签页中打开外部链接: ${artifact.externalUrl}`}
-            >
-              <ExternalLink className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
-              <span className="truncate max-w-[280px]">{artifact.externalUrl}</span>
-            </a>
-          </div>
-        ) : null}
+        {artifact.externalUrl && (
+          <a
+            href={artifact.externalUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            data-testid="inspector-external-url"
+            className="inline-flex items-center gap-1.5 text-xs text-[var(--entity-artifact-text)] hover:underline break-all"
+          >
+            <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+            <span>{artifact.externalUrl}</span>
+          </a>
+        )}
       </div>
 
-      {/* 2. Reusability & Dates Meta */}
-      <div className="space-y-3 p-4 rounded-[var(--radius-lg)] bg-[var(--surface-base)] border border-[var(--border-subtle)]">
-        <div>
-          <div className="text-xs font-[var(--font-weight-medium)] text-[var(--text-secondary)] mb-1.5">
-            可复用性评级 (Reusability Score)
-          </div>
-          <ReusabilityMeter score={artifact.reusabilityScore} size="md" />
-        </div>
-
-        <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[var(--border-subtle)] text-xs text-[var(--text-muted)]">
-          <div>
-            <span className="text-[var(--text-secondary)]">创建时间: </span>
-            <span>{formatDate(artifact.createdAt)}</span>
-          </div>
-          <div>
-            <span className="text-[var(--text-secondary)]">最后更新: </span>
-            <span>{formatDate(artifact.updatedAt)}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* 3. Summary & Description */}
-      <div className="space-y-4">
-        {artifact.summary ? (
-          <div className="space-y-1.5">
-            <h4 className="text-xs font-[var(--font-weight-semibold)] text-[var(--text-secondary)] uppercase tracking-wider">
-              成果摘要 (Summary)
-            </h4>
-            <div
-              data-testid="inspector-artifact-summary"
-              className="p-3 rounded-[var(--radius-md)] bg-[var(--surface-ground)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] leading-relaxed"
-            >
-              {artifact.summary}
-            </div>
-          </div>
-        ) : null}
-
-        {artifact.description ? (
-          <div className="space-y-1.5">
-            <h4 className="text-xs font-[var(--font-weight-semibold)] text-[var(--text-secondary)] uppercase tracking-wider">
-              详细描述与构件记录 (Description)
-            </h4>
-            <div
-              data-testid="inspector-artifact-description"
-              className="p-3 rounded-[var(--radius-md)] bg-[var(--surface-ground)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] leading-relaxed whitespace-pre-wrap"
-            >
-              {artifact.description}
-            </div>
-          </div>
-        ) : null}
-
-        {metadataKeys.length > 0 ? (
-          <div className="space-y-1.5">
-            <h4 className="text-xs font-[var(--font-weight-semibold)] text-[var(--text-secondary)] uppercase tracking-wider">
-              元数据 (Metadata)
-            </h4>
-            <div
-              data-testid="inspector-artifact-metadata"
-              className="p-3 rounded-[var(--radius-md)] bg-[var(--surface-ground)] border border-[var(--border-subtle)] space-y-1 text-xs"
-            >
-              {metadataKeys.map((k) => (
-                <div key={k} className="flex items-start justify-between gap-2">
-                  <span className="font-mono text-[var(--text-secondary)]">{k}:</span>
-                  <span className="font-mono text-[var(--text-primary)] text-right break-all">
-                    {typeof artifact.metadata[k] === "object"
-                      ? JSON.stringify(artifact.metadata[k])
-                      : String(artifact.metadata[k])}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : null}
-      </div>
-
-      {/* 4. 5 Relational Accordions */}
-      <div className="space-y-3 pt-2 border-t border-[var(--border-subtle)]">
+      {/* 2. Reusability Meter */}
+      <div className="space-y-2 p-3.5 rounded-[var(--radius-lg)] bg-[var(--surface-ground)] border border-[var(--border-subtle)]">
         <div className="flex items-center justify-between">
-          <h4 className="font-serif font-[var(--font-weight-semibold)] text-sm text-[var(--text-primary)]">
-            关联拓扑 (Relationships)
-          </h4>
-          {onManageLinks ? (
-            <button
-              type="button"
-              onClick={onManageLinks}
-              data-testid="inspector-manage-links-btn"
-              className="inline-flex items-center gap-1 text-xs text-[var(--entity-artifact-text)] hover:underline cursor-pointer focus-visible:outline-[var(--focus-ring-width)] focus-visible:outline-[var(--focus-ring-color)] rounded-[var(--radius-sm)]"
-            >
-              <Link2 className="w-3.5 h-3.5" aria-hidden="true" />
-              <span>管理关联</span>
-            </button>
-          ) : null}
+          <span className="text-xs font-[var(--font-weight-medium)] text-[var(--text-secondary)]">
+            可复用性评分 (Reusability Score)
+          </span>
+          <span className="font-mono text-xs text-[var(--text-primary)] font-[var(--font-weight-semibold)]">
+            {Number(artifact.reusabilityScore).toFixed(2)}
+          </span>
         </div>
+        <ReusabilityMeter score={artifact.reusabilityScore} showLabel={false} />
+      </div>
 
-        {/* 4.1 Linked Skills Accordion */}
-        <div className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] overflow-hidden bg-[var(--surface-ground)]">
+      {/* 3. Summary & Description with Safe Markdown Rendering */}
+      {artifact.summary && (
+        <div className="space-y-1.5">
+          <h4 className="text-xs font-[var(--font-weight-semibold)] text-[var(--text-muted)] uppercase tracking-wider">
+            成果摘要 (Summary)
+          </h4>
+          <div
+            data-testid="inspector-artifact-summary"
+            className="p-3 rounded-[var(--radius-md)] bg-[var(--surface-base)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)]"
+          >
+            <MarkdownRenderer content={artifact.summary} />
+          </div>
+        </div>
+      )}
+
+      {artifact.description && (
+        <div className="space-y-1.5">
+          <h4 className="text-xs font-[var(--font-weight-semibold)] text-[var(--text-muted)] uppercase tracking-wider">
+            详细记录 (Description / Markdown)
+          </h4>
+          <div
+            data-testid="inspector-artifact-description"
+            className="p-3 rounded-[var(--radius-md)] bg-[var(--surface-base)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)]"
+          >
+            <MarkdownRenderer content={artifact.description} />
+          </div>
+        </div>
+      )}
+
+      {/* 4. Action Toolbar */}
+      <div className="flex items-center flex-wrap gap-2.5 pt-2 border-t border-[var(--border-subtle)]">
+        {onEdit && (
+          <SecondaryButton
+            size="sm"
+            onClick={() => onEdit(artifactId)}
+            icon={<Edit3 className="w-3.5 h-3.5" />}
+            data-testid="inspector-edit-btn"
+          >
+            编辑造物
+          </SecondaryButton>
+        )}
+
+        {onManageLinks && (
+          <SecondaryButton
+            size="sm"
+            onClick={() => onManageLinks(artifactId)}
+            icon={<Link2 className="w-3.5 h-3.5" />}
+            data-testid="inspector-manage-links-btn"
+          >
+            管理关联拓扑
+          </SecondaryButton>
+        )}
+
+        {onStatusChange && (
+          artifact.lifecycleStatus === "archived" ? (
+            <SecondaryButton
+              size="sm"
+              onClick={handleRestore}
+              disabled={isUpdatingStatus}
+              loading={isUpdatingStatus}
+              icon={<RotateCcw className="w-3.5 h-3.5" />}
+              data-testid="inspector-restore-btn"
+            >
+              恢复生效
+            </SecondaryButton>
+          ) : (
+            <SecondaryButton
+              size="sm"
+              onClick={() => setArchiveDialogOpen(true)}
+              disabled={isUpdatingStatus}
+              loading={isUpdatingStatus}
+              icon={<Archive className="w-3.5 h-3.5" />}
+              data-testid="inspector-archive-toggle-btn"
+            >
+              归档造物
+            </SecondaryButton>
+          )
+        )}
+
+        {onDelete && (
+          <DangerButton
+            size="sm"
+            onClick={() => {
+              setDeleteError(null);
+              setDeleteDialogOpen(true);
+            }}
+            icon={<Trash2 className="w-3.5 h-3.5" />}
+            data-testid="inspector-delete-btn"
+          >
+            删除
+          </DangerButton>
+        )}
+      </div>
+
+      {/* 5. Relational Accordions */}
+      <div className="space-y-3 pt-2">
+        <h3 className="font-serif font-[var(--font-weight-semibold)] text-sm text-[var(--text-primary)]">
+          关联拓扑 (Relational Topology)
+        </h3>
+
+        {/* Accordion 1: Skills */}
+        <div className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] overflow-hidden bg-[var(--surface-base)]">
           <button
             type="button"
-            onClick={() => setSkillsOpen((prev) => !prev)}
+            onClick={() => setSkillsOpen(!skillsOpen)}
+            aria-expanded={skillsOpen}
+            aria-controls={skillsRegionId}
             data-testid="accordion-skills-toggle"
-            className="w-full flex items-center justify-between p-3 text-xs font-[var(--font-weight-medium)] text-[var(--text-primary)] hover:bg-[var(--surface-hover-neutral)] transition-colors cursor-pointer"
+            className="w-full flex items-center justify-between p-3 text-left hover:bg-[var(--surface-hover-neutral)] transition-colors cursor-pointer"
           >
-            <span className="flex items-center gap-2">
-              <Sparkles className="w-3.5 h-3.5 text-[var(--entity-skill-text)]" aria-hidden="true" />
-              <span>关联技能 ({links?.skills?.length || 0})</span>
-            </span>
-            {skillsOpen ? <ChevronUp className="w-4 h-4 text-[var(--text-muted)]" /> : <ChevronDown className="w-4 h-4 text-[var(--text-muted)]" />}
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-[var(--entity-skill-text)]" />
+              <span className="text-xs font-[var(--font-weight-medium)] text-[var(--text-primary)]">
+                关联技能 (Skills: {links.skills.length})
+              </span>
+            </div>
+            {skillsOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
           </button>
           {skillsOpen && (
-            <div data-testid="accordion-skills-content" className="p-3 pt-0 space-y-2 border-t border-[var(--border-subtle)]">
-              {links?.skills && links.skills.length > 0 ? (
+            <div
+              id={skillsRegionId}
+              role="region"
+              aria-label="关联技能列表"
+              data-testid="accordion-skills-content"
+              className="p-3 pt-0 border-t border-[var(--border-subtle)] space-y-2"
+            >
+              {links.skills.length > 0 ? (
                 links.skills.map((skill) => (
                   <div
                     key={skill.id}
-                    data-testid={`linked-skill-${skill.id}`}
-                    className="flex items-center justify-between p-2 rounded-[var(--radius-sm)] bg-[var(--surface-base)] border border-[var(--border-subtle)] text-xs"
+                    className="flex items-center justify-between p-2 rounded-[var(--radius-sm)] bg-[var(--surface-ground)] text-xs"
                   >
                     <div className="flex items-center gap-2">
-                      <span className="font-[var(--font-weight-medium)] text-[var(--text-primary)]">{skill.name}</span>
-                      <span className="text-[var(--text-muted)]">Lvl {skill.level}</span>
+                      <span className="font-[var(--font-weight-medium)] text-[var(--text-primary)]">
+                        {skill.name}
+                      </span>
+                      <span className="px-1.5 py-0.5 rounded-[var(--radius-sm)] text-xs font-mono text-[var(--text-muted)] bg-[var(--surface-hover-neutral)]">
+                        Lv.{skill.level}
+                      </span>
                     </div>
-                    {/* Invariant: Demonstration Level (1..5) != M0-M10 Mastery */}
                     <span
                       data-testid="demonstration-level"
-                      className="px-1.5 py-0.5 rounded-[var(--radius-sm)] text-[11px] font-mono bg-[var(--entity-skill-bg)] border border-[var(--entity-skill-border)] text-[var(--entity-skill-text)]"
+                      className="px-2 py-0.5 rounded-[var(--radius-sm)] text-xs font-mono text-[var(--entity-skill-text)] bg-[var(--entity-skill-bg)] border border-[var(--entity-skill-border)]"
                     >
                       示范等级 {skill.demonstrationLevel}/5
                     </span>
                   </div>
                 ))
               ) : (
-                <div className="text-xs text-[var(--text-disabled)] italic py-1">暂无关联技能</div>
+                <div className="text-xs text-[var(--text-disabled)] italic py-1">暂无技能关联</div>
               )}
             </div>
           )}
         </div>
 
-        {/* 4.2 Linked Knowledge Nodes Accordion */}
-        <div className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] overflow-hidden bg-[var(--surface-ground)]">
+        {/* Accordion 2: Knowledge Nodes */}
+        <div className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] overflow-hidden bg-[var(--surface-base)]">
           <button
             type="button"
-            onClick={() => setKnowledgeOpen((prev) => !prev)}
+            onClick={() => setKnowledgeOpen(!knowledgeOpen)}
+            aria-expanded={knowledgeOpen}
+            aria-controls={knowledgeRegionId}
             data-testid="accordion-knowledge-toggle"
-            className="w-full flex items-center justify-between p-3 text-xs font-[var(--font-weight-medium)] text-[var(--text-primary)] hover:bg-[var(--surface-hover-neutral)] transition-colors cursor-pointer"
+            className="w-full flex items-center justify-between p-3 text-left hover:bg-[var(--surface-hover-neutral)] transition-colors cursor-pointer"
           >
-            <span className="flex items-center gap-2">
-              <Network className="w-3.5 h-3.5 text-[var(--entity-knowledge-text)]" aria-hidden="true" />
-              <span>知识节点 ({links?.knowledgeNodes?.length || 0})</span>
-            </span>
-            {knowledgeOpen ? <ChevronUp className="w-4 h-4 text-[var(--text-muted)]" /> : <ChevronDown className="w-4 h-4 text-[var(--text-muted)]" />}
+            <div className="flex items-center gap-2">
+              <Network className="w-4 h-4 text-[var(--entity-knowledge-text)]" />
+              <span className="text-xs font-[var(--font-weight-medium)] text-[var(--text-primary)]">
+                知识节点 (Knowledge Nodes: {links.knowledgeNodes.length})
+              </span>
+            </div>
+            {knowledgeOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
           </button>
           {knowledgeOpen && (
-            <div data-testid="accordion-knowledge-content" className="p-3 pt-0 space-y-2 border-t border-[var(--border-subtle)]">
-              {links?.knowledgeNodes && links.knowledgeNodes.length > 0 ? (
+            <div
+              id={knowledgeRegionId}
+              role="region"
+              aria-label="知识节点列表"
+              data-testid="accordion-knowledge-content"
+              className="p-3 pt-0 border-t border-[var(--border-subtle)] space-y-2"
+            >
+              {links.knowledgeNodes.length > 0 ? (
                 links.knowledgeNodes.map((node) => (
                   <div
                     key={node.id}
-                    data-testid={`linked-knowledge-${node.id}`}
-                    className="flex items-center justify-between p-2 rounded-[var(--radius-sm)] bg-[var(--surface-base)] border border-[var(--border-subtle)] text-xs"
+                    className="flex items-center justify-between p-2 rounded-[var(--radius-sm)] bg-[var(--surface-ground)] text-xs"
                   >
                     <div className="flex items-center gap-2">
                       <span className="font-[var(--font-weight-medium)] text-[var(--text-primary)]">{node.title}</span>
-                      <span className="px-1.5 py-0.5 rounded-[var(--radius-sm)] text-[11px] font-mono text-[var(--text-muted)] bg-[var(--surface-hover-neutral)]">
+                      <span className="px-1.5 py-0.5 rounded-[var(--radius-sm)] text-xs font-mono text-[var(--text-muted)] bg-[var(--surface-hover-neutral)]">
                         {node.relationType}
                       </span>
                     </div>
@@ -358,220 +412,200 @@ export function ArtifactInspectorContent({
           )}
         </div>
 
-        {/* 4.3 Linked Quests Accordion */}
-        <div className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] overflow-hidden bg-[var(--surface-ground)]">
+        {/* Accordion 3: Quests */}
+        <div className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] overflow-hidden bg-[var(--surface-base)]">
           <button
             type="button"
-            onClick={() => setQuestsOpen((prev) => !prev)}
+            onClick={() => setQuestsOpen(!questsOpen)}
+            aria-expanded={questsOpen}
+            aria-controls={questsRegionId}
             data-testid="accordion-quests-toggle"
-            className="w-full flex items-center justify-between p-3 text-xs font-[var(--font-weight-medium)] text-[var(--text-primary)] hover:bg-[var(--surface-hover-neutral)] transition-colors cursor-pointer"
+            className="w-full flex items-center justify-between p-3 text-left hover:bg-[var(--surface-hover-neutral)] transition-colors cursor-pointer"
           >
-            <span className="flex items-center gap-2">
-              <Scroll className="w-3.5 h-3.5 text-[var(--entity-quest-text)]" aria-hidden="true" />
-              <span>关联任务 ({links?.quests?.length || 0})</span>
-            </span>
-            {questsOpen ? <ChevronUp className="w-4 h-4 text-[var(--text-muted)]" /> : <ChevronDown className="w-4 h-4 text-[var(--text-muted)]" />}
+            <div className="flex items-center gap-2">
+              <Scroll className="w-4 h-4 text-[var(--entity-quest-text)]" />
+              <span className="text-xs font-[var(--font-weight-medium)] text-[var(--text-primary)]">
+                关联任务 (Quests: {links.quests.length})
+              </span>
+            </div>
+            {questsOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
           </button>
           {questsOpen && (
-            <div data-testid="accordion-quests-content" className="p-3 pt-0 space-y-2 border-t border-[var(--border-subtle)]">
-              {links?.quests && links.quests.length > 0 ? (
+            <div
+              id={questsRegionId}
+              role="region"
+              aria-label="关联任务列表"
+              data-testid="accordion-quests-content"
+              className="p-3 pt-0 border-t border-[var(--border-subtle)] space-y-2"
+            >
+              {links.quests.length > 0 ? (
                 links.quests.map((quest) => (
                   <div
                     key={quest.id}
-                    data-testid={`linked-quest-${quest.id}`}
-                    className="flex items-center justify-between p-2 rounded-[var(--radius-sm)] bg-[var(--surface-base)] border border-[var(--border-subtle)] text-xs"
+                    className="flex items-center justify-between p-2 rounded-[var(--radius-sm)] bg-[var(--surface-ground)] text-xs"
                   >
-                    <span className="font-[var(--font-weight-medium)] text-[var(--text-primary)]">{quest.title}</span>
-                    <div className="flex items-center gap-1.5">
-                      {quest.isPrimaryDeliverable && (
-                        <span className="px-1.5 py-0.5 rounded-[var(--radius-sm)] text-[11px] font-[var(--font-weight-semibold)] bg-[var(--entity-quest-bg)] border border-[var(--entity-quest-border)] text-[var(--entity-quest-text)]">
-                          主交付物
-                        </span>
-                      )}
-                      <span className="text-[var(--text-muted)] text-[11px]">{quest.status}</span>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="text-xs text-[var(--text-disabled)] italic py-1">暂无关联任务</div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* 4.4 Linked Activities Accordion */}
-        <div className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] overflow-hidden bg-[var(--surface-ground)]">
-          <button
-            type="button"
-            onClick={() => setActivitiesOpen((prev) => !prev)}
-            data-testid="accordion-activities-toggle"
-            className="w-full flex items-center justify-between p-3 text-xs font-[var(--font-weight-medium)] text-[var(--text-primary)] hover:bg-[var(--surface-hover-neutral)] transition-colors cursor-pointer"
-          >
-            <span className="flex items-center gap-2">
-              <Zap className="w-3.5 h-3.5 text-[var(--entity-activity-text)]" aria-hidden="true" />
-              <span>产出活动 ({links?.activities?.length || 0})</span>
-            </span>
-            {activitiesOpen ? <ChevronUp className="w-4 h-4 text-[var(--text-muted)]" /> : <ChevronDown className="w-4 h-4 text-[var(--text-muted)]" />}
-          </button>
-          {activitiesOpen && (
-            <div data-testid="accordion-activities-content" className="p-3 pt-0 space-y-2 border-t border-[var(--border-subtle)]">
-              {links?.activities && links.activities.length > 0 ? (
-                links.activities.map((act) => (
-                  <div
-                    key={act.id}
-                    data-testid={`linked-activity-${act.id}`}
-                    className="flex items-center justify-between p-2 rounded-[var(--radius-sm)] bg-[var(--surface-base)] border border-[var(--border-subtle)] text-xs"
-                  >
-                    <span className="font-[var(--font-weight-medium)] text-[var(--text-primary)]">{act.title}</span>
-                    <span className="px-1.5 py-0.5 rounded-[var(--radius-sm)] text-[11px] font-mono text-[var(--entity-activity-text)] bg-[var(--entity-activity-bg)] border border-[var(--entity-activity-border)]">
-                      {act.activityRole}
+                    <span className="font-[var(--font-weight-medium)] text-[var(--text-primary)]">
+                      {quest.title}
                     </span>
-                  </div>
-                ))
-              ) : (
-                <div className="text-xs text-[var(--text-disabled)] italic py-1">暂无产出活动记录</div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* 4.5 Linked Evidence Accordion */}
-        <div className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] overflow-hidden bg-[var(--surface-ground)]">
-          <button
-            type="button"
-            onClick={() => setEvidenceOpen((prev) => !prev)}
-            data-testid="accordion-evidence-toggle"
-            className="w-full flex items-center justify-between p-3 text-xs font-[var(--font-weight-medium)] text-[var(--text-primary)] hover:bg-[var(--surface-hover-neutral)] transition-colors cursor-pointer"
-          >
-            <span className="flex items-center gap-2">
-              <ShieldCheck className="w-3.5 h-3.5 text-[var(--entity-evidence-text)]" aria-hidden="true" />
-              <span>佐证实证 ({links?.evidence?.length || 0})</span>
-            </span>
-            {evidenceOpen ? <ChevronUp className="w-4 h-4 text-[var(--text-muted)]" /> : <ChevronDown className="w-4 h-4 text-[var(--text-muted)]" />}
-          </button>
-          {evidenceOpen && (
-            <div data-testid="accordion-evidence-content" className="p-3 pt-0 space-y-2 border-t border-[var(--border-subtle)]">
-              {links?.evidence && links.evidence.length > 0 ? (
-                links.evidence.map((ev) => (
-                  <div
-                    key={ev.id}
-                    data-testid={`linked-evidence-${ev.id}`}
-                    className="flex items-center justify-between p-2 rounded-[var(--radius-sm)] bg-[var(--surface-base)] border border-[var(--border-subtle)] text-xs"
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="px-1.5 py-0.5 rounded-[var(--radius-sm)] text-[11px] font-mono font-bold bg-[var(--entity-evidence-bg)] border border-[var(--entity-evidence-border)] text-[var(--entity-evidence-text)]">
-                        E{ev.evidenceLevel}
-                      </span>
-                      <span className="truncate text-[var(--text-secondary)]">{ev.description || "实证证据"}</span>
-                    </div>
-                    {ev.verified && (
-                      <span className="px-1.5 py-0.5 rounded-[var(--radius-sm)] text-[10px] text-[var(--state-success-text)] bg-[var(--state-success-bg)]">
-                        已验证
+                    {quest.isPrimaryDeliverable && (
+                      <span className="px-2 py-0.5 rounded-[var(--radius-sm)] text-xs font-mono text-[var(--entity-quest-text)] bg-[var(--entity-quest-bg)] border border-[var(--entity-quest-border)]">
+                        主交付物
                       </span>
                     )}
                   </div>
                 ))
               ) : (
-                <div className="text-xs text-[var(--text-disabled)] italic py-1">暂无实证记录关联</div>
+                <div className="text-xs text-[var(--text-disabled)] italic py-1">暂无任务关联</div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Accordion 4: Activities */}
+        <div className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] overflow-hidden bg-[var(--surface-base)]">
+          <button
+            type="button"
+            onClick={() => setActivitiesOpen(!activitiesOpen)}
+            aria-expanded={activitiesOpen}
+            aria-controls={activitiesRegionId}
+            data-testid="accordion-activities-toggle"
+            className="w-full flex items-center justify-between p-3 text-left hover:bg-[var(--surface-hover-neutral)] transition-colors cursor-pointer"
+          >
+            <div className="flex items-center gap-2">
+              <Zap className="w-4 h-4 text-[var(--entity-activity-text)]" />
+              <span className="text-xs font-[var(--font-weight-medium)] text-[var(--text-primary)]">
+                沉淀活动 (Activities: {links.activities.length})
+              </span>
+            </div>
+            {activitiesOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+          </button>
+          {activitiesOpen && (
+            <div
+              id={activitiesRegionId}
+              role="region"
+              aria-label="沉淀活动列表"
+              data-testid="accordion-activities-content"
+              className="p-3 pt-0 border-t border-[var(--border-subtle)] space-y-2"
+            >
+              {links.activities.length > 0 ? (
+                links.activities.map((act) => (
+                  <div
+                    key={act.id}
+                    className="flex items-center justify-between p-2 rounded-[var(--radius-sm)] bg-[var(--surface-ground)] text-xs"
+                  >
+                    <span className="font-[var(--font-weight-medium)] text-[var(--text-primary)]">
+                      {act.title}
+                    </span>
+                    <span className="px-1.5 py-0.5 rounded-[var(--radius-sm)] text-xs font-mono text-[var(--text-muted)] bg-[var(--surface-hover-neutral)]">
+                      {act.activityRole}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <div className="text-xs text-[var(--text-disabled)] italic py-1">暂无活动关联</div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Accordion 5: Evidence */}
+        <div className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] overflow-hidden bg-[var(--surface-base)]">
+          <button
+            type="button"
+            onClick={() => setEvidenceOpen(!evidenceOpen)}
+            aria-expanded={evidenceOpen}
+            aria-controls={evidenceRegionId}
+            data-testid="accordion-evidence-toggle"
+            className="w-full flex items-center justify-between p-3 text-left hover:bg-[var(--surface-hover-neutral)] transition-colors cursor-pointer"
+          >
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-[var(--authority-verified-text)]" />
+              <span className="text-xs font-[var(--font-weight-medium)] text-[var(--text-primary)]">
+                实证记录 (Evidence Records: {links.evidence.length})
+              </span>
+            </div>
+            {evidenceOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+          </button>
+          {evidenceOpen && (
+            <div
+              id={evidenceRegionId}
+              role="region"
+              aria-label="实证记录列表"
+              data-testid="accordion-evidence-content"
+              className="p-3 pt-0 border-t border-[var(--border-subtle)] space-y-2"
+            >
+              {links.evidence.length > 0 ? (
+                links.evidence.map((ev) => (
+                  <div
+                    key={ev.id}
+                    className="flex items-start justify-between p-2 rounded-[var(--radius-sm)] bg-[var(--surface-ground)] text-xs gap-2"
+                  >
+                    <span className="text-[var(--text-primary)] line-clamp-2">
+                      {ev.description}
+                    </span>
+                    <span className="px-1.5 py-0.5 rounded-[var(--radius-sm)] text-xs font-mono text-[var(--authority-verified-text)] bg-[var(--authority-verified-bg)] border border-[var(--authority-verified-border)] shrink-0">
+                      E{ev.evidenceLevel}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <div className="text-xs text-[var(--text-disabled)] italic py-1">暂无实证关联</div>
               )}
             </div>
           )}
         </div>
       </div>
 
-      {/* 5. Action Controls Footer */}
-      <div className="pt-4 border-t border-[var(--border-subtle)] space-y-3">
-        <div className="flex items-center gap-2 flex-wrap">
-          {onEdit && (
-            <SecondaryButton
-              onClick={onEdit}
-              icon={<Edit3 className="w-4 h-4" />}
-              data-testid="inspector-edit-btn"
-              disabled={loading || actionLoading}
-            >
-              编辑详情
-            </SecondaryButton>
-          )}
-
-          {onStatusChange && (
-            <SecondaryButton
-              onClick={handleToggleArchive}
-              icon={<Archive className="w-4 h-4" />}
-              data-testid="inspector-archive-toggle-btn"
-              disabled={loading || actionLoading}
-              loading={actionLoading}
-            >
-              {isArchived ? "恢复造物 (Unarchive)" : "归档造物 (Archive)"}
-            </SecondaryButton>
-          )}
-
-          {isSuperseded && onStatusChange && (
-            <SecondaryButton
-              onClick={handleRestoreSuperseded}
-              icon={<RotateCcw className="w-4 h-4" />}
-              data-testid="inspector-restore-superseded-btn"
-              disabled={loading || actionLoading}
-              loading={actionLoading}
-            >
-              恢复为生效 (Restore)
-            </SecondaryButton>
-          )}
-        </div>
-
-        {onDelete && (
-          <div className="pt-2 border-t border-[var(--border-subtle)]">
-            <DangerButton
-              onClick={() => {
-                setDeleteError(null);
-                setDeleteConfirmOpen(true);
-              }}
-              icon={<Trash2 className="w-4 h-4" />}
-              data-testid="inspector-delete-btn"
-              disabled={loading || actionLoading}
-            >
-              删除造物 (Delete)
-            </DangerButton>
-          </div>
-        )}
-      </div>
-
-      {/* 6. Delete Confirmation Dialog with Provenance Check */}
+      {/* 6. Archive Confirmation Dialog */}
       <ConfirmDialog
-        open={deleteConfirmOpen}
-        onClose={() => setDeleteConfirmOpen(false)}
+        open={archiveDialogOpen}
+        onClose={() => {
+          if (!isUpdatingStatus) setArchiveDialogOpen(false);
+        }}
+        onConfirm={handleConfirmArchive}
+        title="确认归档造物"
+        description="归档后该造物将移至历史成果档案库，但保留所有关联拓扑数据。您可以随时将其恢复为生效状态。"
+        confirmLabel="确认归档"
+        cancelLabel="取消"
+        loading={isUpdatingStatus}
+      />
+
+      {/* 7. Delete Confirmation Dialog */}
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        onClose={() => {
+          if (!isDeleting) setDeleteDialogOpen(false);
+        }}
         onConfirm={handleConfirmDelete}
         title="确认删除造物"
-        destructive={true}
-        loading={actionLoading}
+        description={
+          <div className="space-y-3">
+            <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+              您确定要物理删除该造物吗？此操作不可逆。如果该造物已被知识图谱证据链或实证记录引用，出于系统可审计原则将禁止删除。
+            </p>
+
+            {deleteError && (
+              <div className="p-3 rounded-[var(--radius-md)] bg-[var(--state-danger-bg)] border border-[var(--state-danger-border)] text-[var(--state-danger-text)] text-xs space-y-1">
+                <div className="font-[var(--font-weight-semibold)] flex items-center gap-1.5">
+                  <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                  {deleteError.code === "referenced_by_provenance"
+                    ? "无法物理删除此造物"
+                    : "删除失败"}
+                </div>
+                <div>{deleteError.message}</div>
+                {deleteError.code === "referenced_by_provenance" && (
+                  <div className="text-[var(--text-muted)] pt-1 text-xs">
+                    建议使用「归档造物」功能将其移至历史库，同时保留证据链审计。
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        }
         confirmLabel="确认删除"
         cancelLabel="取消"
-        description={
-          deleteError ? (
-            <div className="space-y-3">
-              <div className="flex items-start gap-2 p-3 rounded-[var(--radius-md)] bg-[var(--state-danger-bg)] border border-[var(--state-danger-border)] text-[var(--state-danger-text)] text-xs leading-relaxed">
-                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" aria-hidden="true" />
-                <div>
-                  <div className="font-[var(--font-weight-semibold)]">无法物理删除此造物</div>
-                  <div className="mt-1">{deleteError.message}</div>
-                </div>
-              </div>
-              {deleteError.isProvenance && (
-                <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-                  💡 提示：该造物已作为底层知识谱系证据或实证凭据，强行删除将破坏证据链完整性。建议使用<strong>“归档造物”</strong>将其移出活跃工作区。
-                </p>
-              )}
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <p>
-                您确定要删除造物 <strong>“{artifact.title}”</strong> 吗？
-              </p>
-              <p className="text-xs text-[var(--text-muted)] leading-relaxed">
-                此操作将物理清除该造物及其非主权关联关系。如果造物被知识库实证直接引用，系统将拒绝删除以保护证据链完整性。
-              </p>
-            </div>
-          )
-        }
+        destructive={true}
+        loading={isDeleting}
       />
     </div>
   );

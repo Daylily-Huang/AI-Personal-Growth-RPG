@@ -179,7 +179,7 @@ export default function DashboardPage() {
           throw new Error("该评估已完成结算，请刷新页面");
         }
         if (res.status === 404) {
-          throw new Error("关联的已有造物不存在或属于其他用户");
+          throw new Error("该造物不存在或当前账户无权访问。");
         }
         if (res.status === 400) {
           throw new Error(errData.error || "造物提案解析参数不完整或存在索引错误");
@@ -386,19 +386,8 @@ function PendingAssessmentItem({
   const artifactProposals = assessment.proposal?.artifactProposals || [];
   const hasProposals = artifactProposals.length > 0;
 
-  const [resolutions, setResolutions] = useState<ArtifactResolutionInput[]>(() => {
-    if (!hasProposals) return [];
-    return artifactProposals.map((p, idx) => ({
-      proposalIndex: idx,
-      resolution: "create" as const,
-      approvedOverrides: {
-        title: p.title || "",
-        artifactType: p.artifactType || "document",
-        reusabilityScore: p.reusabilityScore ?? 0.8,
-      },
-    }));
-  });
-  const [resolutionsValid, setResolutionsValid] = useState<boolean>(true);
+  const [resolutions, setResolutions] = useState<ArtifactResolutionInput[]>([]);
+  const [resolutionsValid, setResolutionsValid] = useState<boolean>(!hasProposals);
 
   const handleResolutionsChange = useCallback(
     (newResolutions: ArtifactResolutionInput[], isValid: boolean) => {
@@ -411,13 +400,13 @@ function PendingAssessmentItem({
   const isConfirming = confirmingId === assessment.id;
 
   return (
-    <div className="rounded-xl border border-amber-300/20 bg-amber-300/[0.04] p-5 space-y-4">
+    <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-base)] p-5 space-y-4 shadow-[var(--shadow-card)]">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <div className="text-sm text-zinc-400">Activity</div>
-          <div className="font-medium">{assessment.proposal.activity.type}</div>
+          <div className="text-sm text-[var(--text-muted)]">Activity</div>
+          <div className="font-medium text-[var(--text-primary)]">{assessment.proposal.activity.type}</div>
         </div>
-        <div className="text-right text-xs text-zinc-500">
+        <div className="text-right text-xs text-[var(--text-muted)]">
           Confidence {Math.round(assessment.confidence * 100)}%
           <br />
           {assessment.modelName}

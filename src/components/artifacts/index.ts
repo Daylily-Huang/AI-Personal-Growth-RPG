@@ -8,3 +8,4 @@ export * from "./ArtifactCreateModal";
 export * from "./ArtifactEditModal";
 export * from "./ArtifactLinkManagerModal";
 export * from "./ArtifactProposalResolutionPicker";
+export * from "./MarkdownRenderer";

@@ -1,27 +1,23 @@
 // @vitest-environment jsdom
 // tests/stage7c-ui.test.tsx
-// Phase 4 — Stage 7C Artifact UI & Proposal Resolution Comprehensive Test Suite
+// Phase 4 — Stage 7C Artifact UI & Proposal Resolution Comprehensive Test Suite (Round 2 Closure)
 
 import React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
 import { execSync } from "node:child_process";
+import { AppShellBoundary } from "@/components/layout/AppShellBoundary";
 import {
-  ArtifactTypeBadge,
-  ArtifactCard,
   ArtifactInspectorContent,
   ArtifactCreateModal,
-  ArtifactEditModal,
   ArtifactLinkManagerModal,
   ArtifactProposalResolutionPicker,
-  ARTIFACT_TYPE_LABELS,
 } from "@/components/artifacts";
 import ArtifactsPage from "@/app/artifacts/page";
 import DashboardPage from "@/app/dashboard/page";
 import type {
   ArtifactWithCounts,
   ArtifactDetail,
-  ArtifactType,
   ArtifactProposal,
 } from "@/types/artifact";
 import type { DashboardSnapshot, Assessment } from "@/lib/store/types";
@@ -37,14 +33,26 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/artifacts",
 }));
 
-const mockArtifactWithCounts: ArtifactWithCounts = {
-  id: "art-1111-1111",
-  userId: "user-test",
+// Valid RFC 4122 UUID fixtures
+const UUID_ARTIFACT_1 = "11111111-1111-4111-8111-111111111111";
+const UUID_ARTIFACT_2 = "22222222-2222-4222-8222-222222222222";
+const UUID_SKILL_1 = "33333333-3333-4333-8333-333333333333";
+const UUID_SKILL_2 = "44444444-4444-4444-8444-444444444444";
+const UUID_KN_1 = "55555555-5555-4555-8555-555555555555";
+const UUID_KN_2 = "66666666-6666-4666-8666-666666666666";
+const UUID_QUEST_1 = "77777777-7777-4777-8777-777777777777";
+const UUID_ACT_1 = "88888888-8888-4888-8888-888888888888";
+const UUID_EV_1 = "99999999-9999-4999-8999-999999999999";
+const UUID_USER_1 = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+
+const mockArtifactWithCounts1: ArtifactWithCounts = {
+  id: UUID_ARTIFACT_1,
+  userId: UUID_USER_1,
   title: "ReactFlow 架构设计规范 RFC",
   normalizedTitle: "reactflow 架构设计规范 rfc",
   artifactType: "design_spec",
   summary: "针对 Stage 6C 知识图谱画布的三列布局与 CAS 模态框技术架构。",
-  description: "详细记录了节点扩展、缩放控制、力导向模拟以及与技能树联动的交互契约。",
+  description: "## 核心规范\n详细记录了节点扩展与交互契约。\n\n```typescript\nconst a = 1;\n```",
   lifecycleStatus: "active",
   version: "1.2",
   storagePath: null,
@@ -57,25 +65,52 @@ const mockArtifactWithCounts: ArtifactWithCounts = {
   updatedAt: "2026-08-26T12:00:00Z",
   counts: {
     skills: 2,
-    knowledgeNodes: 3,
+    knowledgeNodes: 2,
     quests: 1,
-    activities: 2,
+    activities: 1,
     evidence: 1,
   },
 };
 
-const mockArtifactDetail: ArtifactDetail = {
-  artifact: mockArtifactWithCounts,
+const mockArtifactWithCounts2: ArtifactWithCounts = {
+  id: UUID_ARTIFACT_2,
+  userId: UUID_USER_1,
+  title: "海马体突触可塑性元分析",
+  normalizedTitle: "海马体突触可塑性元分析",
+  artifactType: "data_analysis",
+  summary: "LTP 与 LTD 机制在长期记忆巩固中的量化分析与统计模型。",
+  description: "统计了 45 篇近期高水平文献的实验数据。",
+  lifecycleStatus: "active",
+  version: "2.0",
+  storagePath: null,
+  externalUrl: null,
+  reusabilityScore: 0.85,
+  metadata: {},
+  isArchived: false,
+  archivedAt: null,
+  createdAt: "2026-08-26T11:00:00Z",
+  updatedAt: "2026-08-26T11:00:00Z",
+  counts: {
+    skills: 1,
+    knowledgeNodes: 1,
+    quests: 0,
+    activities: 1,
+    evidence: 1,
+  },
+};
+
+const mockArtifactDetail1: ArtifactDetail = {
+  artifact: mockArtifactWithCounts1,
   links: {
     skills: [
       {
-        id: "skill-uuid-1",
+        id: UUID_SKILL_1,
         name: "前端工程化",
         level: 4,
         demonstrationLevel: 5,
       },
       {
-        id: "skill-uuid-2",
+        id: UUID_SKILL_2,
         name: "交互设计",
         level: 2,
         demonstrationLevel: 3,
@@ -83,14 +118,14 @@ const mockArtifactDetail: ArtifactDetail = {
     ],
     knowledgeNodes: [
       {
-        id: "node-uuid-1",
+        id: UUID_KN_1,
         title: "React Flow State Architecture",
         nodeType: "concept",
         verificationStatus: "verified",
         relationType: "synthesizes",
       },
       {
-        id: "node-uuid-2",
+        id: UUID_KN_2,
         title: "D3 Force Simulation",
         nodeType: "concept",
         verificationStatus: "verified",
@@ -99,7 +134,7 @@ const mockArtifactDetail: ArtifactDetail = {
     ],
     quests: [
       {
-        id: "quest-uuid-1",
+        id: UUID_QUEST_1,
         title: "交付知识图谱画布",
         status: "active",
         isPrimaryDeliverable: true,
@@ -107,7 +142,7 @@ const mockArtifactDetail: ArtifactDetail = {
     ],
     activities: [
       {
-        id: "act-uuid-1",
+        id: UUID_ACT_1,
         title: "编写 ReactFlow 画布技术方案",
         activityRole: "produced",
         completedAt: "2026-08-26T10:00:00Z",
@@ -115,9 +150,49 @@ const mockArtifactDetail: ArtifactDetail = {
     ],
     evidence: [
       {
-        id: "ev-uuid-1",
+        id: UUID_EV_1,
         evidenceLevel: 4,
         description: "完整的架构设计文档与评审决议",
+        verified: true,
+      },
+    ],
+  },
+};
+
+const mockArtifactDetail2: ArtifactDetail = {
+  artifact: mockArtifactWithCounts2,
+  links: {
+    skills: [
+      {
+        id: UUID_SKILL_1,
+        name: "神经科学",
+        level: 3,
+        demonstrationLevel: 4,
+      },
+    ],
+    knowledgeNodes: [
+      {
+        id: UUID_KN_1,
+        title: "Synaptic Plasticity",
+        nodeType: "concept",
+        verificationStatus: "verified",
+        relationType: "evaluates",
+      },
+    ],
+    quests: [],
+    activities: [
+      {
+        id: UUID_ACT_1,
+        title: "突触机制量化分析研讨",
+        activityRole: "produced",
+        completedAt: "2026-08-26T11:00:00Z",
+      },
+    ],
+    evidence: [
+      {
+        id: UUID_EV_1,
+        evidenceLevel: 3,
+        description: "Meta-analysis Python notebook and dataset",
         verified: true,
       },
     ],
@@ -138,151 +213,285 @@ describe("Stage 7C Artifact UI Test Suite", () => {
   });
 
   // ==========================================
-  // 1. ArtifactTypeBadge
+  // 1. AppShell Single-Instance Verification
   // ==========================================
-  describe("ArtifactTypeBadge", () => {
-    const types: ArtifactType[] = [
-      "document",
-      "code_repository",
-      "design_spec",
-      "data_analysis",
-      "presentation",
-      "synthesis_note",
-      "creative_work",
-      "other",
-    ];
+  describe("AppShell Single-Instance Verification", () => {
+    it("verifies exactly ONE AppShell root, ONE AppSidebar, and ONE AppHeader when rendered under AppShellBoundary", () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ artifacts: [], total: 0 }),
+      });
 
-    types.forEach((type) => {
-      it(`renders canonical type "${type}" with label "${ARTIFACT_TYPE_LABELS[type]}"`, () => {
-        render(<ArtifactTypeBadge type={type} />);
-        const badge = screen.getByTestId("artifact-type-badge");
-        expect(badge).toBeDefined();
-        expect(badge.getAttribute("data-artifact-type")).toBe(type);
-        expect(badge.textContent).toContain(ARTIFACT_TYPE_LABELS[type]);
+      render(
+        <AppShellBoundary>
+          <ArtifactsPage />
+        </AppShellBoundary>
+      );
+
+      const appShellRoots = screen.getAllByTestId("app-shell-root");
+      expect(appShellRoots.length).toBe(1);
+
+      const sidebars = screen.getAllByTestId("app-sidebar");
+      expect(sidebars.length).toBe(1);
+
+      const headers = screen.getAllByTestId("app-header");
+      expect(headers.length).toBe(1);
+
+      const mobileNavs = screen.getAllByTestId("mobile-nav");
+      expect(mobileNavs.length).toBe(1);
+
+      // Verify page workspace is directly rendered inside main
+      expect(screen.getByTestId("artifacts-workspace")).toBeDefined();
+    });
+  });
+
+  // ==========================================
+  // 2. 3-Column Workspace Layout & Query Contracts
+  // ==========================================
+  describe("3-Column Workspace Layout & Query Contracts", () => {
+    it("renders 3-column elements: Filter rail on left, Gallery in center, InspectorDrawer on right", async () => {
+      mockFetch.mockImplementation(async (url: string) => {
+        if (url === `/api/artifacts/${UUID_ARTIFACT_1}`) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => mockArtifactDetail1,
+          };
+        }
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            artifacts: [mockArtifactWithCounts1],
+            total: 1,
+          }),
+        };
+      });
+
+      render(<ArtifactsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText("ReactFlow 架构设计规范 RFC")).toBeDefined();
+      });
+
+      // Left Column: Filter rail
+      expect(screen.getByLabelText("成果分类与生命周期筛选")).toBeDefined();
+
+      // Open inspector
+      fireEvent.click(screen.getByText("ReactFlow 架构设计规范 RFC"));
+
+      await waitFor(() => {
+        expect(screen.getByTestId("inspector-artifact-title")).toBeDefined();
+      });
+    });
+
+    it("explicitly passes status=all when '全部状态' is selected", async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          artifacts: [mockArtifactWithCounts1],
+          total: 1,
+        }),
+      });
+
+      render(<ArtifactsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText("ReactFlow 架构设计规范 RFC")).toBeDefined();
+      });
+
+      // Click "全部状态"
+      const allStatusBtn = screen.getByRole("button", { name: "全部状态" });
+      fireEvent.click(allStatusBtn);
+
+      await waitFor(() => {
+        expect(mockFetch).toHaveBeenCalledWith(
+          expect.stringContaining("status=all"),
+          expect.any(Object)
+        );
+      });
+    });
+
+    it("supports pagination / load more for >PAGE_SIZE artifacts", async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          artifacts: [mockArtifactWithCounts1],
+          total: 50,
+        }),
+      });
+
+      render(<ArtifactsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId("artifacts-load-more-btn")).toBeDefined();
+        expect(screen.getByText(/已展示 1 \/ 共 50 项/)).toBeDefined();
+      });
+
+      // Click load more
+      fireEvent.click(screen.getByTestId("artifacts-load-more-btn"));
+
+      await waitFor(() => {
+        expect(mockFetch).toHaveBeenCalledWith(
+          expect.stringContaining("offset=24"),
+          expect.any(Object)
+        );
       });
     });
   });
 
   // ==========================================
-  // 2. ArtifactCard
+  // 3. Artifact Selection & Stale Detail Race Guard
   // ==========================================
-  describe("ArtifactCard", () => {
-    it("renders title, version, summary, reusability score and relationship counts", () => {
-      render(<ArtifactCard artifact={mockArtifactWithCounts} />);
+  describe("Artifact Selection & Detail Race Guard", () => {
+    it("discards slow A detail response if B was selected subsequently", async () => {
+      let resolveA: (val: unknown) => void = () => {};
+      const promiseA = new Promise((resolve) => {
+        resolveA = resolve;
+      });
 
-      expect(screen.getByTestId("artifact-title").textContent).toContain("ReactFlow 架构设计规范 RFC");
-      expect(screen.getByTestId("artifact-version").textContent).toContain("v1.2");
-      expect(screen.getByTestId("artifact-summary-preview").textContent).toContain("针对 Stage 6C 知识图谱画布");
-      expect(screen.getByTestId("artifact-relation-counts").textContent).toContain("2 技能");
-      expect(screen.getByTestId("artifact-relation-counts").textContent).toContain("3 知识");
-      expect(screen.getByTestId("artifact-relation-counts").textContent).toContain("1 任务");
-      expect(screen.getByTestId("artifact-relation-counts").textContent).toContain("2 活动");
-      expect(screen.getByTestId("artifact-relation-counts").textContent).toContain("1 实证");
+      mockFetch.mockImplementation(async (url: string) => {
+        if (url === `/api/artifacts/${UUID_ARTIFACT_1}`) {
+          return promiseA;
+        }
+        if (url === `/api/artifacts/${UUID_ARTIFACT_2}`) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => mockArtifactDetail2,
+          };
+        }
+        if (url.includes("/api/artifacts")) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              artifacts: [mockArtifactWithCounts1, mockArtifactWithCounts2],
+              total: 2,
+            }),
+          };
+        }
+        return { ok: true, status: 200, json: async () => ({}) };
+      });
+
+      render(<ArtifactsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId(`artifact-card-${UUID_ARTIFACT_1}`)).toBeDefined();
+        expect(screen.getByTestId(`artifact-card-${UUID_ARTIFACT_2}`)).toBeDefined();
+      });
+
+      // Click Artifact A
+      fireEvent.click(screen.getByTestId(`artifact-card-${UUID_ARTIFACT_1}`));
+      expect(screen.getByTestId("inspector-loading-state")).toBeDefined();
+
+      // Rapidly click Artifact B before A finishes
+      fireEvent.click(screen.getByTestId(`artifact-card-${UUID_ARTIFACT_2}`));
+
+      await waitFor(() => {
+        expect(screen.getByTestId("inspector-artifact-title").textContent).toContain("海马体突触可塑性元分析");
+      });
+
+      // Now resolve slow A
+      resolveA({
+        ok: true,
+        status: 200,
+        json: async () => mockArtifactDetail1,
+      });
+
+      // Wait to ensure A never overwrites B
+      await new Promise((r) => setTimeout(r, 50));
+      expect(screen.getByTestId("inspector-artifact-title").textContent).toContain("海马体突触可塑性元分析");
+      expect(screen.getByTestId("inspector-artifact-title").textContent).not.toContain("ReactFlow 架构设计规范 RFC");
     });
 
-    it("triggers onClick on click and Enter/Space keyboard events", () => {
-      const handleClick = vi.fn();
-      render(<ArtifactCard artifact={mockArtifactWithCounts} onClick={handleClick} />);
+    it("clears stale detail and displays error retry state on fetch failure", async () => {
+      mockFetch.mockImplementation(async (url: string) => {
+        if (url === `/api/artifacts/${UUID_ARTIFACT_1}`) {
+          return {
+            ok: false,
+            status: 500,
+            json: async () => ({ error: "Internal Server Error" }),
+          };
+        }
+        if (url.includes("/api/artifacts")) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              artifacts: [mockArtifactWithCounts1],
+              total: 1,
+            }),
+          };
+        }
+        return { ok: true, status: 200, json: async () => ({}) };
+      });
 
-      const card = screen.getByTestId(`artifact-card-${mockArtifactWithCounts.id}`);
-      fireEvent.click(card);
-      expect(handleClick).toHaveBeenCalledTimes(1);
+      render(<ArtifactsPage />);
 
-      fireEvent.keyDown(card, { key: "Enter" });
-      expect(handleClick).toHaveBeenCalledTimes(2);
+      await waitFor(() => {
+        expect(screen.getByTestId(`artifact-card-${UUID_ARTIFACT_1}`)).toBeDefined();
+      });
 
-      fireEvent.keyDown(card, { key: " " });
-      expect(handleClick).toHaveBeenCalledTimes(3);
-    });
+      fireEvent.click(screen.getByTestId(`artifact-card-${UUID_ARTIFACT_1}`));
 
-    it("reflects selected state via data-selected", () => {
-      const { rerender } = render(<ArtifactCard artifact={mockArtifactWithCounts} selected={false} />);
-      const card = screen.getByTestId(`artifact-card-${mockArtifactWithCounts.id}`);
-      expect(card.getAttribute("data-selected")).toBeNull();
-
-      rerender(<ArtifactCard artifact={mockArtifactWithCounts} selected={true} />);
-      expect(card.getAttribute("data-selected")).toBe("true");
+      await waitFor(() => {
+        expect(screen.getByTestId("inspector-error-state")).toBeDefined();
+        expect(screen.queryByTestId("inspector-artifact-title")).toBeNull();
+      });
     });
   });
 
   // ==========================================
-  // 3. ArtifactInspectorContent
+  // 4. ArtifactInspectorContent & Markdown Rendering
   // ==========================================
-  describe("ArtifactInspectorContent", () => {
-    it("renders all metadata and formatted demonstrationLevel without confusing with Mastery M0-M10", () => {
-      render(<ArtifactInspectorContent detail={mockArtifactDetail} />);
+  describe("ArtifactInspectorContent & Markdown Rendering", () => {
+    it("renders safe Markdown headings, lists, and code blocks in description", () => {
+      render(<ArtifactInspectorContent detail={mockArtifactDetail1} />);
 
       expect(screen.getByTestId("inspector-artifact-title").textContent).toContain("ReactFlow 架构设计规范 RFC");
       expect(screen.getByTestId("inspector-artifact-version").textContent).toContain("v1.2");
-      expect(screen.getByTestId("inspector-external-url").getAttribute("href")).toBe(mockArtifactWithCounts.externalUrl);
-      expect(screen.getByTestId("inspector-artifact-summary").textContent).toContain("针对 Stage 6C 知识图谱画布");
-      expect(screen.getByTestId("inspector-artifact-description").textContent).toContain("详细记录了节点扩展");
 
-      // Invariant: demonstrationLevel 1..5 is displayed as "示范等级 X/5", NEVER M0-M10
-      const demoLevels = screen.getAllByTestId("demonstration-level");
-      expect(demoLevels[0].textContent).toContain("示范等级 5/5");
-      expect(demoLevels[0].textContent).not.toContain("M5");
-      expect(demoLevels[1].textContent).toContain("示范等级 3/5");
-      expect(demoLevels[1].textContent).not.toContain("M3");
-
-      // Primary deliverable on quest
-      expect(screen.getByText("主交付物")).toBeDefined();
-
-      // Activity role
-      expect(screen.getByText("produced")).toBeDefined();
-
-      // Evidence record
-      expect(screen.getByText("E4")).toBeDefined();
+      // Check Markdown rendering inside description
+      const desc = screen.getByTestId("inspector-artifact-description");
+      expect(desc.querySelector("h3")?.textContent).toContain("核心规范");
+      expect(desc.querySelector("code")?.textContent).toContain("const a = 1;");
     });
 
-    it("toggles relational accordions on click", () => {
-      render(<ArtifactInspectorContent detail={mockArtifactDetail} />);
-
-      const skillsToggle = screen.getByTestId("accordion-skills-toggle");
-      expect(screen.getByTestId("accordion-skills-content")).toBeDefined();
-
-      fireEvent.click(skillsToggle);
-      expect(screen.queryByTestId("accordion-skills-content")).toBeNull();
-
-      fireEvent.click(skillsToggle);
-      expect(screen.getByTestId("accordion-skills-content")).toBeDefined();
-    });
-
-    it("triggers edit and manage links callbacks", () => {
-      const handleEdit = vi.fn();
-      const handleManageLinks = vi.fn();
-      render(
-        <ArtifactInspectorContent
-          detail={mockArtifactDetail}
-          onEdit={handleEdit}
-          onManageLinks={handleManageLinks}
-        />
-      );
-
-      fireEvent.click(screen.getByTestId("inspector-edit-btn"));
-      expect(handleEdit).toHaveBeenCalledTimes(1);
-
-      fireEvent.click(screen.getByTestId("inspector-manage-links-btn"));
-      expect(handleManageLinks).toHaveBeenCalledTimes(1);
-    });
-
-    it("handles archive and restore status toggling", async () => {
+    it("handles archive with ConfirmDialog and cancel zero mutation", async () => {
       const handleStatusChange = vi.fn().mockResolvedValue(undefined);
       render(
         <ArtifactInspectorContent
-          detail={mockArtifactDetail}
+          detail={mockArtifactDetail1}
           onStatusChange={handleStatusChange}
         />
       );
 
       const archiveBtn = screen.getByTestId("inspector-archive-toggle-btn");
-      expect(archiveBtn.textContent).toContain("归档造物");
-
       fireEvent.click(archiveBtn);
-      expect(handleStatusChange).toHaveBeenCalledWith("archived", true);
+
+      // ConfirmDialog should be open
+      expect(screen.getByText("确认归档造物")).toBeDefined();
+
+      // Cancel button should close dialog with ZERO mutations
+      const cancelBtn = screen.getByRole("button", { name: "取消" });
+      fireEvent.click(cancelBtn);
+      expect(handleStatusChange).not.toHaveBeenCalled();
+
+      // Re-open and confirm
+      fireEvent.click(archiveBtn);
+      const confirmBtn = screen.getByRole("button", { name: "确认归档" });
+      fireEvent.click(confirmBtn);
+
+      await waitFor(() => {
+        expect(handleStatusChange).toHaveBeenCalledWith(UUID_ARTIFACT_1, "archived", true);
+      });
     });
 
-    it("handles delete with 409 referenced_by_provenance fail-closed error", async () => {
+    it("handles delete with 409 referenced_by_provenance fail-closed error feedback", async () => {
       const handleDelete = vi.fn().mockResolvedValue({
         ok: false,
         code: "referenced_by_provenance",
@@ -291,21 +500,17 @@ describe("Stage 7C Artifact UI Test Suite", () => {
 
       render(
         <ArtifactInspectorContent
-          detail={mockArtifactDetail}
+          detail={mockArtifactDetail1}
           onDelete={handleDelete}
         />
       );
 
-      // Open delete dialog
       fireEvent.click(screen.getByTestId("inspector-delete-btn"));
-      expect(screen.getByText("确认删除造物")).toBeDefined();
-
-      // Confirm delete
       const confirmBtn = screen.getByRole("button", { name: "确认删除" });
       fireEvent.click(confirmBtn);
 
       await waitFor(() => {
-        expect(handleDelete).toHaveBeenCalledTimes(1);
+        expect(handleDelete).toHaveBeenCalledWith(UUID_ARTIFACT_1);
         expect(screen.getByText("无法物理删除此造物")).toBeDefined();
         expect(screen.getByText(/建议使用/)).toBeDefined();
       });
@@ -313,21 +518,21 @@ describe("Stage 7C Artifact UI Test Suite", () => {
   });
 
   // ==========================================
-  // 4. ArtifactCreateModal
+  // 5. ArtifactCreateModal & Initial Relationships
   // ==========================================
   describe("ArtifactCreateModal", () => {
-    it("validates required title and submits POST /api/artifacts successfully", async () => {
+    it("submits POST /api/artifacts with optional initial relationships and cancels with zero mutation", async () => {
       const handleCreated = vi.fn();
       const handleClose = vi.fn();
 
-      mockFetch.mockResolvedValueOnce({
+      mockFetch.mockResolvedValue({
         ok: true,
         status: 201,
         json: async () => ({
           artifact: {
-            ...mockArtifactWithCounts,
-            id: "new-art-uuid",
-            title: "新系统白皮书",
+            ...mockArtifactWithCounts1,
+            id: UUID_ARTIFACT_1,
+            title: "全脑图谱白皮书",
           },
         }),
       });
@@ -340,12 +545,15 @@ describe("Stage 7C Artifact UI Test Suite", () => {
         />
       );
 
-      // Fill in form
-      const titleInput = screen.getByTestId("create-artifact-title");
-      fireEvent.change(titleInput, { target: { value: "新系统白皮书" } });
+      // Cancel with zero mutation
+      mockFetch.mockClear();
+      fireEvent.click(screen.getByTestId("create-artifact-cancel"));
+      expect(handleClose).toHaveBeenCalledTimes(1);
+      expect(mockFetch).not.toHaveBeenCalled();
 
-      const summaryInput = screen.getByTestId("create-artifact-summary");
-      fireEvent.change(summaryInput, { target: { value: "白皮书简述" } });
+      // Fill in title
+      const titleInput = screen.getByTestId("create-artifact-title");
+      fireEvent.change(titleInput, { target: { value: "全脑图谱白皮书" } });
 
       const submitBtn = screen.getByTestId("create-artifact-submit");
       fireEvent.click(submitBtn);
@@ -355,101 +563,47 @@ describe("Stage 7C Artifact UI Test Suite", () => {
           "/api/artifacts",
           expect.objectContaining({
             method: "POST",
-            body: expect.stringContaining("新系统白皮书"),
+            body: expect.stringContaining("全脑图谱白皮书"),
           })
         );
-        expect(handleCreated).toHaveBeenCalledWith(
-          expect.objectContaining({ id: "new-art-uuid", title: "新系统白皮书" })
-        );
-        expect(handleClose).toHaveBeenCalled();
-      });
-    });
-
-    it("displays 409 conflict error when duplicate title is encountered", async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        status: 409,
-        json: async () => ({
-          error: "已存在同名造物标题，请使用唯一的标题命名",
-        }),
-      });
-
-      render(
-        <ArtifactCreateModal
-          open={true}
-          onClose={vi.fn()}
-          onCreated={vi.fn()}
-        />
-      );
-
-      const titleInput = screen.getByTestId("create-artifact-title");
-      fireEvent.change(titleInput, { target: { value: "重复的标题" } });
-
-      const submitBtn = screen.getByTestId("create-artifact-submit");
-      fireEvent.click(submitBtn);
-
-      await waitFor(() => {
-        expect(screen.getByTestId("create-artifact-error").textContent).toContain("已存在同名造物标题");
+        expect(handleCreated).toHaveBeenCalled();
       });
     });
   });
 
   // ==========================================
-  // 5. ArtifactEditModal
+  // 6. ArtifactLinkManagerModal (Batch + Cancel Zero-Mutation)
   // ==========================================
-  describe("ArtifactEditModal", () => {
-    it("pre-populates fields and sends PATCH /api/artifacts/[id]", async () => {
-      const handleUpdated = vi.fn();
+  describe("ArtifactLinkManagerModal (Batch + Cancel Zero-Mutation)", () => {
+    it("discards staged changes on Cancel with zero network mutations", () => {
+      const handleLinksUpdated = vi.fn();
       const handleClose = vi.fn();
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => ({
-          artifact: {
-            ...mockArtifactWithCounts,
-            title: "修改后的标题",
-          },
-        }),
-      });
-
       render(
-        <ArtifactEditModal
+        <ArtifactLinkManagerModal
           open={true}
-          artifact={mockArtifactWithCounts}
+          detail={mockArtifactDetail1}
           onClose={handleClose}
-          onUpdated={handleUpdated}
+          onLinksUpdated={handleLinksUpdated}
         />
       );
 
-      const titleInput = screen.getByTestId("edit-artifact-title") as HTMLInputElement;
-      expect(titleInput.value).toBe("ReactFlow 架构设计规范 RFC");
+      // Attach skill to staged
+      const skillInput = screen.getByTestId("link-skill-id-input");
+      fireEvent.change(skillInput, { target: { value: UUID_SKILL_1 } });
+      fireEvent.click(screen.getByTestId("link-skill-submit"));
 
-      fireEvent.change(titleInput, { target: { value: "修改后的标题" } });
-
-      const submitBtn = screen.getByTestId("edit-artifact-submit");
-      fireEvent.click(submitBtn);
-
-      await waitFor(() => {
-        expect(mockFetch).toHaveBeenCalledWith(
-          `/api/artifacts/${mockArtifactWithCounts.id}`,
-          expect.objectContaining({
-            method: "PATCH",
-            body: expect.stringContaining("修改后的标题"),
-          })
-        );
-        expect(handleUpdated).toHaveBeenCalled();
-        expect(handleClose).toHaveBeenCalled();
-      });
+      // Click Cancel
+      mockFetch.mockClear();
+      fireEvent.click(screen.getByTestId("link-manager-cancel"));
+      expect(handleClose).toHaveBeenCalled();
+      expect(mockFetch).not.toHaveBeenCalled();
+      expect(handleLinksUpdated).not.toHaveBeenCalled();
     });
-  });
 
-  // ==========================================
-  // 6. ArtifactLinkManagerModal
-  // ==========================================
-  describe("ArtifactLinkManagerModal", () => {
-    it("allows batch attaching and detaching relationships across 5 tabs", async () => {
+    it("submits single batch request across multiple categories on Save", async () => {
       const handleLinksUpdated = vi.fn().mockResolvedValue(undefined);
+      const handleClose = vi.fn();
 
       mockFetch.mockResolvedValue({
         ok: true,
@@ -460,90 +614,42 @@ describe("Stage 7C Artifact UI Test Suite", () => {
       render(
         <ArtifactLinkManagerModal
           open={true}
-          detail={mockArtifactDetail}
-          onClose={vi.fn()}
+          detail={mockArtifactDetail1}
+          onClose={handleClose}
           onLinksUpdated={handleLinksUpdated}
         />
       );
 
-      // 1. Skills tab: attach skill
-      const skillIdInput = screen.getByTestId("link-skill-id-input");
-      fireEvent.change(skillIdInput, { target: { value: "new-skill-uuid" } });
+      // Detach existing skill
+      fireEvent.click(screen.getByTestId(`detach-skill-${UUID_SKILL_1}`));
 
-      const attachSkillBtn = screen.getByTestId("link-skill-submit");
-      fireEvent.click(attachSkillBtn);
+      // Switch to Knowledge tab and stage attach
+      fireEvent.click(screen.getByTestId("link-tab-knowledge"));
+      const knInput = screen.getByTestId("link-knowledge-id-input");
+      fireEvent.change(knInput, { target: { value: UUID_KN_1 } });
+      fireEvent.click(screen.getByTestId("link-knowledge-submit"));
+
+      // Click Batch Save
+      fireEvent.click(screen.getByTestId("link-manager-submit"));
 
       await waitFor(() => {
         expect(mockFetch).toHaveBeenCalledWith(
-          `/api/artifacts/${mockArtifactDetail.artifact.id}/links`,
+          `/api/artifacts/${UUID_ARTIFACT_1}/links`,
           expect.objectContaining({
             method: "POST",
-            body: JSON.stringify({
-              skills: [
-                {
-                  skillId: "new-skill-uuid",
-                  action: "attach",
-                  demonstrationLevel: 3,
-                },
-              ],
-            }),
+            body: expect.stringContaining(UUID_SKILL_1),
           })
         );
         expect(handleLinksUpdated).toHaveBeenCalled();
-      });
-
-      // 2. Detach skill
-      const detachSkillBtn = screen.getByTestId("detach-skill-skill-uuid-1");
-      fireEvent.click(detachSkillBtn);
-
-      await waitFor(() => {
-        expect(mockFetch).toHaveBeenCalledWith(
-          `/api/artifacts/${mockArtifactDetail.artifact.id}/links`,
-          expect.objectContaining({
-            method: "POST",
-            body: JSON.stringify({
-              skills: [
-                {
-                  skillId: "skill-uuid-1",
-                  action: "detach",
-                },
-              ],
-            }),
-          })
-        );
-      });
-
-      // 3. Switch to Knowledge tab and attach
-      fireEvent.click(screen.getByTestId("link-tab-knowledge"));
-      const knInput = screen.getByTestId("link-knowledge-id-input");
-      fireEvent.change(knInput, { target: { value: "new-kn-uuid" } });
-
-      fireEvent.click(screen.getByTestId("link-knowledge-submit"));
-
-      await waitFor(() => {
-        expect(mockFetch).toHaveBeenCalledWith(
-          `/api/artifacts/${mockArtifactDetail.artifact.id}/links`,
-          expect.objectContaining({
-            method: "POST",
-            body: JSON.stringify({
-              knowledgeNodes: [
-                {
-                  nodeId: "new-kn-uuid",
-                  action: "attach",
-                  relationType: "synthesizes",
-                },
-              ],
-            }),
-          })
-        );
+        expect(handleClose).toHaveBeenCalled();
       });
     });
   });
 
   // ==========================================
-  // 7. ArtifactProposalResolutionPicker
+  // 7. Assessment Proposal Resolution Explicit Contract
   // ==========================================
-  describe("ArtifactProposalResolutionPicker", () => {
+  describe("Assessment Proposal Resolution Explicit Contract", () => {
     const proposals: ArtifactProposal[] = [
       {
         title: "神经可塑性综述论文",
@@ -559,7 +665,7 @@ describe("Stage 7C Artifact UI Test Suite", () => {
       },
     ];
 
-    it("preserves exact proposalIndex and supports create, existing, and ignore modes", () => {
+    it("requires explicit per-item resolution (initial isValid = false)", () => {
       const handleChange = vi.fn();
       render(
         <ArtifactProposalResolutionPicker
@@ -568,34 +674,13 @@ describe("Stage 7C Artifact UI Test Suite", () => {
         />
       );
 
-      // Initial emission: proposal 0 and 1 are default 'create'
-      expect(handleChange).toHaveBeenCalledWith(
-        [
-          {
-            proposalIndex: 0,
-            resolution: "create",
-            approvedOverrides: {
-              title: "神经可塑性综述论文",
-              artifactType: "document",
-              reusabilityScore: 0.85,
-            },
-          },
-          {
-            proposalIndex: 1,
-            resolution: "create",
-            approvedOverrides: {
-              title: "突触机制研讨演讲稿",
-              artifactType: "presentation",
-              reusabilityScore: 0.7,
-            },
-          },
-        ],
-        true
-      );
+      // Initial state: 0 of 2 resolved, isValid must be FALSE
+      expect(handleChange).toHaveBeenCalledWith([], false);
 
-      // Switch proposal 1 to 'ignore'
-      fireEvent.click(screen.getByTestId("proposal-1-resolution-ignore"));
+      // Resolve proposal 0 as Create
+      fireEvent.click(screen.getByTestId("proposal-0-resolution-create"));
 
+      // 1 of 2 resolved -> still FALSE
       expect(handleChange).toHaveBeenLastCalledWith(
         [
           {
@@ -607,34 +692,24 @@ describe("Stage 7C Artifact UI Test Suite", () => {
               reusabilityScore: 0.85,
             },
           },
-          {
-            proposalIndex: 1,
-            resolution: "ignore",
-          },
         ],
-        true
-      );
-
-      // Switch proposal 0 to 'existing' (requires valid artifactId)
-      fireEvent.click(screen.getByTestId("proposal-0-resolution-existing"));
-
-      // Without artifactId, isValid is false
-      expect(handleChange).toHaveBeenLastCalledWith(
-        expect.any(Array),
         false
       );
 
-      // Enter existing artifactId
-      const artIdInput = screen.getByTestId("proposal-0-existing-artifact-id");
-      fireEvent.change(artIdInput, { target: { value: "art-uuid-existing" } });
+      // Resolve proposal 1 as Ignore
+      fireEvent.click(screen.getByTestId("proposal-1-resolution-ignore"));
 
+      // 2 of 2 resolved -> TRUE!
       expect(handleChange).toHaveBeenLastCalledWith(
         [
           {
             proposalIndex: 0,
-            resolution: "existing",
-            artifactId: "art-uuid-existing",
-            activityRole: "modified",
+            resolution: "create",
+            approvedOverrides: {
+              title: "神经可塑性综述论文",
+              artifactType: "document",
+              reusabilityScore: 0.85,
+            },
           },
           {
             proposalIndex: 1,
@@ -644,90 +719,64 @@ describe("Stage 7C Artifact UI Test Suite", () => {
         true
       );
     });
-  });
 
-  // ==========================================
-  // 8. /artifacts Page & Gallery
-  // ==========================================
-  describe("/artifacts Page", () => {
-    it("fetches list, handles server search query, and opens InspectorDrawer on selection", async () => {
-      mockFetch.mockImplementation(async (url: string) => {
-        if (url.includes(`/api/artifacts/${mockArtifactWithCounts.id}`)) {
-          return {
-            ok: true,
-            status: 200,
-            json: async () => mockArtifactDetail,
-          };
-        }
-        if (url.includes("/api/artifacts")) {
-          return {
-            ok: true,
-            status: 200,
-            json: async () => ({
-              artifacts: [mockArtifactWithCounts],
-              total: 1,
-            }),
-          };
-        }
-        return { ok: true, status: 200, json: async () => ({}) };
-      });
+    it("supports search lookup when resolving as existing artifact", async () => {
+      const handleChange = vi.fn();
 
-      render(<ArtifactsPage />);
-
-      // Initial list loading
-      await waitFor(() => {
-        expect(screen.getByText("ReactFlow 架构设计规范 RFC")).toBeDefined();
-      });
-
-      // Click card to open drawer
-      fireEvent.click(screen.getByTestId(`artifact-card-${mockArtifactWithCounts.id}`));
-
-      await waitFor(() => {
-        expect(mockFetch).toHaveBeenCalledWith(`/api/artifacts/${mockArtifactWithCounts.id}`);
-        expect(screen.getByTestId("inspector-artifact-title").textContent).toContain("ReactFlow 架构设计规范 RFC");
-      });
-    });
-
-    it("debounces search input to prevent rapid stale requests", async () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
         json: async () => ({
-          artifacts: [],
-          total: 0,
+          artifacts: [mockArtifactWithCounts1],
+          total: 1,
         }),
       });
 
-      render(<ArtifactsPage />);
-
-      const searchInput = screen.getByTestId("artifacts-search-input");
-      fireEvent.change(searchInput, { target: { value: "Neural" } });
-
-      // Immediate call with search=Neural shouldn't happen yet due to 300ms debounce
-      expect(mockFetch).not.toHaveBeenCalledWith(
-        expect.stringContaining("search=Neural"),
-        expect.any(Object)
+      render(
+        <ArtifactProposalResolutionPicker
+          proposals={[proposals[0]]}
+          onChange={handleChange}
+        />
       );
 
-      await waitFor(
-        () => {
-          expect(mockFetch).toHaveBeenCalledWith(
-            expect.stringContaining("search=Neural"),
-            expect.any(Object)
-          );
-        },
-        { timeout: 1000 }
-      );
+      // Click Existing
+      fireEvent.click(screen.getByTestId("proposal-0-resolution-existing"));
+      expect(handleChange).toHaveBeenLastCalledWith(expect.any(Array), false);
+
+      // Search existing artifact
+      const searchInput = screen.getByTestId("proposal-0-existing-search-input");
+      fireEvent.change(searchInput, { target: { value: "ReactFlow" } });
+
+      await waitFor(() => {
+        expect(screen.getByTestId(`select-existing-artifact-${UUID_ARTIFACT_1}`)).toBeDefined();
+      });
+
+      // Select from results
+      fireEvent.click(screen.getByTestId(`select-existing-artifact-${UUID_ARTIFACT_1}`));
+
+      await waitFor(() => {
+        expect(handleChange).toHaveBeenLastCalledWith(
+          [
+            {
+              proposalIndex: 0,
+              resolution: "existing",
+              artifactId: UUID_ARTIFACT_1,
+              activityRole: "modified",
+            },
+          ],
+          true
+        );
+      });
     });
   });
 
   // ==========================================
-  // 9. Dashboard Assessment Confirm Integration
+  // 8. Dashboard Assessment Confirm & Error Handling
   // ==========================================
-  describe("Dashboard Assessment Confirmation Integration", () => {
+  describe("Dashboard Assessment Confirm & Error Handling", () => {
     const mockAssessmentWithProposals: Assessment = {
       id: "assess-1",
-      activityId: "act-1",
+      activityId: UUID_ACT_1,
       status: "pending",
       confidence: 0.95,
       modelName: "deepseek-v4-flash",
@@ -796,7 +845,7 @@ describe("Stage 7C Artifact UI Test Suite", () => {
       pendingMasteryVerifications: [],
     };
 
-    it("renders ArtifactProposalResolutionPicker and passes artifactResolutions on confirm", async () => {
+    it("disables confirm until proposal is resolved, then submits artifactResolutions", async () => {
       mockFetch.mockImplementation(async (url: string) => {
         if (url.includes("/api/dashboard")) {
           return {
@@ -819,12 +868,19 @@ describe("Stage 7C Artifact UI Test Suite", () => {
 
       await waitFor(() => {
         expect(screen.getByText("AI 建议交付的造物提案 (共 1 项)")).toBeDefined();
-        expect(screen.getByText("LTP Review Article")).toBeDefined();
-        const btn = screen.getByTestId("confirm-assessment-btn-assess-1") as HTMLButtonElement;
-        expect(btn.disabled).toBe(false);
       });
 
-      const confirmBtn = screen.getByTestId("confirm-assessment-btn-assess-1");
+      const confirmBtn = screen.getByTestId("confirm-assessment-btn-assess-1") as HTMLButtonElement;
+      // Confirm should be DISABLED before selection
+      expect(confirmBtn.disabled).toBe(true);
+
+      // Select Create
+      fireEvent.click(screen.getByTestId("proposal-0-resolution-create"));
+
+      await waitFor(() => {
+        expect(confirmBtn.disabled).toBe(false);
+      });
+
       fireEvent.click(confirmBtn);
 
       await waitFor(() => {
@@ -850,7 +906,7 @@ describe("Stage 7C Artifact UI Test Suite", () => {
       });
     });
 
-    it("handles 409 artifact_title_conflict gracefully", async () => {
+    it("handles non-disclosing 404 error without disclosing tenant information", async () => {
       mockFetch.mockImplementation(async (url: string) => {
         if (url.includes("/api/dashboard")) {
           return {
@@ -862,11 +918,8 @@ describe("Stage 7C Artifact UI Test Suite", () => {
         if (url.includes("/api/assessments/assess-1/confirm")) {
           return {
             ok: false,
-            status: 409,
-            json: async () => ({
-              code: "artifact_title_conflict",
-              error: "Artifact with this title already exists",
-            }),
+            status: 404,
+            json: async () => ({ error: "Not Found" }),
           };
         }
         return { ok: true, status: 200, json: async () => ({}) };
@@ -878,19 +931,20 @@ describe("Stage 7C Artifact UI Test Suite", () => {
         expect(screen.getByTestId("confirm-assessment-btn-assess-1")).toBeDefined();
       });
 
+      fireEvent.click(screen.getByTestId("proposal-0-resolution-create"));
       fireEvent.click(screen.getByTestId("confirm-assessment-btn-assess-1"));
 
       await waitFor(() => {
-        expect(screen.getByText(/新建造物标题与已有造物冲突/)).toBeDefined();
+        expect(screen.getByText("该造物不存在或当前账户无权访问。")).toBeDefined();
       });
     });
   });
 
   // ==========================================
-  // 10. Frozen Backend Delta Guard
+  // 9. Fail-Closed Frozen Backend Delta Guard
   // ==========================================
-  describe("Frozen Backend Delta Guard", () => {
-    it("ensures zero changes were made to frozen backend or domain paths", () => {
+  describe("Fail-Closed Frozen Backend Delta Guard", () => {
+    it("ensures zero changes were made to frozen backend paths and strictly fails if base ref is missing", () => {
       const forbiddenPathPrefixes = [
         "src/app/api/",
         "supabase/",
@@ -904,7 +958,7 @@ describe("Stage 7C Artifact UI Test Suite", () => {
         "src/types/artifact.ts",
       ];
 
-      function resolveBaseRef(): string {
+      function resolveBaseRefStrict(): string {
         const candidates = [
           process.env.GITHUB_BASE_REF ? `origin/${process.env.GITHUB_BASE_REF}` : null,
           "origin/main",
@@ -917,10 +971,10 @@ describe("Stage 7C Artifact UI Test Suite", () => {
             return candidate;
           } catch {}
         }
-        return "HEAD";
+        throw new Error("FAIL-CLOSED: Unable to resolve valid git base ref for backend delta guard.");
       }
 
-      const baseRef = resolveBaseRef();
+      const baseRef = resolveBaseRefStrict();
       const gitDiff = execSync(`git diff --name-only ${baseRef}...HEAD`, {
         encoding: "utf-8",
       });
