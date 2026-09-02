@@ -87,21 +87,21 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Direct Database, RLS, RPC Privilege
       ('${SKILL_A}', '${USER_A}', '${DOMAIN_A}', 'Formal Verification', 4),
       ('${SKILL_B}', '${USER_B}', '${DOMAIN_B}', 'Metabolic Modeling', 3);
 
-      insert into public.activities (id, user_id, title, activity_type, status, completed_at) values
-      ('${ACTIVITY_A}', '${USER_A}', 'Audit Kernel Memory', 'learning', 'confirmed', now()),
-      ('${ACTIVITY_B}', '${USER_B}', 'Analyze Enzyme Kinetics', 'learning', 'confirmed', now());
+      insert into public.activities (id, user_id, title, raw_input, activity_type, status, rules_version, total_minutes, effective_minutes) values
+      ('${ACTIVITY_A}', '${USER_A}', 'Audit Kernel Memory', 'Audit Kernel Memory', 'study', 'confirmed', '1.0.0', 45, 40),
+      ('${ACTIVITY_B}', '${USER_B}', 'Analyze Enzyme Kinetics', 'Analyze Enzyme Kinetics', 'study', 'confirmed', '1.0.0', 60, 55);
 
-      insert into public.quests (id, user_id, title, status) values
-      ('${QUEST_A}', '${USER_A}', 'Zero Bug Kernel', 'active'),
-      ('${QUEST_B}', '${USER_B}', 'Genome Sequencing', 'active');
+      insert into public.quests (id, user_id, title, quest_type) values
+      ('${QUEST_A}', '${USER_A}', 'Zero Bug Kernel', 'production'),
+      ('${QUEST_B}', '${USER_B}', 'Genome Sequencing', 'production');
 
-      insert into public.knowledge_nodes (id, user_id, title, node_type, verification_status) values
-      ('${KN_NODE_A}', '${USER_A}', 'Memory Safety Invariants', 'concept', 'verified'),
-      ('${KN_NODE_B}', '${USER_B}', 'Enzyme Kinetics', 'concept', 'verified');
+      insert into public.knowledge_nodes (id, user_id, domain_id, title, node_type, verification_status, confidence, verified_at, verified_by, source_type) values
+      ('${KN_NODE_A}', '${USER_A}', '${DOMAIN_A}', 'Memory Safety Invariants', 'concept', 'verified', 1.0, now(), '${USER_A}', 'user_created'),
+      ('${KN_NODE_B}', '${USER_B}', '${DOMAIN_B}', 'Enzyme Kinetics', 'concept', 'verified', 1.0, now(), '${USER_B}', 'user_created');
 
-      insert into public.evidence_records (id, user_id, activity_id, evidence_level, description, verified) values
-      ('${EVIDENCE_A}', '${USER_A}', '${ACTIVITY_A}', 4, 'Coq Proof Artifact', true),
-      ('${EVIDENCE_B}', '${USER_B}', '${ACTIVITY_B}', 3, 'Mass Spec CSV', true);
+      insert into public.evidence_records (id, user_id, activity_id, skill_id, evidence_level, evidence_type, description, verified) values
+      ('${EVIDENCE_A}', '${USER_A}', '${ACTIVITY_A}', '${SKILL_A}', 4, 'work_product', 'Coq Proof Artifact', true),
+      ('${EVIDENCE_B}', '${USER_B}', '${ACTIVITY_B}', '${SKILL_B}', 3, 'work_product', 'Mass Spec CSV', true);
     `);
 
     // Insert Baseline Artifacts for User A and User B
@@ -242,8 +242,8 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Direct Database, RLS, RPC Privilege
       // Create a knowledge node whose source is ART_A1
       const knId = "7df99999-aaaa-4000-a000-000000000099";
       await pg.query(`
-        insert into public.knowledge_nodes (id, user_id, title, node_type, verification_status, source_type, source_id)
-        values ('${knId}', '${USER_A}', 'Prov Node', 'concept', 'verified', 'artifact', '${ART_A1}');
+        insert into public.knowledge_nodes (id, user_id, domain_id, title, node_type, verification_status, confidence, verified_at, verified_by, source_type, source_id)
+        values ('${knId}', '${USER_A}', '${DOMAIN_A}', 'Prov Node', 'concept', 'verified', 1.0, now(), '${USER_A}', 'artifact', '${ART_A1}');
       `);
 
       await asUser(USER_A, async () => {

@@ -155,26 +155,26 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Artifact Final Security, Cross-Tena
     userASkillId = skillResA.rows[0].id;
 
     const questResA = await pg.query(
-      `insert into public.quests (user_id, title, status) values ($1, 'Security Audit Protocol', 'active') returning id`,
+      `insert into public.quests (user_id, title, quest_type) values ($1, 'Security Audit Protocol', 'production') returning id`,
       [userAId]
     );
     userAQuestId = questResA.rows[0].id;
 
     const knResA = await pg.query(
-      `insert into public.knowledge_nodes (user_id, title, node_type, verification_status) values ($1, 'Zero Trust Architecture', 'concept', 'verified') returning id`,
-      [userAId]
+      `insert into public.knowledge_nodes (user_id, domain_id, title, node_type, verification_status, confidence, verified_at, verified_by, source_type) values ($1, $2, 'Zero Trust Architecture', 'concept', 'verified', 1.0, now(), $1, 'user_created') returning id`,
+      [userAId, domainAId]
     );
     userAKnowledgeId = knResA.rows[0].id;
 
     const actResA = await pg.query(
-      `insert into public.activities (user_id, title, activity_type, status, completed_at) values ($1, 'Audit Auth Boundary', 'learning', 'pending', now()) returning id`,
+      `insert into public.activities (user_id, title, raw_input, activity_type, status, rules_version, total_minutes, effective_minutes) values ($1, 'Audit Auth Boundary', 'Audit Auth Boundary', 'study', 'pending', '1.0.0', 45, 40) returning id`,
       [userAId]
     );
     userAActivityId = actResA.rows[0].id;
 
     const evResA = await pg.query(
-      `insert into public.evidence_records (user_id, activity_id, evidence_level, description, verified) values ($1, $2, 4, 'Full security audit transcript', true) returning id`,
-      [userAId, userAActivityId]
+      `insert into public.evidence_records (user_id, activity_id, skill_id, evidence_level, evidence_type, description, verified) values ($1, $2, $3, 4, 'work_product', 'Full security audit transcript', true) returning id`,
+      [userAId, userAActivityId, userASkillId]
     );
     userAEvidenceId = evResA.rows[0].id;
 
@@ -192,20 +192,20 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Artifact Final Security, Cross-Tena
     userBSkillId = skillResB.rows[0].id;
 
     const questResB = await pg.query(
-      `insert into public.quests (user_id, title, status) values ($1, 'Genome Sequencing Quest', 'active') returning id`,
+      `insert into public.quests (user_id, title, quest_type) values ($1, 'Genome Sequencing Quest', 'production') returning id`,
       [userBId]
     );
     userBQuestId = questResB.rows[0].id;
 
     const actResB = await pg.query(
-      `insert into public.activities (user_id, title, activity_type, status, completed_at) values ($1, 'Sequence Alignment', 'learning', 'pending', now()) returning id`,
+      `insert into public.activities (user_id, title, raw_input, activity_type, status, rules_version, total_minutes, effective_minutes) values ($1, 'Sequence Alignment', 'Sequence Alignment', 'study', 'pending', '1.0.0', 60, 55) returning id`,
       [userBId]
     );
     userBActivityId = actResB.rows[0].id;
 
     const evResB = await pg.query(
-      `insert into public.evidence_records (user_id, activity_id, evidence_level, description, verified) values ($1, $2, 3, 'Mass Spec Transcript', true) returning id`,
-      [userBId, userBActivityId]
+      `insert into public.evidence_records (user_id, activity_id, skill_id, evidence_level, evidence_type, description, verified) values ($1, $2, $3, 3, 'work_product', 'Mass Spec Transcript', true) returning id`,
+      [userBId, userBActivityId, userBSkillId]
     );
     userBEvidenceId = evResB.rows[0].id;
   }, 45000);
@@ -594,8 +594,8 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Artifact Final Security, Cross-Tena
     beforeAll(async () => {
       // Create an activity for User A
       const actRes = await pg.query(
-        `insert into public.activities (user_id, title, activity_type, status, completed_at)
-         values ($1, 'Assessment Settlement Test', 'learning', 'pending', now()) returning id`,
+        `insert into public.activities (user_id, title, raw_input, activity_type, status, rules_version, total_minutes, effective_minutes)
+         values ($1, 'Assessment Settlement Test', 'Assessment Settlement Test', 'study', 'pending', '1.0.0', 45, 40) returning id`,
         [userAId]
       );
       activityId = actRes.rows[0].id;
@@ -801,8 +801,8 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Artifact Final Security, Cross-Tena
       const concTitle = "Concurrent Artifact " + Date.now();
       // Setup concurrent assessment fixture
       const actRes = await pg.query(
-        `insert into public.activities (user_id, title, activity_type, status, completed_at)
-         values ($1, 'Concurrent Settlement Test', 'learning', 'pending', now()) returning id`,
+        `insert into public.activities (user_id, title, raw_input, activity_type, status, rules_version, total_minutes, effective_minutes)
+         values ($1, 'Concurrent Settlement Test', 'Concurrent Settlement Test', 'study', 'pending', '1.0.0', 45, 40) returning id`,
         [userAId]
       );
       const concActId = actRes.rows[0].id;

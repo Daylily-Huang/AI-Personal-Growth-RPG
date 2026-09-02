@@ -149,13 +149,13 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Full Product E2E: Artifact Lifecycl
     userASkillId = skillRes.rows[0].id;
 
     const knRes = await pg.query(
-      `insert into public.knowledge_nodes (user_id, title, node_type, verification_status) values ($1, 'Next.js App Router State', 'concept', 'verified') returning id`,
-      [userAId]
+      `insert into public.knowledge_nodes (user_id, domain_id, title, node_type, verification_status, confidence, verified_at, verified_by, source_type) values ($1, $2, 'Next.js App Router State', 'concept', 'verified', 1.0, now(), $1, 'user_created') returning id`,
+      [userAId, domainId]
     );
     userAKnowledgeId = knRes.rows[0].id;
 
     const questRes = await pg.query(
-      `insert into public.quests (user_id, title, status) values ($1, 'Deliver Stage 7D Freeze', 'active') returning id`,
+      `insert into public.quests (user_id, title, quest_type) values ($1, 'Deliver Stage 7D Freeze', 'production') returning id`,
       [userAId]
     );
     userAQuestId = questRes.rows[0].id;
@@ -316,8 +316,8 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Full Product E2E: Artifact Lifecycl
       createdArtTitle = "Assessment Generated Spec " + Date.now();
 
       const actRes = await pg.query(
-        `insert into public.activities (user_id, title, activity_type, status, completed_at)
-         values ($1, 'Refactor Core Engine', 'learning', 'pending', now()) returning id`,
+        `insert into public.activities (user_id, title, raw_input, activity_type, status, rules_version, total_minutes, effective_minutes)
+         values ($1, 'Refactor Core Engine', 'Refactor Core Engine', 'study', 'pending', '1.0.0', 45, 40) returning id`,
         [userAId]
       );
       actId = actRes.rows[0].id;
@@ -414,8 +414,8 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Full Product E2E: Artifact Lifecycl
 
     test("Settlement with resolution=existing connects existing artifact with activityRole=modified", async () => {
       const actRes = await pg.query(
-        `insert into public.activities (user_id, title, activity_type, status, completed_at)
-         values ($1, 'Iterate on Master Plan', 'learning', 'pending', now()) returning id`,
+        `insert into public.activities (user_id, title, raw_input, activity_type, status, rules_version, total_minutes, effective_minutes)
+         values ($1, 'Iterate on Master Plan', 'Iterate on Master Plan', 'study', 'pending', '1.0.0', 45, 40) returning id`,
         [userAId]
       );
       const actId = actRes.rows[0].id;
@@ -495,8 +495,8 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Full Product E2E: Artifact Lifecycl
   describe("Scenario D — Ignore Artifact Proposal", () => {
     test("Settlement with resolution=ignore succeeds without creating unwanted artifacts", async () => {
       const actRes = await pg.query(
-        `insert into public.activities (user_id, title, activity_type, status, completed_at)
-         values ($1, 'Quick Exploration', 'learning', 'pending', now()) returning id`,
+        `insert into public.activities (user_id, title, raw_input, activity_type, status, rules_version, total_minutes, effective_minutes)
+         values ($1, 'Quick Exploration', 'Quick Exploration', 'study', 'pending', '1.0.0', 30, 25) returning id`,
         [userAId]
       );
       const actId = actRes.rows[0].id;
@@ -590,8 +590,8 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Full Product E2E: Artifact Lifecycl
 
       // User B creates an activity & assessment
       const actResB = await pg.query(
-        `insert into public.activities (user_id, title, activity_type, status, completed_at)
-         values ($1, 'User B Activity', 'learning', 'pending', now()) returning id`,
+        `insert into public.activities (user_id, title, raw_input, activity_type, status, rules_version, total_minutes, effective_minutes)
+         values ($1, 'User B Activity', 'User B Activity', 'study', 'pending', '1.0.0', 45, 40) returning id`,
         [userBId]
       );
       const actBId = actResB.rows[0].id;
