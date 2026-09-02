@@ -173,7 +173,6 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Full Product E2E: Artifact Lifecycl
         await pg.query(`delete from public.artifact_skills where user_id = $1`, [userAId]);
         await pg.query(`delete from public.artifacts where user_id = $1`, [userAId]);
         await pg.query(`delete from public.xp_transactions where user_id = $1`, [userAId]);
-        await pg.query(`delete from public.xp_ledger where user_id = $1`, [userAId]);
         await pg.query(`delete from public.ai_assessments where user_id = $1`, [userAId]);
         await pg.query(`delete from public.evidence_records where user_id = $1`, [userAId]);
         await pg.query(`delete from public.activities where user_id = $1`, [userAId]);
@@ -194,7 +193,6 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Full Product E2E: Artifact Lifecycl
         await pg.query(`delete from public.artifact_skills where user_id = $1`, [userBId]);
         await pg.query(`delete from public.artifacts where user_id = $1`, [userBId]);
         await pg.query(`delete from public.xp_transactions where user_id = $1`, [userBId]);
-        await pg.query(`delete from public.xp_ledger where user_id = $1`, [userBId]);
         await pg.query(`delete from public.ai_assessments where user_id = $1`, [userBId]);
         await pg.query(`delete from public.evidence_records where user_id = $1`, [userBId]);
         await pg.query(`delete from public.activities where user_id = $1`, [userBId]);
@@ -282,11 +280,11 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Full Product E2E: Artifact Lifecycl
       expect(getRes.status).toBe(200);
       const detail = await getRes.json();
       expect(detail.links.skills.length).toBe(1);
-      expect(detail.links.skills[0].skillId).toBe(userASkillId);
+      expect(detail.links.skills[0].id).toBe(userASkillId);
       expect(detail.links.knowledgeNodes.length).toBe(1);
-      expect(detail.links.knowledgeNodes[0].knowledgeNodeId).toBe(userAKnowledgeId);
+      expect(detail.links.knowledgeNodes[0].id).toBe(userAKnowledgeId);
       expect(detail.links.quests.length).toBe(1);
-      expect(detail.links.quests[0].questId).toBe(userAQuestId);
+      expect(detail.links.quests[0].id).toBe(userAQuestId);
     });
 
     test("4. Archive artifact via PATCH /api/artifacts/[id]", async () => {
