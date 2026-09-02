@@ -879,7 +879,7 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Artifact Final Security, Cross-Tena
           userAId,
           activityId,
           JSON.stringify({
-            activity: { type: "learning", completion: 1.0 },
+            activity: { type: "learning", completion: 0.2 },
             difficulty: { complexity: 0.5, uncertainty: 0.3, expertise_gap: 0.4, resistance: 0.2 },
             growth: { effort: 0.7, learning: 0.8, performance: 0.6, outcome: 0.7, artifact_value: 0.8, character_evidence: 0.5 },
             evidence: { level: 3, explanation: "Completed security survey" },
@@ -1010,6 +1010,15 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Artifact Final Security, Cross-Tena
         },
       ];
 
+      // Baseline snapshot before confirm
+      const baselineBeforeConfirm = await snapshotSettlementState(
+        userAId,
+        activityId,
+        assessmentId,
+        userASkillId,
+        userAQuestId
+      );
+
       // 1. First Confirm -> SUCCESS
       const res1 = await fetch(`${BASE_URL}/api/assessments/${assessmentId}/confirm`, {
         method: "POST",
@@ -1032,9 +1041,14 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Artifact Final Security, Cross-Tena
 
       expect(snapshotAfterFirst.assessment?.status).toBe("confirmed");
       expect(snapshotAfterFirst.activity?.status).toBe("confirmed");
-      expect(snapshotAfterFirst.xpTransactions.length).toBe(1);
+      expect(snapshotAfterFirst.xpTransactions.length).toBe(baselineBeforeConfirm.xpTransactions.length + 1);
       expect(snapshotAfterFirst.artifacts.some((a) => a.title === artTitle)).toBe(true);
-      expect(snapshotAfterFirst.artifactActivities.length).toBe(1);
+      expect(snapshotAfterFirst.artifactActivities.length).toBe(baselineBeforeConfirm.artifactActivities.length + 1);
+      const addedTx1 = snapshotAfterFirst.xpTransactions.find((tx) => !baselineBeforeConfirm.xpTransactions.some((b) => b.id === tx.id))!;
+      expect(addedTx1).toBeDefined();
+      expect(snapshotAfterFirst.player?.total_xp).toBe((baselineBeforeConfirm.player?.total_xp || 0) + addedTx1.amount);
+      expect(snapshotAfterFirst.primarySkill?.xp).toBe((baselineBeforeConfirm.primarySkill?.xp || 0) + addedTx1.amount);
+      expect(snapshotAfterFirst.quest?.progress).toBe((baselineBeforeConfirm.quest?.progress || 0) + 20);
 
       // 2. Duplicate Confirm -> rejected with 409 already_confirmed
       const res2 = await fetch(`${BASE_URL}/api/assessments/${assessmentId}/confirm`, {
@@ -1084,7 +1098,7 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Artifact Final Security, Cross-Tena
           userAId,
           concActId,
           JSON.stringify({
-            activity: { type: "learning", completion: 1.0 },
+            activity: { type: "learning", completion: 0.2 },
             difficulty: { complexity: 0.5, uncertainty: 0.3, expertise_gap: 0.4, resistance: 0.2 },
             growth: { effort: 0.7, learning: 0.8, performance: 0.6, outcome: 0.7, artifact_value: 0.8, character_evidence: 0.5 },
             evidence: { level: 3, explanation: "Concurrent race test" },
@@ -1169,9 +1183,11 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Artifact Final Security, Cross-Tena
       // Verify all domain entities mutated EXACTLY ONCE
       expect(finalSnapshot.assessment?.status).toBe("confirmed");
       expect(finalSnapshot.activity?.status).toBe("confirmed");
-      expect(finalSnapshot.player?.total_xp).toBe((baselineSnapshot.player?.total_xp || 0) + 50);
-      expect(finalSnapshot.primarySkill?.xp).toBe((baselineSnapshot.primarySkill?.xp || 0) + 50);
       expect(finalSnapshot.xpTransactions.length).toBe(baselineSnapshot.xpTransactions.length + 1);
+      const addedTx = finalSnapshot.xpTransactions.find((tx) => !baselineSnapshot.xpTransactions.some((b) => b.id === tx.id))!;
+      expect(addedTx).toBeDefined();
+      expect(finalSnapshot.player?.total_xp).toBe((baselineSnapshot.player?.total_xp || 0) + addedTx.amount);
+      expect(finalSnapshot.primarySkill?.xp).toBe((baselineSnapshot.primarySkill?.xp || 0) + addedTx.amount);
       expect(finalSnapshot.evidenceRecords.length).toBe(baselineSnapshot.evidenceRecords.length + 1);
       expect(finalSnapshot.artifacts.length).toBe(baselineSnapshot.artifacts.length + 1);
       expect(finalSnapshot.artifactActivities.length).toBe(baselineSnapshot.artifactActivities.length + 1);

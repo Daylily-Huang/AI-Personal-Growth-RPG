@@ -847,7 +847,8 @@ describe.skipIf(!DATABASE_URL)("Stage 7D — Full Product E2E: Artifact Lifecycl
 
       expect(confirmRes.status).toBe(200);
       const confirmData = await confirmRes.json();
-      expect(confirmData.ok).toBe(true);
+      expect(confirmData.transaction).toBeDefined();
+      expect(confirmData.assessment?.status).toBe("confirmed");
 
       const artCheck = await pg.query(
         `select * from public.artifacts where user_id = $1 and title = $2`,
