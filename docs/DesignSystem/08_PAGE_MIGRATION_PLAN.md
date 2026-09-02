@@ -22,7 +22,7 @@ The migration to the new Global Visual System follows a strict, layered implemen
 │                                ↓                                        │
 │   Phase 3: Shared UI Primitives Library ✅ FINAL FROZEN                 │
 │                                ↓                                        │
-│   Phase 4: Stage 7C Artifact UI (Gallery, Drawer, Confirm Picker) 🚀     │
+│   Phase 4: Stage 7C Artifact UI ✅ FINAL FROZEN                         │
 │                                ↓                                        │
 │   Phase 5: Core Screen Modernization (Dashboard -> Quests -> Skills)    │
 │                                ↓                                        │
@@ -73,8 +73,9 @@ The migration to the new Global Visual System follows a strict, layered implemen
   - Controls: `PrimaryButton` (Gold), `SecondaryButton` (Neutral), `DangerButton` (Functional Danger), `SearchInput`, `FilterBar`.
   - Overlays: `ConfirmDialog`, `BaseModal`, `ToastNotification`, `Tooltip`.
 
-### Phase 4 — Stage 7C: Artifact UI Implementation 🚀 (ACTIVE NEXT)
+### Phase 4 — Stage 7C: Artifact UI Implementation ✅ FINAL FROZEN
 - **Objective**: Implement the complete Artifact user interface on top of frozen Stage 7B APIs using the frozen visual foundation, AppShell, and Shared UI Primitives.
+- **Status**: **COMPLETE & MERGED (FINAL FROZEN)** (PR #16).
 - **Deliverables**:
   - `/artifacts` Workspace & Gallery Page: Responsive grid of `ArtifactCard`s with type/status filters and search.
   - `ArtifactInspectorContent`: Injected into `InspectorDrawer` with 5 relational accordions (Skills, Knowledge, Quests, Activities, Evidence).
