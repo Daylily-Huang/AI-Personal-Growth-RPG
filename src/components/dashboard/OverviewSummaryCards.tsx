@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import type { DashboardSnapshot } from "@/lib/store/types";
 import { Swords, Scroll, Gem, Network, ChevronRight } from "lucide-react";
 import { RPGCard } from "@/components/ui";
@@ -19,7 +20,7 @@ export function OverviewSummaryCards({ dashboard }: OverviewSummaryCardsProps) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       {/* Skills Card */}
-      <a href="/skills" className="block group focus-visible:outline-none">
+      <Link href="/skills" className="block group focus-visible:outline-none min-h-[var(--touch-target-min)]">
         <RPGCard
           entityType="skill"
           className="p-4 h-full flex flex-col justify-between gap-3 group-hover:border-[var(--entity-skill-border)] group-focus-visible:ring-2 group-focus-visible:ring-[var(--focus-ring-color)]"
@@ -40,10 +41,10 @@ export function OverviewSummaryCards({ dashboard }: OverviewSummaryCardsProps) {
             </div>
           </div>
         </RPGCard>
-      </a>
+      </Link>
 
       {/* Quests Card */}
-      <a href="/quests" className="block group focus-visible:outline-none">
+      <Link href="/quests" className="block group focus-visible:outline-none min-h-[var(--touch-target-min)]">
         <RPGCard
           entityType="quest"
           className="p-4 h-full flex flex-col justify-between gap-3 group-hover:border-[var(--entity-quest-border)] group-focus-visible:ring-2 group-focus-visible:ring-[var(--focus-ring-color)]"
@@ -51,7 +52,7 @@ export function OverviewSummaryCards({ dashboard }: OverviewSummaryCardsProps) {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-xs font-[var(--font-weight-medium)] uppercase tracking-wider text-[var(--entity-quest-text)]">
               <Scroll className="h-4 w-4 shrink-0" />
-              任务大厅 · Quests
+              任务体系 · Quests
             </div>
             <ChevronRight className="h-4 w-4 text-[var(--text-muted)] group-hover:text-[var(--text-primary)] transition-colors" />
           </div>
@@ -67,10 +68,10 @@ export function OverviewSummaryCards({ dashboard }: OverviewSummaryCardsProps) {
             </div>
           </div>
         </RPGCard>
-      </a>
+      </Link>
 
       {/* Artifacts Card */}
-      <a href="/artifacts" className="block group focus-visible:outline-none">
+      <Link href="/artifacts" className="block group focus-visible:outline-none min-h-[var(--touch-target-min)]">
         <RPGCard
           entityType="artifact"
           className="p-4 h-full flex flex-col justify-between gap-3 group-hover:border-[var(--entity-artifact-border)] group-focus-visible:ring-2 group-focus-visible:ring-[var(--focus-ring-color)]"
@@ -78,7 +79,7 @@ export function OverviewSummaryCards({ dashboard }: OverviewSummaryCardsProps) {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-xs font-[var(--font-weight-medium)] uppercase tracking-wider text-[var(--entity-artifact-text)]">
               <Gem className="h-4 w-4 shrink-0" />
-              造物成果 · Artifacts
+              造物库 · Artifacts
             </div>
             <ChevronRight className="h-4 w-4 text-[var(--text-muted)] group-hover:text-[var(--text-primary)] transition-colors" />
           </div>
@@ -91,10 +92,10 @@ export function OverviewSummaryCards({ dashboard }: OverviewSummaryCardsProps) {
             </div>
           </div>
         </RPGCard>
-      </a>
+      </Link>
 
       {/* Knowledge Graph Card */}
-      <a href="/knowledge" className="block group focus-visible:outline-none">
+      <Link href="/knowledge" className="block group focus-visible:outline-none min-h-[var(--touch-target-min)]">
         <RPGCard
           entityType="knowledge"
           className="p-4 h-full flex flex-col justify-between gap-3 group-hover:border-[var(--entity-knowledge-border)] group-focus-visible:ring-2 group-focus-visible:ring-[var(--focus-ring-color)]"
@@ -102,7 +103,7 @@ export function OverviewSummaryCards({ dashboard }: OverviewSummaryCardsProps) {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-xs font-[var(--font-weight-medium)] uppercase tracking-wider text-[var(--entity-knowledge-text)]">
               <Network className="h-4 w-4 shrink-0" />
-              知识图谱 · Graph
+              知识图谱 · Knowledge
             </div>
             <ChevronRight className="h-4 w-4 text-[var(--text-muted)] group-hover:text-[var(--text-primary)] transition-colors" />
           </div>
@@ -115,7 +116,7 @@ export function OverviewSummaryCards({ dashboard }: OverviewSummaryCardsProps) {
             </div>
           </div>
         </RPGCard>
-      </a>
+      </Link>
     </div>
   );
 }

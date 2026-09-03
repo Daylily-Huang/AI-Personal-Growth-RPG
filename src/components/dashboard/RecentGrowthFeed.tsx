@@ -16,7 +16,7 @@ export function RecentGrowthFeed({ transactions }: RecentGrowthFeedProps) {
     <SectionCard
       title="Recent Growth"
       icon={<TrendingUp className="h-5 w-5 text-[var(--state-success-text)] shrink-0" />}
-      className="p-5"
+      className="p-5 sm:p-6 rounded-2xl shadow-[var(--shadow-card)]"
     >
       <ul className="divide-y divide-[var(--border-subtle)]">
         {transactions.slice(0, 6).map((tx) => (
@@ -29,14 +29,14 @@ export function RecentGrowthFeed({ transactions }: RecentGrowthFeedProps) {
                 {tx.skillName} · {new Date(tx.createdAt).toLocaleString()}
               </div>
               {tx.repetitionPenalty != null ? (
-                <div className="mt-1 text-xs text-[var(--gold-600)] font-mono">
+                <div className="mt-1 text-xs text-[var(--text-secondary)] font-mono">
                   {tx.repetitionPenalty < 1
                     ? `重复 ×${tx.repetitionPenalty}（第 ${tx.repetitionCount} 次类似，服务器判定）`
                     : `无重复惩罚（第 ${tx.repetitionCount} 次类似，服务器判定）`}
                 </div>
               ) : null}
             </div>
-            <div className="shrink-0 rounded-full bg-[var(--state-success-bg)] border border-[var(--state-success-border)] px-3 py-1 text-xs font-bold font-mono text-[var(--state-success-text)]">
+            <div className="shrink-0 rounded-full bg-[var(--surface-raised)] border border-[var(--gold-400)]/40 px-3 py-1 text-xs font-bold font-mono text-[var(--gold-500)]">
               +{tx.amount} XP
             </div>
           </li>

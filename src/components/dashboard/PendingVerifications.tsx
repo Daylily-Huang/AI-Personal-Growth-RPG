@@ -14,15 +14,15 @@ export function PendingVerifications({ verifications }: PendingVerificationsProp
 
   return (
     <SectionCard
-      title="Mastery 待验证"
+      title="待确认的技能进阶验证 (Mastery Verifications)"
       icon={<ShieldAlert className="h-5 w-5 text-[var(--state-info-text)] shrink-0" />}
-      className="p-5 space-y-3"
+      className="p-5 sm:p-6 rounded-2xl shadow-[var(--shadow-card)] space-y-3"
     >
       <ul className="space-y-2">
         {verifications.map((v) => (
           <li
             key={v.id}
-            className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-raised)] px-3.5 py-2.5 text-sm shadow-xs"
+            className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-raised)] px-3.5 py-2.5 text-sm shadow-xs"
           >
             <span className="flex items-center gap-2">
               <span className="font-[var(--font-weight-medium)] text-[var(--text-primary)]">

@@ -14,9 +14,9 @@ export function ActivityHistoryList({ activities }: ActivityHistoryListProps) {
 
   return (
     <SectionCard
-      title="Activity History"
+      title="近期活动记录 (Activity Log)"
       icon={<BookOpen className="h-5 w-5 text-[var(--entity-activity-text)] shrink-0" />}
-      className="p-5"
+      className="p-5 sm:p-6 rounded-2xl shadow-[var(--shadow-card)]"
     >
       <ul className="divide-y divide-[var(--border-subtle)]">
         {activities.slice(0, 10).map((activity) => (

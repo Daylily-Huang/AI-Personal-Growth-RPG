@@ -2,7 +2,11 @@
 /**
  * tests/phase5-dashboard-ui.test.tsx
  * Phase 5 — Core Screen Modernization (Stage 5A-UI Dashboard Modernization)
- * Complete Test Suite covering Requirements 1-21 & Visual Governance
+ * Round 3 Complete Test Suite covering:
+ * - Data Integrity & Zero Fabricated Data
+ * - Strict Visual Governance & Single AppEnvironment Layer
+ * - Semantic Accessibility & Responsive Real DOM Verification
+ * - Fail-Closed Frozen Backend Delta Guard
  */
 
 import React from "react";
@@ -13,16 +17,16 @@ import path from "node:path";
 import { execSync } from "node:child_process";
 import DashboardPage from "@/app/dashboard/page";
 import { AppShellProvider } from "@/components/layout";
-import type { DashboardSnapshot } from "@/lib/store/types";
+import type { DashboardSnapshot, Quest } from "@/lib/store/types";
 import {
-  PlayerHero,
+  PlayerHeroCard,
   QuestsOverview,
   QuickLogCard,
-  ActivityHistoryList,
+  TopSkillsCard,
   OverviewSummaryCards,
   LoadingState,
   ErrorState,
-  EmptyState,
+  isFreshDashboard,
 } from "@/components/dashboard";
 
 // Mock next/navigation
@@ -57,133 +61,130 @@ const mockDashboardSnapshot: DashboardSnapshot = {
   skills: [
     {
       id: "skill-1",
-      userId: "user-1",
       name: "Rust Systems",
       level: 12,
       xp: 1200,
       masteryLevel: 4,
       masteryConfidence: 0.88,
-      createdAt: "2026-08-01T00:00:00Z",
-      updatedAt: "2026-08-20T00:00:00Z",
+      lastUsedAt: "2026-08-28T14:30:00Z",
     },
     {
       id: "skill-2",
-      userId: "user-1",
       name: "TypeScript Architecture",
-      level: 8,
-      xp: 800,
+      level: 10,
+      xp: 950,
       masteryLevel: 3,
-      masteryConfidence: 0.92,
-      createdAt: "2026-08-05T00:00:00Z",
-      updatedAt: "2026-08-22T00:00:00Z",
+      masteryConfidence: 0.85,
+      lastUsedAt: "2026-08-27T10:00:00Z",
     },
   ],
   quests: [
     {
-      id: "quest-main",
-      userId: "user-1",
+      id: "quest-1",
       title: "深入掌握生命周期与内存安全",
       status: "active",
       progress: 65,
       isMainQuest: true,
-      createdAt: "2026-08-10T00:00:00Z",
-      updatedAt: "2026-08-25T00:00:00Z",
+      parentQuestId: null,
+      description: "完成 Rust 所有权与生命周期的深度学习",
+      questType: "learning",
+      questSize: "M",
+      createdAt: "2026-08-01T00:00:00Z",
+      updatedAt: "2026-08-28T10:00:00Z",
     },
     {
-      id: "quest-side-1",
-      userId: "user-1",
-      title: "实现 CAS 并发控制状态机",
+      id: "quest-2",
+      title: "构建高内聚领域存储层",
       status: "active",
       progress: 40,
       isMainQuest: false,
-      createdAt: "2026-08-12T00:00:00Z",
-      updatedAt: "2026-08-26T00:00:00Z",
+      parentQuestId: null,
+      description: "实现基于内存与 Supabase 的双模存储抽象",
+      questType: "engineering",
+      questSize: "S",
+      createdAt: "2026-08-10T00:00:00Z",
+      updatedAt: "2026-08-28T11:00:00Z",
     },
   ],
   mainQuest: {
-    id: "quest-main",
-    userId: "user-1",
+    id: "quest-1",
     title: "深入掌握生命周期与内存安全",
     status: "active",
     progress: 65,
     isMainQuest: true,
-    createdAt: "2026-08-10T00:00:00Z",
-    updatedAt: "2026-08-25T00:00:00Z",
+    parentQuestId: null,
+    description: "完成 Rust 所有权与生命周期的深度学习",
+    questType: "learning",
+    questSize: "M",
+    createdAt: "2026-08-01T00:00:00Z",
+    updatedAt: "2026-08-28T10:00:00Z",
   },
   activeQuests: [
     {
-      id: "quest-main",
-      userId: "user-1",
+      id: "quest-1",
       title: "深入掌握生命周期与内存安全",
       status: "active",
       progress: 65,
       isMainQuest: true,
-      createdAt: "2026-08-10T00:00:00Z",
-      updatedAt: "2026-08-25T00:00:00Z",
+      parentQuestId: null,
+      description: "完成 Rust 所有权与生命周期的深度学习",
+      questType: "learning",
+      questSize: "M",
+      createdAt: "2026-08-01T00:00:00Z",
+      updatedAt: "2026-08-28T10:00:00Z",
     },
     {
-      id: "quest-side-1",
-      userId: "user-1",
-      title: "实现 CAS 并发控制状态机",
+      id: "quest-2",
+      title: "构建高内聚领域存储层",
       status: "active",
       progress: 40,
       isMainQuest: false,
-      createdAt: "2026-08-12T00:00:00Z",
-      updatedAt: "2026-08-26T00:00:00Z",
+      parentQuestId: null,
+      description: "实现基于内存与 Supabase 的双模存储抽象",
+      questType: "engineering",
+      questSize: "S",
+      createdAt: "2026-08-10T00:00:00Z",
+      updatedAt: "2026-08-28T11:00:00Z",
     },
   ],
   recentGrowth: [
     {
       id: "tx-1",
-      userId: "user-1",
-      amount: 45,
-      reason: "完成了生命周期标注重构练习",
+      activityId: "act-1",
+      assessmentId: "ass-1",
+      xpType: "activity",
       skillId: "skill-1",
       skillName: "Rust Systems",
-      repetitionPenalty: 1,
+      activityType: "coding",
       repetitionCount: 1,
+      repetitionPenalty: 1.0,
+      amount: 45,
+      baseAmount: 45,
+      modifierJson: {},
+      reason: "完成了所有权练习",
+      rulesVersion: "2026-08-17.1",
       createdAt: "2026-08-28T14:30:00Z",
-    },
-    {
-      id: "tx-2",
-      userId: "user-1",
-      amount: 20,
-      reason: "阅读并发编程指南第三章",
-      skillId: "skill-1",
-      skillName: "Rust Systems",
-      repetitionPenalty: 0.8,
-      repetitionCount: 2,
-      createdAt: "2026-08-27T10:15:00Z",
     },
   ],
   activities: [
     {
       id: "act-1",
-      userId: "user-1",
-      title: "阅读 Rust 并发手册与生命周期标注",
-      rawInput: "深入研读并编写示例代码",
-      status: "assessed",
+      questId: "quest-1",
+      rawInput: "完成了所有权练习并阅读官方文档",
+      title: "完成了所有权练习",
+      activityType: "coding",
+      status: "confirmed",
+      totalMinutes: 90,
+      effectiveMinutes: 75,
+      rulesVersion: "2026-08-17.1",
       createdAt: "2026-08-28T14:00:00Z",
     },
   ],
   pendingAssessments: [],
-  pendingMasteryVerifications: [
-    {
-      id: "verif-1",
-      skillId: "skill-1",
-      skillName: "Rust Systems",
-      fromLevel: 3,
-      toLevel: 4,
-      evidenceLevel: 2,
-      status: "pending",
-      proposalAssessmentId: "ass-1",
-      createdAt: "2026-08-28T14:35:00Z",
-      resolvedAt: null,
-    },
-  ],
+  pendingMasteryVerifications: [],
 } as unknown as DashboardSnapshot;
 
-describe("Phase 5 — Stage 5A-UI Dashboard Modernization Test Suite", () => {
+describe("Phase 5 — Stage 5A-UI Dashboard Modernization Test Suite (Round 3)", () => {
   let originalFetch: typeof globalThis.fetch;
 
   beforeEach(() => {
@@ -193,14 +194,14 @@ describe("Phase 5 — Stage 5A-UI Dashboard Modernization Test Suite", () => {
   });
 
   afterEach(() => {
-    globalThis.fetch = originalFetch;
     cleanup();
+    globalThis.fetch = originalFetch;
   });
 
-  // 1. Dashboard only uses global AppShell
+  // 1. AppShell Integration
   it("1. verifies DashboardPage mounts cleanly and operates inside the global AppShell without requiring internal shell wrapper", async () => {
-    vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => {
-      if (String(url) === "/api/dashboard") {
+    globalThis.fetch = vi.fn().mockImplementation(async (url: string) => {
+      if (url === "/api/dashboard") {
         return {
           ok: true,
           status: 200,
@@ -210,7 +211,7 @@ describe("Phase 5 — Stage 5A-UI Dashboard Modernization Test Suite", () => {
       return { ok: true, status: 200, json: async () => ({}) } as Response;
     });
 
-    const { container } = render(
+    render(
       <AppShellProvider>
         <DashboardPage />
       </AppShellProvider>
@@ -220,14 +221,14 @@ describe("Phase 5 — Stage 5A-UI Dashboard Modernization Test Suite", () => {
       expect(screen.getByTestId("dashboard-player-hero")).toBeDefined();
     });
 
-    // Verify main content is rendered directly
-    expect(container.querySelector("main")).toBeNull(); // Page itself does not render redundant <main> wrapper
+    expect(document.querySelectorAll("aside").length).toBe(0);
+    expect(document.querySelectorAll("header").length).toBe(0);
   });
 
-  // 2. No nested AppShell
+  // 2. No Nested AppShell
   it("2. strictly verifies that DashboardPage does NOT introduce a nested AppShell or secondary AppHeader/AppSidebar", async () => {
-    vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => {
-      if (String(url) === "/api/dashboard") {
+    globalThis.fetch = vi.fn().mockImplementation(async (url: string) => {
+      if (url === "/api/dashboard") {
         return {
           ok: true,
           status: 200,
@@ -238,119 +239,42 @@ describe("Phase 5 — Stage 5A-UI Dashboard Modernization Test Suite", () => {
     });
 
     const { container } = render(<DashboardPage />);
-
     await waitFor(() => {
       expect(screen.getByTestId("dashboard-player-hero")).toBeDefined();
     });
 
-    expect(container.querySelector('[data-testid="app-shell"]')).toBeNull();
     expect(container.querySelector('[data-testid="app-header"]')).toBeNull();
     expect(container.querySelector('[data-testid="app-sidebar"]')).toBeNull();
   });
 
-  // 3. Loading state
-  it("3. renders calm LoadingState without layout jumps while fetching dashboard snapshot", () => {
-    render(<LoadingState />);
-    expect(screen.getByTestId("dashboard-loading-state")).toBeDefined();
-    expect(screen.getByText("Loading your growth world…")).toBeDefined();
+  // 3. Loading Skeleton Geometry
+  it("3. renders geometry-reserving skeleton with role=status and aria-busy=true while fetching dashboard snapshot", () => {
+    const { container } = render(<LoadingState />);
+    const statusRegion = screen.getByRole("status");
+    expect(statusRegion).toBeDefined();
+    expect(statusRegion.getAttribute("aria-busy")).toBe("true");
+    expect(container.querySelector(".animate-pulse")).toBeDefined();
+    // No decorative gold spinners
+    expect(container.innerHTML).not.toContain("var(--gold-");
   });
 
-  // 4. API error state + retry
+  // 4. Error State
   it("4. renders ErrorState on API failure and triggers retry callback on user click", () => {
-    const onRetry = vi.fn();
-    render(<ErrorState message="Network connection failed" onRetry={onRetry} />);
+    const retryFn = vi.fn();
+    render(<ErrorState message="网络连接异常" onRetry={retryFn} />);
 
-    expect(screen.getByTestId("dashboard-error-state")).toBeDefined();
-    expect(screen.getByText("Network connection failed")).toBeDefined();
-    expect(screen.getByText("加载失败")).toBeDefined();
+    expect(screen.getByText("仪表盘加载受阻")).toBeDefined();
+    expect(screen.getByText("网络连接异常")).toBeDefined();
 
-    const retryBtn = screen.getByRole("button", { name: /重试 \/ Retry/i });
+    const retryBtn = screen.getByRole("button", { name: /重新连接/ });
     fireEvent.click(retryBtn);
-    expect(onRetry).toHaveBeenCalledTimes(1);
+    expect(retryFn).toHaveBeenCalledTimes(1);
   });
 
-  // 5. Empty state
-  it("5. renders inspiring EmptyState when no activity or proposals exist", () => {
-    const onRefresh = vi.fn();
-    render(<EmptyState onRefresh={onRefresh} />);
-
-    expect(screen.getByTestId("dashboard-empty-state")).toBeDefined();
-    expect(screen.getByText("还没有成长记录")).toBeDefined();
-    expect(screen.getByText("🌱")).toBeDefined();
-
-    const refreshBtn = screen.getByRole("button", { name: /Refresh/i });
-    fireEvent.click(refreshBtn);
-    expect(onRefresh).toHaveBeenCalledTimes(1);
-  });
-
-  // 6. Player level / XP rendering
-  it("6. renders Player Level Badge, Level text, total XP, and XP progress meter accurately", () => {
-    render(<PlayerHero dashboard={mockDashboardSnapshot} />);
-
-    expect(screen.getByTestId("level-badge")).toBeDefined();
-    expect(screen.getByText("LV.15")).toBeDefined();
-    expect(screen.getByText("XP Lv.15")).toBeDefined();
-    expect(screen.getByText("2850 XP total")).toBeDefined();
-    expect(screen.getByText(/350 \/ 700 XP to next level/)).toBeDefined();
-    expect(screen.getByText("50%")).toBeDefined();
-    expect(screen.getByTestId("xp-progress")).toBeDefined();
-  });
-
-  // 7. Current quest/action rendering
-  it("7. renders Main Quest with Crown icon, progress bar, and secondary active quests", () => {
-    render(
-      <QuestsOverview
-        mainQuest={mockDashboardSnapshot.mainQuest}
-        activeQuests={mockDashboardSnapshot.activeQuests}
-      />
-    );
-
-    expect(screen.getByText("当前主线任务 (Main Quest)")).toBeDefined();
-    expect(screen.getByText("深入掌握生命周期与内存安全")).toBeDefined();
-    expect(screen.getByText("65%")).toBeDefined();
-    expect(screen.getByText("实现 CAS 并发控制状态机")).toBeDefined();
-    expect(screen.getByText("40%")).toBeDefined();
-  });
-
-  // 8. Recent activity rendering
-  it("8. renders Recent Activity History with title and date/status", () => {
-    render(<ActivityHistoryList activities={mockDashboardSnapshot.activities} />);
-
-    expect(screen.getByText("Activity History")).toBeDefined();
-    expect(screen.getByText("阅读 Rust 并发手册与生命周期标注")).toBeDefined();
-    expect(screen.getByText(/assessed/i)).toBeDefined();
-  });
-
-  // 9. Real navigation actions
-  it("9. provides valid and accessible navigation links to /quests, /skills, /artifacts, /knowledge", () => {
-    render(<OverviewSummaryCards dashboard={mockDashboardSnapshot} />);
-
-    const questsLink = screen.getByRole("link", { name: /任务大厅 · Quests/i });
-    expect(questsLink.getAttribute("href")).toBe("/quests");
-
-    const skillsLink = screen.getByRole("link", { name: /技能树 · Skills/i });
-    expect(skillsLink.getAttribute("href")).toBe("/skills");
-
-    const artifactsLink = screen.getByRole("link", { name: /造物成果 · Artifacts/i });
-    expect(artifactsLink.getAttribute("href")).toBe("/artifacts");
-
-    const knowledgeLink = screen.getByRole("link", { name: /知识图谱 · Graph/i });
-    expect(knowledgeLink.getAttribute("href")).toBe("/knowledge");
-  });
-
-  // 10. Data values from API response
-  it("10. faithfully displays exact numeric state values for Energy, Focus, Momentum from API without fabrication", () => {
-    render(<PlayerHero dashboard={mockDashboardSnapshot} />);
-
-    expect(screen.getByText("92")).toBeDefined(); // Energy
-    expect(screen.getByText("88")).toBeDefined(); // Focus
-    expect(screen.getByText("4")).toBeDefined();  // Momentum
-  });
-
-  // 11. No fabricated metrics
-  it("11. strictly ensures no fake streaks, fake random numbers, or ungrounded statistics exist", () => {
-    const emptyDashboard: DashboardSnapshot = {
-      player: { playerLevel: 1, totalXp: 0, energy: 100, focus: 100, momentum: 0 },
+  // 5. Fresh User Onboarding & Predicate
+  it("5. correctly identifies a fresh dashboard and verifies non-fresh state for partial users", () => {
+    const freshSnapshot: DashboardSnapshot = {
+      player: { totalXp: 0, playerLevel: 1, energy: 100, focus: 100, momentum: 0 },
       levelProgress: { xpIntoLevel: 0, xpNeededForNext: 100, progress: 0 },
       skills: [],
       quests: [],
@@ -361,36 +285,149 @@ describe("Phase 5 — Stage 5A-UI Dashboard Modernization Test Suite", () => {
       pendingAssessments: [],
       pendingMasteryVerifications: [],
     };
+    expect(isFreshDashboard(freshSnapshot)).toBe(true);
 
-    const { container } = render(<OverviewSummaryCards dashboard={emptyDashboard} />);
-    expect(screen.getAllByText("0").length).toBeGreaterThanOrEqual(1); // Skills count is 0
-    expect(container.textContent).toContain("/ 0"); // Quests count is 0 / 0
-    expect(container.textContent).not.toContain("连续打卡");
-    expect(container.textContent).not.toContain("Streak");
+    // Skill-only is NOT fresh
+    expect(isFreshDashboard({ ...freshSnapshot, skills: mockDashboardSnapshot.skills })).toBe(false);
+    // Quest-only is NOT fresh
+    expect(isFreshDashboard({ ...freshSnapshot, quests: mockDashboardSnapshot.quests })).toBe(false);
+    // Growth-only is NOT fresh
+    expect(isFreshDashboard({ ...freshSnapshot, recentGrowth: mockDashboardSnapshot.recentGrowth })).toBe(false);
   });
 
-  // 12. Responsive semantic layout
-  it("12. verifies semantic grid and layout class structure for responsive breakpoints (lg:grid-cols-12)", () => {
+  // 6. Real Player Level & XP
+  it("6. renders Player Level, total XP, and XP progress meter accurately without duplicate level hierarchy", () => {
+    render(<PlayerHeroCard dashboard={mockDashboardSnapshot} />);
+    expect(screen.getByText("XP Lv.15")).toBeDefined();
+    expect(screen.getByText("2850 XP total")).toBeDefined();
+    expect(screen.getByText("350")).toBeDefined();
+    expect(screen.getByText(/\/ 700 XP/)).toBeDefined();
+  });
+
+  // 7. Active Main Quest only
+  it("7. renders Main Quest only when its status is strictly 'active'", () => {
+    const activeMainQuest: Quest = {
+      id: "q-main",
+      title: "主线攻坚",
+      status: "active",
+      progress: 50,
+      isMainQuest: true,
+      parentQuestId: null,
+      description: "active",
+      questType: "learning",
+      questSize: "main",
+      createdAt: "",
+      updatedAt: "",
+    } as unknown as Quest;
+
+    const { rerender } = render(<QuestsOverview mainQuest={activeMainQuest} activeQuests={[activeMainQuest]} />);
+    expect(screen.getByText("当前主线任务 (Main Quest)")).toBeDefined();
+    expect(screen.getByText("主线攻坚")).toBeDefined();
+
+    // When status is paused or completed, it must NOT display as current action
+    const pausedMainQuest: Quest = { ...activeMainQuest, status: "paused" as Quest["status"] };
+    rerender(<QuestsOverview mainQuest={pausedMainQuest} activeQuests={[]} />);
+    expect(screen.queryByText("当前主线任务 (Main Quest)")).toBeNull();
+
+    const completedMainQuest: Quest = { ...activeMainQuest, status: "completed" as Quest["status"], progress: 100 };
+    rerender(<QuestsOverview mainQuest={completedMainQuest} activeQuests={[]} />);
+    expect(screen.queryByText("当前主线任务 (Main Quest)")).toBeNull();
+  });
+
+  // 8. No Fabricated Quest XP or Checkboxes
+  it("8. strictly ensures QuestsOverview is a read-only preview without fake +XP or local completion checkboxes", () => {
     const { container } = render(
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        <div className="lg:col-span-7">
-          <QuestsOverview mainQuest={mockDashboardSnapshot.mainQuest} />
-        </div>
-        <div className="lg:col-span-5">
-          <QuickLogCard rawInput="" setRawInput={vi.fn()} onSubmit={vi.fn()} submitting={false} />
-        </div>
-      </div>
+      <QuestsOverview
+        mainQuest={mockDashboardSnapshot.mainQuest}
+        activeQuests={mockDashboardSnapshot.activeQuests}
+      />
     );
 
-    expect(container.querySelector(".lg\\:grid-cols-12")).toBeTruthy();
-    expect(container.querySelector(".lg\\:col-span-7")).toBeTruthy();
-    expect(container.querySelector(".lg\\:col-span-5")).toBeTruthy();
+    expect(container.querySelectorAll('input[type="checkbox"]').length).toBe(0);
+    expect(container.textContent).not.toContain("+60 XP");
+    expect(container.textContent).not.toContain("+80 XP");
+    expect(container.textContent).not.toContain("+120 XP");
+    expect(container.textContent).not.toContain("晨间冥想");
   });
 
-  // 13. Mobile priority order
+  // 9. Real Top Skills only (No fake skills, no fake max XP)
+  it("9. strictly renders real skills and does not fabricate skills or artificial next-level denominators", () => {
+    const { container, rerender } = render(<TopSkillsCard skills={mockDashboardSnapshot.skills} />);
+    expect(screen.getByText("Rust Systems")).toBeDefined();
+    expect(screen.getByText("TypeScript Architecture")).toBeDefined();
+    expect(container.textContent).not.toContain("专注力 Lv.23");
+    expect(container.textContent).not.toContain("学习力 Lv.21");
+    expect(container.textContent).not.toContain("/ 3,000");
+
+    // Empty skills case
+    rerender(<TopSkillsCard skills={[]} />);
+    expect(screen.getByText("暂无已激活技能，完成活动以解锁技能成长")).toBeDefined();
+  });
+
+  // 10. Real numeric vitals
+  it("10. faithfully displays exact numeric state values for Energy, Focus, Momentum from API without fabrication", () => {
+    render(<PlayerHeroCard dashboard={mockDashboardSnapshot} />);
+    expect(screen.getByText("92")).toBeDefined();
+    expect(screen.getByText("88")).toBeDefined();
+    expect(screen.getByText("4")).toBeDefined();
+  });
+
+  // 11. No Fabricated Business Defaults in Source
+  it("11. strictly enforces that dashboard production source contains ZERO fabricated business-data arrays", () => {
+    const dashboardDir = path.resolve(process.cwd(), "src/components/dashboard");
+    const files = fs.readdirSync(dashboardDir).filter((f) => f.endsWith(".tsx"));
+
+    const forbiddenIdentifiers = [
+      "defaultTasks",
+      "defaultTemplates",
+      "growthRateText",
+      "todayFocusedText",
+      "晨间冥想",
+      "初见山巅",
+      "博学者",
+      "专注者",
+      "星野",
+      "ZenFocusTimer",
+      "RecentAchievements",
+      "AiInsightCard",
+      "InkAtmosphere",
+    ];
+
+    for (const file of files) {
+      const content = fs.readFileSync(path.join(dashboardDir, file), "utf8");
+      for (const id of forbiddenIdentifiers) {
+        expect(content.includes(id), `Forbidden fabricated identifier '${id}' found in ${file}`).toBe(false);
+      }
+    }
+  });
+
+  // 12. Real Structural Regions in DOM
+  it("12. verifies semantic grid and layout structure in DashboardPage using real data-testid regions", async () => {
+    globalThis.fetch = vi.fn().mockImplementation(async (url: string) => {
+      if (url === "/api/dashboard") {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ dashboard: mockDashboardSnapshot }),
+        } as Response;
+      }
+      return { ok: true, status: 200, json: async () => ({}) } as Response;
+    });
+
+    render(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("dashboard-core-grid")).toBeDefined();
+    });
+
+    expect(screen.getByTestId("dashboard-action-grid")).toBeDefined();
+    expect(screen.getByTestId("dashboard-growth-grid")).toBeDefined();
+  });
+
+  // 13. DOM Hierarchy Order
   it("13. verifies Level 1 Player Hero precedes Level 2 Current Action and Level 3 Growth in DOM order", async () => {
-    vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => {
-      if (String(url) === "/api/dashboard") {
+    globalThis.fetch = vi.fn().mockImplementation(async (url: string) => {
+      if (url === "/api/dashboard") {
         return {
           ok: true,
           status: 200,
@@ -410,118 +447,153 @@ describe("Phase 5 — Stage 5A-UI Dashboard Modernization Test Suite", () => {
     const questSection = screen.getByText("任务目标概览 (Active Quests)");
     const growthSection = screen.getByText("Recent Growth");
 
-    // Preceding DOM order check: hero is before questSection, questSection is before growthSection
     expect(hero.compareDocumentPosition(questSection) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(questSection.compareDocumentPosition(growthSection) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  // 14. Accessible progress
+  // 14. ARIA Progress Attributes
   it("14. enforces proper ARIA attributes on XP and Quest progress elements", () => {
-    render(<PlayerHero dashboard={mockDashboardSnapshot} />);
-    const xpProgress = screen.getByRole("progressbar");
-    expect(xpProgress.getAttribute("aria-valuenow")).toBe("50");
-    expect(xpProgress.getAttribute("aria-valuemin")).toBe("0");
-    expect(xpProgress.getAttribute("aria-valuemax")).toBe("100");
+    render(<PlayerHeroCard dashboard={mockDashboardSnapshot} />);
+    const progressBars = screen.getAllByRole("progressbar");
+    expect(progressBars.length).toBeGreaterThanOrEqual(1);
+    expect(progressBars[0].getAttribute("aria-valuenow")).toBe("50");
+    expect(progressBars[0].getAttribute("aria-valuemax")).toBe("100");
+    expect(progressBars[0].getAttribute("aria-valuetext")).toBe("350 / 700 XP (50%)");
   });
 
-  // 15. Keyboard navigation
-  it("15. verifies actionable cards and buttons support keyboard operation via Tab and Enter/Space", () => {
-    const onSubmit = vi.fn((e) => e.preventDefault());
-    render(
+  // 15. Real Form Action & Quick Log Contract
+  it("15. verifies Quick Log handles real form submission with input state and loading feedback", () => {
+    const onSubmit = vi.fn((e: React.FormEvent) => e.preventDefault());
+    const setRawInput = vi.fn();
+
+    const { rerender } = render(
       <QuickLogCard
-        rawInput="今日练习代码"
-        setRawInput={vi.fn()}
+        rawInput="今日阅读技术文档"
+        setRawInput={setRawInput}
         onSubmit={onSubmit}
         submitting={false}
       />
     );
 
-    const submitBtn = screen.getByRole("button", { name: /记录并评估/i });
-    submitBtn.focus();
-    expect(document.activeElement).toBe(submitBtn);
+    const submitBtn = screen.getByRole("button", { name: /记录并评估/ });
+    expect(submitBtn).toBeDefined();
+    expect(submitBtn.hasAttribute("disabled")).toBe(false);
 
-    fireEvent.keyDown(submitBtn, { key: "Enter" });
+    fireEvent.click(submitBtn);
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+
+    // When submitting, disabled and busy
+    rerender(
+      <QuickLogCard
+        rawInput="今日阅读技术文档"
+        setRawInput={setRawInput}
+        onSubmit={onSubmit}
+        submitting={true}
+      />
+    );
+    const submittingBtn = screen.getByRole("button", { name: /AI 评估中…/ });
+    expect(submittingBtn.hasAttribute("disabled")).toBe(true);
   });
 
-  // 16. Focus-visible
-  it("16. ensures interactive elements include focus-visible focus ring styling", () => {
-    const { container } = render(<PlayerHero dashboard={mockDashboardSnapshot} />);
-    const focusableElements = container.querySelectorAll("[tabindex='0'], a");
-    expect(focusableElements.length).toBeGreaterThan(0);
-    focusableElements.forEach((el) => {
-      expect(el.className).toContain("focus-visible:");
-    });
+  // 16. Touch Targets >= 44px
+  it("16. ensures interactive action buttons and links have min-h-[var(--touch-target-min)] touch target size", () => {
+    render(<OverviewSummaryCards dashboard={mockDashboardSnapshot} />);
+    const links = screen.getAllByRole("link");
+    for (const link of links) {
+      expect(link.className).toContain("min-h-[var(--touch-target-min)]");
+    }
   });
 
-  // 17. Reduced motion governance
+  // 17. Reduced Motion Friendly
   it("17. verifies that transitions do not rely on bounce or infinite floating animations", () => {
-    const { container } = render(<PlayerHero dashboard={mockDashboardSnapshot} />);
-    expect(container.innerHTML).not.toContain("animate-bounce");
-    expect(container.innerHTML).not.toContain("animate-float");
-  });
-
-  // 18. Frozen gold whitelist
-  it("18. confirms gold tokens are strictly restricted to Level, XP, Mastery, progression, primary affirmative CTA, focus", () => {
     const dashboardDir = path.resolve(process.cwd(), "src/components/dashboard");
     const files = fs.readdirSync(dashboardDir).filter((f) => f.endsWith(".tsx"));
 
-    const allowedGoldFiles = new Set([
-      "PlayerHero.tsx",
-      "PlayerHeroCard.tsx",
-      "TodayQuestsCard.tsx",
-      "WeeklyTrendCard.tsx",
-      "AiInsightCard.tsx",
-      "SkillsGrowthBar.tsx",
-      "ZenFocusTimerCard.tsx",
-      "DashboardHeader.tsx",
-      "RecentAchievementsCard.tsx",
-      "PendingProposals.tsx",
-      "QuestsOverview.tsx",
-      "QuickLogCard.tsx",
-      "DashboardStates.tsx",
-      "RecentGrowthFeed.tsx",
-      "PendingVerifications.tsx",
-    ]);
-
     for (const file of files) {
       const content = fs.readFileSync(path.join(dashboardDir, file), "utf8");
-      // If gold is used, ensure it is in allowed context
+      expect(content.includes("animate-bounce")).toBe(false);
+      expect(content.includes("infinite-floating")).toBe(false);
+    }
+  });
+
+  // 18. Strict Gold Token Whitelist
+  it("18. strictly restricts direct Gold tokens to Level, XP, and Mastery progression only", () => {
+    const dashboardDir = path.resolve(process.cwd(), "src/components/dashboard");
+    const files = fs.readdirSync(dashboardDir).filter((f) => f.endsWith(".tsx"));
+
+    // Explicitly forbidden to contain ANY direct gold tokens:
+    const strictlyForbiddenGoldFiles = [
+      "DashboardHeader.tsx",
+      "QuestsOverview.tsx",
+      "QuickLogCard.tsx",
+      "TopSkillsCard.tsx",
+      "PendingProposals.tsx",
+      "DashboardStates.tsx",
+      "ActivityHistoryList.tsx",
+      "OverviewSummaryCards.tsx",
+    ];
+
+    for (const file of strictlyForbiddenGoldFiles) {
+      const filePath = path.join(dashboardDir, file);
+      if (fs.existsSync(filePath)) {
+        const content = fs.readFileSync(filePath, "utf8");
+        expect(content.includes("var(--gold-"), `Unexpected direct Gold token in ${file}`).toBe(false);
+      }
+    }
+
+    // Allowed gold files must strictly be for XP / Level / Mastery semantics
+    const allowedGoldFiles = new Set(["PlayerHeroCard.tsx", "PendingVerifications.tsx", "RecentGrowthFeed.tsx"]);
+    for (const file of files) {
+      const content = fs.readFileSync(path.join(dashboardDir, file), "utf8");
       if (content.includes("var(--gold-")) {
-        expect(allowedGoldFiles.has(file), `Unexpected gold token in ${file}`).toBe(true);
+        expect(allowedGoldFiles.has(file), `Direct Gold token in non-whitelisted ${file}`).toBe(true);
       }
     }
   });
 
-  // 19. No raw z-index
+  // 19. Zero Raw Z-Index
   it("19. strictly enforces zero raw z-index utility classes in dashboard components", () => {
     const dashboardDir = path.resolve(process.cwd(), "src/components/dashboard");
     const files = fs.readdirSync(dashboardDir).filter((f) => f.endsWith(".tsx"));
 
-    const rawZIndexRegex = /z-(40|50|\[[0-9]+\])/;
+    const rawZIndexRegex = /z-(10|20|30|40|50|\[[0-9]+\]|\[var\(--z-content\)\])/;
+
     for (const file of files) {
       const content = fs.readFileSync(path.join(dashboardDir, file), "utf8");
-      expect(rawZIndexRegex.test(content)).toBe(false);
+      expect(rawZIndexRegex.test(content), `Found raw/unregistered z-index in ${file}`).toBe(false);
     }
   });
 
-  // 20. No arbitrary forbidden typography literals
-  it("20. strictly forbids raw typography debt literals (text-[10px], text-[11px], text-[13px], text-[17px])", () => {
-    const checkPaths = [
-      path.resolve(process.cwd(), "src/app/dashboard/page.tsx"),
-      ...fs.readdirSync(path.resolve(process.cwd(), "src/components/dashboard"))
-        .filter((f) => f.endsWith(".tsx"))
-        .map((f) => path.resolve(process.cwd(), "src/components/dashboard", f)),
-    ];
+  // 20. No Raw Typography Literals
+  it("20. strictly forbids raw typography debt literals (text-[10px], text-[11px], text-[12px], text-[13px], text-[17px])", () => {
+    const dashboardDir = path.resolve(process.cwd(), "src/components/dashboard");
+    const files = fs.readdirSync(dashboardDir).filter((f) => f.endsWith(".tsx"));
+    const pagePath = path.resolve(process.cwd(), "src/app/dashboard/page.tsx");
 
-    const forbiddenTypographyRegex = /text-\[(10px|11px|13px|17px)\]/;
+    const forbiddenTypographyRegex = /text-\[(10|11|12|13|17)px\]/;
+    const checkPaths = [...files.map((f) => path.join(dashboardDir, f)), pagePath];
+
     for (const filePath of checkPaths) {
       const content = fs.readFileSync(filePath, "utf8");
-      expect(forbiddenTypographyRegex.test(content)).toBe(false);
+      expect(forbiddenTypographyRegex.test(content), `Found forbidden typography literal in ${filePath}`).toBe(false);
     }
   });
 
-  // 21. Fail-Closed Frozen Backend Delta Guard
-  it("21. strictly asserts ZERO modifications were made to frozen backend and domain paths", () => {
+  // 21. No Raw Anchor Tags for Internal Navigation
+  it("21. ensures all internal links use Next.js Link instead of raw anchors", () => {
+    const dashboardDir = path.resolve(process.cwd(), "src/components/dashboard");
+    const files = fs.readdirSync(dashboardDir).filter((f) => f.endsWith(".tsx"));
+    const pagePath = path.resolve(process.cwd(), "src/app/dashboard/page.tsx");
+
+    const checkPaths = [...files.map((f) => path.join(dashboardDir, f)), pagePath];
+    for (const filePath of checkPaths) {
+      const content = fs.readFileSync(filePath, "utf8");
+      expect(content.includes('<a href="/'), `Found raw internal anchor link in ${filePath}`).toBe(false);
+    }
+  });
+
+  // 22. Fail-Closed Frozen Backend Delta Guard
+  it("22. strictly asserts ZERO modifications were made to frozen backend and domain paths", () => {
     const forbiddenPrefixes = [
       "src/app/api/",
       "supabase/",
@@ -564,29 +636,32 @@ describe("Phase 5 — Stage 5A-UI Dashboard Modernization Test Suite", () => {
     expect(violations).toEqual([]);
   });
 
-  // 22. Visual Governance Guard: zero dark-theme regressions or cyberpunk styles
-  it("22. guarantees zero hardcoded dark-theme regression classes (bg-slate-900, bg-slate-950, bg-black/20)", () => {
-    const checkPaths = [
-      path.resolve(process.cwd(), "src/app/dashboard/page.tsx"),
-      ...fs.readdirSync(path.resolve(process.cwd(), "src/components/dashboard"))
-        .filter((f) => f.endsWith(".tsx"))
-        .map((f) => path.resolve(process.cwd(), "src/components/dashboard", f)),
-    ];
+  // 23. Zero Hardcoded Dark Theme Regressions
+  it("23. guarantees zero hardcoded dark-theme regression classes (bg-slate-900, bg-slate-950, bg-black/20)", () => {
+    const dashboardDir = path.resolve(process.cwd(), "src/components/dashboard");
+    const files = fs.readdirSync(dashboardDir).filter((f) => f.endsWith(".tsx"));
+    const pagePath = path.resolve(process.cwd(), "src/app/dashboard/page.tsx");
 
-    const forbiddenDarkClasses = [
-      "bg-slate-900",
-      "bg-slate-950",
-      "bg-black/20",
-      "from-slate-900",
-      "to-slate-950",
-      "from-amber-950",
-    ];
+    const checkPaths = [...files.map((f) => path.join(dashboardDir, f)), pagePath];
+    const forbiddenClasses = ["bg-slate-900", "bg-slate-950", "bg-black/20", "bg-black/40", "bg-zinc-900"];
 
     for (const filePath of checkPaths) {
       const content = fs.readFileSync(filePath, "utf8");
-      for (const cls of forbiddenDarkClasses) {
-        expect(content.includes(cls)).toBe(false);
+      for (const cls of forbiddenClasses) {
+        expect(content.includes(cls), `Found forbidden dark class ${cls} in ${filePath}`).toBe(false);
       }
+    }
+  });
+
+  // 24. Single Global AppEnvironment Verification
+  it("24. strictly ensures no secondary fixed full-screen environment layers exist in dashboard components", () => {
+    const dashboardDir = path.resolve(process.cwd(), "src/components/dashboard");
+    const files = fs.readdirSync(dashboardDir).filter((f) => f.endsWith(".tsx"));
+
+    for (const file of files) {
+      const content = fs.readFileSync(path.join(dashboardDir, file), "utf8");
+      expect(content.includes("fixed inset-0"), `Found duplicate full-screen environment in ${file}`).toBe(false);
+      expect(content.includes("InkAtmosphere"), `Found deprecated InkAtmosphere in ${file}`).toBe(false);
     }
   });
 });

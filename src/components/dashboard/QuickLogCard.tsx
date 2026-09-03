@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Plus, Zap, Loader2 } from "lucide-react";
+import { Plus, Zap } from "lucide-react";
 import { SectionCard, PrimaryButton } from "@/components/ui";
 
 export interface QuickLogCardProps {
@@ -20,8 +20,8 @@ export function QuickLogCard({
   return (
     <SectionCard
       title="Quick Log — 记录你刚才在现实中做了什么"
-      icon={<Plus className="h-5 w-5 text-[var(--gold-400)] shrink-0" />}
-      className="p-5"
+      icon={<Plus className="h-5 w-5 text-[var(--text-secondary)] shrink-0" />}
+      className="p-5 sm:p-6 rounded-2xl shadow-[var(--shadow-card)]"
     >
       <form onSubmit={onSubmit} className="flex flex-col gap-3 sm:flex-row mt-1">
         <label htmlFor="quick-log-input" className="sr-only">
@@ -32,13 +32,14 @@ export function QuickLogCard({
           value={rawInput}
           onChange={(e) => setRawInput(e.target.value)}
           placeholder="例如：今天读了 1.5 小时 LC 方法，理解了 LR 与 LC 的区别，但还没有实际跑数据"
-          className="flex-1 rounded-lg border border-[var(--border-default)] bg-[var(--surface-raised)] px-4 py-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] transition-colors focus:border-[var(--focus-ring-color)] focus:outline-none focus:ring-1 focus:ring-[var(--focus-ring-color)] shadow-sm"
+          className="flex-1 rounded-xl border border-[var(--border-default)] bg-[var(--surface-raised)] px-4 py-3 min-h-[var(--touch-target-min)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] transition-colors focus:border-[var(--focus-ring-color)] focus:outline-none focus:ring-1 focus:ring-[var(--focus-ring-color)] shadow-xs"
         />
         <PrimaryButton
           type="submit"
-          disabled={!rawInput.trim() || submitting}
-          icon={submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
-          className="shrink-0 min-h-[44px]"
+          disabled={!rawInput.trim()}
+          loading={submitting}
+          icon={<Zap className="h-4 w-4" />}
+          className="shrink-0 min-h-[var(--touch-target-min)]"
         >
           {submitting ? "AI 评估中…" : "记录并评估"}
         </PrimaryButton>

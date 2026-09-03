@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, useRef } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type {
   Activity,
@@ -10,17 +10,11 @@ import { useOptionalAppShell } from "@/components/layout/AppShellContext";
 import type { ArtifactResolutionInput } from "@/types/artifact";
 
 import {
-  InkAtmosphere,
   DashboardHeader,
   PlayerHeroCard,
-  TodayQuestsCard,
-  ZenFocusTimerCard,
-  AiInsightCard,
-  WeeklyTrendCard,
-  RecentAchievementsCard,
-  SkillsGrowthBar,
   QuestsOverview,
   QuickLogCard,
+  TopSkillsCard,
   PendingProposals,
   PendingVerifications,
   RecentGrowthFeed,
@@ -29,6 +23,7 @@ import {
   LoadingState,
   ErrorState,
   EmptyState,
+  isFreshDashboard,
 } from "@/components/dashboard";
 
 export default function DashboardPage() {
@@ -46,8 +41,6 @@ export default function DashboardPage() {
   const [rawInput, setRawInput] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
-
-  const quickLogRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
     setLocalError(null);
@@ -200,8 +193,12 @@ export default function DashboardPage() {
     }
   }
 
-  const scrollToQuickLog = () => {
-    quickLogRef.current?.scrollIntoView({ behavior: "smooth" });
+  const focusQuickLog = () => {
+    const input = document.getElementById("quick-log-input") as HTMLInputElement | null;
+    if (input) {
+      input.scrollIntoView({ behavior: "auto", block: "center" });
+      input.focus();
+    }
   };
 
   if (loading && !dashboard) {
@@ -213,20 +210,15 @@ export default function DashboardPage() {
   }
 
   if (!dashboard) {
-    return <EmptyState onRefresh={load} />;
+    return <EmptyState onFocusQuickLog={focusQuickLog} />;
   }
+
+  const fresh = isFreshDashboard(dashboard);
 
   return (
     <div className="relative flex w-full flex-col gap-6 max-w-7xl mx-auto pb-12">
-      {/* 东方水墨竹枝与天际飞鸟环境层 */}
-      <InkAtmosphere />
-
-      {/* 顶部问候与操作栏 */}
-      <DashboardHeader
-        userName="星野"
-        onOpenAiDialogue={scrollToQuickLog}
-        onStartFocus={scrollToQuickLog}
-      />
+      {/* 顶部问候栏 (h2, 真实无假姓名) */}
+      <DashboardHeader onQuickLog={focusQuickLog} />
 
       {/* Non-blocking Error Toast/Alert */}
       {error ? (
@@ -238,43 +230,33 @@ export default function DashboardPage() {
         </div>
       ) : null}
 
-      {/* 核心第一行：【仗剑行者 Hero 卡】+【今日任务清单】+【水墨环形专注计时器】 */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-stretch">
-        <PlayerHeroCard dashboard={dashboard} />
-        <TodayQuestsCard
-          quests={dashboard.quests}
-          mainQuest={dashboard.mainQuest}
-          activeQuests={dashboard.activeQuests}
-        />
-        <ZenFocusTimerCard />
-      </div>
+      {/* Fresh Onboarding Card (Only shown for completely fresh user) */}
+      {fresh && <EmptyState onFocusQuickLog={focusQuickLog} />}
 
-      {/* 核心第二行：【AI 洞察水月珍珠卡】+【本周平滑趋势图】+【东方圆形印章成就徽章】 */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-stretch">
-        <AiInsightCard onViewDetails={scrollToQuickLog} />
-        <WeeklyTrendCard totalXp={dashboard.player.totalXp} />
-        <RecentAchievementsCard />
-      </div>
-
-      {/* 核心第三行：【底部横向 5 项技能成长栏】 */}
-      <SkillsGrowthBar skills={dashboard.skills} />
-
-      {/* LEVEL 2: Current Action & Quests Overview */}
-      <div ref={quickLogRef} className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start mt-2">
+      {/* LEVEL 1 & 2: Player Identity & Current Action Quests */}
+      <div
+        data-testid="dashboard-core-grid"
+        className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch"
+      >
+        <div className="lg:col-span-5">
+          <PlayerHeroCard dashboard={dashboard} />
+        </div>
         <div className="lg:col-span-7">
           <QuestsOverview
             mainQuest={dashboard.mainQuest}
             activeQuests={dashboard.activeQuests}
           />
         </div>
-        <div className="lg:col-span-5">
-          <QuickLogCard
-            rawInput={rawInput}
-            setRawInput={setRawInput}
-            onSubmit={handleQuickLog}
-            submitting={submitting}
-          />
-        </div>
+      </div>
+
+      {/* LEVEL 2: Quick Activity Logging */}
+      <div data-testid="dashboard-action-grid">
+        <QuickLogCard
+          rawInput={rawInput}
+          setRawInput={setRawInput}
+          onSubmit={handleQuickLog}
+          submitting={submitting}
+        />
       </div>
 
       {/* Pending Proposals & Assessments (Plural Artifact Resolutions) */}
@@ -287,8 +269,14 @@ export default function DashboardPage() {
       {/* Pending Mastery Verifications */}
       <PendingVerifications verifications={dashboard.pendingMasteryVerifications} />
 
+      {/* Core Real Skills Overview */}
+      <TopSkillsCard skills={dashboard.skills} />
+
       {/* LEVEL 3: Growth Signals (Recent Growth Feed & Activity History) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      <div
+        data-testid="dashboard-growth-grid"
+        className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start"
+      >
         <div className="lg:col-span-6">
           <RecentGrowthFeed transactions={dashboard.recentGrowth} />
         </div>
@@ -299,11 +287,6 @@ export default function DashboardPage() {
 
       {/* LEVEL 4: Knowledge / Artifacts / Skills Overview Signals */}
       <OverviewSummaryCards dashboard={dashboard} />
-
-      {/* Empty State when no activity and no proposals */}
-      {dashboard.activities.length === 0 && dashboard.pendingAssessments.length === 0 ? (
-        <EmptyState onRefresh={load} />
-      ) : null}
     </div>
   );
 }

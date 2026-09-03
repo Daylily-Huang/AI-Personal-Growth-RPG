@@ -3,7 +3,7 @@
 import React, { useState, useCallback } from "react";
 import type { Assessment } from "@/lib/store/types";
 import type { ArtifactResolutionInput } from "@/types/artifact";
-import { Check, Loader2, Sparkles } from "lucide-react";
+import { Check, Sparkles } from "lucide-react";
 import { SectionCard, PrimaryButton, ConfidenceBadge } from "@/components/ui";
 import { ArtifactProposalResolutionPicker } from "@/components/artifacts/ArtifactProposalResolutionPicker";
 
@@ -23,7 +23,7 @@ export function PendingProposals({
   return (
     <SectionCard
       title="待确认的 AI 评估"
-      icon={<Sparkles className="h-5 w-5 text-[var(--gold-400)] shrink-0" />}
+      icon={<Sparkles className="h-5 w-5 text-[var(--text-secondary)] shrink-0" />}
       action={
         <span className="rounded-full bg-[var(--surface-raised)] border border-[var(--border-subtle)] px-2.5 py-0.5 text-xs font-mono text-[var(--text-muted)]">
           共 {assessments.length} 项
@@ -150,16 +150,11 @@ function PendingAssessmentItem({
           onClick={() =>
             onConfirm(assessment.id, hasProposals ? resolutions : undefined)
           }
-          disabled={isConfirming || !resolutionsValid}
+          disabled={!resolutionsValid}
+          loading={isConfirming}
           data-testid={`confirm-assessment-btn-${assessment.id}`}
-          icon={
-            isConfirming ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Check className="h-4 w-4" />
-            )
-          }
-          className="min-h-[40px]"
+          icon={<Check className="h-4 w-4" />}
+          className="min-h-[var(--touch-target-min)]"
         >
           {isConfirming ? "结算中…" : "确认并结算"}
         </PrimaryButton>
