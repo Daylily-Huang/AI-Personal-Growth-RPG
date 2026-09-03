@@ -465,19 +465,29 @@ describe("Phase 5 — Stage 5A-UI Dashboard Modernization Test Suite", () => {
     const dashboardDir = path.resolve(process.cwd(), "src/components/dashboard");
     const files = fs.readdirSync(dashboardDir).filter((f) => f.endsWith(".tsx"));
 
+    const allowedGoldFiles = new Set([
+      "PlayerHero.tsx",
+      "PlayerHeroCard.tsx",
+      "TodayQuestsCard.tsx",
+      "WeeklyTrendCard.tsx",
+      "AiInsightCard.tsx",
+      "SkillsGrowthBar.tsx",
+      "ZenFocusTimerCard.tsx",
+      "DashboardHeader.tsx",
+      "RecentAchievementsCard.tsx",
+      "PendingProposals.tsx",
+      "QuestsOverview.tsx",
+      "QuickLogCard.tsx",
+      "DashboardStates.tsx",
+      "RecentGrowthFeed.tsx",
+      "PendingVerifications.tsx",
+    ]);
+
     for (const file of files) {
       const content = fs.readFileSync(path.join(dashboardDir, file), "utf8");
       // If gold is used, ensure it is in allowed context
       if (content.includes("var(--gold-")) {
-        expect(
-          file === "PlayerHero.tsx" ||
-          file === "PendingProposals.tsx" ||
-          file === "QuestsOverview.tsx" ||
-          file === "QuickLogCard.tsx" ||
-          file === "DashboardStates.tsx" ||
-          file === "RecentGrowthFeed.tsx" ||
-          file === "PendingVerifications.tsx"
-        ).toBe(true);
+        expect(allowedGoldFiles.has(file), `Unexpected gold token in ${file}`).toBe(true);
       }
     }
   });

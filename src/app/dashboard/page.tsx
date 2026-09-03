@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import type {
   Activity,
@@ -10,7 +10,15 @@ import { useOptionalAppShell } from "@/components/layout/AppShellContext";
 import type { ArtifactResolutionInput } from "@/types/artifact";
 
 import {
-  PlayerHero,
+  InkAtmosphere,
+  DashboardHeader,
+  PlayerHeroCard,
+  TodayQuestsCard,
+  ZenFocusTimerCard,
+  AiInsightCard,
+  WeeklyTrendCard,
+  RecentAchievementsCard,
+  SkillsGrowthBar,
   QuestsOverview,
   QuickLogCard,
   PendingProposals,
@@ -38,6 +46,8 @@ export default function DashboardPage() {
   const [rawInput, setRawInput] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
+
+  const quickLogRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
     setLocalError(null);
@@ -190,6 +200,10 @@ export default function DashboardPage() {
     }
   }
 
+  const scrollToQuickLog = () => {
+    quickLogRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
   if (loading && !dashboard) {
     return <LoadingState />;
   }
@@ -203,9 +217,16 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="flex w-full flex-col gap-6 max-w-7xl mx-auto">
-      {/* LEVEL 1: Player Identity & Progression Hero */}
-      <PlayerHero dashboard={dashboard} />
+    <div className="relative flex w-full flex-col gap-6 max-w-7xl mx-auto pb-12">
+      {/* 东方水墨竹枝与天际飞鸟环境层 */}
+      <InkAtmosphere />
+
+      {/* 顶部问候与操作栏 */}
+      <DashboardHeader
+        userName="星野"
+        onOpenAiDialogue={scrollToQuickLog}
+        onStartFocus={scrollToQuickLog}
+      />
 
       {/* Non-blocking Error Toast/Alert */}
       {error ? (
@@ -217,8 +238,29 @@ export default function DashboardPage() {
         </div>
       ) : null}
 
-      {/* LEVEL 2: Current Action & Quests */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      {/* 核心第一行：【仗剑行者 Hero 卡】+【今日任务清单】+【水墨环形专注计时器】 */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-stretch">
+        <PlayerHeroCard dashboard={dashboard} />
+        <TodayQuestsCard
+          quests={dashboard.quests}
+          mainQuest={dashboard.mainQuest}
+          activeQuests={dashboard.activeQuests}
+        />
+        <ZenFocusTimerCard />
+      </div>
+
+      {/* 核心第二行：【AI 洞察水月珍珠卡】+【本周平滑趋势图】+【东方圆形印章成就徽章】 */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-stretch">
+        <AiInsightCard onViewDetails={scrollToQuickLog} />
+        <WeeklyTrendCard totalXp={dashboard.player.totalXp} />
+        <RecentAchievementsCard />
+      </div>
+
+      {/* 核心第三行：【底部横向 5 项技能成长栏】 */}
+      <SkillsGrowthBar skills={dashboard.skills} />
+
+      {/* LEVEL 2: Current Action & Quests Overview */}
+      <div ref={quickLogRef} className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start mt-2">
         <div className="lg:col-span-7">
           <QuestsOverview
             mainQuest={dashboard.mainQuest}
@@ -235,7 +277,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Pending Proposals & Assessments */}
+      {/* Pending Proposals & Assessments (Plural Artifact Resolutions) */}
       <PendingProposals
         assessments={dashboard.pendingAssessments}
         confirmingId={confirmingId}
