@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import type { Quest } from "@/lib/store/types";
-import { Crown, ChevronRight, Target } from "lucide-react";
+import { ListChecks, ChevronRight, Target } from "lucide-react";
 import { GlassPanel, QuestProgress } from "@/components/ui";
 
 export interface QuestsOverviewProps {
@@ -50,7 +50,7 @@ export function QuestsOverview({ mainQuest, activeQuests = [] }: QuestsOverviewP
         <div className="my-3 p-3.5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
           <div className="flex items-center justify-between gap-2 mb-1.5">
             <div className="flex items-center gap-1.5 text-xs font-[var(--font-weight-medium)] text-[var(--entity-quest-text)]">
-              <Crown className="h-3.5 w-3.5" />
+              <ListChecks className="h-3.5 w-3.5" />
               <span>当前主线任务 (Main Quest)</span>
             </div>
             <span className="font-mono text-xs font-bold text-[var(--text-primary)]">

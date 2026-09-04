@@ -24,8 +24,14 @@ export function isFreshDashboard(dashboard: DashboardSnapshot | null): boolean {
 
 /**
  * LoadingState
- * Geometry-reserving skeleton that preserves layout structure to prevent layout jumps.
- * Uses role="status" and aria-busy="true", without decorative gold spinners or fake metrics.
+ * Geometry-reserving skeleton that closely mirrors the real loaded Dashboard structure:
+ * - Top Row: Hero (col-span-5) & Quests (col-span-7)
+ * - Second Row: Quick Log (full width col-span-12)
+ * - Third Row: Core Skills (full width col-span-12, 5 columns)
+ * - Fourth Row: Growth Feed (col-span-6) & Activity History (col-span-6)
+ * - Fifth Row: Overview Summary Cards (4 columns)
+ * Uses role="status" and aria-busy="true".
+ * Strictly pairs animate-pulse with motion-reduce:animate-none.
  */
 export function LoadingState() {
   return (
@@ -38,7 +44,10 @@ export function LoadingState() {
       <span className="sr-only">正在加载修习者仪表盘数据…</span>
 
       {/* Header Skeleton */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-1 animate-pulse" aria-hidden="true">
+      <div
+        className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-1 animate-pulse motion-reduce:animate-none"
+        aria-hidden="true"
+      >
         <div className="space-y-2">
           <div className="h-7 w-48 rounded-lg bg-[var(--surface-raised)]" />
           <div className="h-4 w-72 rounded bg-[var(--surface-raised)] opacity-70" />
@@ -46,15 +55,18 @@ export function LoadingState() {
         <div className="h-10 w-32 rounded-xl bg-[var(--surface-raised)]" />
       </div>
 
-      {/* Top Bento Row Skeleton (Hero + Quests + Action) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch animate-pulse" aria-hidden="true">
-        {/* Hero Skeleton (col-span-5) */}
-        <div className="lg:col-span-5 h-64 rounded-2xl bg-[var(--surface-base)] border border-[var(--border-subtle)] p-6 space-y-4">
-          <div className="h-4 w-32 rounded bg-[var(--surface-raised)]" />
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-full bg-[var(--surface-raised)]" />
+      {/* 1. Core Bento Row Skeleton: Hero 5 / Quests 7 */}
+      <div
+        className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch animate-pulse motion-reduce:animate-none"
+        aria-hidden="true"
+      >
+        {/* Hero Skeleton (lg:col-span-5) */}
+        <div className="lg:col-span-5 min-h-[260px] rounded-2xl bg-[var(--surface-base)] border border-[var(--border-subtle)] p-6 space-y-4">
+          <div className="h-4 w-36 rounded bg-[var(--surface-raised)]" />
+          <div className="flex items-center gap-3 mt-3">
+            <div className="w-12 h-12 rounded-xl bg-[var(--surface-raised)]" />
             <div className="space-y-1.5">
-              <div className="h-6 w-24 rounded bg-[var(--surface-raised)]" />
+              <div className="h-6 w-28 rounded bg-[var(--surface-raised)]" />
               <div className="h-3 w-20 rounded bg-[var(--surface-raised)]" />
             </div>
           </div>
@@ -66,9 +78,12 @@ export function LoadingState() {
           </div>
         </div>
 
-        {/* Quests Skeleton (col-span-7) */}
-        <div className="lg:col-span-7 h-64 rounded-2xl bg-[var(--surface-base)] border border-[var(--border-subtle)] p-6 space-y-4">
-          <div className="h-5 w-40 rounded bg-[var(--surface-raised)]" />
+        {/* Quests Skeleton (lg:col-span-7) */}
+        <div className="lg:col-span-7 min-h-[260px] rounded-2xl bg-[var(--surface-base)] border border-[var(--border-subtle)] p-6 space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-[var(--border-subtle)]">
+            <div className="h-5 w-44 rounded bg-[var(--surface-raised)]" />
+            <div className="h-4 w-16 rounded bg-[var(--surface-raised)]" />
+          </div>
           <div className="h-20 rounded-xl bg-[var(--surface-raised)]" />
           <div className="space-y-2">
             <div className="h-8 rounded-lg bg-[var(--surface-raised)]" />
@@ -77,22 +92,63 @@ export function LoadingState() {
         </div>
       </div>
 
-      {/* Secondary Row Skeleton (QuickLog + Skills) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-pulse" aria-hidden="true">
-        <div className="lg:col-span-7 h-44 rounded-2xl bg-[var(--surface-base)] border border-[var(--border-subtle)] p-6 space-y-3">
-          <div className="h-4 w-36 rounded bg-[var(--surface-raised)]" />
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2">
-            <div className="h-16 rounded-xl bg-[var(--surface-raised)]" />
-            <div className="h-16 rounded-xl bg-[var(--surface-raised)]" />
-            <div className="h-16 rounded-xl bg-[var(--surface-raised)]" />
-            <div className="h-16 rounded-xl bg-[var(--surface-raised)]" />
-          </div>
+      {/* 2. Quick Log Skeleton: Full Width */}
+      <div
+        className="rounded-2xl bg-[var(--surface-base)] border border-[var(--border-subtle)] p-6 space-y-3 animate-pulse motion-reduce:animate-none"
+        aria-hidden="true"
+      >
+        <div className="h-4 w-52 rounded bg-[var(--surface-raised)]" />
+        <div className="flex gap-3 mt-2">
+          <div className="h-11 flex-1 rounded-xl bg-[var(--surface-raised)]" />
+          <div className="h-11 w-28 shrink-0 rounded-xl bg-[var(--surface-raised)]" />
         </div>
-        <div className="lg:col-span-5 h-44 rounded-2xl bg-[var(--surface-base)] border border-[var(--border-subtle)] p-6 space-y-3">
-          <div className="h-4 w-44 rounded bg-[var(--surface-raised)]" />
-          <div className="h-11 rounded-xl bg-[var(--surface-raised)]" />
-          <div className="h-3 w-56 rounded bg-[var(--surface-raised)]" />
+        <div className="h-3 w-80 rounded bg-[var(--surface-raised)] opacity-70" />
+      </div>
+
+      {/* 3. Top Skills Skeleton: Full Width, 5 Columns */}
+      <div
+        className="rounded-2xl bg-[var(--surface-base)] border border-[var(--border-subtle)] p-6 space-y-3 animate-pulse motion-reduce:animate-none"
+        aria-hidden="true"
+      >
+        <div className="flex items-center justify-between pb-3 border-b border-[var(--border-subtle)]">
+          <div className="h-5 w-40 rounded bg-[var(--surface-raised)]" />
+          <div className="h-4 w-20 rounded bg-[var(--surface-raised)]" />
         </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 mt-2">
+          <div className="h-16 rounded-xl bg-[var(--surface-raised)]" />
+          <div className="h-16 rounded-xl bg-[var(--surface-raised)]" />
+          <div className="h-16 rounded-xl bg-[var(--surface-raised)]" />
+          <div className="h-16 rounded-xl bg-[var(--surface-raised)]" />
+          <div className="h-16 rounded-xl bg-[var(--surface-raised)]" />
+        </div>
+      </div>
+
+      {/* 4. Growth Feed & Activity History Skeleton: 6 / 6 */}
+      <div
+        className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-pulse motion-reduce:animate-none"
+        aria-hidden="true"
+      >
+        <div className="lg:col-span-6 h-48 rounded-2xl bg-[var(--surface-base)] border border-[var(--border-subtle)] p-6 space-y-3">
+          <div className="h-5 w-36 rounded bg-[var(--surface-raised)]" />
+          <div className="h-12 rounded-lg bg-[var(--surface-raised)]" />
+          <div className="h-12 rounded-lg bg-[var(--surface-raised)]" />
+        </div>
+        <div className="lg:col-span-6 h-48 rounded-2xl bg-[var(--surface-base)] border border-[var(--border-subtle)] p-6 space-y-3">
+          <div className="h-5 w-48 rounded bg-[var(--surface-raised)]" />
+          <div className="h-12 rounded-lg bg-[var(--surface-raised)]" />
+          <div className="h-12 rounded-lg bg-[var(--surface-raised)]" />
+        </div>
+      </div>
+
+      {/* 5. Summary Navigation Cards Skeleton: 4 Columns */}
+      <div
+        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-pulse motion-reduce:animate-none"
+        aria-hidden="true"
+      >
+        <div className="h-24 rounded-xl bg-[var(--surface-base)] border border-[var(--border-subtle)] p-4" />
+        <div className="h-24 rounded-xl bg-[var(--surface-base)] border border-[var(--border-subtle)] p-4" />
+        <div className="h-24 rounded-xl bg-[var(--surface-base)] border border-[var(--border-subtle)] p-4" />
+        <div className="h-24 rounded-xl bg-[var(--surface-base)] border border-[var(--border-subtle)] p-4" />
       </div>
     </div>
   );
@@ -142,6 +198,7 @@ export function ErrorState({
 /**
  * EmptyState / Fresh Onboarding
  * Compact onboarding card focusing directly on Quick Log for fresh practitioners.
+ * Strictly adheres to frozen authority: AI proposes; server Growth Engine settles.
  */
 export function EmptyState({
   onFocusQuickLog,
@@ -162,7 +219,7 @@ export function EmptyState({
           开启你的现实修习旅程
         </h3>
         <p className="text-xs text-[var(--text-muted)] mt-1 max-w-md mx-auto leading-relaxed">
-          记录你在现实中完成的学习、工作或练习，AI 将评估你的成长并结算真实 XP 与技能精通度。
+          记录真实活动后，AI 会生成成长评估 Proposal；经你确认后，服务器 Growth Engine 才会结算 XP，并按验证规则推进技能 Mastery。
         </p>
       </div>
       {onFocusQuickLog && (

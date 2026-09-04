@@ -2,10 +2,14 @@
 /**
  * tests/phase5-dashboard-ui.test.tsx
  * Phase 5 — Core Screen Modernization (Stage 5A-UI Dashboard Modernization)
- * Round 3 Complete Test Suite covering:
+ * Round 4 Surgical Final Closure Test Suite covering:
  * - Data Integrity & Zero Fabricated Data
  * - Strict Visual Governance & Single AppEnvironment Layer
- * - Semantic Accessibility & Responsive Real DOM Verification
+ * - Neutral Semantic Icons (Zero Fantasy / Game-Prop Icons)
+ * - Complete Reduced-Motion Contract (motion-reduce:animate-none)
+ * - Strict 44px Touch Targets across all interactive controls
+ * - Settlement Authority & Neutral Un-grounded Copy Guard
+ * - Non-duplicate Player Level Hierarchy
  * - Fail-Closed Frozen Backend Delta Guard
  */
 
@@ -19,6 +23,7 @@ import DashboardPage from "@/app/dashboard/page";
 import { AppShellProvider } from "@/components/layout";
 import type { DashboardSnapshot, Quest } from "@/lib/store/types";
 import {
+  DashboardHeader,
   PlayerHeroCard,
   QuestsOverview,
   QuickLogCard,
@@ -26,6 +31,7 @@ import {
   OverviewSummaryCards,
   LoadingState,
   ErrorState,
+  EmptyState,
   isFreshDashboard,
 } from "@/components/dashboard";
 
@@ -88,7 +94,7 @@ const mockDashboardSnapshot: DashboardSnapshot = {
       parentQuestId: null,
       description: "完成 Rust 所有权与生命周期的深度学习",
       questType: "learning",
-      questSize: "M",
+      questSize: "main",
       createdAt: "2026-08-01T00:00:00Z",
       updatedAt: "2026-08-28T10:00:00Z",
     },
@@ -101,7 +107,7 @@ const mockDashboardSnapshot: DashboardSnapshot = {
       parentQuestId: null,
       description: "实现基于内存与 Supabase 的双模存储抽象",
       questType: "engineering",
-      questSize: "S",
+      questSize: "minor",
       createdAt: "2026-08-10T00:00:00Z",
       updatedAt: "2026-08-28T11:00:00Z",
     },
@@ -115,7 +121,7 @@ const mockDashboardSnapshot: DashboardSnapshot = {
     parentQuestId: null,
     description: "完成 Rust 所有权与生命周期的深度学习",
     questType: "learning",
-    questSize: "M",
+    questSize: "main",
     createdAt: "2026-08-01T00:00:00Z",
     updatedAt: "2026-08-28T10:00:00Z",
   },
@@ -129,7 +135,7 @@ const mockDashboardSnapshot: DashboardSnapshot = {
       parentQuestId: null,
       description: "完成 Rust 所有权与生命周期的深度学习",
       questType: "learning",
-      questSize: "M",
+      questSize: "main",
       createdAt: "2026-08-01T00:00:00Z",
       updatedAt: "2026-08-28T10:00:00Z",
     },
@@ -142,7 +148,7 @@ const mockDashboardSnapshot: DashboardSnapshot = {
       parentQuestId: null,
       description: "实现基于内存与 Supabase 的双模存储抽象",
       questType: "engineering",
-      questSize: "S",
+      questSize: "minor",
       createdAt: "2026-08-10T00:00:00Z",
       updatedAt: "2026-08-28T11:00:00Z",
     },
@@ -184,7 +190,7 @@ const mockDashboardSnapshot: DashboardSnapshot = {
   pendingMasteryVerifications: [],
 } as unknown as DashboardSnapshot;
 
-describe("Phase 5 — Stage 5A-UI Dashboard Modernization Test Suite (Round 3)", () => {
+describe("Phase 5 — Stage 5A-UI Dashboard Modernization Test Suite (Round 4)", () => {
   let originalFetch: typeof globalThis.fetch;
 
   beforeEach(() => {
@@ -247,13 +253,19 @@ describe("Phase 5 — Stage 5A-UI Dashboard Modernization Test Suite (Round 3)",
     expect(container.querySelector('[data-testid="app-sidebar"]')).toBeNull();
   });
 
-  // 3. Loading Skeleton Geometry
-  it("3. renders geometry-reserving skeleton with role=status and aria-busy=true while fetching dashboard snapshot", () => {
+  // 3. Loading Skeleton Geometry & Reduced Motion
+  it("3. renders geometry-reserving skeleton with role=status, aria-busy=true, and motion-reduce:animate-none", () => {
     const { container } = render(<LoadingState />);
     const statusRegion = screen.getByRole("status");
     expect(statusRegion).toBeDefined();
     expect(statusRegion.getAttribute("aria-busy")).toBe("true");
-    expect(container.querySelector(".animate-pulse")).toBeDefined();
+
+    const pulseElements = container.querySelectorAll(".animate-pulse");
+    expect(pulseElements.length).toBeGreaterThanOrEqual(1);
+    for (const el of pulseElements) {
+      expect(el.className).toContain("motion-reduce:animate-none");
+    }
+
     // No decorative gold spinners
     expect(container.innerHTML).not.toContain("var(--gold-");
   });
@@ -271,8 +283,8 @@ describe("Phase 5 — Stage 5A-UI Dashboard Modernization Test Suite (Round 3)",
     expect(retryFn).toHaveBeenCalledTimes(1);
   });
 
-  // 5. Fresh User Onboarding & Predicate
-  it("5. correctly identifies a fresh dashboard and verifies non-fresh state for partial users", () => {
+  // 5. Fresh User Onboarding & Settlement Copy Invariant
+  it("5. correctly identifies a fresh dashboard and verifies accurate settlement-authority copy", () => {
     const freshSnapshot: DashboardSnapshot = {
       player: { totalXp: 0, playerLevel: 1, energy: 100, focus: 100, momentum: 0 },
       levelProgress: { xpIntoLevel: 0, xpNeededForNext: 100, progress: 0 },
@@ -293,15 +305,28 @@ describe("Phase 5 — Stage 5A-UI Dashboard Modernization Test Suite (Round 3)",
     expect(isFreshDashboard({ ...freshSnapshot, quests: mockDashboardSnapshot.quests })).toBe(false);
     // Growth-only is NOT fresh
     expect(isFreshDashboard({ ...freshSnapshot, recentGrowth: mockDashboardSnapshot.recentGrowth })).toBe(false);
+
+    // Render EmptyState and assert frozen authority wording
+    const { container } = render(<EmptyState />);
+    expect(screen.getByText(/AI 会生成成长评估 Proposal.*Growth Engine 才会结算 XP/)).toBeDefined();
+    expect(container.textContent).not.toContain("AI 将评估你的成长并结算");
   });
 
-  // 6. Real Player Level & XP
+  // 6. Real Player Level & XP without duplicate level presentation
   it("6. renders Player Level, total XP, and XP progress meter accurately without duplicate level hierarchy", () => {
     render(<PlayerHeroCard dashboard={mockDashboardSnapshot} />);
+    const levelBadge = screen.getByTestId("level-badge");
+    expect(levelBadge.textContent).toBe("LV.15");
+    expect(screen.getByText("成长等级")).toBeDefined();
     expect(screen.getByText("XP Lv.15")).toBeDefined();
     expect(screen.getByText("2850 XP total")).toBeDefined();
     expect(screen.getByText("350")).toBeDefined();
     expect(screen.getByText(/\/ 700 XP/)).toBeDefined();
+
+    // Verify levelBadge parent row contains 成长等级, NOT duplicate LV.15 + XP Lv.15 side-by-side
+    const badgeRow = levelBadge.parentElement;
+    expect(badgeRow?.textContent).toContain("成长等级");
+    expect(badgeRow?.textContent).not.toContain("XP Lv.15");
   });
 
   // 7. Active Main Quest only
@@ -350,9 +375,11 @@ describe("Phase 5 — Stage 5A-UI Dashboard Modernization Test Suite (Round 3)",
     expect(container.textContent).not.toContain("晨间冥想");
   });
 
-  // 9. Real Top Skills only (No fake skills, no fake max XP)
+  // 9. Real Top Skills only (Accurate title, no fake skills, no fake max XP)
   it("9. strictly renders real skills and does not fabricate skills or artificial next-level denominators", () => {
     const { container, rerender } = render(<TopSkillsCard skills={mockDashboardSnapshot.skills} />);
+    expect(screen.getByText("核心技能 · Top Skills")).toBeDefined();
+    expect(container.textContent).not.toContain("核心技能精通");
     expect(screen.getByText("Rust Systems")).toBeDefined();
     expect(screen.getByText("TypeScript Architecture")).toBeDefined();
     expect(container.textContent).not.toContain("专注力 Lv.23");
@@ -495,17 +522,51 @@ describe("Phase 5 — Stage 5A-UI Dashboard Modernization Test Suite (Round 3)",
     expect(submittingBtn.hasAttribute("disabled")).toBe(true);
   });
 
-  // 16. Touch Targets >= 44px
-  it("16. ensures interactive action buttons and links have min-h-[var(--touch-target-min)] touch target size", () => {
-    render(<OverviewSummaryCards dashboard={mockDashboardSnapshot} />);
-    const links = screen.getAllByRole("link");
-    for (const link of links) {
+  // 16. Touch Targets >= 44px Across Full Dashboard
+  it("16. ensures all interactive controls across dashboard components meet min-h-[var(--touch-target-min)] contract", () => {
+    // 16a. Overview Summary Cards
+    const { unmount: u1 } = render(<OverviewSummaryCards dashboard={mockDashboardSnapshot} />);
+    for (const link of screen.getAllByRole("link")) {
       expect(link.className).toContain("min-h-[var(--touch-target-min)]");
     }
+    u1();
+
+    // 16b. Top Skills Card
+    const { unmount: u2 } = render(<TopSkillsCard skills={mockDashboardSnapshot.skills} />);
+    for (const link of screen.getAllByRole("link")) {
+      expect(link.className).toContain("min-h-[var(--touch-target-min)]");
+    }
+    u2();
+
+    // 16c. Dashboard Header
+    const { unmount: u3 } = render(<DashboardHeader onQuickLog={() => {}} />);
+    const headerBtn = screen.getByRole("button", { name: /快速记录成长/ });
+    expect(headerBtn.className).toContain("min-h-[var(--touch-target-min)]");
+    u3();
+
+    // 16d. Quests Overview
+    const { unmount: u4 } = render(<QuestsOverview mainQuest={mockDashboardSnapshot.mainQuest} activeQuests={[]} />);
+    const questsLink = screen.getByRole("link", { name: /查看全部/ });
+    expect(questsLink.className).toContain("min-h-[var(--touch-target-min)]");
+    u4();
+
+    // 16e. Quick Log Form
+    const { unmount: u5 } = render(
+      <QuickLogCard rawInput="abc" setRawInput={() => {}} onSubmit={() => {}} submitting={false} />
+    );
+    const submitBtn = screen.getByRole("button", { name: /记录并评估/ });
+    expect(submitBtn.className).toContain("min-h-[var(--touch-target-min)]");
+    u5();
+
+    // 16f. Empty State
+    const { unmount: u6 } = render(<EmptyState onFocusQuickLog={() => {}} />);
+    const emptyBtn = screen.getByRole("button", { name: /立即开始第一次记录/ });
+    expect(emptyBtn.className).toContain("min-h-[var(--touch-target-min)]");
+    u6();
   });
 
-  // 17. Reduced Motion Friendly
-  it("17. verifies that transitions do not rely on bounce or infinite floating animations", () => {
+  // 17. Reduced Motion Friendly & motion-reduce:animate-none
+  it("17. strictly verifies that any animate-* class in dashboard is accompanied by motion-reduce:animate-none", () => {
     const dashboardDir = path.resolve(process.cwd(), "src/components/dashboard");
     const files = fs.readdirSync(dashboardDir).filter((f) => f.endsWith(".tsx"));
 
@@ -513,6 +574,11 @@ describe("Phase 5 — Stage 5A-UI Dashboard Modernization Test Suite (Round 3)",
       const content = fs.readFileSync(path.join(dashboardDir, file), "utf8");
       expect(content.includes("animate-bounce")).toBe(false);
       expect(content.includes("infinite-floating")).toBe(false);
+
+      // If file has animate-pulse, it must have motion-reduce:animate-none
+      if (content.includes("animate-pulse")) {
+        expect(content.includes("motion-reduce:animate-none"), `${file} uses animate-pulse without motion-reduce:animate-none`).toBe(true);
+      }
     }
   });
 
@@ -663,5 +729,45 @@ describe("Phase 5 — Stage 5A-UI Dashboard Modernization Test Suite (Round 3)",
       expect(content.includes("fixed inset-0"), `Found duplicate full-screen environment in ${file}`).toBe(false);
       expect(content.includes("InkAtmosphere"), `Found deprecated InkAtmosphere in ${file}`).toBe(false);
     }
+  });
+
+  // 25. No Fantasy or Game-Prop Icons Governance Guard
+  it("25. strictly forbids overt fantasy/game-prop icons in dashboard presentation (Sword, Swords, Crown, Gem, Scroll, Shield, ShieldAlert)", () => {
+    const dashboardDir = path.resolve(process.cwd(), "src/components/dashboard");
+    const files = fs.readdirSync(dashboardDir).filter((f) => f.endsWith(".tsx"));
+
+    const forbiddenPropIcons = [
+      "Sword",
+      "Swords",
+      "Crown",
+      "Gem",
+      "Scroll",
+      "Shield",
+      "ShieldAlert",
+    ];
+
+    for (const file of files) {
+      const content = fs.readFileSync(path.join(dashboardDir, file), "utf8");
+      for (const icon of forbiddenPropIcons) {
+        const iconRegex = new RegExp(`\\b${icon}\\b`);
+        expect(iconRegex.test(content), `Prohibited fantasy/game-prop icon '${icon}' found in ${file}`).toBe(false);
+      }
+    }
+  });
+
+  // 26. Neutral Design Tokens for Local Artwork
+  it("26. ensures local SVG artwork consumes semantic design tokens instead of hardcoded hex colors", () => {
+    const heroPath = path.resolve(process.cwd(), "src/components/dashboard/PlayerHeroCard.tsx");
+    const content = fs.readFileSync(heroPath, "utf8");
+    expect(content.includes("#2f3630")).toBe(false);
+    expect(content.includes("var(--text-primary)")).toBe(true);
+  });
+
+  // 27. Neutral Greeting Subtitle Copy Guard
+  it("27. ensures DashboardHeader subtitle is grounded and does not make uncalculated comparative claims", () => {
+    const headerPath = path.resolve(process.cwd(), "src/components/dashboard/DashboardHeader.tsx");
+    const content = fs.readFileSync(headerPath, "utf8");
+    expect(content.includes("今天也比昨天更进一步")).toBe(false);
+    expect(content.includes("从真实行动出发，持续沉淀你的成长轨迹")).toBe(true);
   });
 });

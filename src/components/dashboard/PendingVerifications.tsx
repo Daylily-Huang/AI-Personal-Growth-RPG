@@ -2,7 +2,7 @@
 
 import React from "react";
 import type { MasteryVerification } from "@/lib/store/types";
-import { ShieldAlert } from "lucide-react";
+import { BadgeCheck } from "lucide-react";
 import { SectionCard } from "@/components/ui";
 
 export interface PendingVerificationsProps {
@@ -15,7 +15,7 @@ export function PendingVerifications({ verifications }: PendingVerificationsProp
   return (
     <SectionCard
       title="待确认的技能进阶验证 (Mastery Verifications)"
-      icon={<ShieldAlert className="h-5 w-5 text-[var(--state-info-text)] shrink-0" />}
+      icon={<BadgeCheck className="h-5 w-5 text-[var(--state-info-text)] shrink-0" />}
       className="p-5 sm:p-6 rounded-2xl shadow-[var(--shadow-card)] space-y-3"
     >
       <ul className="space-y-2">

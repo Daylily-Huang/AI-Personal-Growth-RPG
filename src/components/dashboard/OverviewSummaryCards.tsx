@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import type { DashboardSnapshot } from "@/lib/store/types";
-import { Swords, Scroll, Gem, Network, ChevronRight } from "lucide-react";
+import { Layers3, Route, FileBox, Network, ChevronRight } from "lucide-react";
 import { RPGCard } from "@/components/ui";
 
 export interface OverviewSummaryCardsProps {
@@ -27,7 +27,7 @@ export function OverviewSummaryCards({ dashboard }: OverviewSummaryCardsProps) {
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-xs font-[var(--font-weight-medium)] uppercase tracking-wider text-[var(--entity-skill-text)]">
-              <Swords className="h-4 w-4 shrink-0" />
+              <Layers3 className="h-4 w-4 shrink-0" />
               技能树 · Skills
             </div>
             <ChevronRight className="h-4 w-4 text-[var(--text-muted)] group-hover:text-[var(--text-primary)] transition-colors" />
@@ -51,7 +51,7 @@ export function OverviewSummaryCards({ dashboard }: OverviewSummaryCardsProps) {
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-xs font-[var(--font-weight-medium)] uppercase tracking-wider text-[var(--entity-quest-text)]">
-              <Scroll className="h-4 w-4 shrink-0" />
+              <Route className="h-4 w-4 shrink-0" />
               任务体系 · Quests
             </div>
             <ChevronRight className="h-4 w-4 text-[var(--text-muted)] group-hover:text-[var(--text-primary)] transition-colors" />
@@ -78,7 +78,7 @@ export function OverviewSummaryCards({ dashboard }: OverviewSummaryCardsProps) {
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-xs font-[var(--font-weight-medium)] uppercase tracking-wider text-[var(--entity-artifact-text)]">
-              <Gem className="h-4 w-4 shrink-0" />
+              <FileBox className="h-4 w-4 shrink-0" />
               造物库 · Artifacts
             </div>
             <ChevronRight className="h-4 w-4 text-[var(--text-muted)] group-hover:text-[var(--text-primary)] transition-colors" />

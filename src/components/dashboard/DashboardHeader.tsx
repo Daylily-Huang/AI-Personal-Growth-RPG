@@ -29,7 +29,7 @@ export function DashboardHeader({
           {greetingTitle}
         </h2>
         <p className="text-xs sm:text-sm text-[var(--text-muted)] mt-1 font-sans">
-          你的成长旅程仍在继续，今天也比昨天更进一步。
+          从真实行动出发，持续沉淀你的成长轨迹。
         </p>
       </div>
 

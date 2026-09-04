@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import type { SkillState } from "@/lib/store/types";
-import { Swords, ChevronRight } from "lucide-react";
+import { Layers3, ChevronRight } from "lucide-react";
 import { GlassPanel, MasteryBadge } from "@/components/ui";
 
 export interface TopSkillsCardProps {
@@ -22,9 +22,9 @@ export function TopSkillsCard({ skills = [] }: TopSkillsCardProps) {
       {/* Header Row */}
       <div className="flex items-center justify-between pb-3 border-b border-[var(--border-subtle)] mb-3">
         <div className="flex items-center gap-2">
-          <Swords className="h-4 w-4 text-[var(--entity-skill-text)]" />
+          <Layers3 className="h-4 w-4 text-[var(--entity-skill-text)]" />
           <h3 className="font-serif font-bold text-base text-[var(--text-primary)] tracking-wide">
-            核心技能精通 (Top Skills)
+            核心技能 · Top Skills
           </h3>
         </div>
         <Link
@@ -43,7 +43,7 @@ export function TopSkillsCard({ skills = [] }: TopSkillsCardProps) {
             <Link
               key={skill.id || skill.name}
               href="/skills"
-              className="flex items-center justify-between gap-3 p-3 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)] hover:border-[var(--border-hover-neutral)] transition-colors group focus-visible:outline-[var(--focus-ring-width)] focus-visible:outline-[var(--focus-ring-color)]"
+              className="flex items-center justify-between gap-3 p-3 min-h-[var(--touch-target-min)] rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)] hover:border-[var(--border-hover-neutral)] transition-colors group focus-visible:outline-[var(--focus-ring-width)] focus-visible:outline-[var(--focus-ring-color)]"
             >
               <div className="flex-1 min-w-0">
                 <div className="font-serif text-sm font-bold text-[var(--text-primary)] truncate">

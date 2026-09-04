@@ -22,7 +22,7 @@ export function PlayerHeroCard({ dashboard }: PlayerHeroCardProps) {
       {/* Background Ink-Wash Pine & Misty Mountain Atmosphere (东方松柏远山写意水墨，无奇幻武侠要素) */}
       <div
         aria-hidden="true"
-        className="pointer-events-none select-none absolute right-0 bottom-0 top-0 w-[55%] max-w-[320px] overflow-hidden opacity-[0.22] text-[#2f3630] mix-blend-multiply"
+        className="pointer-events-none select-none absolute right-0 bottom-0 top-0 w-[55%] max-w-[320px] overflow-hidden opacity-[0.16] text-[var(--text-primary)] mix-blend-multiply"
       >
         <svg
           viewBox="0 0 320 260"
@@ -81,17 +81,18 @@ export function PlayerHeroCard({ dashboard }: PlayerHeroCardProps) {
 
       {/* Main Content Area */}
       <div className="relative max-w-[240px] sm:max-w-[280px]">
-        {/* Practitioner Archive Heading */}
-        <div className="text-xs font-[var(--font-weight-medium)] uppercase tracking-[var(--tracking-wider)] text-[var(--text-muted)]">
-          修习者档案 · Practitioner
+        {/* Practitioner Archive Heading with subtle metadata */}
+        <div className="text-xs font-[var(--font-weight-medium)] uppercase tracking-[var(--tracking-wider)] text-[var(--text-muted)] flex items-center justify-between">
+          <span>修习者档案 · Practitioner</span>
+          <span className="font-mono text-[var(--text-muted)] font-normal">XP Lv.{player.playerLevel}</span>
         </div>
 
         {/* Level & XP Total Row */}
         <div className="mt-2.5 flex items-center gap-3">
           <LevelBadge level={player.playerLevel} size="lg" />
           <div>
-            <div className="font-serif text-2xl sm:text-3xl font-bold tracking-tight text-[var(--text-primary)]">
-              XP Lv.{player.playerLevel}
+            <div className="font-serif text-xl sm:text-2xl font-bold tracking-tight text-[var(--text-primary)]">
+              成长等级
             </div>
             <div className="text-xs font-mono text-[var(--text-muted)]">
               {player.totalXp} XP total
