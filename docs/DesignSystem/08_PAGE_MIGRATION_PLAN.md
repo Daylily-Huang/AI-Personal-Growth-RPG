@@ -24,7 +24,7 @@ The migration to the new Global Visual System follows a strict, layered implemen
 │                                ↓                                        │
 │   Phase 4: Stage 7C & 7D Artifact System ✅ FINAL FROZEN                 │
 │                                ↓                                        │
-│   Phase 5: Core Screen Modernization (Dashboard -> Quests -> Skills)    │
+│   Phase 5: Core Screens (Dashboard ✅ FROZEN -> Quests ⏳ -> Skills ⏳)  │
 │                                ↓                                        │
 │   Phase 6: Advanced Canvas Modernization (Knowledge Graph Canvas)       │
 │                                ↓                                        │
@@ -75,12 +75,12 @@ The migration to the new Global Visual System follows a strict, layered implemen
   - Comprehensive freeze guarantees: RLS tenant isolation, cross-category batch atomicity, full settlement rollback snapshot, duplicate confirm idempotency, concurrency mutex, SECURITY DEFINER privilege isolation, provenance / evidence immutability.
   - **ARTIFACT SYSTEM — COMPLETE & FINAL FROZEN**.
 
-### Phase 5 — Dashboard, Quests & Skills Migration
+### Phase 5 — Dashboard, Quests & Skills Migration (IN PROGRESS)
 - **Objective**: Modernize existing product pages onto the shared primitive system.
 - **Deliverables**:
-  - `/dashboard`: Overhauled practitioner overview with calm stat cards, active quests, and activity feed.
-  - `/quests`: Quest hierarchy tree, milestone progress meters, and linked artifact indicators.
-  - `/skills`: Interactive skill tree with hexagonal nodes, M0–M10 mastery badges, and evidence inspection (`SkillInspectorContent`).
+  - `/dashboard`: Overhauled practitioner overview with calm stat cards, active quests, and activity feed. ✅ **FINAL FROZEN** (Stage 5A-UI via PR #18)
+  - `/quests`: Quest hierarchy tree, milestone progress meters, and linked artifact indicators. ⏳ **NEXT STAGE** (Stage 5B-UI Quests Modernization)
+  - `/skills`: Interactive skill tree with hexagonal nodes, M0–M10 mastery badges, and evidence inspection (`SkillInspectorContent`). ⏳ **PENDING** (Stage 5C-UI Skills Modernization)
 
 ### Phase 6 — Knowledge Map Canvas Modernization
 - **Objective**: Modernize the force-directed graph canvas for Knowledge Nodes.
