@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { GlassPanel } from "@/components/ui";
+import { GlassPanel, PrimaryButton } from "@/components/ui";
 import { Target, AlertCircle, Plus, RefreshCw } from "lucide-react";
 
 export interface QuestsSkeletonLoadingProps {
@@ -45,7 +45,7 @@ export function QuestsSkeletonLoading({ className = "" }: QuestsSkeletonLoadingP
         {[1, 2, 3].map((i) => (
           <div
             key={i}
-            className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-4 min-h-[140px] flex flex-col justify-between animate-pulse motion-reduce:animate-none"
+            className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-base)] p-4 min-h-[140px] flex flex-col justify-between animate-pulse motion-reduce:animate-none"
           >
             <div className="space-y-2">
               <div className="flex gap-2">
@@ -87,14 +87,16 @@ export function QuestsEmptyState({ onCreateQuest, className = "" }: QuestsEmptyS
         创建你的第一个主线或阶段性学习任务，建立清晰的成长路径。
       </p>
       {onCreateQuest && (
-        <button
-          type="button"
-          onClick={onCreateQuest}
-          className="mt-4 inline-flex items-center justify-center gap-2 rounded-lg bg-[var(--gold-base)] px-4 py-2.5 min-h-[var(--touch-target-min)] text-xs font-[var(--font-weight-semibold)] text-[var(--gold-contrast)] hover:bg-[var(--gold-hover)] active:bg-[var(--gold-active)] transition-colors cursor-pointer shadow-xs focus-visible:outline-2 focus-visible:outline-[var(--gold-focus-ring)]"
-        >
-          <Plus className="h-4 w-4" aria-hidden="true" />
-          <span>创建任务目标</span>
-        </button>
+        <div className="mt-4 flex justify-center">
+          <PrimaryButton
+            type="button"
+            size="sm"
+            onClick={onCreateQuest}
+            icon={<Plus className="h-4 w-4" aria-hidden="true" />}
+          >
+            创建任务目标
+          </PrimaryButton>
+        </div>
       )}
     </div>
   );
@@ -110,7 +112,7 @@ export function QuestsErrorState({ error, onRetry, className = "" }: QuestsError
   return (
     <div
       role="alert"
-      className={`rounded-lg border border-[var(--state-error-border)] bg-[var(--state-error-bg)] p-4 text-sm text-[var(--state-error-text)] flex items-start justify-between gap-3 ${className}`}
+      className={`rounded-lg border border-[var(--state-danger-border)] bg-[var(--state-danger-bg)] p-4 text-sm text-[var(--state-danger-text)] flex items-start justify-between gap-3 ${className}`}
     >
       <div className="flex items-start gap-2.5">
         <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" aria-hidden="true" />

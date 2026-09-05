@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Quest, QuestStatus, QuestTreeNode } from "@/lib/store/types";
+import { PrimaryButton } from "@/components/ui";
 import {
   QuestCard,
   QuestTreeItem,
@@ -23,6 +24,13 @@ import {
 
 type QuestTab = "tree" | "active" | "all" | "completed";
 
+interface TabItem {
+  id: QuestTab;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  count?: number;
+}
+
 export default function QuestsPage() {
   const router = useRouter();
   const [tree, setTree] = useState<QuestTreeNode[]>([]);
@@ -31,6 +39,13 @@ export default function QuestsPage() {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<QuestTab>("tree");
   const [showCreateModal, setShowCreateModal] = useState(false);
+
+  const tabRefs = useRef<Record<QuestTab, HTMLButtonElement | null>>({
+    tree: null,
+    active: null,
+    all: null,
+    completed: null,
+  });
 
   const loadQuests = useCallback(async () => {
     try {
@@ -150,27 +165,53 @@ export default function QuestsPage() {
     return true;
   });
 
+  const tabList: TabItem[] = [
+    { id: "tree", label: "任务树视图", icon: FolderTree },
+    { id: "active", label: `进行中 (${activeCount})`, icon: ListChecks },
+    { id: "all", label: `全部任务 (${flatQuests.length})`, icon: ListFilter },
+    { id: "completed", label: `已完成 (${completedCount})`, icon: CheckCircle2 },
+  ];
+
+  const handleTabKeyDown = (e: React.KeyboardEvent, index: number) => {
+    let targetIndex = -1;
+    if (e.key === "ArrowRight") {
+      targetIndex = (index + 1) % tabList.length;
+    } else if (e.key === "ArrowLeft") {
+      targetIndex = (index - 1 + tabList.length) % tabList.length;
+    } else if (e.key === "Home") {
+      targetIndex = 0;
+    } else if (e.key === "End") {
+      targetIndex = tabList.length - 1;
+    }
+
+    if (targetIndex >= 0) {
+      e.preventDefault();
+      const nextTab = tabList[targetIndex].id;
+      setActiveTab(nextTab);
+      tabRefs.current[nextTab]?.focus();
+    }
+  };
+
   return (
     <div className="flex w-full flex-col gap-6">
-      {/* Header & New Quest Trigger */}
+      {/* Header & New Quest Trigger: Local heading is h2 (AppHeader is h1) */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-[var(--font-weight-bold)] tracking-tight text-[var(--text-primary)] flex items-center gap-2">
+          <h2 className="text-2xl font-serif font-[var(--font-weight-bold)] tracking-tight text-[var(--text-primary)] flex items-center gap-2">
             <Target className="h-6 w-6 text-[var(--entity-quest-text)]" aria-hidden="true" />
-            任务大厅 (Quest System)
-          </h1>
+            <span>任务大厅 (Quest System)</span>
+          </h2>
           <p className="text-xs text-[var(--text-muted)] mt-1">
-            通过目标分解驱动个人成长，支持层级聚合、Boss 挑战与成长闭环联动。
+            通过目标分解驱动个人成长，支持层级聚合、关键里程碑攻坚与成长闭环联动。
           </p>
         </div>
-        <button
+        <PrimaryButton
           type="button"
           onClick={() => setShowCreateModal(true)}
-          className="inline-flex items-center gap-2 rounded-lg bg-[var(--gold-base)] px-4 py-2 min-h-[var(--touch-target-min)] text-sm font-[var(--font-weight-semibold)] text-[var(--gold-contrast)] hover:bg-[var(--gold-hover)] active:bg-[var(--gold-active)] shadow-xs transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-[var(--gold-focus-ring)]"
+          icon={<Plus className="h-4 w-4" aria-hidden="true" />}
         >
-          <Plus className="h-4 w-4" aria-hidden="true" />
-          <span>新建任务</span>
-        </button>
+          新建任务
+        </PrimaryButton>
       </div>
 
       {/* Loading Skeleton */}
@@ -191,108 +232,83 @@ export default function QuestsPage() {
             <QuestsErrorState error={error} onRetry={loadQuests} />
           ) : null}
 
-          {/* Tab Navigation */}
+          {/* Complete W3C ARIA Tab Pattern with Roving TabIndex & Keyboard Navigation */}
           <div
             role="tablist"
             aria-label="任务视图分类"
             className="flex border-b border-[var(--border-subtle)] text-sm gap-1 sm:gap-2 overflow-x-auto"
           >
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeTab === "tree"}
-              onClick={() => setActiveTab("tree")}
-              className={`flex items-center gap-2 px-3 sm:px-4 py-2.5 min-h-[var(--touch-target-min)] border-b-2 font-[var(--font-weight-medium)] text-xs sm:text-sm transition-colors cursor-pointer shrink-0 ${
-                activeTab === "tree"
-                  ? "border-[var(--text-primary)] text-[var(--text-primary)]"
-                  : "border-transparent text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
-              }`}
-            >
-              <FolderTree className="h-4 w-4" aria-hidden="true" />
-              <span>任务树视图</span>
-            </button>
-
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeTab === "active"}
-              onClick={() => setActiveTab("active")}
-              className={`flex items-center gap-2 px-3 sm:px-4 py-2.5 min-h-[var(--touch-target-min)] border-b-2 font-[var(--font-weight-medium)] text-xs sm:text-sm transition-colors cursor-pointer shrink-0 ${
-                activeTab === "active"
-                  ? "border-[var(--text-primary)] text-[var(--text-primary)]"
-                  : "border-transparent text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
-              }`}
-            >
-              <ListChecks className="h-4 w-4 text-[var(--entity-quest-text)]" aria-hidden="true" />
-              <span>进行中 ({activeCount})</span>
-            </button>
-
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeTab === "all"}
-              onClick={() => setActiveTab("all")}
-              className={`flex items-center gap-2 px-3 sm:px-4 py-2.5 min-h-[var(--touch-target-min)] border-b-2 font-[var(--font-weight-medium)] text-xs sm:text-sm transition-colors cursor-pointer shrink-0 ${
-                activeTab === "all"
-                  ? "border-[var(--text-primary)] text-[var(--text-primary)]"
-                  : "border-transparent text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
-              }`}
-            >
-              <ListFilter className="h-4 w-4" aria-hidden="true" />
-              <span>全部任务 ({flatQuests.length})</span>
-            </button>
-
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeTab === "completed"}
-              onClick={() => setActiveTab("completed")}
-              className={`flex items-center gap-2 px-3 sm:px-4 py-2.5 min-h-[var(--touch-target-min)] border-b-2 font-[var(--font-weight-medium)] text-xs sm:text-sm transition-colors cursor-pointer shrink-0 ${
-                activeTab === "completed"
-                  ? "border-[var(--text-primary)] text-[var(--text-primary)]"
-                  : "border-transparent text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
-              }`}
-            >
-              <CheckCircle2 className="h-4 w-4 text-[var(--state-success-text)]" aria-hidden="true" />
-              <span>已完成 ({completedCount})</span>
-            </button>
+            {tabList.map((tab, idx) => {
+              const Icon = tab.icon;
+              const isSelected = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  id={`tab-${tab.id}`}
+                  ref={(el) => {
+                    tabRefs.current[tab.id] = el;
+                  }}
+                  type="button"
+                  role="tab"
+                  aria-selected={isSelected}
+                  aria-controls="quests-view-tabpanel"
+                  tabIndex={isSelected ? 0 : -1}
+                  onClick={() => setActiveTab(tab.id)}
+                  onKeyDown={(e) => handleTabKeyDown(e, idx)}
+                  className={`flex items-center gap-2 px-3 sm:px-4 py-2.5 min-h-[var(--touch-target-min)] border-b-2 font-[var(--font-weight-medium)] text-xs sm:text-sm transition-colors cursor-pointer shrink-0 focus-visible:outline-[var(--focus-ring-width)] focus-visible:outline-[var(--focus-ring-color)] ${
+                    isSelected
+                      ? "border-[var(--text-primary)] text-[var(--text-primary)]"
+                      : "border-transparent text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
+                  }`}
+                >
+                  <Icon className="h-4 w-4" />
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
           </div>
 
-          {/* List or Tree View Content */}
-          {flatQuests.length === 0 ? (
-            <QuestsEmptyState onCreateQuest={() => setShowCreateModal(true)} />
-          ) : activeTab === "tree" ? (
-            <div className="space-y-4" role="tree" aria-label="层级任务树">
-              {tree.map((node) => (
-                <QuestTreeItem
-                  key={node.id}
-                  node={node}
-                  level={0}
-                  onUpdateStatus={handleUpdateStatus}
-                  onUpdateProgress={handleUpdateProgress}
-                  onDelete={handleDeleteQuest}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="grid gap-3" role="feed" aria-label="任务列表">
-              {filteredQuests.length === 0 ? (
-                <div className="p-8 text-center text-xs text-[var(--text-muted)] border border-dashed border-[var(--border-subtle)] rounded-xl">
-                  当前筛选下无匹配任务
-                </div>
-              ) : (
-                filteredQuests.map((quest) => (
-                  <QuestCard
-                    key={quest.id}
-                    quest={quest}
+          {/* Tab Panel */}
+          <div
+            id="quests-view-tabpanel"
+            role="tabpanel"
+            aria-labelledby={`tab-${activeTab}`}
+          >
+            {flatQuests.length === 0 ? (
+              <QuestsEmptyState onCreateQuest={() => setShowCreateModal(true)} />
+            ) : activeTab === "tree" ? (
+              <div className="space-y-4" data-testid="quests-tree-list">
+                {tree.map((node) => (
+                  <QuestTreeItem
+                    key={node.id}
+                    node={node}
+                    level={0}
                     onUpdateStatus={handleUpdateStatus}
                     onUpdateProgress={handleUpdateProgress}
                     onDelete={handleDeleteQuest}
                   />
-                ))
-              )}
-            </div>
-          )}
+                ))}
+              </div>
+            ) : (
+              <div className="grid gap-3" role="feed" aria-label="任务列表">
+                {filteredQuests.length === 0 ? (
+                  <div className="p-8 text-center text-xs text-[var(--text-muted)] border border-dashed border-[var(--border-subtle)] rounded-xl">
+                    当前筛选下无匹配任务
+                  </div>
+                ) : (
+                  filteredQuests.map((quest) => (
+                    <QuestCard
+                      key={quest.id}
+                      quest={quest}
+                      onUpdateStatus={handleUpdateStatus}
+                      onUpdateProgress={handleUpdateProgress}
+                      onDelete={handleDeleteQuest}
+                    />
+                  ))
+                )}
+              </div>
+            )}
+          </div>
         </>
       )}
 

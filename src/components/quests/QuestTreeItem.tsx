@@ -29,9 +29,7 @@ export function QuestTreeItem({
       className={`flex flex-col gap-2 ${
         level > 0 ? "ml-4 sm:ml-6 pl-3 sm:pl-4 border-l border-[var(--border-subtle)]" : ""
       }`}
-      role="treeitem"
-      aria-selected={false}
-      aria-expanded={hasChildren ? isExpanded : undefined}
+      data-testid={`quest-tree-item-${node.id}`}
     >
       <div className="relative">
         <QuestCard
@@ -47,6 +45,7 @@ export function QuestTreeItem({
             type="button"
             onClick={() => setIsExpanded((prev) => !prev)}
             className="absolute top-3 right-3 p-1 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-raised)] transition-colors min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] flex items-center justify-center cursor-pointer"
+            aria-expanded={isExpanded}
             aria-label={isExpanded ? "折叠子任务" : "展开子任务"}
             title={isExpanded ? "折叠子任务" : "展开子任务"}
           >
@@ -60,7 +59,10 @@ export function QuestTreeItem({
       </div>
 
       {hasChildren && isExpanded ? (
-        <div className="flex flex-col gap-2 mt-1" role="group">
+        <div
+          className="flex flex-col gap-2 mt-1"
+          data-testid={`quest-tree-children-${node.id}`}
+        >
           {children.map((child) => (
             <QuestTreeItem
               key={child.id}
