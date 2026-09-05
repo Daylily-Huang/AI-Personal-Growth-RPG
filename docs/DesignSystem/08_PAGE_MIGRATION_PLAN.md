@@ -13,23 +13,23 @@
 The migration to the new Global Visual System follows a strict, layered implementation roadmap. Business logic, database schemas, and API contracts remain strictly frozen throughout visual migration.
 
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                     LAYERED IMPLEMENTATION ROADMAP                      │
-│                                                                         │
-│   Phase 1: Visual Foundation & Tokens ✅ FINAL FROZEN                    │
-│                                ↓                                        │
-│   Phase 2: Global App Shell ✅ FINAL FROZEN                             │
-│                                ↓                                        │
-│   Phase 3: Shared UI Primitives Library ✅ FINAL FROZEN                 │
-│                                ↓                                        │
-│   Phase 4: Stage 7C & 7D Artifact System ✅ FINAL FROZEN                 │
-│                                ↓                                        │
-│   Phase 5: Core Screens (Dashboard ✅ FROZEN -> Quests ⏳ -> Skills ⏳)  │
-│                                ↓                                        │
-│   Phase 6: Advanced Canvas Modernization (Knowledge Graph Canvas)       │
-│                                ↓                                        │
-│   Phase 7: End-to-End A11y, Responsive & Motion Polish                 │
-└─────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│                          LAYERED IMPLEMENTATION ROADMAP                             │
+│                                                                                     │
+│    Phase 1: Visual Foundation & Tokens ✅ FINAL FROZEN                               │
+│                                 ↓                                                   │
+│    Phase 2: Global App Shell ✅ FINAL FROZEN                                         │
+│                                 ↓                                                   │
+│    Phase 3: Shared UI Primitives Library ✅ FINAL FROZEN                             │
+│                                 ↓                                                   │
+│    Phase 4: Stage 7C & 7D Artifact System ✅ FINAL FROZEN                            │
+│                                 ↓                                                   │
+│    Phase 5: Core Screens (Dashboard ✅ FROZEN -> Quests ✅ FROZEN -> Skills ⏳ NEXT)   │
+│                                 ↓                                                   │
+│    Phase 6: Advanced Canvas Modernization (Knowledge Graph Canvas)                  │
+│                                 ↓                                                   │
+│    Phase 7: End-to-End A11y, Responsive & Motion Polish                             │
+└─────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
