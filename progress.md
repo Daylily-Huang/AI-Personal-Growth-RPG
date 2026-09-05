@@ -1,33 +1,41 @@
-# 工作进度
+# 项目历史工作进度 (Progress Log)
 
-## 2026-08-19
-- 创建持久化计划文件，准备读取 `docs/Check` 并确定下一步。
-- 读取最新 `Round10.txt`：Stage1 只差真实数据库证明与完整验证，当前不应进入 UI/Stage2 业务实现。
-- 用户完成 Docker Desktop 安装并开启 Ubuntu WSL Integration，Docker Desktop 29.7.2/desktop-linux 正常，数据位于 D 盘配置。
-- 补充 `@types/pg`、项目级 `supabase@2.114.0`，生成 `supabase/config.toml` 与 `supabase/.gitignore`。
-- 本地 Supabase 栈启动成功，`0001~0019` 完整迁移成功。
-- 独立 Supabase-compatible 空库 smoke test 通过：1 test passed。
-- 修复 smoke test 对 PostgreSQL CHECK 规范化表达式的脆弱字符串断言。
-- 修复 RLS 静态测试对旧策略命名的错误期待。
-- `pnpm test`：83 passed / 1 gated skipped；`harness:deterministic`：11 passed；`lint`：通过；`build`：通过。
-- Round10 验证结果曾记录在进度文件中，但摘要文件当前不在工作区；本轮不重新追补 Round10 原始摘要，避免把历史记录与当前 Round11 收尾混淆。
-- 2026-08-18：恢复上下文并确认 Stage1 Gate 已通过；读取 Repository/types、Supabase wiring point、核心 migration。形成 Stage2 最小垂直切片边界：先做服务端权威结算，不改 UI；等待用户确认设计后实现。
-- 2026-08-19：读取 `docs/Check/Round11.txt`。外部审查确认 Round10 Stage1 正式冻结，评分 9.2/10、P0=0、GO → Stage2。按审查建议拆分 Stage2-A 与 Stage2-B：当前进入 Stage2-A，暂不编写巨大 settlement RPC。
-- 14:20 用户要求按计划继续，并同时修复网站无法进入问题。已确认项目 `pnpm dev` 在当前 Bash 环境不可用（pnpm 不在 PATH）；直接调用 Next 后服务虽显示 Ready，但请求 3000 无响应，日志显示缺少 Windows SWC 时尝试调用不存在的 pnpm。受控 pnpm 又检测到跨平台现有 `node_modules`，因无 TTY 中止清理。另发现 `next/font/google` 会触发外部字体下载，已移除字体网络依赖，改用本地系统字体；下一步需在不破坏 WSL 依赖的前提下完成独立 Windows 依赖/启动验证。
-- 2026-08-19：Windows `node_modules` 已重新安装，`@next/swc-win32-x64-msvc` 可用。服务在 3001 通过 `/`→`/dashboard` 307、Dashboard 200、Dashboard API 200 验证；使用受控 Node 22.22.2 + Corepack pnpm 11.7.0 并清除 `NODE_OPTIONS` 后 production build 通过。
-- 2026-08-19：Stage2-A 初步实现：新增 `database.types.ts`、`supabase-mapping.ts`、`supabase-repository.ts`、`request-repository.ts`，实现 RLS scoped read mapping 与 Activity/Assessment 的用户归属写入；Confirm settlement 明确保持为 Stage2-B RPC 待办。新增 `0020_activity_immutability.sql` 与 mapping/迁移静态测试。tsc、lint、2 个新增测试通过；待本地 Supabase 全量 migration 和完整 suite 复核。
-- 2026-08-19：验证修复：新增 migration 后更新 schema chain 测试；发现并修复 0009/0010 唯一索引缺少 `if not exists`、0018 未删除同名新策略导致重复执行失败。真实 `XP_RPG_TEST_DB_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres` 空库迁移冒烟通过；最终完整套件 87 passed / 1 skipped、harness 11 passed、tsc/lint/build 均通过。仅保留 Vite configLoader 的非阻断 warning。
-- 2026-08-19：补齐 `docs/Check/Round11_VERIFICATION_SUMMARY.md`，记录 Round11 Stage1 PASS、9.2/10、GO→Stage2，以及 Stage2-A 实现和验证结果。下一步将与 Stage2-A 提交一起推送并核验远程 `main`。
-- 2026-08-19：Round12 远程审查确认 Stage2-A 已推送，但给出 7.9/10 CONDITIONAL FAIL。发现 3 个 P1：Assessment 写入与 RLS 冲突、Activity status 可被客户端伪造、database.types.ts 不是 generated；另有 skillName 为空的 P2。按建议暂停完整 Stage2-B，新增 Stage2-A.1 Authority Wiring Closure 计划。
-- 2026-08-19：开始 Stage2-A.1：已使用 `supabase gen types typescript --local` 生成完整 `database.types.ts` 并补 `db:types` script；新增 0021 assessment authority migration、server-only AssessmentPersistenceService、交易 skill join 映射和 player-state invariant。新增测试通过（项目临时目录规避系统 Temp EPERM）。
-- 2026-08-19：Docker/Supabase 数据库恢复后，`supabase db reset --yes` 已成功执行 0001→0021 全部迁移。首次真实迁移重放测试发现 0021 策略缺少幂等保护，已补 `drop policy if exists activities_delete_pending` 并修正测试说明；迁移 smoke、Assessment authority、mapping 共 3 个测试文件 6 tests 全部通过。
-- 2026-08-19：真实 PostgreSQL 权限行为验证通过：authenticated 直写 `ai_assessments` 被拒绝；authenticated 修改 Activity status 被拒绝；service_role 调用 `record_ai_assessment` 成功，并原子完成 Assessment 插入及 Activity pending_assessment→assessed。完整 Vitest 89 passed/1 skipped，deterministic harness 11 passed，tsc、lint、Windows production build 均通过。待创建 Round12 摘要并提交推送。
-- 2026-08-19：Round13 审查（8.0/10 CONDITIONAL FAIL，P0=0/P1=3/P2=3）后实施 Stage2-A.2 Final Authority Closure。新增 0022 删除 activities_insert、加 create_activity SECURITY DEFINER RPC；重生成 database.types.ts 含两个 RPC 并对三客户端加 `<Database>` 泛型；SupabaseRepository 写入路径接线、两个写入路由接入请求级 repository；新增 authority-final-state.test.ts（7 项真实 pg 权限断言）、修正 supabase-schema.test.ts 漂移、CI 增加 supabase-integration job。修复两库测并行争用（fileParallelism:false + schema 已存在则跳过重放）。完整 Vitest 97 passed、harness 11 passed、tsc/lint/build 通过。待创建 Round13 摘要并提交推送。
-- 2026-08-20：完成 GitHub 永久认证改造：生成 ed25519 SSH 密钥并切换远程为 SSH 小写 slug `git@github.com:Daylily-Huang/ai-personal-growth-rpg.git`（此前混合大小写 `AI-Personal_Growth-RPG` 对 SSH git 后端报 "Repository not found"，是仓库重命名导致的大小写坑）。Round13 commit `4fc2d46` 已推送，远程 main 核验一致，从此免 token。
-- 2026-08-20：Round14 审查（8.6/10 CONDITIONAL FAIL，P0=0/P1=2/P2=3）后实施 Stage2-A.3 Authority Final-Final Closure。新增 0023_rules_version_authority.sql（至多一个 active 的部分唯一索引 + growth-engine-v0.1=active seed + create_activity 改 active-only/activated_at 排序/fail-closed 无 v1 兜底）；getRequestRepository 改 fail-closed（已配置即走 Supabase，未认证 401、基础设施异常 5xx，禁止静默 Demo 降级）；两个 API 路由把 AuthRequiredError 映射 401；authority-final-state 新增 2 项真实 pg 断言 + 新增 request-repository.test.ts（3 项）。`supabase db reset` 重放 0001..0023 成功；完整 Vitest 102 passed、harness 11 passed、tsc/lint/build 通过（lint 0 errors，1 个既有无关 warning）。待创建 Round14 摘要并提交推送。
-- 2026-08-20：Round14 摘要 `b8ee508` 与计划状态 `68340d6` 已推送，远程 main 核验一致；Round14 Stage2-A.3 闭环。
-- 2026-08-20：实施 Stage2-B settle_activity 权威结算。新增 0024_settlement_authority.sql（settle_activity SECURITY DEFINER RPC 仅 service_role + SQL 等级曲线）；SupabaseRepository.applySettlement 接线 RPC；confirm 路由切换请求级 repository（fail-closed）；新增 settlement-rpc.test.ts（7 项真实 pg：原子性/幂等/repetition 冲突重试/mastery pending 去重/双用户隔离/并发单赢/等级 parity）+ authority 增加 settle_activity EXECUTE 断言；EXPECTED_ORDER 扩至 0024。修复 node-postgres 多语句参数绑定导致 cleanup 静默失败污染测试的坑。完整 Vitest 110 passed、harness 11 passed、tsc/lint/build 通过（lint 0 errors，旧 `_settlement` warning 消失）。待创建 Stage2-B 摘要并提交推送。
-- 2026-08-20：Round19 审查确认 Stage 2 结算权威正式冻结（9.2/10 PASS，P0=0，P1=0，GO → Stage 3）。实施 Stage 3（Auth Bootstrap + 全量 Supabase Read Path 与 UI 集成）：新增 Next.js Supabase Auth SSR 中间件与受保护路由拦截；新增 /login 登录与注册页面（含一键体验测试账号）；新增 /api/auth/logout 端点；GET /api/dashboard 与 GET /api/skills 全量切换为请求级 getRequestRepository()（未登录 401，实时呈现数据库数据）；新增 0028_schema_grants.sql 授予 Data API 表级权限；新增 tests/read-path-integration.test.ts（初始读取、E2E 成长闭环、双用户隔离）。本地 supabase db reset 0001..0028 全部成功；全量 Vitest 16 个测试文件 127/127 全部通过，deterministic harness 11 passed，eslint 0 errors / 0 warnings。Stage 3 闭环。
-- 2026-08-20：Round20 审查后实施 Stage 3.1 Auth & Read Integration Closure：修复 TypeScript 编译阻断（DashboardSnapshot 导入、类型标注、测试 SettlementToApply 契约对齐）；修复 Supabase SSR Middleware 在 Token Refresh 与重定向时的 Cookie/Header 完整传播（createRedirectWithSession 工具函数，明确 PROTECTED_PREFIXES 拦截）；在 /login 中隔离共享 Demo 账号（仅非生产环境可见）；新增 0029_default_privileges_tighten.sql 撤销 public 宽泛默认权限保持未来新表 fail-closed；新增 tests/http-auth-flow.test.ts（9 项覆盖未登录 API 401、登出、中间件会话传播）。本地 supabase db reset 0001..0029 成功；tsc --noEmit 0 错误；全量 Vitest 17 个测试文件 136/136 全部通过；deterministic harness 11 passed；eslint 0 errors / 0 warnings。Stage 3.1 闭环。
-- 2026-08-21：Round21 审查后实施 Stage 3 Final Acceptance：执行生产构建 pnpm build 0 错误 0 警告通过；迁移 src/middleware.ts 至 Next.js 16 规范 src/proxy.ts；新增 tests/e2e-http-browser.test.ts（6 个端到端用例，基于真实 HTTP Next.js 生产服务器 + Supabase Auth Cookie + PostgreSQL 数据库闭环测试：307 路由拦截、401 API 保护、真实用户 Activity→Assess→Settle→Dashboard 刷新流转、双租户绝对隔离、登出注销会话、Token 刷新保持）；完善 Demo 账号双重环境门禁；新增 0030_function_default_privileges_tighten.sql 收紧函数默认权限；重置 supabase db reset 0001..0030 全部成功；全量 Vitest 18 个测试文件 142/142 全部通过；deterministic harness 11/11 passed；eslint 0 errors / 0 warnings。Stage 3 最终冻结验收。
-- 2026-08-21：Round22 审查后实施 Stage 3 Final Acceptance Closure（Final-Final Patch）：新增 0031_global_function_default_privileges.sql，采用 Global Default Privileges（及 FOR ROLE postgres）撤销函数公网 EXECUTE 默认赋权并为 service_role 赋权；在 tests/authority-final-state.test.ts 中增加真实 DB Probe 测试断言新建函数 Fail-Closed；在 package.json 中新增 "test:e2e" 独立命令；在 .github/workflows/ci.yml 中增加 pnpm build 步骤解耦 CI 编排；本地重置 supabase db reset 0001..0031 全部成功；全量 Vitest 18 个测试文件 143/143 全部通过；pnpm test:e2e 6/6 passed；tsc 0 errors；pnpm build 0 errors/warnings；deterministic harness 11/11 passed；eslint 0 errors/warnings。Stage 3 正式闭环待冻结。
+> **权威状态主文档**：请统一参阅 [`docs/MASTER_PROJECT_HANDOFF.md`](docs/MASTER_PROJECT_HANDOFF.md)。  
+> **更新时间**: 2026-09-05
+
+---
+
+## 关键里程碑归档记录
+
+- **Stage 0~4 业务核心已冻结**：
+  - Stage 0 基础设施与 Supabase/RLS 隔离
+  - Stage 1 活动解析与校验
+  - Stage 2 两阶段确认流与 RPC 结算事务
+  - Stage 3 读路径集成与认证中间件
+  - Stage 4 任务系统层级与权威大小快照
+- **Stage 5~7 领域模型与服务已冻结**：
+  - Stage 5 技能树与派生状态服务
+  - Stage 6 知识图谱与推断/验证状态机
+  - Stage 7A/7B 成果（Artifacts）实体权威与关系链路
+- **Phase 1~4 全局视觉基石已冻结**：
+  - Phase 1 设计 Tokens
+  - Phase 2 AppShell 骨架
+  - Phase 3 共享 UI 基元库
+  - Phase 4 成果库视觉现代化
+- **Phase 5 核心页面视觉现代化 (当前进行中)**：
+  - 2026-09-03: Stage 5A Dashboard 现代化完成，PR #18 合入 main 并标记 FINAL FROZEN。
+  - 2026-09-04: Stage 5B Quests 现代化完成，PR #19 合入 main 并标记 FINAL FROZEN。
+  - 2026-09-05: Stage 5C Skills 现代化完成，ReactFlow 画布、SkillNode、DetailPanel、InspectorDrawer 浅色水墨化，82 项测试全绿。
+- **独立审查与复审缺陷修复追踪 (2026-09-05)**：
+  - 2026-09-05 初审（`2026-09-05_PROJECT_REVIEW.md`）：提出 P1-01（掌握度跨实体误授）、P1-02（AI 失败 mock 泄露）、P2-01（账本重复计数截断）、P2-02（入口文档滞后）。
+  - 2026-09-05 复审（`2026-09-05_PROJECT_RE_REVIEW.md`）：
+    * P1-01 已确认关闭（掌握度要求 skill 类型并精确匹配名称，删除 changes[0] 兜底）。
+    * 提出 P1-A（新技能空 UUID 传入 countRecentSimilarTransactions 阻断结算）。
+    * 提出 P1-B（未配置 AI 凭据时仍默认允许真实 Supabase 模式生成 mock）。
+    * 提出 P2-A（`tests/ai-assessment-failure.test.ts` 中 any 类型与未使用变量造成 lint 阻断）。
+    * 提出 P2-B（`docs/MASTER_PROJECT_HANDOFF.md` 实际文件未落地）。
+  - 2026-09-05 代码手术式修复闭环：
+    * P1-A 已修复：`countRecentSimilarTransactions` 对空 `skillId` 短路返回 0，不发送无效 PostgREST UUID 查询。
+    * P1-B 已修复：`assessActivity` 严格检查 `allowDemoFallback === true`，生产/Supabase 模式缺配置直接抛出 `ai_not_configured` 并保留 Activity。
+    * P2-A 已修复：移除 any 类型与未使用变量，ESLint 0 errors 0 warnings。
+    * P2-B 已修复：`docs/MASTER_PROJECT_HANDOFF.md` 物理写入磁盘，更新 README.md 与 AGENTS.md 链接。

@@ -12,15 +12,16 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 Read in order before editing:
 
-1. `docs/01_SYSTEM_RULES.md`
-2. `docs/02_PRODUCT_DESIGN.md`
-3. `docs/03_TECHNICAL_IMPLEMENTATION.md`
-4. `docs/04_MVP_ROADMAP_AND_ACCEPTANCE.md`
-5. `docs/05_AI_GAME_MASTER_CONTRACT.md`
-6. `docs/06_DATABASE_SCHEMA_AND_DATA_DICTIONARY.md`
-7. `docs/07_UI_DESIGN_SYSTEM.md`
-8. `docs/08_TESTING_EVALS_AND_QA.md`
-9. `docs/09_PROJECT_GOVERNANCE_AND_CHANGE_CONTROL.md`
+0. `docs/MASTER_PROJECT_HANDOFF.md` (Current Master Status & Architecture)
+1. `docs/Design ChatGPT/01_SYSTEM_RULES.md`
+2. `docs/Design ChatGPT/02_PRODUCT_DESIGN.md`
+3. `docs/Design ChatGPT/03_TECHNICAL_IMPLEMENTATION.md`
+4. `docs/Design ChatGPT/04_MVP_ROADMAP_AND_ACCEPTANCE.md`
+5. `docs/Design ChatGPT/05_AI_GAME_MASTER_CONTRACT.md`
+6. `docs/Design ChatGPT/06_DATABASE_SCHEMA_AND_DATA_DICTIONARY.md`
+7. `docs/Design ChatGPT/07_UI_DESIGN_SYSTEM.md`
+8. `docs/Design ChatGPT/08_TESTING_EVALS_AND_QA.md`
+9. `docs/Design ChatGPT/09_PROJECT_GOVERNANCE_AND_CHANGE_CONTROL.md`
 
 Priority: `01 > 02 > 03 > 04–10 > current implementation`.
 

@@ -205,6 +205,15 @@ export class DemoRepository implements Repository {
     return this.readDb().transactions;
   }
 
+  async countRecentSimilarTransactions(params: {
+    skillId: string;
+    activityType: string;
+    windowDays: number;
+  }): Promise<number> {
+    const transactions = await this.listTransactions();
+    return countRecentSimilar(transactions, params);
+  }
+
   async getSkill(label: string): Promise<SkillState | null> {
     const db = this.readDb();
     return findSkillByLabel(db.skills, label) ?? null;

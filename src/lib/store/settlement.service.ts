@@ -193,12 +193,22 @@ export class SettlementService {
 
     // Repetition only counts SIMILAR prior activities by the SAME STABLE SKILL ID
     // (aliases count as one and the same skill) + same type + 30-day window.
-    const transactions = await this.repo.listTransactions();
-    const recentSimilarCount = countRecentSimilar(transactions, {
-      skillId,
-      activityType,
-      windowDays: SIMILARITY_WINDOW_DAYS,
-    });
+    // P1-A Fix: brand new skill without a persistent UUID has 0 prior transactions by definition.
+    // P2-01: Prefer authoritative countRecentSimilarTransactions to prevent truncation by unpaged listTransactions.
+    const recentSimilarCount =
+      !skillId
+        ? 0
+        : typeof this.repo.countRecentSimilarTransactions === "function"
+          ? await this.repo.countRecentSimilarTransactions({
+              skillId,
+              activityType,
+              windowDays: SIMILARITY_WINDOW_DAYS,
+            })
+          : countRecentSimilar(await this.repo.listTransactions(), {
+              skillId,
+              activityType,
+              windowDays: SIMILARITY_WINDOW_DAYS,
+            });
 
     // Milestone 4.2 / Round26 (P1-5): Use frozen quest size snapshot on Activity first
     let effectiveQuestSize: QuestSize = activity.questSizeSnapshot ?? DEFAULT_QUEST_SIZE;
@@ -347,8 +357,11 @@ function decideMasteryAction(input: {
   currentMastery: number;
   evidenceLevel: number;
 }): MasteryAction {
-  const change =
-    input.changes.find((c) => c.target_name === input.skillName) ?? input.changes[0];
+  // P1-01 Fix: Only match proposals targeting 'skill' AND having the exact matching skillName.
+  // Never fallback to changes[0] and never accept proposals targeted at knowledge or other skills.
+  const change = input.changes.find(
+    (c) => c.target_type === "skill" && c.target_name === input.skillName
+  );
   if (!change) return { action: "none" };
 
   const check = checkMasteryProposal(input.currentMastery, change.proposed_level, input.evidenceLevel);
