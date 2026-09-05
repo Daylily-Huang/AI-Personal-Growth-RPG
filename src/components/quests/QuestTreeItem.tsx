@@ -25,8 +25,8 @@ export function QuestTreeItem({
   const hasChildren = children.length > 0;
 
   return (
-    <div
-      className={`flex flex-col gap-2 ${
+    <li
+      className={`flex flex-col gap-2 list-none ${
         level > 0 ? "ml-4 sm:ml-6 pl-3 sm:pl-4 border-l border-[var(--border-subtle)]" : ""
       }`}
       data-testid={`quest-tree-item-${node.id}`}
@@ -59,8 +59,8 @@ export function QuestTreeItem({
       </div>
 
       {hasChildren && isExpanded ? (
-        <div
-          className="flex flex-col gap-2 mt-1"
+        <ul
+          className="flex flex-col gap-2 mt-1 list-none p-0 m-0"
           data-testid={`quest-tree-children-${node.id}`}
         >
           {children.map((child) => (
@@ -73,8 +73,8 @@ export function QuestTreeItem({
               onDelete={onDelete}
             />
           ))}
-        </div>
+        </ul>
       ) : null}
-    </div>
+    </li>
   );
 }

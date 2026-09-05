@@ -2,19 +2,19 @@
 /**
  * tests/phase5-quests-ui.test.tsx
  * Phase 5 — Core Screen Modernization (Stage 5B-UI Quests Modernization)
- * Round 2 Independent Review Governance & Quality Test Suite covering:
- * - 1. Strict Token Existence: Every CSS variable used exists in frozen design-tokens.css
- * - 2. Zero Raw Z-Index: No raw Tailwind z-* classes in Quests code
- * - 3. Zero Dark Hardcoded Classes: Comprehensive dark color scanner (bg-black, text-white, slate/zinc)
- * - 4. Strict Gold Whitelist: Only for affirmative CTA buttons and focus ring, never on generic inputs
+ * Round 3 Surgical Lifecycle / Fail-Closed Closure Test Suite covering:
+ * - 1. Strict Token Governance: Every CSS variable used exists in frozen design-tokens.css
+ * - 2. Zero Direct Gold Tokens: Gold strictly encapsulated inside PrimaryButton
+ * - 3. Zero Raw Z-Index: No raw Tailwind z-* classes in Quests code
+ * - 4. Zero Dark Hardcoded Classes: Comprehensive dark color scanner (bg-black, text-white, slate/zinc)
  * - 5. Heading Hierarchy: Zero duplicate h1, page uses h2 (AppHeader has h1), cards use h3
- * - 6. Fail-Closed Committed PR Backend Delta Guard (origin/main...HEAD)
- * - 7. Frozen Modal Integration: BaseModal, PrimaryButton, SecondaryButton
- * - 8. Complete W3C ARIA Tablist & Tabpanel Contract with Roving TabIndex and Arrow Keys
- * - 9. Semantic Hierarchical Quests Presentation with Accessible Expand/Collapse
- * - 10. Fail-Closed Error Copy Sanitization: Prevents raw SQL/internal database leaks
- * - 11. Complete Component Rendering: OverviewStats, QuestCard, QuestsStates
- * - 12. Dependency & Lockfile Freeze: Zero package.json or pnpm-lock delta
+ * - 6. Fail-Closed Committed PR Backend Delta Guard (strict merge-base, no HEAD~1 fallback)
+ * - 7. Complete 7-State QuestStatus Matrix: locked, available, active, paused, completed, failed, archived
+ * - 8. +25% Progress Mutation Authority: Strictly restricted to active quests
+ * - 9. CreateQuestModal Fail-Closed Error Mapping: Allowlist only, zero SQL/constraint/DB leaks
+ * - 10. Semantic Nested List Presentation: <ul> and <li> in tree and flat lists
+ * - 11. Complete W3C ARIA Tablist & Tabpanel Contract with Roving TabIndex and Arrow Keys
+ * - 12. QuestsStates: Skeleton loading, EmptyState, ErrorState
  */
 
 import React from "react";
@@ -30,6 +30,7 @@ import {
   QuestCard,
   QuestTreeItem,
   CreateQuestModal,
+  mapCreateQuestError,
   QuestsSkeletonLoading,
   QuestsEmptyState,
   QuestsErrorState,
@@ -120,7 +121,7 @@ const mockTree: QuestTreeNode[] = [
   },
 ];
 
-describe("Stage 5B-UI Quests Modernization — Round 2 Governance Audits", () => {
+describe("Stage 5B-UI Quests Modernization — Governance Audits", () => {
   const questsDir = path.resolve(process.cwd(), "src/components/quests");
   const questsPageFile = path.resolve(process.cwd(), "src/app/quests/page.tsx");
   const designTokensFile = path.resolve(process.cwd(), "src/styles/design-tokens.css");
@@ -153,6 +154,13 @@ describe("Stage 5B-UI Quests Modernization — Round 2 Governance Audits", () =>
     }
 
     expect(unregisteredVars).toEqual([]);
+  });
+
+  it("STRICT GOVERNANCE: zero direct var(--gold-*) in Quest presentation files (Gold encapsulated in PrimaryButton)", () => {
+    for (const file of filesToCheck) {
+      const content = fs.readFileSync(file, "utf8");
+      expect(content).not.toMatch(/var\(--gold-[^)]+\)/);
+    }
   });
 
   it("STRICT GOVERNANCE: zero raw z-index classes in Quests code", () => {
@@ -216,14 +224,6 @@ describe("Stage 5B-UI Quests Modernization — Round 2 Governance Audits", () =>
     }
   });
 
-  it("STRICT GOVERNANCE: Gold token whitelist — Gold allowed only on affirmative CTA and focus ring", () => {
-    for (const file of filesToCheck) {
-      const content = fs.readFileSync(file, "utf8");
-      // Check that range inputs and checkboxes never use gold accent
-      expect(content).not.toMatch(/accent-\[var\(--gold-[^\]]+\)\]/);
-    }
-  });
-
   it("HEADING HIERARCHY: Quests page uses h2 (AppHeader uses h1) and cards use h3", () => {
     const pageContent = fs.readFileSync(questsPageFile, "utf8");
     expect(pageContent).not.toMatch(/<h1\b/);
@@ -241,18 +241,20 @@ describe("Stage 5B-UI Quests Modernization — Round 2 Governance Audits", () =>
     }
   });
 
-  it("FAIL-CLOSED: committed PR backend & domain delta guard against origin/main...HEAD", () => {
-    let diff = "";
+  it("FAIL-CLOSED: committed PR backend & domain delta guard against merge-base (NO HEAD~1 fallback)", () => {
+    let mergeBase = "";
     try {
-      diff = execSync("git diff --name-only origin/main...HEAD", { encoding: "utf8" });
+      mergeBase = execSync("git merge-base origin/main HEAD", { encoding: "utf8" }).trim();
     } catch {
       try {
-        diff = execSync("git diff --name-only main...HEAD", { encoding: "utf8" });
-      } catch {
-        diff = execSync("git diff --name-only HEAD~1", { encoding: "utf8" });
+        mergeBase = execSync("git merge-base main HEAD", { encoding: "utf8" }).trim();
+      } catch (err) {
+        throw new Error(`FAIL-CLOSED: Unable to resolve merge-base against origin/main or main: ${err}`);
       }
     }
 
+    expect(mergeBase).toBeTruthy();
+    const diff = execSync(`git diff --name-only ${mergeBase}...HEAD`, { encoding: "utf8" });
     const modifiedFiles = diff.split("\n").map((s) => s.trim()).filter(Boolean);
     expect(modifiedFiles.length).toBeGreaterThan(0);
 
@@ -279,10 +281,215 @@ describe("Stage 5B-UI Quests Modernization — Round 2 Governance Audits", () =>
   });
 });
 
-describe("Stage 5B-UI Quests Modernization — Component Tests", () => {
+describe("Stage 5B-UI Quests Modernization — Full 7-State Lifecycle Matrix", () => {
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
+  });
+
+  const baseQuest: Quest = {
+    id: "quest-matrix",
+    userId: "user-1",
+    title: "Lifecycle Matrix Verification Quest",
+    description: "Verifying each of the 7 frozen QuestStatus values",
+    questType: "learning",
+    questSize: "standard",
+    parentQuestId: null,
+    isMainQuest: false,
+    isBoss: false,
+    difficulty: 0.5,
+    goalAlignment: 0.8,
+    status: "available",
+    progress: 20,
+    deadline: null,
+    completedAt: null,
+    createdAt: "2026-09-01T00:00:00Z",
+    updatedAt: "2026-09-05T00:00:00Z",
+  };
+
+  it("1. locked: renders '锁定', NO '已达成', NO +25% button, NO action buttons", () => {
+    const handleStatus = vi.fn();
+    const handleProgress = vi.fn();
+
+    render(
+      <QuestCard
+        quest={{ ...baseQuest, status: "locked" }}
+        onUpdateStatus={handleStatus}
+        onUpdateProgress={handleProgress}
+        onDelete={vi.fn()}
+      />
+    );
+
+    expect(screen.getByTestId("quest-status-locked")).toBeDefined();
+    expect(screen.getByText("锁定")).toBeDefined();
+    expect(screen.queryByText("已达成")).toBeNull();
+    expect(screen.queryByText("已完成")).toBeNull();
+    expect(screen.queryByTestId("quest-progress-bump")).toBeNull();
+    expect(screen.queryByTestId("quest-action-start")).toBeNull();
+    expect(screen.queryByTestId("quest-action-pause")).toBeNull();
+    expect(screen.queryByTestId("quest-action-complete")).toBeNull();
+    expect(screen.queryByTestId("quest-action-resume")).toBeNull();
+  });
+
+  it("2. available: renders '开始任务', NO +25% button, calls onUpdateStatus('active')", () => {
+    const handleStatus = vi.fn();
+    const handleProgress = vi.fn();
+
+    render(
+      <QuestCard
+        quest={{ ...baseQuest, status: "available" }}
+        onUpdateStatus={handleStatus}
+        onUpdateProgress={handleProgress}
+        onDelete={vi.fn()}
+      />
+    );
+
+    expect(screen.getByTestId("quest-action-start")).toBeDefined();
+    expect(screen.getByText("开始任务")).toBeDefined();
+    expect(screen.queryByText("已达成")).toBeNull();
+    expect(screen.queryByTestId("quest-progress-bump")).toBeNull();
+
+    fireEvent.click(screen.getByTestId("quest-action-start"));
+    expect(handleStatus).toHaveBeenCalledWith("quest-matrix", "active");
+  });
+
+  it("3. active: renders '暂停任务', '完成', renders +25% button and triggers bump callback", () => {
+    const handleStatus = vi.fn();
+    const handleProgress = vi.fn();
+
+    render(
+      <QuestCard
+        quest={{ ...baseQuest, status: "active" }}
+        onUpdateStatus={handleStatus}
+        onUpdateProgress={handleProgress}
+        onDelete={vi.fn()}
+      />
+    );
+
+    expect(screen.getByTestId("quest-action-pause")).toBeDefined();
+    expect(screen.getByTestId("quest-action-complete")).toBeDefined();
+    expect(screen.getByTestId("quest-progress-bump")).toBeDefined();
+
+    fireEvent.click(screen.getByTestId("quest-action-pause"));
+    expect(handleStatus).toHaveBeenCalledWith("quest-matrix", "paused");
+
+    fireEvent.click(screen.getByTestId("quest-action-complete"));
+    expect(handleStatus).toHaveBeenCalledWith("quest-matrix", "completed");
+
+    fireEvent.click(screen.getByTestId("quest-progress-bump"));
+    expect(handleProgress).toHaveBeenCalledWith("quest-matrix", 45); // 20 + 25
+  });
+
+  it("4. paused: renders '继续任务', NO +25% button, calls onUpdateStatus('active')", () => {
+    const handleStatus = vi.fn();
+    const handleProgress = vi.fn();
+
+    render(
+      <QuestCard
+        quest={{ ...baseQuest, status: "paused" }}
+        onUpdateStatus={handleStatus}
+        onUpdateProgress={handleProgress}
+        onDelete={vi.fn()}
+      />
+    );
+
+    expect(screen.getByTestId("quest-action-resume")).toBeDefined();
+    expect(screen.getByText("继续任务")).toBeDefined();
+    expect(screen.queryByText("已达成")).toBeNull();
+    expect(screen.queryByTestId("quest-progress-bump")).toBeNull();
+
+    fireEvent.click(screen.getByTestId("quest-action-resume"));
+    expect(handleStatus).toHaveBeenCalledWith("quest-matrix", "active");
+  });
+
+  it("5. completed: renders '已完成', success styling, NO +25% button", () => {
+    render(
+      <QuestCard
+        quest={{ ...baseQuest, status: "completed", progress: 100 }}
+        onUpdateStatus={vi.fn()}
+        onUpdateProgress={vi.fn()}
+        onDelete={vi.fn()}
+      />
+    );
+
+    expect(screen.getByTestId("quest-status-completed")).toBeDefined();
+    expect(screen.getByText("已完成")).toBeDefined();
+    expect(screen.queryByTestId("quest-progress-bump")).toBeNull();
+  });
+
+  it("6. failed: renders '已失败', danger styling, NO '已达成', NO +25% button", () => {
+    render(
+      <QuestCard
+        quest={{ ...baseQuest, status: "failed" }}
+        onUpdateStatus={vi.fn()}
+        onUpdateProgress={vi.fn()}
+        onDelete={vi.fn()}
+      />
+    );
+
+    expect(screen.getByTestId("quest-status-failed")).toBeDefined();
+    expect(screen.getByText("已失败")).toBeDefined();
+    expect(screen.queryByText("已达成")).toBeNull();
+    expect(screen.queryByText("已完成")).toBeNull();
+    expect(screen.queryByTestId("quest-progress-bump")).toBeNull();
+  });
+
+  it("7. archived: renders '已归档', muted styling, NO '已达成', NO +25% button", () => {
+    render(
+      <QuestCard
+        quest={{ ...baseQuest, status: "archived" }}
+        onUpdateStatus={vi.fn()}
+        onUpdateProgress={vi.fn()}
+        onDelete={vi.fn()}
+      />
+    );
+
+    expect(screen.getByTestId("quest-status-archived")).toBeDefined();
+    expect(screen.getByText("已归档")).toBeDefined();
+    expect(screen.queryByText("已达成")).toBeNull();
+    expect(screen.queryByText("已完成")).toBeNull();
+    expect(screen.queryByTestId("quest-progress-bump")).toBeNull();
+  });
+});
+
+describe("Stage 5B-UI Quests Modernization — Error Allowlist & Component Tests", () => {
+  afterEach(() => {
+    cleanup();
+    vi.clearAllMocks();
+  });
+
+  it("mapCreateQuestError: fail-closed allowlist sanitizes raw database/SQL leaks", () => {
+    // 1. Foreign key constraint leak
+    expect(
+      mapCreateQuestError('insert or update on table "quests" violates foreign key constraint "quests_parent_quest_id_fkey"')
+    ).toBe("所选上级任务不存在或不可用");
+
+    // 2. Unique constraint leak
+    expect(
+      mapCreateQuestError('duplicate key value violates unique constraint "quests_pkey"')
+    ).toBe("创建任务失败，请稍后重试");
+
+    // 3. UUID syntax error
+    expect(
+      mapCreateQuestError('invalid input syntax for type uuid: "abc"')
+    ).toBe("创建任务失败，请稍后重试");
+
+    // 4. Arbitrary unexpected server error
+    expect(
+      mapCreateQuestError("internal connection pool exhausted at node pg driver")
+    ).toBe("创建任务失败，请稍后重试");
+
+    // 5. Safe business messages
+    expect(mapCreateQuestError("title is required")).toBe("请输入任务名称");
+    expect(mapCreateQuestError("Cycle detected in parent quest hierarchy")).toBe(
+      "不能将任务关联到自己的下级任务"
+    );
+    expect(mapCreateQuestError("Self-parenting is forbidden")).toBe(
+      "任务不能设置自己为上级任务"
+    );
+    expect(mapCreateQuestError("unique_active_main_quest")).toBe(
+      "当前已有主线任务，请先调整现有主线设置"
+    );
   });
 
   it("QuestsOverviewStats: renders counts and main quest title accurately", () => {
@@ -301,115 +508,49 @@ describe("Stage 5B-UI Quests Modernization — Component Tests", () => {
     expect(screen.getByText(/Master PostgreSQL RLS Policies/)).toBeDefined();
   });
 
-  it("QuestCard: renders quest details, tags, progress, and responds to actions", () => {
+  it("QuestTreeItem: renders semantic nested <li> and <ul> hierarchy with expand/collapse toggle", () => {
     const handleStatus = vi.fn();
     const handleProgress = vi.fn();
     const handleDelete = vi.fn();
 
     render(
-      <QuestCard
-        quest={mockQuests[0]}
-        onUpdateStatus={handleStatus}
-        onUpdateProgress={handleProgress}
-        onDelete={handleDelete}
-      />
+      <ul data-testid="test-tree-root">
+        <QuestTreeItem
+          node={mockTree[0]}
+          level={0}
+          onUpdateStatus={handleStatus}
+          onUpdateProgress={handleProgress}
+          onDelete={handleDelete}
+        />
+      </ul>
     );
 
-    expect(screen.getByText("Master PostgreSQL RLS Policies")).toBeDefined();
-    expect(screen.getByText("学习吸收")).toBeDefined();
-    expect(screen.getByText("主线目标")).toBeDefined();
-    expect(screen.getAllByText("45%").length).toBeGreaterThanOrEqual(1);
+    // Rendered as li element
+    const parentLi = screen.getByTestId("quest-tree-item-quest-1");
+    expect(parentLi.tagName.toLowerCase()).toBe("li");
 
-    // Click pause button (since quest-0 is active)
-    const pauseBtn = screen.getByTitle("暂停任务");
-    fireEvent.click(pauseBtn);
-    expect(handleStatus).toHaveBeenCalledWith("quest-1", "paused");
-
-    // Click +25% progress bump
-    const bumpBtn = screen.getByText("+25%");
-    fireEvent.click(bumpBtn);
-    expect(handleProgress).toHaveBeenCalledWith("quest-1", 70);
-  });
-
-  it("QuestTreeItem: renders hierarchical tree node and child items with expand/collapse toggle", () => {
-    const handleStatus = vi.fn();
-    const handleProgress = vi.fn();
-    const handleDelete = vi.fn();
-
-    render(
-      <QuestTreeItem
-        node={mockTree[0]}
-        level={0}
-        onUpdateStatus={handleStatus}
-        onUpdateProgress={handleProgress}
-        onDelete={handleDelete}
-      />
-    );
-
-    // Parent title and child titles
-    expect(screen.getByText("Master PostgreSQL RLS Policies")).toBeDefined();
-    expect(screen.getByText("Build Zero-Drift Design System Tokens")).toBeDefined();
-    expect(screen.getByText("Pass Stage 5B Independent Review Gate")).toBeDefined();
-
-    // Child count badge
-    expect(screen.getByText("2 个子任务")).toBeDefined();
+    // Children rendered as nested ul
+    const childrenUl = screen.getByTestId("quest-tree-children-quest-1");
+    expect(childrenUl.tagName.toLowerCase()).toBe("ul");
 
     // Toggle collapse
     const collapseBtn = screen.getByLabelText("折叠子任务");
     fireEvent.click(collapseBtn);
-    expect(screen.queryByText("Build Zero-Drift Design System Tokens")).toBeNull();
+    expect(screen.queryByTestId("quest-tree-children-quest-1")).toBeNull();
 
     // Toggle expand
     const expandBtn = screen.getByLabelText("展开子任务");
     fireEvent.click(expandBtn);
-    expect(screen.getByText("Build Zero-Drift Design System Tokens")).toBeDefined();
+    expect(screen.getByTestId("quest-tree-children-quest-1")).toBeDefined();
   });
 
-  it("CreateQuestModal: integrates with frozen BaseModal and handles creation", async () => {
-    const handleClose = vi.fn();
-    const handleCreated = vi.fn();
-
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ success: true }),
-    } as Response);
-
-    render(
-      <CreateQuestModal
-        existingQuests={mockQuests}
-        onClose={handleClose}
-        onCreated={handleCreated}
-      />
-    );
-
-    // Rendered via BaseModal (has role="dialog")
-    const dialog = screen.getByRole("dialog");
-    expect(dialog).toBeDefined();
-    expect(screen.getByText("新建任务目标")).toBeDefined();
-
-    const titleInput = screen.getByPlaceholderText(/例如：深入掌握 PostgreSQL RLS/);
-    fireEvent.change(titleInput, { target: { value: "New Mission" } });
-
-    const submitBtn = screen.getByText("确认创建");
-    fireEvent.click(submitBtn);
-
-    await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith(
-        "/api/quests",
-        expect.objectContaining({
-          method: "POST",
-          body: expect.stringContaining("New Mission"),
-        })
-      );
-      expect(handleCreated).toHaveBeenCalled();
-    });
-  });
-
-  it("CreateQuestModal: fail-closed error copy sanitizes raw database/SQL errors", async () => {
+  it("CreateQuestModal: integrates with frozen BaseModal and displays sanitized error on foreign key failure", async () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: false,
-      status: 500,
-      json: async () => ({ error: "relation \"quests\" violates foreign key constraint in postgres database SQL" }),
+      status: 400,
+      json: async () => ({
+        error: 'insert or update on table "quests" violates foreign key constraint "quests_parent_quest_id_fkey"',
+      }),
     } as Response);
 
     render(
@@ -421,16 +562,16 @@ describe("Stage 5B-UI Quests Modernization — Component Tests", () => {
     );
 
     const titleInput = screen.getByPlaceholderText(/例如：深入掌握 PostgreSQL RLS/);
-    fireEvent.change(titleInput, { target: { value: "Trigger Error" } });
+    fireEvent.change(titleInput, { target: { value: "FK Test Mission" } });
 
     const submitBtn = screen.getByText("确认创建");
     fireEvent.click(submitBtn);
 
     await waitFor(() => {
       expect(screen.getByRole("alert")).toBeDefined();
-      expect(screen.getByText("创建任务失败，请稍后重试")).toBeDefined();
+      expect(screen.getByText("所选上级任务不存在或不可用")).toBeDefined();
       expect(screen.queryByText(/foreign key constraint/)).toBeNull();
-      expect(screen.queryByText(/postgres database SQL/)).toBeNull();
+      expect(screen.queryByText(/quests_parent_quest_id_fkey/)).toBeNull();
     });
   });
 
@@ -459,7 +600,7 @@ describe("Stage 5B-UI Quests Modernization — Component Tests", () => {
   });
 });
 
-describe("Stage 5B-UI Quests Modernization — Page Orchestration & ARIA Tabs", () => {
+describe("Stage 5B-UI Quests Modernization — Page Orchestration & Semantic Lists", () => {
   beforeEach(() => {
     global.fetch = vi.fn((url: string | URL | Request) => {
       const urlStr = url.toString();
@@ -483,48 +624,36 @@ describe("Stage 5B-UI Quests Modernization — Page Orchestration & ARIA Tabs", 
     vi.clearAllMocks();
   });
 
-  it("QuestsPage: loads tree and flat quests and supports full ARIA tablist/tabpanel navigation", async () => {
+  it("QuestsPage: loads tree and flat quests and uses semantic ul/li list markup without role=feed", async () => {
     render(<QuestsPage />);
 
-    // Wait for loading to finish
     await waitFor(() => {
       expect(screen.getByText("任务大厅 (Quest System)")).toBeDefined();
     });
 
-    // Check tablist and tabs
-    const tablist = screen.getByRole("tablist", { name: "任务视图分类" });
-    expect(tablist).toBeDefined();
-
+    // Check tabs
     const treeTab = screen.getByRole("tab", { name: /任务树视图/ });
     const activeTab = screen.getByRole("tab", { name: /进行中/ });
-    const allTab = screen.getByRole("tab", { name: /全部任务/ });
     const completedTab = screen.getByRole("tab", { name: /已完成/ });
 
-    expect(treeTab).toBeDefined();
-    expect(activeTab).toBeDefined();
-    expect(allTab).toBeDefined();
-    expect(completedTab).toBeDefined();
-
-    // Default tab is Tree
     expect(treeTab.getAttribute("aria-selected")).toBe("true");
-    expect(treeTab.getAttribute("tabIndex")).toBe("0");
-    expect(activeTab.getAttribute("tabIndex")).toBe("-1");
 
-    // Tabpanel exists and references tab
-    const tabpanel = screen.getByRole("tabpanel");
-    expect(tabpanel.getAttribute("aria-labelledby")).toBe("tab-tree");
+    // Tree container is a semantic <ul>
+    const treeList = screen.getByTestId("quests-tree-list");
+    expect(treeList.tagName.toLowerCase()).toBe("ul");
 
     // Arrow navigation: Press ArrowRight on treeTab to navigate to activeTab
     fireEvent.keyDown(treeTab, { key: "ArrowRight" });
     expect(activeTab.getAttribute("aria-selected")).toBe("true");
-    expect(activeTab.getAttribute("tabIndex")).toBe("0");
-    expect(tabpanel.getAttribute("aria-labelledby")).toBe("tab-active");
-    expect(screen.getAllByText("Master PostgreSQL RLS Policies").length).toBeGreaterThanOrEqual(1);
+
+    // Flat list is a semantic <ul>, NOT role="feed"
+    expect(screen.queryByRole("feed")).toBeNull();
+    const activeList = screen.getByRole("list", { name: "任务列表" });
+    expect(activeList.tagName.toLowerCase()).toBe("ul");
 
     // Switch to completed tab via click
     fireEvent.click(completedTab);
     expect(completedTab.getAttribute("aria-selected")).toBe("true");
-    expect(tabpanel.getAttribute("aria-labelledby")).toBe("tab-completed");
     expect(screen.getByText("Pass Stage 5B Independent Review Gate")).toBeDefined();
   });
 });

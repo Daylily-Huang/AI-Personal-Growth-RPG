@@ -12,6 +12,46 @@ export interface CreateQuestModalProps {
   onCreated: () => void;
 }
 
+/**
+ * Fail-closed error mapping allowlist for Quest creation.
+ * NEVER echoes arbitrary raw database, SQL, or internal server errors to the user interface.
+ */
+export function mapCreateQuestError(rawError: unknown): string {
+  if (typeof rawError !== "string") {
+    return "创建任务失败，请稍后重试";
+  }
+
+  const lower = rawError.toLowerCase();
+
+  if (lower.includes("title is required") || lower === "title required") {
+    return "请输入任务名称";
+  }
+  if (lower.includes("questtype") || lower.includes("quest_type")) {
+    return "任务类型无效";
+  }
+  if (lower.includes("questsize") || lower.includes("quest_size")) {
+    return "任务规模无效";
+  }
+  if (lower.includes("cycle detected")) {
+    return "不能将任务关联到自己的下级任务";
+  }
+  if (lower.includes("self-parenting")) {
+    return "任务不能设置自己为上级任务";
+  }
+  if (lower.includes("violates foreign key") || lower.includes("parent_quest_id")) {
+    return "所选上级任务不存在或不可用";
+  }
+  if (lower.includes("unique_active_main_quest")) {
+    return "当前已有主线任务，请先调整现有主线设置";
+  }
+  if (lower.includes("unauthorized") || lower.includes("session")) {
+    return "登录状态已过期，请重新登录";
+  }
+
+  // Fail-closed default: never leak table/column/constraint/SQL details
+  return "创建任务失败，请稍后重试";
+}
+
 export function CreateQuestModal({
   existingQuests,
   onClose,
@@ -54,26 +94,19 @@ export function CreateQuestModal({
       });
 
       if (!res.ok) {
-        let safeMsg = "创建任务失败，请稍后重试";
+        let rawErrorText: unknown = null;
         try {
           const data = await res.json();
-          if (
-            typeof data?.error === "string" &&
-            !data.error.toLowerCase().includes("sql") &&
-            !data.error.toLowerCase().includes("database") &&
-            !data.error.toLowerCase().includes("relation")
-          ) {
-            safeMsg = data.error;
-          }
+          rawErrorText = data?.error;
         } catch {
-          // Keep safe fallback
+          rawErrorText = null;
         }
-        throw new Error(safeMsg);
+        throw new Error(mapCreateQuestError(rawErrorText));
       }
 
       onCreated();
     } catch (err) {
-      setError(err instanceof Error && err.message ? err.message : "创建任务失败，请稍后重试");
+      setError(err instanceof Error ? err.message : "创建任务失败，请稍后重试");
     } finally {
       setSubmitting(false);
     }

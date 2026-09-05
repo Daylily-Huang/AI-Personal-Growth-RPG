@@ -12,6 +12,9 @@ import {
   Layers3,
   Route,
   Target,
+  Lock,
+  XCircle,
+  Archive,
 } from "lucide-react";
 
 export const QUEST_TYPE_META: Record<
@@ -159,15 +162,24 @@ export function QuestCard({
           </div>
         </div>
 
-        {/* Action Controls */}
+        {/* Action Controls by Full 7-State QuestStatus Matrix */}
         <div className="flex items-center gap-2 shrink-0">
-          {quest.status === "available" ? (
+          {quest.status === "locked" ? (
+            <span
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 min-h-[var(--touch-target-min)] rounded-xl text-xs font-[var(--font-weight-medium)] text-[var(--text-disabled)] bg-[var(--surface-ground)] border border-[var(--border-subtle)] select-none"
+              data-testid="quest-status-locked"
+            >
+              <Lock className="h-3.5 w-3.5 text-[var(--text-disabled)]" aria-hidden="true" />
+              <span>锁定</span>
+            </span>
+          ) : quest.status === "available" ? (
             <button
               type="button"
               onClick={() => onUpdateStatus(quest.id, "active")}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 min-h-[var(--touch-target-min)] rounded-xl text-xs font-[var(--font-weight-medium)] text-[var(--text-primary)] bg-[var(--surface-raised)] border border-[var(--border-default)] hover:border-[var(--border-hover-neutral)] transition-all cursor-pointer shadow-xs focus-visible:outline-[var(--focus-ring-width)] focus-visible:outline-[var(--focus-ring-color)]"
+              data-testid="quest-action-start"
             >
-              <Play className="h-3.5 w-3.5 text-[var(--text-secondary)]" />
+              <Play className="h-3.5 w-3.5 text-[var(--text-secondary)]" aria-hidden="true" />
               <span>开始任务</span>
             </button>
           ) : quest.status === "active" ? (
@@ -178,15 +190,17 @@ export function QuestCard({
                 className="inline-flex items-center justify-center p-2 min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] rounded-xl text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] bg-[var(--surface-ground)] border border-[var(--border-subtle)] hover:border-[var(--border-hover-neutral)] transition-all cursor-pointer shadow-xs focus-visible:outline-[var(--focus-ring-width)] focus-visible:outline-[var(--focus-ring-color)]"
                 title="暂停任务"
                 aria-label="暂停任务"
+                data-testid="quest-action-pause"
               >
-                <Pause className="h-3.5 w-3.5" />
+                <Pause className="h-3.5 w-3.5" aria-hidden="true" />
               </button>
               <button
                 type="button"
                 onClick={() => onUpdateStatus(quest.id, "completed")}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 min-h-[var(--touch-target-min)] rounded-xl text-xs font-[var(--font-weight-medium)] text-[var(--state-success-text)] bg-[var(--state-success-bg)] border border-[var(--state-success-border)] hover:bg-[var(--surface-hover-neutral)] transition-all cursor-pointer shadow-xs focus-visible:outline-[var(--focus-ring-width)] focus-visible:outline-[var(--focus-ring-color)]"
+                data-testid="quest-action-complete"
               >
-                <CheckCircle2 className="h-3.5 w-3.5 text-[var(--state-success-text)]" />
+                <CheckCircle2 className="h-3.5 w-3.5 text-[var(--state-success-text)]" aria-hidden="true" />
                 <span>完成</span>
               </button>
             </>
@@ -195,14 +209,35 @@ export function QuestCard({
               type="button"
               onClick={() => onUpdateStatus(quest.id, "active")}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 min-h-[var(--touch-target-min)] rounded-xl text-xs font-[var(--font-weight-medium)] text-[var(--text-primary)] bg-[var(--surface-raised)] border border-[var(--border-default)] hover:border-[var(--border-hover-neutral)] transition-all cursor-pointer shadow-xs focus-visible:outline-[var(--focus-ring-width)] focus-visible:outline-[var(--focus-ring-color)]"
+              data-testid="quest-action-resume"
             >
-              <Play className="h-3.5 w-3.5 text-[var(--text-secondary)]" />
+              <Play className="h-3.5 w-3.5 text-[var(--text-secondary)]" aria-hidden="true" />
               <span>继续任务</span>
             </button>
+          ) : quest.status === "completed" ? (
+            <span
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 min-h-[var(--touch-target-min)] rounded-xl text-xs font-[var(--font-weight-medium)] text-[var(--state-success-text)] bg-[var(--state-success-bg)] border border-[var(--state-success-border)] select-none"
+              data-testid="quest-status-completed"
+            >
+              <CheckCircle2 className="h-3.5 w-3.5 text-[var(--state-success-text)]" aria-hidden="true" />
+              <span>已完成</span>
+            </span>
+          ) : quest.status === "failed" ? (
+            <span
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 min-h-[var(--touch-target-min)] rounded-xl text-xs font-[var(--font-weight-medium)] text-[var(--state-danger-text)] bg-[var(--state-danger-bg)] border border-[var(--state-danger-border)] select-none"
+              data-testid="quest-status-failed"
+            >
+              <XCircle className="h-3.5 w-3.5 text-[var(--state-danger-text)]" aria-hidden="true" />
+              <span>已失败</span>
+            </span>
           ) : (
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-mono text-[var(--state-success-text)] bg-[var(--state-success-bg)] border border-[var(--state-success-border)]">
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              <span>已达成</span>
+            /* archived */
+            <span
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 min-h-[var(--touch-target-min)] rounded-xl text-xs font-[var(--font-weight-medium)] text-[var(--text-muted)] bg-[var(--surface-ground)] border border-[var(--border-subtle)] select-none"
+              data-testid="quest-status-archived"
+            >
+              <Archive className="h-3.5 w-3.5 text-[var(--text-muted)]" aria-hidden="true" />
+              <span>已归档</span>
             </span>
           )}
 
@@ -214,14 +249,14 @@ export function QuestCard({
             title="删除任务"
             aria-label={`删除任务 ${quest.title}`}
           >
-            <Trash2 className="h-4 w-4" />
+            <Trash2 className="h-4 w-4" aria-hidden="true" />
           </button>
         </div>
       </div>
 
       {/* Bottom Row: Progress Meter & Parameters */}
       <div className="pt-3 border-t border-[var(--border-subtle)] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-[var(--text-muted)]">
-        {/* Progress Bar & Quick Bump */}
+        {/* Progress Bar & Quick Bump (Restricted strictly to ACTIVE status) */}
         <div className="flex items-center gap-3 flex-1 min-w-[200px]">
           <span className="font-mono text-xs text-[var(--text-secondary)] shrink-0">
             {Math.round(quest.progress)}%
@@ -229,12 +264,13 @@ export function QuestCard({
           <div className="flex-1">
             <QuestProgress progress={quest.progress} size="sm" />
           </div>
-          {quest.status !== "completed" && (
+          {quest.status === "active" && (
             <button
               type="button"
               onClick={() => onUpdateProgress(quest.id, Math.min(100, quest.progress + 25))}
-              className="px-2 py-1 min-h-[var(--touch-target-min)] rounded-lg bg-[var(--surface-ground)] hover:bg-[var(--surface-raised)] border border-[var(--border-subtle)] text-xs font-mono text-[var(--text-secondary)] transition-colors cursor-pointer"
+              className="px-2 py-1 min-h-[var(--touch-target-min)] rounded-lg bg-[var(--surface-ground)] hover:bg-[var(--surface-raised)] border border-[var(--border-subtle)] text-xs font-mono text-[var(--text-secondary)] transition-colors cursor-pointer focus-visible:outline-[var(--focus-ring-width)] focus-visible:outline-[var(--focus-ring-color)]"
               title="快速推进 +25%"
+              data-testid="quest-progress-bump"
             >
               +25%
             </button>

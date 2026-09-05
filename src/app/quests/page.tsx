@@ -128,6 +128,11 @@ export default function QuestsPage() {
   }
 
   async function handleUpdateProgress(id: string, progress: number) {
+    const targetQuest = flatQuests.find((q) => q.id === id);
+    if (!targetQuest || targetQuest.status !== "active") {
+      // Progress increment is strictly restricted to active quests
+      return;
+    }
     try {
       const res = await fetch(`/api/quests/${id}`, {
         method: "PATCH",
@@ -277,7 +282,11 @@ export default function QuestsPage() {
             {flatQuests.length === 0 ? (
               <QuestsEmptyState onCreateQuest={() => setShowCreateModal(true)} />
             ) : activeTab === "tree" ? (
-              <div className="space-y-4" data-testid="quests-tree-list">
+              <ul
+                className="space-y-4 list-none p-0 m-0"
+                aria-label="层级任务树"
+                data-testid="quests-tree-list"
+              >
                 {tree.map((node) => (
                   <QuestTreeItem
                     key={node.id}
@@ -288,25 +297,26 @@ export default function QuestsPage() {
                     onDelete={handleDeleteQuest}
                   />
                 ))}
-              </div>
+              </ul>
             ) : (
-              <div className="grid gap-3" role="feed" aria-label="任务列表">
+              <ul className="grid gap-3 list-none p-0 m-0" aria-label="任务列表">
                 {filteredQuests.length === 0 ? (
-                  <div className="p-8 text-center text-xs text-[var(--text-muted)] border border-dashed border-[var(--border-subtle)] rounded-xl">
+                  <li className="p-8 text-center text-xs text-[var(--text-muted)] border border-dashed border-[var(--border-subtle)] rounded-xl list-none">
                     当前筛选下无匹配任务
-                  </div>
+                  </li>
                 ) : (
                   filteredQuests.map((quest) => (
-                    <QuestCard
-                      key={quest.id}
-                      quest={quest}
-                      onUpdateStatus={handleUpdateStatus}
-                      onUpdateProgress={handleUpdateProgress}
-                      onDelete={handleDeleteQuest}
-                    />
+                    <li key={quest.id} className="list-none">
+                      <QuestCard
+                        quest={quest}
+                        onUpdateStatus={handleUpdateStatus}
+                        onUpdateProgress={handleUpdateProgress}
+                        onDelete={handleDeleteQuest}
+                      />
+                    </li>
                   ))
                 )}
-              </div>
+              </ul>
             )}
           </div>
         </>
