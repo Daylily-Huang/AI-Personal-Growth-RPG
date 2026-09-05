@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, test } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -158,5 +158,128 @@ describe("Milestone 2.6 — mastery verification via service", () => {
     expect(verifications).toHaveLength(1);
     expect(verifications[0].toLevel).toBe(5);
     expect(verifications[0].status).toBe("pending");
+  });
+
+  test("P1-01: mastery change targeting an unrelated skill is never granted to primary skill", async () => {
+    // Primary skill is "Statistics", but the only mastery proposal is for "Unrelated Skill"
+    const unrelatedProposal: AssessmentProposal = {
+      ...proposal,
+      affected_skills: [{ name: "Statistics", reason: "used statistics" }],
+      evidence: { level: 2, explanation: "good explanation" },
+      mastery_changes: [
+        {
+          target_type: "skill",
+          target_name: "Unrelated Skill",
+          from_level: 0,
+          proposed_level: 2,
+          confidence: 0.8,
+          verification_required: false,
+          reason: "unrelated skill progress",
+        },
+      ],
+    };
+
+    const activity = await repo.addActivity({ rawInput: "只做了统计，未做其他技能" });
+    const assessment = await repo.addAssessment({
+      activityId: activity.id,
+      proposal: unrelatedProposal,
+      modelName: "test-model",
+      promptVersion: "test-prompt",
+    });
+
+    const result = await service.confirmAssessment(assessment.id);
+    expect(result.ok).toBe(true);
+
+    const statsSkill = await repo.getSkill("Statistics");
+    expect(statsSkill).toBeDefined();
+    // Prior to P1-01 fix, Statistics would have been mistakenly upgraded to 2!
+    expect(statsSkill?.masteryLevel).toBe(1); // Remains at initial masteryLevel 1
+
+    const verifications = await repo.listMasteryVerifications();
+    expect(verifications).toHaveLength(0);
+  });
+
+  test("P1-01: mastery change targeting knowledge with same name is never granted to skill", async () => {
+    const knowledgeProposal: AssessmentProposal = {
+      ...proposal,
+      affected_skills: [{ name: "Statistics", reason: "used statistics" }],
+      evidence: { level: 2, explanation: "good explanation" },
+      mastery_changes: [
+        {
+          target_type: "knowledge",
+          target_name: "Statistics", // same name, but target_type is knowledge!
+          from_level: 0,
+          proposed_level: 2,
+          confidence: 0.8,
+          verification_required: false,
+          reason: "knowledge node level",
+        },
+      ],
+    };
+
+    const activity = await repo.addActivity({ rawInput: "同名知识实体提议" });
+    const assessment = await repo.addAssessment({
+      activityId: activity.id,
+      proposal: knowledgeProposal,
+      modelName: "test-model",
+      promptVersion: "test-prompt",
+    });
+
+    const result = await service.confirmAssessment(assessment.id);
+    expect(result.ok).toBe(true);
+
+    const statsSkill = await repo.getSkill("Statistics");
+    expect(statsSkill?.masteryLevel).toBe(1); // Not upgraded to 2
+  });
+
+  test("P1-01: empty mastery changes yields no mastery action", async () => {
+    const emptyProposal: AssessmentProposal = {
+      ...proposal,
+      affected_skills: [{ name: "Statistics", reason: "used statistics" }],
+      mastery_changes: [],
+    };
+
+    const activity = await repo.addActivity({ rawInput: "无掌握度提议活动" });
+    const assessment = await repo.addAssessment({
+      activityId: activity.id,
+      proposal: emptyProposal,
+      modelName: "test-model",
+      promptVersion: "test-prompt",
+    });
+
+    const result = await service.confirmAssessment(assessment.id);
+    expect(result.ok).toBe(true);
+    const statsSkill = await repo.getSkill("Statistics");
+    expect(statsSkill?.masteryLevel).toBe(1);
+  });
+
+  test("P1-A & P2-01: new skill avoids empty ID query, existing skill queries countRecentSimilarTransactions", async () => {
+    const countSpy = vi.spyOn(repo, "countRecentSimilarTransactions");
+
+    // 1. P1-A: Brand new skill (not yet in DB) has empty skillId; must NOT call countRecentSimilarTransactions with empty UUID
+    const activity1 = await repo.addActivity({ rawInput: "全新技能首次沉淀" });
+    const assessment1 = await repo.addAssessment({
+      activityId: activity1.id,
+      proposal,
+      modelName: "test-model",
+      promptVersion: "test-prompt",
+    });
+
+    const result1 = await service.confirmAssessment(assessment1.id);
+    expect(result1.ok).toBe(true);
+    expect(countSpy).not.toHaveBeenCalled(); // Protected by P1-A short-circuit
+
+    // 2. P2-01: Existing skill has persistent ID; must call countRecentSimilarTransactions for accurate count
+    const activity2 = await repo.addActivity({ rawInput: "第二次使用统计技能" });
+    const assessment2 = await repo.addAssessment({
+      activityId: activity2.id,
+      proposal,
+      modelName: "test-model",
+      promptVersion: "test-prompt",
+    });
+
+    const result2 = await service.confirmAssessment(assessment2.id);
+    expect(result2.ok).toBe(true);
+    expect(countSpy).toHaveBeenCalled();
   });
 });

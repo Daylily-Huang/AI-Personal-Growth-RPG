@@ -58,10 +58,10 @@ const GRAPH: Pick<SkillTreeGraphResponse, "nodes" | "edges"> = {
 describe("Stage 5C — getSkillStateVisual maps every frozen derivedState", () => {
   const cases: Array<[Parameters<typeof getSkillStateVisual>[0], RegExp, string | null]> = [
     ["locked", /opacity-60/, "lock"],
-    ["available", /border-emerald-500/, null],
-    ["learning", /border-sky-500/, null],
-    ["proficient", /border-amber-500/, null],
-    ["advanced", /ring-purple-400\/60/, "crown"],
+    ["available", /border-\[var\(--state-success-border\)\]/, null],
+    ["learning", /border-\[var\(--state-info-border\)\]/, null],
+    ["proficient", /border-\[var\(--state-warning-border\)\]/, null],
+    ["advanced", /ring-\[var\(--entity-artifact-border\)\]/, null],
     ["archived", /repeating-linear-gradient/, null],
   ];
 
@@ -75,33 +75,33 @@ describe("Stage 5C — getSkillStateVisual maps every frozen derivedState", () =
     });
   }
 
-  test("locked is dimmed; available pulses; advanced carries crown ring", () => {
+  test("locked is dimmed; available pulses; advanced carries accent ring", () => {
     expect(getSkillStateVisual("locked").dimmed).toBe(true);
     expect(getSkillStateVisual("available").pulseDot).toBe(true);
-    expect(getSkillStateVisual("advanced").containerClass).toContain("ring-2");
+    expect(getSkillStateVisual("advanced").containerClass).toContain("ring-1");
   });
 });
 
 describe("Stage 5C — getRelationVisual respects Stage 5A relation semantics", () => {
-  test("prerequisite: solid sky arrow, animated", () => {
+  test("prerequisite: solid semantic line with arrow", () => {
     const v = getRelationVisual("prerequisite");
-    expect(v.color).toBe("#38bdf8");
+    expect(v.color).toBe("var(--state-info-text)");
     expect(v.strokeDasharray).toBeUndefined();
     expect(v.marker).toBe("arrow");
-    expect(v.animated).toBe(true);
+    expect(v.animated).toBe(false);
   });
 
-  test("contains: dashed purple with circle marker (NOT a mastery dependency)", () => {
+  test("contains: dashed line with circle marker (NOT a mastery dependency)", () => {
     const v = getRelationVisual("contains");
-    expect(v.color).toBe("#a855f7");
+    expect(v.color).toBe("var(--entity-artifact-text)");
     expect(v.strokeDasharray).toBeDefined();
     expect(v.marker).toBe("circle");
     expect(v.animated).toBe(false);
   });
 
-  test("supports: subtle dotted zinc, no marker", () => {
+  test("supports: subtle dotted line, no marker", () => {
     const v = getRelationVisual("supports");
-    expect(v.color).toBe("#71717a");
+    expect(v.color).toBe("var(--text-muted)");
     expect(v.strokeDasharray).toBeDefined();
     expect(v.marker).toBeNull();
     expect(v.animated).toBe(false);

@@ -22,17 +22,39 @@ function makeClient(): OpenAI | null {
     baseURL: AI_BASE_URL || undefined,
   });
 }
+export class AIAssessmentError extends Error {
+  readonly code: string;
+  readonly retryable: boolean;
+
+  constructor(message: string, code: string, retryable = true) {
+    super(message);
+    this.name = "AIAssessmentError";
+    this.code = code;
+    this.retryable = retryable;
+  }
+}
+
+export interface AssessActivityResult {
+  proposal: AssessmentProposal;
+  modelName: string;
+}
 
 /**
  * Server-side AI assessment.
  *
- * When no OpenAI-compatible credentials are configured, it falls back to a
- * deterministic local mock so the app remains runnable in demo mode.
- * In all cases the returned object is a Proposal — never a permanent write.
+ * When OpenAI-compatible credentials are configured, errors (network failure,
+ * empty content, invalid schema) are thrown as AIAssessmentError so the Activity
+ * remains pending_assessment and can be retried without polluting the production ledger.
+ *
+ * Deterministic local mock is restricted to demo mode and explicitly identified as such.
  */
-export async function assessActivity(context: AssessmentContext): Promise<AssessmentProposal> {
+export async function assessActivity(
+  context: AssessmentContext,
+  options?: { allowDemoFallback?: boolean }
+): Promise<AssessActivityResult> {
   const client = makeClient();
   if (client) {
+    let content: string | null | undefined;
     try {
       const completion = await client.chat.completions.create({
         model: AI_MODEL,
@@ -53,21 +75,52 @@ export async function assessActivity(context: AssessmentContext): Promise<Assess
         response_format: { type: "json_object" },
       });
 
-      const content = completion.choices[0]?.message?.content;
-      if (content) {
-        const proposal = parseProposalJson(content);
-        const parsed = AssessmentProposalSchema.safeParse(proposal);
-        if (parsed.success) {
-          return parsed.data;
-        }
-      }
+      content = completion.choices[0]?.message?.content;
     } catch (error) {
-      // Fall through to deterministic mock so an AI failure never deletes the Activity.
-      console.error("AI assessment failed, using local deterministic fallback:", error);
+      console.error("AI assessment failed, retaining Activity as pending_assessment:", error);
+      throw new AIAssessmentError(
+        `AI service request failed: ${error instanceof Error ? error.message : String(error)}`,
+        "ai_request_failed",
+        true
+      );
     }
+
+    if (!content || !content.trim()) {
+      throw new AIAssessmentError("AI service returned empty content", "ai_empty_content", true);
+    }
+
+    const proposal = parseProposalJson(content);
+    if (!proposal) {
+      throw new AIAssessmentError("AI response was not valid JSON", "ai_invalid_json", true);
+    }
+
+    const parsed = AssessmentProposalSchema.safeParse(proposal);
+    if (!parsed.success) {
+      console.error("AI proposal schema validation failed:", parsed.error);
+      throw new AIAssessmentError(
+        `AI proposal schema validation failed: ${parsed.error.message}`,
+        "ai_invalid_schema",
+        true
+      );
+    }
+
+    return { proposal: parsed.data, modelName: AI_MODEL };
   }
 
-  return mockAssessment(context);
+  // P1-B Fix: Fallback is ONLY allowed when caller explicitly grants allowDemoFallback === true.
+  // When Supabase is configured or in production, missing AI credentials MUST throw ai_not_configured.
+  if (options?.allowDemoFallback === true) {
+    return {
+      proposal: mockAssessment(context),
+      modelName: "local-deterministic-mock",
+    };
+  }
+
+  throw new AIAssessmentError(
+    "No AI service credentials configured and demo fallback is disabled",
+    "ai_not_configured",
+    false
+  );
 }
 
 function parseProposalJson(content: string): unknown {
