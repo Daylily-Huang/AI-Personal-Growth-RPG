@@ -79,8 +79,8 @@ The migration to the new Global Visual System follows a strict, layered implemen
 - **Objective**: Modernize existing product pages onto the shared primitive system.
 - **Deliverables**:
   - `/dashboard`: Overhauled practitioner overview with calm stat cards, active quests, and activity feed. ✅ **FINAL FROZEN** (Stage 5A-UI via PR #18)
-  - `/quests`: Quest hierarchy tree, milestone progress meters, and linked artifact indicators. ⏳ **NEXT STAGE** (Stage 5B-UI Quests Modernization)
-  - `/skills`: Interactive skill tree with hexagonal nodes, M0–M10 mastery badges, and evidence inspection (`SkillInspectorContent`). ⏳ **PENDING** (Stage 5C-UI Skills Modernization)
+  - `/quests`: Quest hierarchy tree, milestone progress meters, full 7-state lifecycle matrix, BaseModal creation flow, and semantic nested lists. ✅ **FINAL FROZEN** (Stage 5B-UI via PR #19)
+  - `/skills`: Interactive skill tree with hexagonal nodes, M0–M10 mastery badges, and evidence inspection (`SkillInspectorContent`). ⏳ **NEXT STAGE** (Stage 5C-UI Skills Modernization)
 
 ### Phase 6 — Knowledge Map Canvas Modernization
 - **Objective**: Modernize the force-directed graph canvas for Knowledge Nodes.
