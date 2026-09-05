@@ -39,8 +39,8 @@ export function toFlowEdges(edges: SkillFlowEdge[]): Edge[] {
       label: visual.label,
       labelShowBg: true,
       labelBgPadding: [4, 1] as [number, number],
-      labelBgStyle: { fill: "#0b0f17", fillOpacity: 0.85 },
-      labelStyle: { fill: visual.color, fontSize: 10 },
+      labelBgStyle: { fill: "var(--surface-base)", fillOpacity: 0.95 },
+      labelStyle: { fill: visual.color, fontSize: 10, fontWeight: 500 },
       animated: visual.animated,
       style: {
         stroke: visual.color,
@@ -66,7 +66,7 @@ function ContainsCircleMarkerDefs() {
           markerHeight="5"
           orient="auto-start-reverse"
         >
-          <circle cx="5" cy="5" r="3" fill="#a855f7" />
+          <circle cx="5" cy="5" r="3" fill="var(--entity-artifact-text)" />
         </marker>
       </defs>
     </svg>
@@ -98,15 +98,21 @@ function CanvasInner({
 
   useEffect(() => {
     if (!focusTarget) return;
+    const reducedMotion =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     void rf.setCenter(focusTarget.x + 112, focusTarget.y + 56, {
       zoom: 1.15,
-      duration: 600,
+      duration: reducedMotion ? 0 : 600,
     });
   }, [focusTarget, rf]);
 
   useEffect(() => {
+    const reducedMotion =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const timer = window.setTimeout(() => {
-      void rf.fitView({ padding: 0.2, duration: 450 });
+      void rf.fitView({ padding: 0.2, duration: reducedMotion ? 0 : 450 });
     }, 60);
     return () => window.clearTimeout(timer);
   }, [fitKey, rf]);
@@ -127,12 +133,23 @@ function CanvasInner({
       elementsSelectable
       deleteKeyCode={null}
       proOptions={{ hideAttribution: false }}
-      colorMode="dark"
-      className="h-full w-full"
+      colorMode="light"
+      className="h-full w-full bg-[var(--bg-deep-void)]"
     >
-      <Background variant={BackgroundVariant.Dots} gap={24} size={1} />
-      <Controls position="bottom-right" showInteractive={false} />
-      <MiniMap pannable zoomable position="bottom-left" className="!bg-slate-900" />
+      <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="var(--border-default)" />
+      <Controls
+        position="bottom-right"
+        showInteractive={false}
+        className="!bg-[var(--surface-raised)] !border !border-[var(--border-subtle)] !rounded-[var(--radius-md)] !shadow-[var(--shadow-card)]"
+      />
+      <MiniMap
+        pannable
+        zoomable
+        position="bottom-left"
+        className="!bg-[var(--surface-base)] !border !border-[var(--border-subtle)] !rounded-[var(--radius-md)] !shadow-[var(--shadow-card)]"
+        nodeColor="var(--border-default)"
+        maskColor="rgba(239, 236, 228, 0.70)"
+      />
     </ReactFlow>
   );
 }
