@@ -11,16 +11,23 @@ export interface AssessmentContext {
   relatedSkillNames?: string[];
 }
 
-const AI_MODEL = process.env.AI_MODEL ?? process.env.OPENAI_MODEL ?? "deepseek-v4-flash";
-const AI_BASE_URL = process.env.AI_BASE_URL ?? process.env.OPENAI_BASE_URL;
-const AI_API_KEY = process.env.AI_API_KEY ?? process.env.OPENAI_API_KEY;
+function getAiConfig() {
+  const model = process.env.AI_MODEL ?? process.env.OPENAI_MODEL ?? "deepseek-v4-flash";
+  const baseURL = process.env.AI_BASE_URL ?? process.env.OPENAI_BASE_URL;
+  const apiKey = process.env.AI_API_KEY ?? process.env.OPENAI_API_KEY;
+  return { model, baseURL, apiKey };
+}
 
-function makeClient(): OpenAI | null {
-  if (!AI_API_KEY && !AI_BASE_URL) return null;
-  return new OpenAI({
-    apiKey: AI_API_KEY || "local-bridge",
-    baseURL: AI_BASE_URL || undefined,
-  });
+function makeClient(): { client: OpenAI; model: string } | null {
+  const { model, baseURL, apiKey } = getAiConfig();
+  if (!apiKey && !baseURL) return null;
+  return {
+    client: new OpenAI({
+      apiKey: apiKey || "local-bridge",
+      baseURL: baseURL || undefined,
+    }),
+    model,
+  };
 }
 export class AIAssessmentError extends Error {
   readonly code: string;
@@ -52,12 +59,13 @@ export async function assessActivity(
   context: AssessmentContext,
   options?: { allowDemoFallback?: boolean }
 ): Promise<AssessActivityResult> {
-  const client = makeClient();
-  if (client) {
+  const clientInfo = makeClient();
+  if (clientInfo) {
+    const { client, model } = clientInfo;
     let content: string | null | undefined;
     try {
       const completion = await client.chat.completions.create({
-        model: AI_MODEL,
+        model,
         temperature: 0,
         messages: [
           { role: "system", content: SYSTEM_CONSTITUTION },
@@ -104,7 +112,7 @@ export async function assessActivity(
       );
     }
 
-    return { proposal: parsed.data, modelName: AI_MODEL };
+    return { proposal: parsed.data, modelName: model };
   }
 
   // P1-B Fix: Fallback is ONLY allowed when caller explicitly grants allowDemoFallback === true.

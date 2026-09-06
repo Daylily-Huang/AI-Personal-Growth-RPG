@@ -1,6 +1,7 @@
 import http from "node:http";
 import next from "next";
 import { describe, expect, test, beforeAll, afterAll } from "vitest";
+import { startDeterministicMockAiServer, type MockAiServerHandle } from "./helpers/mock-ai-server";
 import { createServerClient } from "@supabase/ssr";
 import type { Database } from "@/lib/supabase/database.types";
 
@@ -64,11 +65,16 @@ function createCookieJar() {
 describe.skipIf(!DATABASE_URL)("Stage 3.1 — Full Real HTTP / Browser Auth E2E (Live Next.js Server)", () => {
   let app: ReturnType<typeof next>;
   let server: http.Server;
+  let mockAi: MockAiServerHandle | null = null;
   const userAEmail = `e2e_player_a_${Date.now()}@growth.rpg`;
   const userBEmail = `e2e_player_b_${Date.now()}@growth.rpg`;
   const testPassword = "Password123!Safe";
 
   beforeAll(async () => {
+    if (!process.env.AI_BASE_URL && !process.env.OPENAI_BASE_URL) {
+      mockAi = await startDeterministicMockAiServer();
+    }
+
     app = next({
       dev: false,
       hostname: "127.0.0.1",
@@ -88,6 +94,9 @@ describe.skipIf(!DATABASE_URL)("Stage 3.1 — Full Real HTTP / Browser Auth E2E 
     }
     if (app) {
       await app.close();
+    }
+    if (mockAi) {
+      await mockAi.close();
     }
   });
 

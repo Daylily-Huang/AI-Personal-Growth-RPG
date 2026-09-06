@@ -32,8 +32,8 @@
 优先原则：`01_SYSTEM_RULES > 02_PRODUCT_DESIGN > 03_TECHNICAL_IMPLEMENTATION > 04~10 > 当前实现代码`。
 
 1. **Time is not XP (时间不是经验)**：单纯耗费时间不等于成长，严禁按照时长单纯线性折算经验。
-2. **XP is not Mastery (经验不是掌握度)**：积攒海量经验不能自动晋升掌握阶梯（Mastery Level 0~5），掌握度具有质变门槛。
-3. **High Mastery requires Evidence (高熟练度必须有确凿证据)**：M3 及以上的晋升必须关联经过验证的证据（Verified Evidence），绝不允许凭空晋升。
+2. **XP is not Mastery (经验不是掌握度)**：积攒海量经验不能自动晋升掌握阶梯（Mastery Level M0~M10），掌握度具有质变门槛与证据等级硬约束（见 `docs/Design ChatGPT/01_SYSTEM_RULES.md` Rule 4 与 `src/lib/growth-engine/mastery.ts`）。
+3. **High Mastery requires Evidence (高熟练度必须有确凿证据)**：晋升至 M5（Apply）及以上或单次跨级 >= 2 级必须关联经过验证的证据（Verified Evidence），且提议上限严格受证据等级约束（E0→M2, E1→M3, E2→M4, E3→M5, E4→M6, E5→M8, E6→M10），绝不允许凭空晋升。
 4. **LLM produces proposals; Application code commits permanent growth state (大模型只出提议，确定性代码拥有终审权)**：
    - 严禁让大语言模型直接写入或修改数据库。
    - LLM 只能生成结构化提议（Proposals），由用户通过两阶段确认流（Two-Phase Confirmation）后，经由后端确定性代码提交永久状态。

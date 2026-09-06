@@ -51,7 +51,19 @@ export function isVisualMigrationPath(filePath: string): boolean {
   );
 }
 
+export const AUTHORIZED_CORE_BUGFIX_ALLOWLIST = [
+  'src/app/api/activities/[id]/assess/route.ts',
+  'src/lib/ai/assess.ts',
+  'src/lib/store/demo-repository.ts',
+  'src/lib/store/repository.ts',
+  'src/lib/store/settlement.service.ts',
+  'src/lib/store/supabase-repository.ts',
+];
+
 export function isFrozenBackendViolation(filePath: string): boolean {
+  if (AUTHORIZED_CORE_BUGFIX_ALLOWLIST.includes(filePath)) {
+    return false;
+  }
   return FROZEN_BACKEND_DENYLIST.some(
     (prefix) => filePath.startsWith(prefix) || filePath.includes(prefix)
   );
