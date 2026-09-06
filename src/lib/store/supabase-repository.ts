@@ -85,6 +85,29 @@ export class SupabaseRepository implements Repository {
     });
   }
 
+  async countRecentSimilarTransactions(params: {
+    skillId: string;
+    activityType: string;
+    windowDays: number;
+  }): Promise<number> {
+    // P1-A Fix: brand new skill without a persistent UUID has 0 prior transactions.
+    // Querying PostgREST with an empty string causes a UUID syntax error.
+    if (!params.skillId || !params.skillId.trim()) {
+      return 0;
+    }
+
+    const since = new Date(Date.now() - params.windowDays * 86400000).toISOString();
+    const { count, error } = await this.client
+      .from("xp_transactions")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", this.userId)
+      .eq("skill_id", params.skillId)
+      .eq("activity_type", params.activityType)
+      .gte("created_at", since);
+    if (error) throw error;
+    return count ?? 0;
+  }
+
   async getSkill(name: string): Promise<SkillState | null> {
     const skills = await this.listSkills();
     const key = normalize(name);

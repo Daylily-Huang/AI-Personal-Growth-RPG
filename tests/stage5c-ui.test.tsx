@@ -136,7 +136,7 @@ describe("P1-2 #1 — SkillNode renders Stage 5B facts", () => {
     const { container } = render(<SkillNodeView {...nodeProps(data)} />);
 
     expect(screen.getByText("Deep Work")).toBeTruthy();
-    expect(screen.getByText("Lv.4")).toBeTruthy();
+    expect(screen.getByText(/lv\.4/i)).toBeTruthy();
     expect(screen.getByText("M3")).toBeTruthy();
     expect(container.textContent).toContain("45 XP · 置信 67%");
     expect(screen.getByText("认知")).toBeTruthy();
@@ -147,17 +147,17 @@ describe("P1-2 #1 — SkillNode renders Stage 5B facts", () => {
     const { container } = render(
       <SkillNodeView {...nodeProps(baseNodeData(), true)} />,
     );
-    expect(container.firstElementChild?.className).toContain("ring-1");
+    expect(container.firstElementChild?.className).toContain("ring-2");
   });
 });
 
 describe("P1-2 #2 — all six derived states render semantic presentation", () => {
   const cases: Array<[SkillNodeViewData["derivedState"], string, RegExp]> = [
     ["locked", "已锁定", /opacity-60/],
-    ["available", "可开始", /border-emerald-500/],
-    ["learning", "学习中", /border-sky-500/],
-    ["proficient", "熟练", /border-amber-500/],
-    ["advanced", "精通", /ring-purple-400\/60/],
+    ["available", "可开始", /border-\[var\(--state-success-border\)\]/],
+    ["learning", "学习中", /border-\[var\(--state-info-border\)\]/],
+    ["proficient", "熟练", /border-\[var\(--state-warning-border\)\]/],
+    ["advanced", "精通", /ring-\[var\(--entity-artifact-border\)\]/],
     ["archived", "已归档", /repeating-linear-gradient/],
   ];
 
@@ -172,12 +172,12 @@ describe("P1-2 #2 — all six derived states render semantic presentation", () =
     });
   }
 
-  test("locked shows the lock glyph; advanced shows the crown glyph; available pulses", () => {
+  test("locked shows the lock glyph; advanced renders mastery badge; available pulses", () => {
     const locked = render(<SkillNodeView {...nodeProps(baseNodeData({ derivedState: "locked" }))} />);
     expect(locked.container.querySelector(".lucide-lock")).toBeTruthy();
 
     const advanced = render(<SkillNodeView {...nodeProps(baseNodeData({ derivedState: "advanced" }))} />);
-    expect(advanced.container.querySelector(".lucide-crown")).toBeTruthy();
+    expect(advanced.container.querySelector('[data-testid="mastery-badge"]')).toBeTruthy();
 
     const available = render(<SkillNodeView {...nodeProps(baseNodeData({ derivedState: "available" }))} />);
     expect(available.container.querySelector(".animate-pulse")).toBeTruthy();
@@ -458,8 +458,15 @@ describe("P1-2 #6 — prerequisites use prereq.isFulfilled (no recomputation)", 
     const list = container.querySelector('section[aria-label="前置清单"]')!;
     const items = list.querySelectorAll("li");
     expect(items).toHaveLength(2);
-    expect(items[0].querySelector(".text-emerald-400")).toBeTruthy();
-    expect(items[1].querySelector(".text-rose-400")).toBeTruthy();
+    expect(
+      items[0].querySelector(".text-\\[var\\(--state-success-text\\)\\]") ||
+        items[0].querySelector("svg.lucide-check-circle-2") ||
+        items[0].querySelector("svg.lucide-check-circle"),
+    ).toBeTruthy();
+    expect(
+      items[1].querySelector(".text-\\[var\\(--state-danger-text\\)\\]") ||
+        items[1].querySelector("svg.lucide-x-circle"),
+    ).toBeTruthy();
     expect(list.textContent).toContain("M2 · 80%");
     expect(list.textContent).toContain("M1 · 30%");
   });
@@ -598,33 +605,37 @@ describe("P1-2 #9/#10 — PATCH payloads respect the authority whitelist", () =>
 // ---------------------------------------------------------------------------
 
 describe("P1-2 — toFlowEdges preserves frozen edge semantics", () => {
-  test("prerequisite: solid sky animated arrow", () => {
+  test("prerequisite: solid sky arrow (static, tokenized)", () => {
     const [edge] = toFlowEdges([
       { id: "e1", source: "a", target: "b", relation: "prerequisite" },
     ]);
-    expect(edge.animated).toBe(true);
-    expect(edge.style!.stroke).toBe("#38bdf8");
+    expect(edge.animated).toBe(false);
+    expect(edge.style!.stroke).toBe("var(--state-info-text)");
     expect(edge.style!.strokeDasharray).toBeUndefined();
-    expect(edge.markerEnd).toMatchObject({ type: MarkerType.ArrowClosed });
+    expect(edge.markerEnd).toMatchObject({
+      type: MarkerType.ArrowClosed,
+      color: "var(--state-info-text)",
+    });
   });
 
   test("contains: dashed purple line with the custom circle marker url", () => {
     const [edge] = toFlowEdges([
       { id: "e2", source: "a", target: "b", relation: "contains" },
     ]);
-    expect(edge.style!.stroke).toBe("#a855f7");
+    expect(edge.style!.stroke).toBe("var(--entity-artifact-text)");
     expect(edge.style!.strokeDasharray).toBe("6 4");
     expect(edge.markerEnd).toBe("url(#skill-edge-contains-circle)");
     expect(edge.animated).toBe(false);
   });
 
-  test("supports: dotted zinc, no marker", () => {
+  test("supports: dotted neutral/muted, no marker", () => {
     const [edge] = toFlowEdges([
       { id: "e3", source: "a", target: "b", relation: "supports" },
     ]);
-    expect(edge.style!.stroke).toBe("#71717a");
+    expect(edge.style!.stroke).toBe("var(--text-muted)");
     expect(edge.style!.strokeDasharray).toBe("2 4");
     expect(edge.markerEnd).toBeUndefined();
+    expect(edge.animated).toBe(false);
   });
 });
 

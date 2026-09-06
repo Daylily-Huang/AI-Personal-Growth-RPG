@@ -2,6 +2,7 @@ import http from "node:http";
 import crypto from "node:crypto";
 import next from "next";
 import { describe, expect, test, beforeAll, afterAll } from "vitest";
+import { startDeterministicMockAiServer, type MockAiServerHandle } from "./helpers/mock-ai-server";
 import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
@@ -114,8 +115,13 @@ describe.skipIf(!DATABASE_URL)("Stage 5D — Skills HTTP Integration, Tenant Iso
   let skillA3: { id: string; name: string };
   let skillB1: { id: string; name: string };
   let edgeAId: string;
+  let mockAi: MockAiServerHandle | null = null;
 
   beforeAll(async () => {
+    if (!process.env.AI_BASE_URL && !process.env.OPENAI_BASE_URL) {
+      mockAi = await startDeterministicMockAiServer();
+    }
+
     app = next({ dev: false, hostname: "127.0.0.1", port: TEST_PORT, dir: process.cwd() });
     await app.prepare();
     const handle = app.getRequestHandler();
@@ -142,6 +148,7 @@ describe.skipIf(!DATABASE_URL)("Stage 5D — Skills HTTP Integration, Tenant Iso
   afterAll(async () => {
     if (server) await new Promise<void>((resolve) => server.close(() => resolve()));
     if (app) await app.close();
+    if (mockAi) await mockAi.close();
   });
 
   test("unauthenticated requests hit 401 on every skills endpoint before any parsing", async () => {

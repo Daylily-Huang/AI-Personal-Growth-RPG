@@ -74,6 +74,11 @@ export interface Repository {
   getAssessment(id: string): Promise<Assessment | null>;
   listPendingAssessments(): Promise<Assessment[]>;
   listTransactions(): Promise<XpTransaction[]>;
+  countRecentSimilarTransactions(params: {
+    skillId: string;
+    activityType: string;
+    windowDays: number;
+  }): Promise<number>;
   getSkill(name: string): Promise<SkillState | null>;
   getSkillById(id: string): Promise<SkillState | null>;
   getSkillDetails(id: string): Promise<SkillDetailResponse | null>;

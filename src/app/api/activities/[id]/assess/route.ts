@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { getRequestRepository, AuthRequiredError } from "@/lib/store/request-repository";
 import { ActivityAlreadySettledError, STORE_ERROR_CODES } from "@/lib/store/errors";
-import { assessActivity } from "@/lib/ai/assess";
+import { assessActivity, AIAssessmentError } from "@/lib/ai/assess";
 import { getPromptVersion } from "@/lib/ai/prompts";
-import { AI_MODEL_NAME } from "@/lib/ai/config";
+import { isSupabaseConfigured } from "@/lib/supabase/env";
 
 export async function POST(_request: Request, ctx: { params: Promise<{ id: string }> }) {
   try {
@@ -31,18 +31,22 @@ export async function POST(_request: Request, ctx: { params: Promise<{ id: strin
     // so similarity can't be computed here. 0 is honest: the real repetition
     // penalty is enforced deterministically at confirm time (see similarity.ts).
     const recentSimilarCount = 0;
-    const proposal = await assessActivity({
-      rawInput: activity.rawInput,
-      totalMinutes: activity.totalMinutes,
-      effectiveMinutes: activity.effectiveMinutes,
-      recentSimilarCount,
-      activeMainQuest: null,
-    });
+    const isDemo = !isSupabaseConfigured();
+    const { proposal, modelName } = await assessActivity(
+      {
+        rawInput: activity.rawInput,
+        totalMinutes: activity.totalMinutes,
+        effectiveMinutes: activity.effectiveMinutes,
+        recentSimilarCount,
+        activeMainQuest: null,
+      },
+      { allowDemoFallback: isDemo }
+    );
 
     const assessment = await repo.addAssessment({
       activityId: activity.id,
       proposal,
-      modelName: AI_MODEL_NAME,
+      modelName,
       promptVersion: getPromptVersion(),
     });
 
@@ -54,6 +58,13 @@ export async function POST(_request: Request, ctx: { params: Promise<{ id: strin
       return NextResponse.json(
         { error: error.message, code: error.code },
         { status: 409 },
+      );
+    }
+    if (error instanceof AIAssessmentError) {
+      // P1-02: Retain Activity as pending_assessment; return retryable error without writing fake assessment
+      return NextResponse.json(
+        { error: error.message, code: error.code, retryable: error.retryable },
+        { status: 502 },
       );
     }
     console.error("Failed to assess activity", error);

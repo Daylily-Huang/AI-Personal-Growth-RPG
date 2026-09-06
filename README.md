@@ -2,28 +2,31 @@
 
 把现实中的学习、工作、技能训练与人生目标，转化为可验证的成长 RPG。
 
-当前实现：**MVP 最小垂直切片（Milestone 0→2）**。
+当前实现状态：**Phase 5 核心业务界面现代化收尾（Stage 5A/5B 最终冻结，Stage 5C Skills 现代化待审）**。  
+👉 **项目全景架构与治理主文档**：请参阅 [`docs/MASTER_PROJECT_HANDOFF.md`](docs/MASTER_PROJECT_HANDOFF.md)。
 
-## 当前 Phase
+## 当前系统里程碑进度
 
-- ✅ Next.js + TypeScript + Tailwind
-- ✅ 确定性 Growth Engine（XP / Level / Mastery / 防刷分）
-- ✅ Activity Quick Log
-- ✅ AI Assessment Proposal（支持 OpenAI-compatible bridge / 本地 mock fallback）
-- ✅ Proposal Review + Confirm
-- ✅ XP Ledger（幂等确认，重复 confirm 不会重复加分）
-- ✅ Dashboard / Activity History
-- ✅ Skill Tree（/skills，React Flow 交互图谱）
-- ⏳ Supabase 真实后端、Auth、RLS、Knowledge Map（下一步）
+- ✅ **Next.js 16 + React 19 + TypeScript + Tailwind CSS**
+- ✅ **确定性 Growth Engine**（XP / Level / Mastery / 防刷分与衰减）
+- ✅ **Activity 记录与双阶段确认流**（Activity Log -> AI Proposal -> Confirm）
+- ✅ **AI Assessment 提议引擎**（支持 OpenAI-compatible 本地 bridge / 生产模型，严格失败隔离）
+- ✅ **不可篡改 XP 账本**（PostgreSQL `xp_transactions`，RPC 权威结算）
+- ✅ **Supabase 真实后端生产栈**（PostgreSQL 15+, Row Level Security, RPC 事务, 迁移链 0001~0042）
+- ✅ **Quest 任务系统**（/quests，主支线层级，QuestSize 权威快照）
+- ✅ **Skills 技能树**（/skills，ReactFlow 水墨画布，单实例 InspectorDrawer 集成）
+- ✅ **Knowledge 知识图谱**（/knowledge，知识节点/连边，推断/验证状态机）
+- ✅ **Artifact 成果库**（/artifacts，Durable Work Product，关系图谱与链接）
+- 🚀 **全局水墨浅色优先视觉现代化**（Phase 1~4 已最终冻结，Phase 5 核心页面收尾中）
 
 ## 技术栈
 
-- Next.js 16 + App Router
-- TypeScript + Tailwind CSS
-- OpenAI-compatible Chat Completions（可配置 bridge）
-- Zod Structured Output 校验
-- Vitest
-- 本地 Demo Store（`.data/demo.json`），后续可替换为 Supabase
+- **Web 框架**: Next.js 16 (Turbopack, App Router) + React 19 + TypeScript (Strict)
+- **样式与设计系统**: Modern Eastern Ink-Wash (新中式水墨浅色优先，基于 CSS Design Tokens)
+- **数据库与安全**: Supabase (PostgreSQL 15+, RLS, RPC 存储过程, 触发器, Ledger)
+- **图谱与可视化**: ReactFlow (`@xyflow/react`) + SVG 拓扑网络
+- **AI 本地桥接**: WSL DSH (Minimax-m3 识图 + DeepSeek-v4-flash 文本推理)
+- **测试框架**: Vitest 4.1.10 (jsdom) + Growth Engine 确定性测试 Harness
 
 ## 启动
 
@@ -74,6 +77,8 @@ pnpm lint
 pnpm build
 ```
 
-## 文档
+## 文档与规范
 
-规范文档在 `docs/`，从 `docs/STARTUP_PROMPT.md` 开始阅读。
+- **全局交接与当前系统架构主文档**：从 [`docs/MASTER_PROJECT_HANDOFF.md`](docs/MASTER_PROJECT_HANDOFF.md) 开始阅读。
+- **业务与系统规范文档集**：位于 `docs/Design ChatGPT/`（从 `01_SYSTEM_RULES.md` 开始阅读）。
+- **视觉设计系统规范**：位于 `docs/DesignSystem/`（从 `01_GLOBAL_VISUAL_DIRECTION.md` 开始阅读）。

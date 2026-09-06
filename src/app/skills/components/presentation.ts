@@ -26,7 +26,7 @@ export interface SkillStateVisual {
   /** Node-level opacity treatment */
   dimmed: boolean;
   /** Semantic icon hint rendered by the node component */
-  icon: "lock" | "crown" | null;
+  icon: "lock" | null;
   /** Subtle pulsing indicator inside the state badge */
   pulseDot: boolean;
 }
@@ -34,8 +34,8 @@ export interface SkillStateVisual {
 const STATE_VISUALS: Record<SkillDerivedState, SkillStateVisual> = {
   locked: {
     label: "已锁定",
-    containerClass: "border-zinc-600 bg-slate-900/80 opacity-60",
-    badgeClass: "bg-zinc-700/50 text-zinc-300",
+    containerClass: "border-[var(--border-subtle)] bg-[var(--surface-base)] opacity-60",
+    badgeClass: "bg-[var(--surface-ground)] text-[var(--text-disabled)] border border-[var(--border-subtle)]",
     dimmed: true,
     icon: "lock",
     pulseDot: false,
@@ -43,8 +43,8 @@ const STATE_VISUALS: Record<SkillDerivedState, SkillStateVisual> = {
   available: {
     label: "可开始",
     containerClass:
-      "border-dashed border-emerald-500 bg-slate-900 shadow-[0_0_14px_rgba(16,185,129,0.18)]",
-    badgeClass: "bg-emerald-500/15 text-emerald-300",
+      "border-dashed border-[var(--state-success-border)] bg-[var(--surface-base)] shadow-[var(--shadow-card)]",
+    badgeClass: "bg-[var(--state-success-bg)] text-[var(--state-success-text)] border border-[var(--state-success-border)]",
     dimmed: false,
     icon: null,
     pulseDot: true,
@@ -52,8 +52,8 @@ const STATE_VISUALS: Record<SkillDerivedState, SkillStateVisual> = {
   learning: {
     label: "学习中",
     containerClass:
-      "border-sky-500 bg-slate-900 shadow-[0_0_14px_rgba(14,165,233,0.18)]",
-    badgeClass: "bg-sky-500/15 text-sky-300",
+      "border-[var(--state-info-border)] bg-[var(--surface-base)] shadow-[var(--shadow-card)]",
+    badgeClass: "bg-[var(--state-info-bg)] text-[var(--state-info-text)] border border-[var(--state-info-border)]",
     dimmed: false,
     icon: null,
     pulseDot: false,
@@ -61,8 +61,8 @@ const STATE_VISUALS: Record<SkillDerivedState, SkillStateVisual> = {
   proficient: {
     label: "熟练",
     containerClass:
-      "border-amber-500 bg-slate-900 shadow-[0_0_18px_rgba(245,158,11,0.28)]",
-    badgeClass: "bg-amber-500/15 text-amber-300",
+      "border-[var(--state-warning-border)] bg-[var(--surface-base)] shadow-[var(--shadow-card)]",
+    badgeClass: "bg-[var(--state-warning-bg)] text-[var(--state-warning-text)] border border-[var(--state-warning-border)]",
     dimmed: false,
     icon: null,
     pulseDot: false,
@@ -70,17 +70,17 @@ const STATE_VISUALS: Record<SkillDerivedState, SkillStateVisual> = {
   advanced: {
     label: "精通",
     containerClass:
-      "border-purple-500 ring-2 ring-purple-400/60 bg-slate-900 shadow-[0_0_22px_rgba(168,85,247,0.30)]",
-    badgeClass: "bg-purple-500/15 text-purple-300",
+      "border-[var(--entity-artifact-border)] bg-[var(--surface-base)] ring-1 ring-[var(--entity-artifact-border)] shadow-[var(--shadow-raised)]",
+    badgeClass: "bg-[var(--entity-artifact-bg)] text-[var(--entity-artifact-text)] border border-[var(--entity-artifact-border)]",
     dimmed: false,
-    icon: "crown",
+    icon: null,
     pulseDot: false,
   },
   archived: {
     label: "已归档",
     containerClass:
-      "border-zinc-700 bg-slate-950 opacity-70 [background-image:repeating-linear-gradient(45deg,rgba(113,113,122,0.10)_0px,rgba(113,113,122,0.10)_6px,transparent_6px,transparent_12px)]",
-    badgeClass: "bg-zinc-800/70 text-zinc-400",
+      "border-[var(--border-subtle)] bg-[var(--surface-ground)] opacity-70 [background-image:repeating-linear-gradient(45deg,rgba(30,36,43,0.04)_0px,rgba(30,36,43,0.04)_6px,transparent_6px,transparent_12px)]",
+    badgeClass: "bg-[var(--surface-ground)] text-[var(--text-muted)] border border-[var(--border-subtle)]",
     dimmed: false,
     icon: null,
     pulseDot: false,
@@ -121,14 +121,14 @@ export function getRelationVisual(relation: string): RelationVisual {
   switch (relation as SkillEdgeRelationType) {
     case "prerequisite":
       return {
-        color: "#38bdf8",
+        color: "var(--state-info-text)",
         marker: "arrow",
-        animated: true,
+        animated: false,
         label: "前置",
       };
     case "contains":
       return {
-        color: "#a855f7",
+        color: "var(--entity-artifact-text)",
         strokeDasharray: "6 4",
         marker: "circle",
         animated: false,
@@ -136,7 +136,7 @@ export function getRelationVisual(relation: string): RelationVisual {
       };
     case "supports":
       return {
-        color: "#71717a",
+        color: "var(--text-muted)",
         strokeDasharray: "2 4",
         marker: null,
         animated: false,
@@ -144,7 +144,7 @@ export function getRelationVisual(relation: string): RelationVisual {
       };
     default:
       return {
-        color: "#71717a",
+        color: "var(--text-muted)",
         marker: null,
         animated: false,
         label: relation,

@@ -8,7 +8,6 @@ import {
   BadgeCheck,
   CheckCircle2,
   ChevronRight,
-  Loader2,
   Pencil,
   X,
   XCircle,
@@ -18,6 +17,10 @@ import type {
   SkillDetailResponse,
   SkillDerivedState,
 } from "@/lib/store/types";
+import { BaseModal } from "@/components/ui/BaseModal";
+import { PrimaryButton } from "@/components/ui/PrimaryButton";
+import { SecondaryButton } from "@/components/ui/SecondaryButton";
+import { XPProgress } from "@/components/ui/XPProgress";
 import EvidenceTimeline from "./EvidenceTimeline";
 import { buildMetadataPatch, nextArchiveStatus, type SkillMetadataPatch } from "./controller";
 import { formatConfidence, formatTimestamp, getSkillStateVisual } from "./presentation";
@@ -31,7 +34,7 @@ function MasteryHistoryEventType({ eventType }: { eventType: string }) {
       : eventType === "request_verification"
         ? "待验证"
         : eventType;
-  return <span className="font-medium text-zinc-300">{label}</span>;
+  return <span className="font-medium text-[var(--text-primary)]">{label}</span>;
 }
 
 export default function SkillDetailPanel({
@@ -169,44 +172,37 @@ export default function SkillDetailPanel({
     ? getSkillStateVisual(detail.skill.derivedState as SkillDerivedState)
     : null;
 
-  const progress =
-    detail && detail.skill.nextLevelXp > 0
-      ? Math.min(100, Math.round((detail.skill.xp / detail.skill.nextLevelXp) * 100))
-      : detail
-        ? 100
-        : 0;
-
   return (
     <div className="flex h-full flex-col" aria-label="技能详情面板">
       {/* Panel header */}
-      <div className="border-b border-white/10 px-4 py-3">
+      <div className="border-b border-[var(--border-subtle)] px-4 py-3 bg-[var(--surface-base)]">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             {loading || !detail ? (
-              <div className="h-6 w-36 animate-pulse rounded bg-white/10" />
+              <div className="h-6 w-36 animate-pulse motion-reduce:animate-none rounded-[var(--radius-sm)] bg-[var(--surface-ground)]" />
             ) : (
-              <h2 className="truncate text-base font-semibold text-zinc-100" title={detail.skill.name}>
+              <h2 className="truncate text-base font-semibold text-[var(--text-primary)]" title={detail.skill.name}>
                 {detail.skill.name}
               </h2>
             )}
             {!loading && detail ? (
               <div className="mt-1 flex flex-wrap items-center gap-1.5">
                 {detail.skill.domainName ? (
-                  <span className="rounded bg-white/5 px-1.5 py-0.5 text-[10px] text-zinc-400">
+                  <span className="rounded-[var(--radius-sm)] bg-[var(--surface-ground)] border border-[var(--border-subtle)] px-1.5 py-0.5 text-[10px] text-[var(--text-secondary)]">
                     {detail.skill.domainName}
                   </span>
                 ) : null}
                 {detail.skill.aliases.map((alias) => (
                   <span
                     key={alias}
-                    className="rounded bg-sky-400/10 px-1.5 py-0.5 text-[10px] text-sky-300"
+                    className="rounded-[var(--radius-sm)] bg-[var(--surface-ground)] border border-[var(--border-subtle)] px-1.5 py-0.5 text-[10px] text-[var(--text-secondary)]"
                   >
                     {alias}
                   </span>
                 ))}
                 {stateVisual ? (
                   <span
-                    className={`rounded px-1.5 py-0.5 text-[10px] ${stateVisual.badgeClass}`}
+                    className={`rounded-[var(--radius-sm)] px-1.5 py-0.5 text-[10px] ${stateVisual.badgeClass}`}
                   >
                     {stateVisual.label}
                   </span>
@@ -222,7 +218,7 @@ export default function SkillDetailPanel({
                   onClick={openEditor}
                   aria-label="编辑技能元数据"
                   title="编辑元数据"
-                  className="rounded-md p-1.5 text-zinc-400 transition-colors hover:bg-white/5 hover:text-zinc-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400"
+                  className="rounded-[var(--radius-sm)] p-1.5 text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-hover-neutral)] hover:text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
                 >
                   <Pencil className="h-4 w-4" />
                 </button>
@@ -234,7 +230,7 @@ export default function SkillDetailPanel({
                     detail.skill.derivedState === "archived" ? "取消归档" : "归档技能"
                   }
                   title={detail.skill.derivedState === "archived" ? "取消归档" : "归档"}
-                  className="rounded-md p-1.5 text-zinc-400 transition-colors hover:bg-white/5 hover:text-zinc-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400 disabled:opacity-50"
+                  className="rounded-[var(--radius-sm)] p-1.5 text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-hover-neutral)] hover:text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)] disabled:opacity-50"
                 >
                   {detail.skill.derivedState === "archived" ? (
                     <ArchiveRestore className="h-4 w-4" />
@@ -248,7 +244,7 @@ export default function SkillDetailPanel({
               type="button"
               onClick={onClose}
               aria-label="关闭详情面板"
-              className="rounded-md p-1.5 text-zinc-400 transition-colors hover:bg-white/5 hover:text-zinc-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400"
+              className="rounded-[var(--radius-sm)] p-1.5 text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-hover-neutral)] hover:text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
             >
               <X className="h-4 w-4" />
             </button>
@@ -259,18 +255,18 @@ export default function SkillDetailPanel({
       {/* Body */}
       <div className="flex-1 space-y-5 overflow-y-auto px-4 py-4">
         {loading ? (
-          <div className="space-y-3" aria-label="加载中">
+          <div className="space-y-3" role="status" aria-busy="true" aria-label="加载中">
             {[0, 1, 2].map((i) => (
-              <div key={i} className="h-16 animate-pulse rounded-lg bg-white/[0.06]" />
+              <div key={i} className="h-16 animate-pulse motion-reduce:animate-none rounded-[var(--radius-md)] bg-[var(--surface-ground)]" />
             ))}
           </div>
         ) : error ? (
           <div className="flex flex-col items-center gap-3 pt-10 text-center">
-            <p className="text-sm text-red-300">{error}</p>
+            <p className="text-sm text-[var(--state-danger-text)]">{error}</p>
             <button
               type="button"
               onClick={reload}
-              className="rounded-lg border border-white/10 px-3 py-1.5 text-sm hover:bg-white/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400"
+              className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-raised)] px-3 py-1.5 text-sm text-[var(--text-primary)] hover:bg-[var(--surface-hover-neutral)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
             >
               重试
             </button>
@@ -279,54 +275,49 @@ export default function SkillDetailPanel({
           <>
             {/* Description (Stage 5B field; null → explicit empty state) */}
             <section aria-label="技能描述">
-              <h3 className="pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+              <h3 className="pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
                 描述
               </h3>
               {detail.skill.description ? (
-                <p className="whitespace-pre-wrap text-xs leading-relaxed text-zinc-300">
+                <p className="whitespace-pre-wrap text-xs leading-relaxed text-[var(--text-secondary)]">
                   {detail.skill.description}
                 </p>
               ) : (
-                <p className="text-xs text-zinc-600">暂无描述。</p>
+                <p className="text-xs text-[var(--text-disabled)]">暂无描述。</p>
               )}
             </section>
 
             {/* Progression */}
             <section aria-label="等级与掌握进度" className="space-y-3">
               <div>
-                <div className="flex items-center justify-between text-xs text-zinc-400">
-                  <span>Lv.{detail.skill.level}</span>
+                <div className="flex items-center justify-between text-xs text-[var(--text-secondary)]">
+                  <span className="font-semibold text-[var(--text-primary)]">Lv.{detail.skill.level}</span>
                   <span>
                     {detail.skill.xp} / {detail.skill.nextLevelXp} XP
                   </span>
                 </div>
-                <div
-                  className="mt-1 h-2 overflow-hidden rounded-full bg-white/10"
-                  role="progressbar"
-                  aria-valuenow={progress}
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-label="等级经验进度"
-                >
-                  <div
-                    className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-amber-400"
-                    style={{ width: `${progress}%` }}
+                <div className="mt-1">
+                  <XPProgress
+                    current={detail.skill.xp}
+                    max={detail.skill.nextLevelXp}
+                    showReadout={false}
+                    size="sm"
                   />
                 </div>
               </div>
 
               <div>
-                <div className="text-xs text-zinc-400">掌握阶梯</div>
+                <div className="text-xs text-[var(--text-secondary)]">掌握阶梯</div>
                 <div className="mt-1 flex flex-wrap gap-1">
                   {MASTERY_LADDER.map((m) => (
                     <span
                       key={m}
-                      className={`rounded px-1.5 py-0.5 font-mono text-[10px] ${
+                      className={`rounded-[var(--radius-sm)] px-1.5 py-0.5 font-mono text-[10px] ${
                         m === detail.skill.masteryLevel
-                          ? "bg-sky-500/30 font-bold text-sky-200 ring-1 ring-sky-400/60"
+                          ? "bg-[var(--surface-hover-neutral)] font-bold text-[var(--text-primary)] border border-[var(--border-hover-neutral)]"
                           : m < detail.skill.masteryLevel
-                            ? "bg-sky-500/10 text-sky-300/70"
-                            : "bg-white/5 text-zinc-600"
+                            ? "bg-[var(--surface-raised)] border border-[var(--border-subtle)] text-[var(--text-secondary)]"
+                            : "bg-[var(--surface-ground)] border border-[var(--border-subtle)] text-[var(--text-disabled)]"
                       }`}
                     >
                       M{m}
@@ -336,24 +327,24 @@ export default function SkillDetailPanel({
               </div>
 
               <div>
-                <div className="flex items-center justify-between text-xs text-zinc-400">
+                <div className="flex items-center justify-between text-xs text-[var(--text-secondary)]">
                   <span
                     title="置信度反映系统对该掌握等级的确定程度；≥50% 视为证据稳固"
-                    className="cursor-help underline decoration-dotted decoration-zinc-600 underline-offset-2"
+                    className="cursor-help underline decoration-dotted decoration-[var(--border-raised)] underline-offset-2"
                   >
                     掌握置信度
                   </span>
                   <span>{formatConfidence(detail.skill.masteryConfidence)}</span>
                 </div>
-                <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-white/10">
+                <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-[var(--surface-ground)] border border-[var(--border-subtle)]">
                   <div
-                    className="h-full rounded-full bg-sky-400"
+                    className="h-full rounded-full bg-[var(--state-info-text)] transition-all duration-[var(--duration-normal)]"
                     style={{ width: `${Math.round(detail.skill.masteryConfidence * 100)}%` }}
                   />
                 </div>
               </div>
 
-              <div className="space-y-0.5 text-[11px] text-zinc-500">
+              <div className="space-y-0.5 text-[11px] text-[var(--text-muted)]">
                 <div>
                   上次使用：
                   {detail.skill.lastUsedAt ? (
@@ -375,11 +366,11 @@ export default function SkillDetailPanel({
 
             {/* Prerequisites */}
             <section aria-label="前置清单">
-              <h3 className="pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+              <h3 className="pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
                 前置技能（M≥2 且置信≥50% 视为满足）
               </h3>
               {detail.prerequisites.length === 0 ? (
-                <p className="text-xs text-zinc-500">无前置技能。</p>
+                <p className="text-xs text-[var(--text-muted)]">无前置技能。</p>
               ) : (
                 <ul className="space-y-1">
                   {detail.prerequisites.map((prereq) => (
@@ -387,18 +378,18 @@ export default function SkillDetailPanel({
                       <button
                         type="button"
                         onClick={() => onFocusSkill(prereq.id)}
-                        className="flex w-full items-center gap-2 rounded-lg border border-transparent px-2 py-1.5 text-left text-xs transition-colors hover:border-white/10 hover:bg-white/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400"
+                        className="flex w-full items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-raised)] px-2 py-1.5 text-left text-xs transition-colors hover:border-[var(--border-hover-neutral)] hover:bg-[var(--surface-hover-neutral)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
                       >
                         {prereq.isFulfilled ? (
-                          <CheckCircle2 aria-hidden="true" className="h-4 w-4 shrink-0 text-emerald-400" />
+                          <CheckCircle2 aria-hidden="true" className="h-4 w-4 shrink-0 text-[var(--state-success-text)]" />
                         ) : (
-                          <XCircle aria-hidden="true" className="h-4 w-4 shrink-0 text-rose-400" />
+                          <XCircle aria-hidden="true" className="h-4 w-4 shrink-0 text-[var(--state-danger-text)]" />
                         )}
-                        <span className="min-w-0 flex-1 truncate text-zinc-200">{prereq.name}</span>
-                        <span className="shrink-0 text-[10px] text-zinc-500">
+                        <span className="min-w-0 flex-1 truncate text-[var(--text-primary)]">{prereq.name}</span>
+                        <span className="shrink-0 text-[10px] text-[var(--text-muted)]">
                           M{prereq.masteryLevel} · {formatConfidence(prereq.masteryConfidence)}
                         </span>
-                        <ChevronRight aria-hidden="true" className="h-3 w-3 shrink-0 text-zinc-600" />
+                        <ChevronRight aria-hidden="true" className="h-3 w-3 shrink-0 text-[var(--text-muted)]" />
                       </button>
                     </li>
                   ))}
@@ -408,11 +399,11 @@ export default function SkillDetailPanel({
 
             {/* Next unlocks */}
             <section aria-label="下一步解锁">
-              <h3 className="pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+              <h3 className="pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
                 下一步可解锁
               </h3>
               {detail.nextUnlocks.length === 0 ? (
-                <p className="text-xs text-zinc-500">暂无依赖此技能的后续解锁。</p>
+                <p className="text-xs text-[var(--text-muted)]">暂无依赖此技能的后续解锁。</p>
               ) : (
                 <ul className="grid grid-cols-1 gap-1.5">
                   {detail.nextUnlocks.map((unlock) => {
@@ -422,10 +413,10 @@ export default function SkillDetailPanel({
                         <button
                           type="button"
                           onClick={() => onFocusSkill(unlock.id)}
-                          className="flex w-full items-center gap-2 rounded-lg border border-white/10 bg-white/[0.02] px-2.5 py-1.5 text-left text-xs transition-colors hover:border-white/25 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400"
+                          className="flex w-full items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-raised)] px-2.5 py-1.5 text-left text-xs transition-colors hover:border-[var(--border-hover-neutral)] hover:bg-[var(--surface-hover-neutral)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
                         >
-                          <span className="min-w-0 flex-1 truncate text-zinc-200">{unlock.name}</span>
-                          <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] ${uv.badgeClass}`}>
+                          <span className="min-w-0 flex-1 truncate text-[var(--text-primary)]">{unlock.name}</span>
+                          <span className={`shrink-0 rounded-[var(--radius-sm)] px-1.5 py-0.5 text-[10px] ${uv.badgeClass}`}>
                             {uv.label}
                           </span>
                         </button>
@@ -438,7 +429,7 @@ export default function SkillDetailPanel({
 
             {/* Evidence timeline */}
             <section aria-label="证据时间线">
-              <h3 className="pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+              <h3 className="pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
                 证据与审计
               </h3>
               <EvidenceTimeline items={detail.evidenceTimeline} />
@@ -446,37 +437,37 @@ export default function SkillDetailPanel({
 
             {/* Mastery history */}
             <section aria-label="掌握历史">
-              <h3 className="pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+              <h3 className="pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
                 掌握变更历史
               </h3>
               {detail.masteryHistory.length === 0 ? (
-                <p className="text-xs text-zinc-500">暂无掌握等级变更记录。</p>
+                <p className="text-xs text-[var(--text-muted)]">暂无掌握等级变更记录。</p>
               ) : (
                 <ul className="space-y-1.5">
                   {detail.masteryHistory.map((event) => (
                     <li
                       key={event.id}
-                      className="rounded-lg border border-white/10 bg-white/[0.02] px-2.5 py-1.5 text-[11px]"
+                      className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-raised)] px-2.5 py-1.5 text-[11px]"
                     >
                       <div className="flex items-center gap-2">
-                        <BadgeCheck aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-sky-300" />
+                        <BadgeCheck aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-[var(--state-info-text)]" />
                         <MasteryHistoryEventType eventType={event.eventType} />
-                        <span className="font-mono text-zinc-400">
+                        <span className="font-mono text-[var(--text-secondary)]">
                           M{event.fromLevel}→M{event.toLevel}
                         </span>
                         <span
-                          className="shrink-0 rounded bg-sky-400/10 px-1 py-0.5 font-mono text-[10px] text-sky-300"
+                          className="shrink-0 rounded-[var(--radius-sm)] bg-[var(--state-info-bg)] border border-[var(--state-info-border)] px-1 py-0.5 font-mono text-[10px] text-[var(--state-info-text)]"
                           title="变更时的掌握置信度快照"
                         >
                           置信 {formatConfidence(event.confidence)}
                         </span>
-                        <span className="ml-auto shrink-0 text-zinc-500">
+                        <span className="ml-auto shrink-0 text-[var(--text-muted)]">
                           <time dateTime={event.createdAt}>{formatTimestamp(event.createdAt)}</time>
                         </span>
                       </div>
                       {event.reason ? (
                         <p
-                          className="mt-1 line-clamp-2 pl-[22px] leading-relaxed text-zinc-400"
+                          className="mt-1 line-clamp-2 pl-[22px] leading-relaxed text-[var(--text-secondary)]"
                           title={event.reason}
                         >
                           {event.reason}
@@ -490,25 +481,25 @@ export default function SkillDetailPanel({
 
             {/* Recent transactions */}
             <section aria-label="近期经验记录">
-              <h3 className="pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+              <h3 className="pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
                 近期 XP 记录
               </h3>
               {detail.recentTransactions.length === 0 ? (
-                <p className="text-xs text-zinc-500">暂无经验记录。</p>
+                <p className="text-xs text-[var(--text-muted)]">暂无经验记录。</p>
               ) : (
                 <ul className="space-y-1">
                   {detail.recentTransactions.map((tx) => (
                     <li
                       key={tx.id}
-                      className="flex items-center gap-2 rounded-lg px-2 py-1 text-[11px] hover:bg-white/5"
+                      className="flex items-center gap-2 rounded-[var(--radius-md)] px-2 py-1 text-[11px] hover:bg-[var(--surface-hover-neutral)]"
                     >
-                      <span className="w-14 shrink-0 font-mono text-amber-300">
+                      <span className="w-14 shrink-0 font-mono text-[var(--text-primary)] font-semibold">
                         +{tx.amount} XP
                       </span>
-                      <span className="min-w-0 flex-1 truncate text-zinc-400" title={tx.reason}>
+                      <span className="min-w-0 flex-1 truncate text-[var(--text-secondary)]" title={tx.reason}>
                         {tx.reason}
                       </span>
-                      <time dateTime={tx.createdAt} className="shrink-0 text-zinc-500">
+                      <time dateTime={tx.createdAt} className="shrink-0 text-[var(--text-muted)]">
                         {formatTimestamp(tx.createdAt)}
                       </time>
                     </li>
@@ -519,10 +510,10 @@ export default function SkillDetailPanel({
 
             {/* Future hooks — reserved containers, intentionally inert */}
             <section aria-label="预留区块" className="grid grid-cols-2 gap-2 pb-2">
-              <div className="rounded-lg border border-dashed border-white/10 p-2.5 text-center text-[10px] text-zinc-600">
+              <div className="rounded-[var(--radius-md)] border border-dashed border-[var(--border-subtle)] bg-[var(--surface-ground)] p-2.5 text-center text-[10px] text-[var(--text-disabled)]">
                 相关任务（预留）
               </div>
-              <div className="rounded-lg border border-dashed border-white/10 p-2.5 text-center text-[10px] text-zinc-600">
+              <div className="rounded-[var(--radius-md)] border border-dashed border-[var(--border-subtle)] bg-[var(--surface-ground)] p-2.5 text-center text-[10px] text-[var(--text-disabled)]">
                 产出作品（预留）
               </div>
             </section>
@@ -530,85 +521,71 @@ export default function SkillDetailPanel({
         ) : null}
       </div>
 
-      {/* Edit metadata modal */}
-      {editing ? (
-        <div
-          className="absolute inset-0 z-20 flex items-center justify-center bg-black/60 p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-label="编辑技能元数据"
-        >
-          <div className="max-h-full w-full max-w-sm overflow-y-auto rounded-xl border border-white/10 bg-[#101724] p-4 shadow-2xl">
-            <h3 className="text-sm font-semibold text-zinc-100">编辑技能元数据</h3>
-            {saveError ? (
-              <p className="mt-2 rounded bg-red-500/10 px-2 py-1 text-xs text-red-300" role="alert">
-                {saveError}
-              </p>
-            ) : null}
-            <div className="mt-3 space-y-3 text-xs">
-              <label className="block">
-                <span className="mb-1 block text-zinc-400">名称</span>
-                <input
-                  value={form.name}
-                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                  className="w-full rounded-md border border-white/15 bg-black/30 px-2 py-1.5 text-zinc-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400"
-                />
-              </label>
-              <label className="block">
-                <span className="mb-1 block text-zinc-400">别名（逗号分隔）</span>
-                <input
-                  value={form.aliases}
-                  onChange={(e) => setForm((f) => ({ ...f, aliases: e.target.value }))}
-                  className="w-full rounded-md border border-white/15 bg-black/30 px-2 py-1.5 text-zinc-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400"
-                />
-              </label>
-              <label className="block">
-                <span className="mb-1 block text-zinc-400">描述</span>
-                <textarea
-                  rows={3}
-                  value={form.description}
-                  onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-                  className="w-full resize-none rounded-md border border-white/15 bg-black/30 px-2 py-1.5 text-zinc-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400"
-                />
-              </label>
-              <label className="block">
-                <span className="mb-1 block text-zinc-400">领域</span>
-                <select
-                  value={form.domainId}
-                  onChange={(e) => setForm((f) => ({ ...f, domainId: e.target.value }))}
-                  className="w-full rounded-md border border-white/15 bg-black/30 px-2 py-1.5 text-zinc-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400"
-                >
-                  <option value="">（未分配）</option>
-                  {domains.map((domain) => (
-                    <option key={domain.id} value={domain.id}>
-                      {domain.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-            <div className="mt-4 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setEditing(false)}
-                disabled={saving}
-                className="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-zinc-300 hover:bg-white/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400 disabled:opacity-50"
-              >
-                取消
-              </button>
-              <button
-                type="button"
-                onClick={handleSave}
-                disabled={saving}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500/90 px-3 py-1.5 text-xs font-medium text-emerald-950 hover:bg-emerald-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400 disabled:opacity-50"
-              >
-                {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-                保存
-              </button>
-            </div>
+      {/* Edit metadata modal via BaseModal */}
+      <BaseModal
+        open={editing}
+        onClose={() => setEditing(false)}
+        title="编辑技能元数据"
+        ariaLabel="编辑技能元数据"
+        footer={
+          <div className="flex justify-end gap-2">
+            <SecondaryButton onClick={() => setEditing(false)} disabled={saving}>
+              取消
+            </SecondaryButton>
+            <PrimaryButton onClick={handleSave} loading={saving}>
+              保存
+            </PrimaryButton>
           </div>
+        }
+      >
+        <div className="space-y-3 text-xs">
+          {saveError ? (
+            <p className="rounded-[var(--radius-sm)] bg-[var(--state-danger-bg)] border border-[var(--state-danger-border)] px-2 py-1 text-xs text-[var(--state-danger-text)]" role="alert">
+              {saveError}
+            </p>
+          ) : null}
+          <label className="block">
+            <span className="mb-1 block text-[var(--text-secondary)]">名称</span>
+            <input
+              value={form.name}
+              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+              className="w-full rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-ground)] px-2 py-1.5 text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
+            />
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-[var(--text-secondary)]">别名（逗号分隔）</span>
+            <input
+              value={form.aliases}
+              onChange={(e) => setForm((f) => ({ ...f, aliases: e.target.value }))}
+              className="w-full rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-ground)] px-2 py-1.5 text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
+            />
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-[var(--text-secondary)]">描述</span>
+            <textarea
+              rows={3}
+              value={form.description}
+              onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+              className="w-full resize-none rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-ground)] px-2 py-1.5 text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
+            />
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-[var(--text-secondary)]">领域</span>
+            <select
+              value={form.domainId}
+              onChange={(e) => setForm((f) => ({ ...f, domainId: e.target.value }))}
+              className="w-full rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-ground)] px-2 py-1.5 text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
+            >
+              <option value="">（未分配）</option>
+              {domains.map((domain) => (
+                <option key={domain.id} value={domain.id}>
+                  {domain.name}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
-      ) : null}
+      </BaseModal>
     </div>
   );
 }

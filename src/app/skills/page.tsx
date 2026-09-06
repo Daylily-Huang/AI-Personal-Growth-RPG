@@ -12,6 +12,7 @@ import DomainFilterPanel from "./components/DomainFilterPanel";
 import { resolveFocusTarget } from "./components/controller";
 import SkillGraphCanvas, { type CanvasFocusTarget } from "./components/SkillGraphCanvas";
 import SkillDetailPanel from "./components/SkillDetailPanel";
+import { InspectorDrawer } from "@/components/layout/InspectorDrawer";
 import type { SkillFlowNodeType } from "./components/SkillNode";
 import {
   buildDomainList,
@@ -152,13 +153,16 @@ export default function SkillsPage() {
 
   return (
     <div className="flex flex-col h-full w-full min-h-0 overflow-hidden">
+      <h2 className="sr-only">技能图谱能力网络</h2>
+
       {/* Mobile/Tablet Local Toolbar (below lg) */}
       <div className="flex items-center justify-between gap-2 p-2.5 border-b border-[var(--border-subtle)] bg-[var(--surface-base)] lg:hidden">
         <button
           type="button"
           onClick={() => setMobileNavOpen(true)}
           aria-label="打开筛选面板"
-          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-raised)] text-xs text-[var(--text-primary)] hover:bg-[var(--surface-hover-neutral)] transition-colors"
+          aria-expanded={mobileNavOpen}
+          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-raised)] text-xs text-[var(--text-primary)] hover:bg-[var(--surface-hover-neutral)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
         >
           <SlidersHorizontal className="w-3.5 h-3.5" />
           <span>筛选</span>
@@ -174,10 +178,28 @@ export default function SkillsPage() {
             onChange={(e) => setSearch(e.target.value)}
             placeholder="搜索技能…"
             aria-label="搜索技能"
-            className="w-full rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-ground)] pl-8 pr-2.5 py-1 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-disabled)] focus:outline-none"
+            className="w-full rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-ground)] pl-8 pr-2.5 py-1 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-disabled)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
           />
         </div>
       </div>
+
+      {/* Mobile Inline Collapsible Filter Panel (Zero raw z-index overlay) */}
+      {mobileNavOpen ? (
+        <div className="lg:hidden border-b border-[var(--border-subtle)] bg-[var(--surface-base)] max-h-80 overflow-y-auto p-2">
+          <div className="flex items-center justify-between px-2 py-1 text-xs text-[var(--text-muted)] border-b border-[var(--border-subtle)] mb-2">
+            <span className="font-[var(--font-weight-medium)] text-[var(--text-primary)]">筛选选项</span>
+            <button
+              type="button"
+              onClick={() => setMobileNavOpen(false)}
+              className="rounded-[var(--radius-sm)] p-1 text-[var(--text-muted)] hover:bg-[var(--surface-hover-neutral)] hover:text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
+              aria-label="关闭筛选面板"
+            >
+              ✕
+            </button>
+          </div>
+          {filterPanel}
+        </div>
+      ) : null}
 
       {/* Main Workspace Row */}
       <div className="flex flex-1 min-h-0 w-full overflow-hidden">
@@ -207,13 +229,13 @@ export default function SkillsPage() {
         {/* CENTER — Interactive Canvas */}
         <section className="relative min-w-0 flex-1 h-full" aria-label="技能图谱画布">
           {loading ? (
-            <div className="flex h-full items-center justify-center gap-3 text-[var(--text-muted)]">
-              <Loader2 className="h-8 w-8 animate-spin text-emerald-300" aria-hidden="true" />
+            <div className="flex h-full items-center justify-center gap-3 text-[var(--text-muted)]" role="status" aria-busy="true" aria-label="正在加载技能树">
+              <Loader2 className="h-8 w-8 animate-spin motion-reduce:animate-none text-[var(--text-muted)]" aria-hidden="true" />
               <p className="text-sm">正在加载技能树…</p>
             </div>
           ) : error ? (
             <div className="flex h-full flex-col items-center justify-center gap-4 px-6 text-center">
-              <div className="text-[var(--state-danger-text)]">加载失败</div>
+              <div className="text-[var(--state-danger-text)] font-semibold">加载失败</div>
               <p className="max-w-md text-sm text-[var(--text-muted)]">{error}</p>
               <button
                 type="button"
@@ -228,7 +250,7 @@ export default function SkillsPage() {
               <div className="text-5xl" aria-hidden="true">
                 🌱
               </div>
-              <h2 className="text-xl font-semibold text-[var(--text-primary)]">还没有技能节点</h2>
+              <h3 className="text-xl font-semibold text-[var(--text-primary)]">还没有技能节点</h3>
               <p className="max-w-md text-sm text-[var(--text-muted)]">
                 完成第一次 Growth Assessment 并确认后，系统会根据真实行为建立技能树。
               </p>
@@ -265,56 +287,26 @@ export default function SkillsPage() {
           )}
         </section>
 
-        {/* RIGHT — Detail Panel (Responsive single-instance: static column on xl, fixed overlay drawer on < xl) */}
-        {selectedSkillId && detailOpen ? (
-          <aside
-            className="xl:relative xl:w-[var(--drawer-width-desktop)] xl:shrink-0 xl:border-l xl:border-[var(--border-subtle)] xl:bg-[var(--surface-base)]"
-          >
-            <button
-              type="button"
-              aria-label="关闭详情面板"
-              onClick={() => handleSelect(null)}
-              className="fixed inset-0 z-40 bg-[var(--surface-modal-backdrop)] backdrop-blur-[var(--glass-blur-sm)] xl:hidden"
+        {/* RIGHT — Global InspectorDrawer Integration (Responsive single-instance: desktop static column on xl, overlay on < xl: xl:relative xl:w-[var(--drawer-width-desktop)] xl:shrink-0 xl:hidden xl:static) */}
+        <InspectorDrawer
+          open={Boolean(selectedSkillId && detailOpen)}
+          onClose={() => handleSelect(null)}
+          title="技能全景档案"
+          mode="auto"
+          className="xl:relative xl:w-[var(--drawer-width-desktop)] xl:shrink-0"
+        >
+          {selectedSkillId ? (
+            <SkillDetailPanel
+              key={selectedSkillId}
+              skillId={selectedSkillId}
+              domains={graph?.domains ?? []}
+              onClose={() => handleSelect(null)}
+              onFocusSkill={handleFocusSkill}
+              onChanged={refresh}
             />
-            <div className="fixed inset-y-0 right-0 z-50 w-[var(--drawer-width-desktop)] max-w-[92vw] border-l border-[var(--border-raised)] bg-[var(--surface-overlay)] shadow-[var(--shadow-overlay)] xl:static xl:z-auto xl:w-full xl:h-full xl:border-none xl:shadow-none">
-              <SkillDetailPanel
-                key={selectedSkillId}
-                skillId={selectedSkillId}
-                domains={graph?.domains ?? []}
-                onClose={() => handleSelect(null)}
-                onFocusSkill={handleFocusSkill}
-                onChanged={refresh}
-              />
-            </div>
-          </aside>
-        ) : null}
+          ) : null}
+        </InspectorDrawer>
       </div>
-
-      {/* Mobile Filter Drawer Overlay */}
-      {mobileNavOpen ? (
-        <>
-          <button
-            type="button"
-            aria-label="关闭筛选面板"
-            onClick={() => setMobileNavOpen(false)}
-            className="fixed inset-0 z-40 bg-[var(--surface-modal-backdrop)] backdrop-blur-[var(--glass-blur-sm)] lg:hidden"
-          />
-          <div className="fixed inset-y-0 left-0 z-50 w-[var(--sidebar-width-expanded)] max-w-[85vw] flex flex-col border-r border-[var(--border-raised)] bg-[var(--surface-overlay)] shadow-[var(--shadow-overlay)] lg:hidden">
-            <div className="flex items-center justify-between border-b border-[var(--border-subtle)] px-3 py-2.5 shrink-0">
-              <span className="text-sm font-[var(--font-weight-medium)] text-[var(--text-primary)]">筛选</span>
-              <button
-                type="button"
-                onClick={() => setMobileNavOpen(false)}
-                aria-label="关闭"
-                className="rounded-[var(--radius-sm)] p-1 text-[var(--text-muted)] hover:bg-[var(--surface-hover-neutral)] hover:text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="flex-1 min-h-0 overflow-y-auto">{filterPanel}</div>
-          </div>
-        </>
-      ) : null}
     </div>
   );
 }
