@@ -132,8 +132,8 @@ AI_Personal_Growth_RPG/
 | **产物视效** | Phase 4 (7C/7D) | 产物档案库 UI 现代化、InspectorDrawer 集成 | **FINAL FROZEN** | PR #16~#17 |
 | **核心页面** | Phase 5 - 5A | Dashboard 个人仪表盘视觉重构 | **FINAL FROZEN** | PR #18 |
 | **核心页面** | Phase 5 - 5B | Quests 任务系统视觉重构与无障碍治理 | **FINAL FROZEN** | PR #19 |
-| **核心页面** | **Phase 5 - 5C** | **Skills 技能树与 ReactFlow 画布现代化** | **IN PROGRESS** | **待审查 (PR #20)** |
-| **高级画布** | Phase 6 | Knowledge Graph Canvas 知识图谱画布现代化 | **QUEUED** | 待 Stage 5C 冻结后启动 |
+| **核心页面** | **Phase 5 - 5C** | **Skills 技能树与 ReactFlow 画布现代化** | **FINAL FROZEN** | **PR #20 (Squash Commit 6e238a4)** |
+| **高级画布** | **Phase 6** | **Knowledge Graph Canvas 知识图谱画布现代化** | **READY TO START** | **待授权启动** |
 | **全站抛光** | Phase 7 | 端到端无障碍 (A11y)、全视口响应式与动效收敛 | **QUEUED** | 待 Phase 6 完成后启动 |
 
 ---

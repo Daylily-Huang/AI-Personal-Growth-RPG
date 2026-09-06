@@ -24,9 +24,9 @@ The migration to the new Global Visual System follows a strict, layered implemen
 │                                 ↓                                                   │
 │    Phase 4: Stage 7C & 7D Artifact System ✅ FINAL FROZEN                            │
 │                                 ↓                                                   │
-│    Phase 5: Core Screens (Dashboard ✅ FROZEN -> Quests ✅ FROZEN -> Skills 🚀 IN REVIEW)│
+│    Phase 5: Core Screens (Dashboard ✅ FROZEN -> Quests ✅ FROZEN -> Skills ✅ FROZEN)│
 │                                 ↓                                                   │
-│    Phase 6: Advanced Canvas Modernization (Knowledge Graph Canvas)                  │
+│    Phase 6: Advanced Canvas Modernization (Knowledge Graph Canvas) 🚀 NEXT          │
 │                                 ↓                                                   │
 │    Phase 7: End-to-End A11y, Responsive & Motion Polish                             │
 └─────────────────────────────────────────────────────────────────────────────────────┘
@@ -75,14 +75,14 @@ The migration to the new Global Visual System follows a strict, layered implemen
   - Comprehensive freeze guarantees: RLS tenant isolation, cross-category batch atomicity, full settlement rollback snapshot, duplicate confirm idempotency, concurrency mutex, SECURITY DEFINER privilege isolation, provenance / evidence immutability.
   - **ARTIFACT SYSTEM — COMPLETE & FINAL FROZEN**.
 
-### Phase 5 — Dashboard, Quests & Skills Migration (IN PROGRESS)
+### Phase 5 — Dashboard, Quests & Skills Migration ✅ FINAL FROZEN
 - **Objective**: Modernize existing product pages onto the shared primitive system.
 - **Deliverables**:
   - `/dashboard`: Overhauled practitioner overview with calm stat cards, active quests, and activity feed. ✅ **FINAL FROZEN** (Stage 5A-UI via PR #18)
   - `/quests`: Quest hierarchy tree, milestone progress meters, full 7-state lifecycle matrix, BaseModal creation flow, and semantic nested lists. ✅ **FINAL FROZEN** (Stage 5B-UI via PR #19)
-  - `/skills`: Interactive skill tree with light-first ink-wash nodes, M0–M10 mastery badges, and evidence inspection. 🚀 **STAGE 5C-UI CODING COMPLETE & IN REVIEW**
+  - `/skills`: Interactive skill tree with light-first ink-wash nodes, M0–M10 mastery badges, and evidence inspection. ✅ **FINAL FROZEN** (Stage 5C-UI via PR #20)
 
-### Phase 6 — Knowledge Map Canvas Modernization
+### Phase 6 — Knowledge Map Canvas Modernization (NEXT)
 - **Objective**: Modernize the force-directed graph canvas for Knowledge Nodes.
 - **Deliverables**:
   - Canvas graph viewport with semantic node clustering, edge authority filters, and real-time inspector linkage.

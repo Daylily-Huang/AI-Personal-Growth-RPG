@@ -39,3 +39,9 @@
     * P1-B 已修复：`assessActivity` 严格检查 `allowDemoFallback === true`，生产/Supabase 模式缺配置直接抛出 `ai_not_configured` 并保留 Activity。
     * P2-A 已修复：移除 any 类型与未使用变量，ESLint 0 errors 0 warnings。
     * P2-B 已修复：`docs/MASTER_PROJECT_HANDOFF.md` 物理写入磁盘，更新 README.md 与 AGENTS.md 链接。
+  - 2026-09-06 终审与合流（`2026-09-06_E860DAD_REVIEW.md`）：
+    * R1 已关闭：门禁测试套件统一引入 `AUTHORIZED_CORE_BUGFIX_ALLOWLIST` 精确手术式白名单，零破坏零删除，所有 PR Delta 测试全绿。
+    * R2 已关闭：实现轻量级进程内确定性 OpenAI 测试服务（`tests/helpers/mock-ai-server.ts`），真实 Next.js / Supabase 集成测试自动挂载，生产环境严格保持 fail-closed。
+    * R3 已关闭：`docs/MASTER_PROJECT_HANDOFF.md` 修正 Mastery 等级为 M0~M10，验证门槛为目标 >= M5 或单次跨级 >= 2。
+    * GitHub Actions CI 双绿通过（`check` ✅, `supabase-integration` ✅）。
+    * **PR #20 已通过 Squash and merge 合入 main（Commit `6e238a4`），Stage 5C-UI Skills Modernization 正式宣告 FINAL FROZEN！**
