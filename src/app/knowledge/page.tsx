@@ -226,7 +226,7 @@ export default function KnowledgeMapPage() {
           type="button"
           onClick={() => setMobileNavOpen(true)}
           aria-label="打开筛选面板"
-          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-raised)] text-xs text-[var(--text-primary)] hover:bg-[var(--surface-hover-neutral)] transition-colors"
+          className="inline-flex min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] items-center gap-1.5 px-2.5 py-1.5 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-raised)] text-xs text-[var(--text-primary)] hover:bg-[var(--surface-hover-neutral)] transition-colors"
         >
           <SlidersHorizontal className="w-3.5 h-3.5" />
           <span>筛选</span>
@@ -243,7 +243,7 @@ export default function KnowledgeMapPage() {
             onChange={(e) => handleFilterChange({ search: e.target.value })}
             placeholder="搜索知识…"
             aria-label="搜索知识库"
-            className="w-full rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-ground)] pl-8 pr-2.5 py-1 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-disabled)] focus:outline-none"
+            className="min-h-[var(--touch-target-min)] w-full rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-ground)] pl-8 pr-2.5 py-1 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-disabled)] focus:outline-none"
           />
         </div>
       </div>
@@ -266,7 +266,7 @@ export default function KnowledgeMapPage() {
                 onChange={(e) => handleFilterChange({ search: e.target.value })}
                 placeholder="搜索概念、命题或关系…"
                 aria-label="搜索知识库"
-                className="w-full rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-ground)] pl-8 pr-3 py-1.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-disabled)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
+                className="min-h-[var(--touch-target-min)] w-full rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-ground)] pl-8 pr-3 py-1.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-disabled)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
               />
             </div>
           </div>
@@ -275,11 +275,11 @@ export default function KnowledgeMapPage() {
 
         {/* CENTER — Interactive ReactFlow Canvas */}
         <section className="relative min-w-0 flex-1 h-full flex flex-col" aria-label="知识图谱互动画布">
-          <div className="shrink-0 flex flex-wrap items-center gap-3 border-b border-[var(--border-subtle)] bg-[var(--surface-base)] p-3 text-xs text-[var(--text-secondary)] [&_select]:rounded-[var(--radius-md)] [&_select]:border [&_select]:border-[var(--border-subtle)] [&_select]:bg-[var(--surface-raised)] [&_select]:p-2 [&_select]:min-h-[var(--touch-target-min)]">
-            <label>布局 <select aria-label="画布布局" value={layoutMode} onChange={(event) => { setFocusTarget(null); setLayoutMode(event.target.value as LayoutMode); }}><option value="clustered">领域 / 类型聚类</option><option value="relations">关系布局</option></select></label>
-            <label>关系权威 <select aria-label="关系权威筛选" value={edgeAuthority} onChange={(event) => { setSelectedEdgeId(null); setEdgeAuthority(event.target.value as EdgeAuthorityFilter); }}><option value="all">当前全部关系</option><option value="verified">已验证</option><option value="inferred">AI 提案</option><option value="rejected">已否决</option><option value="superseded">已替代</option><option value="archived">已归档</option></select></label>
-            <label>关系类型 <select aria-label="关系类型筛选" value={relation} onChange={(event) => { setSelectedEdgeId(null); setRelation(event.target.value as RelationFilter); }}><option value="all">全部类型</option><option value="prerequisite">前置依赖</option><option value="contains">包含</option><option value="supports">支持</option><option value="contradicts">矛盾（无方向）</option><option value="relates_to">相关（无方向）</option></select></label>
-            <button type="button" aria-pressed={viewMode === "list"} onClick={() => setViewMode(viewMode === "graph" ? "list" : "graph")} className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] px-3 py-2">{viewMode === "graph" ? "切换列表" : "切换画布"}</button>
+          <div className="shrink-0 flex flex-wrap items-center gap-3 border-b border-[var(--border-subtle)] bg-[var(--surface-base)] p-3 text-xs text-[var(--text-secondary)] [&_select]:rounded-[var(--radius-md)] [&_select]:border [&_select]:border-[var(--border-subtle)] [&_select]:bg-[var(--surface-raised)] [&_select]:p-2">
+            <label>布局 <select aria-label="画布布局" value={layoutMode} onChange={(event) => { setFocusTarget(null); setLayoutMode(event.target.value as LayoutMode); }} className="min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)]"><option value="clustered">领域 / 类型聚类</option><option value="relations">关系布局</option></select></label>
+            <label>关系权威 <select aria-label="关系权威筛选" value={edgeAuthority} onChange={(event) => { setSelectedEdgeId(null); setEdgeAuthority(event.target.value as EdgeAuthorityFilter); }} className="min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)]"><option value="all">当前全部关系</option><option value="verified">已验证</option><option value="inferred">AI 提案</option><option value="rejected">已否决</option><option value="superseded">已替代</option><option value="archived">已归档</option></select></label>
+            <label>关系类型 <select aria-label="关系类型筛选" value={relation} onChange={(event) => { setSelectedEdgeId(null); setRelation(event.target.value as RelationFilter); }} className="min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)]"><option value="all">全部类型</option><option value="prerequisite">前置依赖</option><option value="contains">包含</option><option value="supports">支持</option><option value="contradicts">矛盾（无方向）</option><option value="relates_to">相关（无方向）</option></select></label>
+            <button type="button" aria-pressed={viewMode === "list"} onClick={() => setViewMode(viewMode === "graph" ? "list" : "graph")} className="min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] px-3 py-2">{viewMode === "graph" ? "切换列表" : "切换画布"}</button>
             <span role="status">{flowNodes.length} 个节点 · {rawEdges.length} 条关系</span>
           </div>
           <div className="relative flex-1 min-h-0">
@@ -312,7 +312,7 @@ export default function KnowledgeMapPage() {
                 type="button"
                 data-testid="retry-btn"
                 onClick={refresh}
-                className="inline-flex items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-raised)] px-4 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--surface-hover-neutral)]"
+                className="inline-flex min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-raised)] px-4 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--surface-hover-neutral)]"
               >
                 <RefreshCw className="h-4 w-4" /> 重试
               </button>
@@ -331,7 +331,7 @@ export default function KnowledgeMapPage() {
               </p>
               <Link
                 href="/dashboard"
-                className="inline-flex items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] px-4 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--surface-hover-neutral)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
+                className="inline-flex min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] px-4 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--surface-hover-neutral)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
               >
                 去记录学习活动
               </Link>
@@ -346,7 +346,7 @@ export default function KnowledgeMapPage() {
                 type="button"
                 data-testid="clear-all-filters-btn"
                 onClick={handleResetFilters}
-                className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:bg-[var(--surface-hover-neutral)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
+                className="min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:bg-[var(--surface-hover-neutral)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
               >
                 清除全部筛选
               </button>
@@ -354,10 +354,10 @@ export default function KnowledgeMapPage() {
           ) : viewMode === "list" ? (
             <div className="h-full overflow-auto p-4 space-y-4">
               <h2 className="font-serif text-lg text-[var(--text-primary)]">知识节点</h2>
-              <ul className="space-y-2">{layout.nodes.map((node) => <li key={node.id}><button type="button" onClick={() => handleSelectNode(node.id)} className="w-full rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-raised)] p-3 text-left text-sm text-[var(--text-primary)]">{node.title}<span className="block text-xs text-[var(--text-secondary)]">{node.domainName ?? "未分类领域"} · {node.verificationStatus}{node.isArchived ? " · 已归档" : ""}</span></button></li>)}</ul>
+              <ul className="space-y-2">{layout.nodes.map((node) => <li key={node.id}><button type="button" onClick={() => handleSelectNode(node.id)} className="min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] w-full rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-raised)] p-3 text-left text-sm text-[var(--text-primary)]">{node.title}<span className="block text-xs text-[var(--text-secondary)]">{node.domainName ?? "未分类领域"} · {node.verificationStatus}{node.isArchived ? " · 已归档" : ""}</span></button></li>)}</ul>
               <h2 className="font-serif text-lg text-[var(--text-primary)]">知识关系</h2>
               {rawEdges.length === 0 && <p className="text-sm text-[var(--text-secondary)]">当前筛选下没有关系。</p>}
-              <ul className="space-y-2">{rawEdges.map((edge) => <li key={edge.id}><button type="button" onClick={() => handleSelectEdge(edge.id)} className="w-full rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-3 text-left text-sm text-[var(--text-primary)]">{graph?.nodes.find((node) => node.id === edge.source)?.title} {edge.relationType === "contradicts" || edge.relationType === "relates_to" ? "—" : "→"} {graph?.nodes.find((node) => node.id === edge.target)?.title}<span className="block text-xs">{edge.relationType} · {edge.verificationStatus}{edge.isArchived ? " · 已归档" : ""}</span></button></li>)}</ul>
+              <ul className="space-y-2">{rawEdges.map((edge) => <li key={edge.id}><button type="button" onClick={() => handleSelectEdge(edge.id)} className="min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] w-full rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-3 text-left text-sm text-[var(--text-primary)]">{graph?.nodes.find((node) => node.id === edge.source)?.title} {edge.relationType === "contradicts" || edge.relationType === "relates_to" ? "—" : "→"} {graph?.nodes.find((node) => node.id === edge.target)?.title}<span className="block text-xs">{edge.relationType} · {edge.verificationStatus}{edge.isArchived ? " · 已归档" : ""}</span></button></li>)}</ul>
             </div>
           ) : (
             <KnowledgeGraphCanvas

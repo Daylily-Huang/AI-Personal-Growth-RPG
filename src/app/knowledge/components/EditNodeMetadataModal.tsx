@@ -123,7 +123,7 @@ export default function EditNodeMetadataModal({
               data-testid="edit-node-title-input"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-ground)] px-3 py-2 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
+              className="min-h-[var(--touch-target-min)] w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-ground)] px-3 py-2 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
               required
             />
           </div>
@@ -140,7 +140,7 @@ export default function EditNodeMetadataModal({
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
               placeholder="添加该概念、命题的详细定义或上下文阐释…"
-              className="w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-ground)] px-3 py-2 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
+              className="min-h-[var(--touch-target-min)] w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-ground)] px-3 py-2 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
             />
           </div>
 
@@ -154,7 +154,7 @@ export default function EditNodeMetadataModal({
               data-testid="edit-node-domain-select"
               value={domainId ?? ""}
               onChange={(e) => setDomainId(e.target.value ? e.target.value : null)}
-              className="w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-ground)] px-3 py-2 text-xs text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
+              className="min-h-[var(--touch-target-min)] w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-ground)] px-3 py-2 text-xs text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
             >
               <option value="">未分类领域</option>
               {domains.map((dom) => (
@@ -166,19 +166,19 @@ export default function EditNodeMetadataModal({
           </div>
 
           {/* Archive Toggle */}
-          <div className="flex items-center gap-2 pt-2">
+          <label htmlFor="node-archive-checkbox" className="flex min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] cursor-pointer items-center gap-2 pt-2 font-medium text-[var(--text-secondary)]">
             <input
               type="checkbox"
               id="node-archive-checkbox"
               data-testid="edit-node-archive-checkbox"
               checked={isArchived}
               onChange={(e) => setIsArchived(e.target.checked)}
-              className="h-4 w-4 rounded border-[var(--border-subtle)] bg-[var(--surface-ground)] text-[var(--authority-verified-text)] focus:ring-[var(--focus-ring-color)]"
+              className="h-4 w-4 shrink-0 rounded border-[var(--border-subtle)] bg-[var(--surface-ground)] text-[var(--authority-verified-text)] focus:ring-[var(--focus-ring-color)]"
             />
-            <label htmlFor="node-archive-checkbox" className="font-medium text-[var(--text-secondary)]">
+            <span>
               将该节点归档 (Archived，不在默认活跃图谱中显示)
-            </label>
-          </div>
+            </span>
+          </label>
 
           {/* Action Buttons */}
           <div className="flex items-center justify-end gap-2 border-t border-[var(--border-subtle)] pt-4">
@@ -186,7 +186,7 @@ export default function EditNodeMetadataModal({
               type="button"
               data-testid="cancel-edit-metadata-btn"
               onClick={onClose}
-              className="rounded-lg border border-[var(--border-subtle)] px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:bg-[var(--surface-ground)] hover:text-[var(--text-primary)]"
+              className="min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] rounded-lg border border-[var(--border-subtle)] px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:bg-[var(--surface-ground)] hover:text-[var(--text-primary)]"
             >
               取消
             </button>
@@ -194,7 +194,7 @@ export default function EditNodeMetadataModal({
               type="submit"
               data-testid="save-node-metadata-btn"
               disabled={saving}
-              className="flex items-center gap-1.5 rounded-lg bg-[var(--surface-raised)] px-4 py-1.5 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--surface-raised)] disabled:opacity-50"
+              className="flex min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] items-center gap-1.5 rounded-lg bg-[var(--surface-raised)] px-4 py-1.5 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--surface-raised)] disabled:opacity-50"
             >
               {saving ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />

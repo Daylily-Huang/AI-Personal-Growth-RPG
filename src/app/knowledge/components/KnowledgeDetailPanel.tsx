@@ -162,7 +162,7 @@ export default function KnowledgeDetailPanel({
         <button
           type="button"
           onClick={onClose}
-          className="mt-4 rounded-lg border border-[var(--border-subtle)] px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:bg-[var(--surface-ground)]"
+          className="mt-4 min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] rounded-lg border border-[var(--border-subtle)] px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:bg-[var(--surface-ground)]"
         >
           关闭面板
         </button>
@@ -222,7 +222,7 @@ export default function KnowledgeDetailPanel({
           data-testid="close-detail-btn"
           onClick={onClose}
           aria-label="关闭详情面板"
-          className="rounded p-1 text-[var(--text-secondary)] hover:bg-[var(--surface-ground)] hover:text-[var(--text-primary)]"
+          className="min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] rounded p-1 text-[var(--text-secondary)] hover:bg-[var(--surface-ground)] hover:text-[var(--text-primary)]"
         >
           <X className="h-4 w-4" />
         </button>
@@ -271,14 +271,14 @@ export default function KnowledgeDetailPanel({
               <span className="font-semibold">{node.domainName || "未指定领域"}</span>
             </div>
             {node.skillName && (
-              <a
+              <Link
                 href="/skills"
-                className="flex items-center gap-1 text-[var(--authority-verified-text)] bg-[var(--surface-raised)] border border-[var(--border-subtle)] rounded px-2 py-1 hover:bg-[var(--surface-raised)]"
+                className="inline-flex min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] items-center gap-1 text-[var(--authority-verified-text)] bg-[var(--surface-raised)] border border-[var(--border-subtle)] rounded px-2 py-1 hover:bg-[var(--surface-raised)]"
               >
                 <span>技能:</span>
                 <span className="font-semibold">{node.skillName}</span>
                 <ExternalLink className="h-3 w-3 ml-0.5" />
-              </a>
+              </Link>
             )}
           </div>
         </div>
@@ -340,7 +340,7 @@ export default function KnowledgeDetailPanel({
                     <div className="text-[10px] text-[var(--text-secondary)] mt-0.5">
                       产出物类型: {provenance.sourceArtifact.type}
                     </div>
-                    <Link href="/artifacts" className="underline text-[var(--text-secondary)]">前往产物档案库</Link>
+                    <Link href="/artifacts" className="inline-flex min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] items-center underline text-[var(--text-secondary)]">前往产物档案库</Link>
                   </div>
                 </div>
               )}
@@ -387,7 +387,7 @@ export default function KnowledgeDetailPanel({
                     key={conn.edgeId}
                     type="button"
                     onClick={() => onSelectNode(conn.sourceNodeId)}
-                    className="flex w-full items-center justify-between rounded bg-[var(--surface-ground)] px-2.5 py-1.5 text-left text-xs hover:bg-[var(--surface-ground)] border border-[var(--border-subtle)]"
+                    className="flex min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] w-full items-center justify-between rounded bg-[var(--surface-ground)] px-2.5 py-1.5 text-left text-xs hover:bg-[var(--surface-ground)] border border-[var(--border-subtle)]"
                   >
                     <span className="text-[var(--text-primary)] truncate">{conn.sourceNodeTitle}</span>
                     <span className="text-[9px] font-mono rounded bg-[var(--surface-raised)] px-1.5 py-0.5 text-[var(--entity-knowledge-text)] border border-[var(--border-subtle)] shrink-0 ml-2">
@@ -413,7 +413,7 @@ export default function KnowledgeDetailPanel({
                     key={conn.edgeId}
                     type="button"
                     onClick={() => onSelectNode(conn.targetNodeId)}
-                    className="flex w-full items-center justify-between rounded bg-[var(--surface-ground)] px-2.5 py-1.5 text-left text-xs hover:bg-[var(--surface-ground)] border border-[var(--border-subtle)]"
+                    className="flex min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] w-full items-center justify-between rounded bg-[var(--surface-ground)] px-2.5 py-1.5 text-left text-xs hover:bg-[var(--surface-ground)] border border-[var(--border-subtle)]"
                   >
                     <span className="text-[var(--text-primary)] truncate">{conn.targetNodeTitle}</span>
                     <span className="text-[9px] font-mono rounded bg-[var(--surface-raised)] px-1.5 py-0.5 text-[var(--entity-artifact-text)] border border-[var(--border-subtle)] shrink-0 ml-2">
@@ -444,7 +444,7 @@ export default function KnowledgeDetailPanel({
                     setConfirmRejectOpen(false);
                   }}
                   disabled={verifying || rejecting}
-                  className="flex items-center justify-center gap-1.5 rounded-lg bg-[var(--surface-raised)] py-2 font-semibold text-[var(--text-primary)] hover:bg-[var(--surface-raised)] disabled:opacity-50"
+                  className="flex min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] items-center justify-center gap-1.5 rounded-lg bg-[var(--surface-raised)] py-2 font-semibold text-[var(--text-primary)] hover:bg-[var(--surface-raised)] disabled:opacity-50"
                 >
                   {verifying ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
@@ -462,7 +462,7 @@ export default function KnowledgeDetailPanel({
                     setConfirmVerifyOpen(false);
                   }}
                   disabled={verifying || rejecting}
-                  className="flex items-center justify-center gap-1.5 rounded-lg border border-[var(--state-danger-border)] bg-[var(--state-danger-bg)] py-2 font-semibold text-[var(--state-danger-text)] hover:bg-[var(--state-danger-bg)] disabled:opacity-50"
+                  className="flex min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] items-center justify-center gap-1.5 rounded-lg border border-[var(--state-danger-border)] bg-[var(--state-danger-bg)] py-2 font-semibold text-[var(--state-danger-text)] hover:bg-[var(--state-danger-bg)] disabled:opacity-50"
                 >
                   {rejecting ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
@@ -490,7 +490,7 @@ export default function KnowledgeDetailPanel({
                       type="button"
                       data-testid="cancel-verify-node-btn"
                       onClick={() => setConfirmVerifyOpen(false)}
-                      className="rounded border border-[var(--border-subtle)] bg-[var(--surface-ground)] px-3 py-1 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                      className="min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] rounded border border-[var(--border-subtle)] bg-[var(--surface-ground)] px-3 py-1 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                     >
                       取消
                     </button>
@@ -498,7 +498,7 @@ export default function KnowledgeDetailPanel({
                       type="button"
                       data-testid="confirm-verify-node-btn"
                       onClick={handleVerify}
-                      className="rounded bg-[var(--surface-raised)] px-3 py-1 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--surface-raised)]"
+                      className="min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] rounded bg-[var(--surface-raised)] px-3 py-1 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--surface-raised)]"
                     >
                       确认验证
                     </button>
@@ -523,7 +523,7 @@ export default function KnowledgeDetailPanel({
                       type="button"
                       data-testid="cancel-reject-node-btn"
                       onClick={() => setConfirmRejectOpen(false)}
-                      className="rounded border border-[var(--border-subtle)] bg-[var(--surface-ground)] px-3 py-1 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                      className="min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] rounded border border-[var(--border-subtle)] bg-[var(--surface-ground)] px-3 py-1 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                     >
                       取消
                     </button>
@@ -531,7 +531,7 @@ export default function KnowledgeDetailPanel({
                       type="button"
                       data-testid="confirm-reject-node-btn"
                       onClick={handleReject}
-                      className="rounded bg-[var(--state-danger-bg)] px-3 py-1 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--state-danger-bg)]"
+                      className="min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] rounded bg-[var(--state-danger-bg)] px-3 py-1 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--state-danger-bg)]"
                     >
                       确认否决
                     </button>
@@ -546,7 +546,7 @@ export default function KnowledgeDetailPanel({
             type="button"
             data-testid="expand-as-root-btn"
             onClick={() => onFocusRoot(node.id)}
-            className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-raised)] py-2 text-xs font-semibold text-[var(--authority-verified-text)] hover:bg-[var(--surface-raised)]"
+            className="flex min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] w-full items-center justify-center gap-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-raised)] py-2 text-xs font-semibold text-[var(--authority-verified-text)] hover:bg-[var(--surface-raised)]"
           >
             <Network className="h-3.5 w-3.5" />
             以此为焦点展开局部图谱 (Expand Ego Graph)
@@ -557,7 +557,7 @@ export default function KnowledgeDetailPanel({
             type="button"
             data-testid="open-edit-modal-btn"
             onClick={() => setEditModalOpen(true)}
-            className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-ground)] py-2 text-xs text-[var(--text-secondary)] hover:bg-[var(--surface-ground)] hover:text-[var(--text-primary)]"
+            className="flex min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] w-full items-center justify-center gap-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-ground)] py-2 text-xs text-[var(--text-secondary)] hover:bg-[var(--surface-ground)] hover:text-[var(--text-primary)]"
           >
             <Edit3 className="h-3.5 w-3.5" />
             编辑节点元数据

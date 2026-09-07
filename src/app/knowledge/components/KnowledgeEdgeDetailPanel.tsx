@@ -17,7 +17,6 @@ import {
   ThumbsDown,
   Activity,
   FileCode,
-  Zap,
   Link2,
 } from "lucide-react";
 import type { KnowledgeEdgeDetailResponse } from "@/lib/knowledge/types";
@@ -146,7 +145,7 @@ export default function KnowledgeEdgeDetailPanel({
         <button
           type="button"
           onClick={onClose}
-          className="mt-4 rounded-lg border border-[var(--border-subtle)] px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:bg-[var(--surface-ground)]"
+          className="mt-4 min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] rounded-lg border border-[var(--border-subtle)] px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:bg-[var(--surface-ground)]"
         >
           关闭面板
         </button>
@@ -201,7 +200,7 @@ export default function KnowledgeEdgeDetailPanel({
           data-testid="close-edge-detail-btn"
           onClick={onClose}
           aria-label="关闭连边详情"
-          className="rounded p-1 text-[var(--text-secondary)] hover:bg-[var(--surface-ground)] hover:text-[var(--text-primary)]"
+          className="min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] rounded p-1 text-[var(--text-secondary)] hover:bg-[var(--surface-ground)] hover:text-[var(--text-primary)]"
         >
           <X className="h-4 w-4" />
         </button>
@@ -240,7 +239,7 @@ export default function KnowledgeEdgeDetailPanel({
             <button
               type="button"
               onClick={() => onSelectNode(edge.sourceNodeId)}
-              className="flex items-center justify-between rounded-lg bg-[var(--surface-raised)] p-2.5 text-left border border-[var(--border-subtle)] hover:bg-[var(--surface-raised)] transition-colors"
+              className="flex min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] items-center justify-between rounded-lg bg-[var(--surface-raised)] p-2.5 text-left border border-[var(--border-subtle)] hover:bg-[var(--surface-raised)] transition-colors"
             >
               <span className="font-semibold text-[var(--entity-knowledge-text)] truncate">
                 {edge.sourceNodeTitle}
@@ -256,7 +255,7 @@ export default function KnowledgeEdgeDetailPanel({
               </span>
               {isSymmetric ? (
                 edge.relationType === "contradicts" ? (
-                  <Zap className="h-3.5 w-3.5 text-[var(--state-danger-text)]" />
+                  <Link2 className="h-3.5 w-3.5 text-[var(--state-danger-text)]" />
                 ) : (
                   <Link2 className="h-3.5 w-3.5 text-[var(--entity-knowledge-text)]" />
                 )
@@ -268,7 +267,7 @@ export default function KnowledgeEdgeDetailPanel({
             <button
               type="button"
               onClick={() => onSelectNode(edge.targetNodeId)}
-              className="flex items-center justify-between rounded-lg bg-[var(--surface-raised)] p-2.5 text-left border border-[var(--border-subtle)] hover:bg-[var(--surface-raised)] transition-colors"
+              className="flex min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] items-center justify-between rounded-lg bg-[var(--surface-raised)] p-2.5 text-left border border-[var(--border-subtle)] hover:bg-[var(--surface-raised)] transition-colors"
             >
               <span className="font-semibold text-[var(--authority-verified-text)] truncate">
                 {edge.targetNodeTitle}
@@ -336,7 +335,7 @@ export default function KnowledgeEdgeDetailPanel({
                   setConfirmRejectOpen(false);
                 }}
                 disabled={verifying || rejecting}
-                className="flex items-center justify-center gap-1.5 rounded-lg bg-[var(--surface-raised)] py-2 font-semibold text-[var(--text-primary)] hover:bg-[var(--surface-raised)] disabled:opacity-50"
+                className="flex min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] items-center justify-center gap-1.5 rounded-lg bg-[var(--surface-raised)] py-2 font-semibold text-[var(--text-primary)] hover:bg-[var(--surface-raised)] disabled:opacity-50"
               >
                 {verifying ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
@@ -354,7 +353,7 @@ export default function KnowledgeEdgeDetailPanel({
                   setConfirmVerifyOpen(false);
                 }}
                 disabled={verifying || rejecting}
-                className="flex items-center justify-center gap-1.5 rounded-lg border border-[var(--state-danger-border)] bg-[var(--state-danger-bg)] py-2 font-semibold text-[var(--state-danger-text)] hover:bg-[var(--state-danger-bg)] disabled:opacity-50"
+                className="flex min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] items-center justify-center gap-1.5 rounded-lg border border-[var(--state-danger-border)] bg-[var(--state-danger-bg)] py-2 font-semibold text-[var(--state-danger-text)] hover:bg-[var(--state-danger-bg)] disabled:opacity-50"
               >
                 {rejecting ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
@@ -382,7 +381,7 @@ export default function KnowledgeEdgeDetailPanel({
                     type="button"
                     data-testid="cancel-verify-edge-btn"
                     onClick={() => setConfirmVerifyOpen(false)}
-                    className="rounded border border-[var(--border-subtle)] bg-[var(--surface-ground)] px-3 py-1 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                    className="min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] rounded border border-[var(--border-subtle)] bg-[var(--surface-ground)] px-3 py-1 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                   >
                     取消
                   </button>
@@ -390,7 +389,7 @@ export default function KnowledgeEdgeDetailPanel({
                     type="button"
                     data-testid="confirm-verify-edge-btn"
                     onClick={handleVerify}
-                    className="rounded bg-[var(--surface-raised)] px-3 py-1 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--surface-raised)]"
+                    className="min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] rounded bg-[var(--surface-raised)] px-3 py-1 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--surface-raised)]"
                   >
                     确认验证
                   </button>
@@ -415,7 +414,7 @@ export default function KnowledgeEdgeDetailPanel({
                     type="button"
                     data-testid="cancel-reject-edge-btn"
                     onClick={() => setConfirmRejectOpen(false)}
-                    className="rounded border border-[var(--border-subtle)] bg-[var(--surface-ground)] px-3 py-1 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                    className="min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] rounded border border-[var(--border-subtle)] bg-[var(--surface-ground)] px-3 py-1 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                   >
                     取消
                   </button>
@@ -423,7 +422,7 @@ export default function KnowledgeEdgeDetailPanel({
                     type="button"
                     data-testid="confirm-reject-edge-btn"
                     onClick={handleReject}
-                    className="rounded bg-[var(--state-danger-bg)] px-3 py-1 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--state-danger-bg)]"
+                    className="min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] rounded bg-[var(--state-danger-bg)] px-3 py-1 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--state-danger-bg)]"
                   >
                     确认否决
                   </button>

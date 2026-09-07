@@ -133,7 +133,7 @@ AI_Personal_Growth_RPG/
 | **核心页面** | Phase 5 - 5A | Dashboard 个人仪表盘视觉重构 | **FINAL FROZEN** | PR #18 |
 | **核心页面** | Phase 5 - 5B | Quests 任务系统视觉重构与无障碍治理 | **FINAL FROZEN** | PR #19 |
 | **核心页面** | **Phase 5 - 5C** | **Skills 技能树与 ReactFlow 画布现代化** | **FINAL FROZEN** | **PR #20 (Squash Commit 6e238a4)** |
-| **高级画布** | **Phase 6** | **Knowledge Graph Canvas 知识图谱画布现代化** | **CURRENT / IN PROGRESS** | **Round 1 进行中** |
+| **高级画布** | **Phase 6** | **Knowledge Graph Canvas 知识图谱画布现代化** | **ROUND 2 COMPLETE / REVIEW PENDING** | **PR #21，待独立复审** |
 | **全站抛光** | Phase 7 | 端到端无障碍 (A11y)、全视口响应式与动效收敛 | **QUEUED** | 待 Phase 6 完成后启动 |
 
 ---
@@ -256,15 +256,16 @@ wsl -d Ubuntu -- bash -lc "cd /mnt/d/AI_Personal_Growth_RPG && pnpm build"
 
 ## 8. 接手 AI 极速上手与后续路线图推进指引 (Next Actions)
 
-当前状态：Phase 5 核心业务页面（Dashboard、Quests、Skills）已全线 **FINAL FROZEN**（PR #20 Squash Commit `6e238a4`，基线冻结 Commit `a93e2bc`）。**Phase 6: Advanced Canvas Modernization (Knowledge Graph Canvas)** 已获得正式授权启动并处于 Round 1 实施状态。
+当前状态：Phase 5 核心业务页面（Dashboard、Quests、Skills）已全线 **FINAL FROZEN**（PR #20 Squash Commit `6e238a4`，基线冻结 Commit `a93e2bc`）。**Phase 6: Advanced Canvas Modernization (Knowledge Graph Canvas)** 的 Round 2 五项审查闭环已完成，PR #21 保持开放并等待独立复审。
 
-### 当前行动：Phase 6 知识图谱画布现代化 (Round 1)
+### 当前行动：Phase 6 知识图谱画布现代化 (Round 2 已完成，待独立复审)
 1. **工作分支**: `feature/phase6-knowledge-canvas`（基线为 `a93e2bcada3eca63c3d69ecc633fd50df0f54e94`）。
 2. **核心目标**:
    - `/knowledge` 画布全面浅色水墨化（Light-First Ink-Wash），清除所有旧黑底（`bg-[#0b0f17]`）、赛博朋克深色类与硬编码色值。
    - 确定性领域聚类（Deterministic Domain/Category Clustering），纯前端布局函数，零新算法依赖，同一输入稳定输出。
    - 关系边权威与静态化：所有边默认 `animated: false`，消除闪电与跑马灯动效；严格保留五大关系类型与对称/有向语义。
-   - 全局单实例 `InspectorDrawer` 集成（`mode="auto"`），节点与关系共用，支持只读关联技能富集（`LevelBadge`/`MasteryBadge`/`XPProgress`）与产物/证据溯源。
+   - 全局单实例 `InspectorDrawer` 集成（`mode="auto"`），节点与关系共用，支持只读关联技能富集（`LevelBadge`/`MasteryBadge`/`XPProgress`）与产物/证据溯源；Linked Skill Summary 明确属于 Skill 子区块，不改变 Knowledge 语义。
+   - `KnowledgeNodeView` 使用冻结的交互式 `RPGCard`，通过 `role="button"`、`tabIndex=0` 和 Enter/Space 激活提供键盘语义，不是原生 `<button>`。
    - 保证严格零后端、零共享基元、零领域模型修改。
 3. **完成标准**: 运行并通过全量质量门禁（7 套专项测试、Lint、TypeScript、Deterministic Harness、Build），由 Windows PowerShell 推送分支并提交独立审查报告。
 

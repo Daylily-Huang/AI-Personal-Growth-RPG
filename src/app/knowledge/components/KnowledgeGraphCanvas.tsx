@@ -226,7 +226,11 @@ function CanvasInner({
       className="h-full w-full bg-[var(--surface-base)]"
     >
       <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="var(--border-default)" />
-      <Controls position="bottom-right" showInteractive={false} className="!bg-[var(--surface-raised)] !border !border-[var(--border-subtle)] !rounded-[var(--radius-md)]" />
+      <Controls
+        position="bottom-right"
+        showInteractive={false}
+        className="!bg-[var(--surface-raised)] !border !border-[var(--border-subtle)] !rounded-[var(--radius-md)] [&_.react-flow__controls-button]:!min-h-[var(--touch-target-min)] [&_.react-flow__controls-button]:!min-w-[var(--touch-target-min)]"
+      />
       <MiniMap
         pannable
         zoomable

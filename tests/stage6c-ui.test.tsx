@@ -4,7 +4,7 @@
 
 import { afterEach, beforeAll, describe, expect, test, vi } from "vitest";
 import React from "react";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, createEvent, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type {
   KnowledgeGraphResponse,
   KnowledgeNodeDetailResponse,
@@ -474,6 +474,54 @@ describe("Stage 6C — Knowledge Map UI & Component Interaction Tests (Live Reac
     expect(nodeEl3.className).toContain("border-dotted");
     expect(screen.getByText("[ARCHIVED]")).toBeDefined();
     expect(screen.getByText("Topic")).toBeDefined();
+  });
+
+  test("4.4 KnowledgeNodeView uses interactive RPGCard keyboard semantics", () => {
+    const onSelect = vi.fn();
+    const keyboardData: KnowledgeNodeData = {
+      id: "keyboard-node",
+      title: "Keyboard Knowledge",
+      nodeType: "concept",
+      domainId: "dom-1",
+      domainName: "Biology",
+      skillId: null,
+      skillName: null,
+      verificationStatus: "verified",
+      isArchived: false,
+      confidence: 1,
+      sourceType: "user_created",
+      sourceId: null,
+      inboundEdgeCount: 0,
+      outboundEdgeCount: 0,
+      onSelect,
+    };
+
+    render(
+      <KnowledgeNodeView
+        id="keyboard-node"
+        data={keyboardData}
+        type="knowledgeNode"
+        selected={true}
+        zIndex={1}
+        isConnectable={false}
+        positionAbsoluteX={0}
+        positionAbsoluteY={0}
+        dragging={false}
+        deletable={false}
+        selectable={true}
+        draggable={false}
+      />,
+    );
+
+    const card = screen.getByRole("button", { name: "Keyboard Knowledge · [VERIFIED]" });
+    expect(card.getAttribute("tabindex")).toBe("0");
+    expect(card.getAttribute("aria-label")).toBe("Keyboard Knowledge · [VERIFIED]");
+    expect(card.className).toContain("ring-2");
+    fireEvent.keyDown(card, { key: "Enter" });
+    const spaceEvent = createEvent.keyDown(card, { key: " " });
+    fireEvent(card, spaceEvent);
+    expect(spaceEvent.defaultPrevented).toBe(true);
+    expect(onSelect).toHaveBeenCalledTimes(2);
   });
 
   test("5. Filter Panel Interactions: Search, Domain, NodeType, Status, Progressive Depth", () => {

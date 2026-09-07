@@ -10,6 +10,13 @@
 - 节点与关系共用一个 InspectorDrawer；移动筛选、元数据编辑及验证确认复用 BaseModal。来源产物与证据继续使用真实 API 字段。
 - 独立关系权威与关系类型过滤只筛选当前已加载边，不改变后端节点筛选语义。提供列表入口供窄屏与键盘访问。
 
+## Round 2 治理闭环
+
+- Knowledge Node 本体只拥有认识论权威状态与知识置信度；Inspector 内的 Linked Skill Summary 是明确标注的、只读的 Skill 子区块，只读取真实 `skillId` 对应的 Skill read model，不把 Knowledge authority/confidence 转换为 Skill mastery/confidence，也不在加载或失败时伪造 M0、XP 或置信度。
+- `KnowledgeNodeView` 复用冻结的交互式 `RPGCard`，语义为 `role="button"`、`tabIndex=0`，由冻结基元提供 Enter/Space 激活；不得描述为原生 `<button>`。
+- `/knowledge` 下的页面局部交互控件使用冻结 `var(--touch-target-min)`，ReactFlow `Controls` 仅由 `KnowledgeGraphCanvas` 的局部选择器治理；不修改共享基元或设计 token。
+- Round 2 仅关闭 P1-01、P1-02、P2-01、P2-02、P2-03，并以专项测试、全量质量门禁和冻结路径审计作为完成条件。
+
 ## 实施步骤
 
 1. 核对规范与数据契约，固定修改边界。

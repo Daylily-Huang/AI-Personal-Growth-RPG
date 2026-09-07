@@ -7,6 +7,7 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 import KnowledgeMapPage from "@/app/knowledge/page";
 import LinkedSkillSummary from "@/app/knowledge/components/LinkedSkillSummary";
+import KnowledgeDetailPanel from "@/app/knowledge/components/KnowledgeDetailPanel";
 import { layoutKnowledgeNodes, filterKnowledgeEdges } from "@/app/knowledge/components/canvas-layout";
 import { getEdgeVisual } from "@/app/knowledge/components/presentation";
 import type { KnowledgeGraphResponse, KnowledgeNodeDetailResponse } from "@/lib/knowledge/types";
@@ -151,13 +152,97 @@ describe("Phase 6 workspace interactions", () => {
   it("reads actual linked skill state and never fabricates mastery after an error", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce(json({ skill: { id: "s", name: "统计", xp: 123, nextLevelXp: 300, masteryLevel: 6, masteryConfidence: 0.8 } })).mockResolvedValueOnce(json({}, 500)));
     const { rerender } = render(<LinkedSkillSummary skillId="s" />);
-    await screen.findByText("统计");
+    await screen.findAllByText("统计");
     expect(screen.getByTestId("xp-progress").getAttribute("data-current")).toBe("123");
     expect(screen.getByText("M6")).toBeTruthy();
     rerender(<LinkedSkillSummary skillId="other" />);
     expect(screen.queryByText("M6")).toBeNull();
     await screen.findByText("关联技能状态暂不可用");
     expect(screen.queryByTestId("xp-progress")).toBeNull();
+    expect(screen.queryByTestId("confidence-badge")).toBeNull();
+    expect(screen.queryByText("123")).toBeNull();
+  });
+  it("keeps linked Skill mastery and Knowledge confidence in separate read-only contexts", async () => {
+    const linkedDetail = detail("a");
+    linkedDetail.node = { ...linkedDetail.node, skillId: "skill-a", skillName: "统计" };
+    const fetcher = vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url === "/api/knowledge/a") return json(linkedDetail);
+      if (url === "/api/skills/skill-a") return json({ skill: { id: "skill-a", name: "统计", xp: 123, nextLevelXp: 300, masteryLevel: 6, masteryConfidence: 0.8 } });
+      return json(graph);
+    });
+    vi.stubGlobal("fetch", fetcher);
+    render(
+      <KnowledgeDetailPanel
+        nodeId="a"
+        domains={[]}
+        onClose={vi.fn()}
+        onSelectNode={vi.fn()}
+        onFocusRoot={vi.fn()}
+        onDataChanged={vi.fn()}
+      />,
+    );
+    await screen.findByTestId("detail-title");
+    await screen.findAllByText("统计");
+    expect(screen.getByTestId("mastery-badge").getAttribute("data-mastery-level")).toBe("6");
+    expect(screen.getByTestId("xp-progress").getAttribute("data-current")).toBe("123");
+    expect(screen.getAllByTestId("confidence-badge").map((badge) => badge.getAttribute("data-variant"))).toEqual(expect.arrayContaining(["knowledge", "mastery"]));
+  });
+  it("enforces the frozen touch target on representative page, filter, modal and inspector controls", async () => {
+    const minHeight = "min-h-[var(--touch-target-min)]";
+    const minWidth = "min-w-[var(--touch-target-min)]";
+    const expectTouchTarget = (element: HTMLElement, requireWidth = true) => {
+      expect(element.className).toContain(minHeight);
+      if (requireWidth) expect(element.className).toContain(minWidth);
+    };
+    mockApi();
+    render(<KnowledgeMapPage />);
+    await screen.findByTestId("canvas");
+
+    expectTouchTarget(screen.getByRole("button", { name: "打开筛选面板" }));
+    expectTouchTarget(screen.getByTestId("header-search-input"), false);
+    expectTouchTarget(screen.getByRole("button", { name: "切换列表" }));
+    expectTouchTarget(screen.getByLabelText("画布布局"));
+    expectTouchTarget(screen.getByLabelText("关系权威筛选"));
+    expectTouchTarget(screen.getByLabelText("关系类型筛选"));
+
+    const filterSearch = screen.getByTestId("search-input");
+    expectTouchTarget(filterSearch, false);
+    const filterRoot = filterSearch.parentElement?.parentElement;
+    expect(filterRoot?.className).toContain("[&_button]:min-h-[var(--touch-target-min)]");
+    expect(filterRoot?.className).toContain("[&_button]:min-w-[var(--touch-target-min)]");
+    expect(filterRoot?.contains(screen.getByTestId("domain-all-btn"))).toBe(true);
+
+    fireEvent.click(screen.getByRole("button", { name: "切换列表" }));
+    const listNodeButton = screen.getAllByRole("button").find((element) => element.textContent?.includes("知识 a") && element.textContent?.includes("verified"));
+    const listEdgeButton = screen.getAllByRole("button").find((element) => element.textContent?.includes("知识 b") && element.textContent?.includes("prerequisite"));
+    expect(listNodeButton).toBeDefined();
+    expect(listEdgeButton).toBeDefined();
+    expectTouchTarget(listNodeButton as HTMLElement);
+    expectTouchTarget(listEdgeButton as HTMLElement);
+
+    fireEvent.click(listNodeButton as HTMLElement);
+    await screen.findByTestId("detail-title");
+    expectTouchTarget(screen.getByTestId("verify-node-btn"));
+    expectTouchTarget(screen.getByTestId("reject-node-btn"));
+    fireEvent.click(screen.getByTestId("open-edit-modal-btn"));
+    const modal = screen.getByRole("dialog", { name: "编辑知识节点元数据" });
+    expectTouchTarget(within(modal).getByTestId("edit-node-title-input"), false);
+    expectTouchTarget(within(modal).getByTestId("edit-node-desc-input"), false);
+    expectTouchTarget(within(modal).getByTestId("edit-node-domain-select"), false);
+    expectTouchTarget(within(modal).getByTestId("cancel-edit-metadata-btn"));
+    expectTouchTarget(within(modal).getByTestId("save-node-metadata-btn"));
+    const archiveLabel = modal.querySelector('label[for="node-archive-checkbox"]');
+    expect(archiveLabel?.className).toContain(minHeight);
+    expect(archiveLabel?.className).toContain(minWidth);
+    fireEvent.click(within(modal).getByTestId("cancel-edit-metadata-btn"));
+
+    fireEvent.click(screen.getByTestId("close-detail-btn"));
+    fireEvent.click(screen.getByRole("button", { name: "切换画布" }));
+    fireEvent.click(screen.getByRole("button", { name: "edge:ab" }));
+    await screen.findByTestId("knowledge-edge-detail-panel");
+    expectTouchTarget(screen.getByTestId("verify-edge-btn"));
+    expectTouchTarget(screen.getByTestId("reject-edge-btn"));
   });
 });
 
@@ -178,5 +263,21 @@ describe("Phase 6 scope and token gates", () => {
     // Includes committed and uncommitted tracked changes, not merely HEAD.
     const files = execFileSync("git", ["diff", "--name-only", base, "--"], { encoding: "utf8" }).trim().split(/\r?\n/).filter(Boolean);
     for (const file of files) expect(file).not.toMatch(/^(src\/lib\/|src\/app\/api\/|supabase\/|src\/components\/|src\/app\/(skills|quests|dashboard)\/|src\/proxy\.ts|package\.json|pnpm-lock\.yaml)/);
+  });
+  it("closes the internal-link and lightning visual review findings", () => {
+    const root = path.resolve("src/app/knowledge");
+    const files = fs.readdirSync(root, { recursive: true }).map(String).filter((file) => /\.(tsx?|css)$/.test(file));
+    for (const file of files) {
+      const text = fs.readFileSync(path.join(root, file), "utf8");
+      expect(text, `${file}: internal raw anchor`).not.toMatch(/<a\s+[^>]*href=["']\//);
+    }
+    const edgePanel = fs.readFileSync(path.join(root, "components", "KnowledgeEdgeDetailPanel.tsx"), "utf8");
+    const canvas = fs.readFileSync(path.join(root, "components", "KnowledgeGraphCanvas.tsx"), "utf8");
+    expect(edgePanel).not.toMatch(/\bZap\b|Lightning|knowledge-marker-lightning/i);
+    expect(canvas).not.toMatch(/\bZap\b|Lightning|knowledge-marker-lightning/i);
+    const contradicts = getEdgeVisual("contradicts", "inferred", 0.8);
+    expect(contradicts.isSymmetric).toBe(true);
+    expect(contradicts.marker).toBe("none");
+    expect(contradicts.animated).toBe(false);
   });
 });

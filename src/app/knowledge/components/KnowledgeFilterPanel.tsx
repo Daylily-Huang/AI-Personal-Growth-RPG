@@ -42,7 +42,7 @@ export default function KnowledgeFilterPanel({
   onResetFilters,
 }: KnowledgeFilterPanelProps) {
   return (
-    <div className="[&_button]:min-h-[var(--touch-target-min)] [&_button[aria-pressed=true]]:bg-[var(--selection-neutral-bg)] [&_button[aria-pressed=true]]:text-[var(--selection-neutral-text)] [&_button[aria-pressed=true]]:outline [&_button[aria-pressed=true]]:outline-[var(--selection-neutral-border)] flex h-full flex-col overflow-y-auto p-4 text-[var(--text-primary)]">
+    <div className="[&_button]:min-h-[var(--touch-target-min)] [&_button]:min-w-[var(--touch-target-min)] [&_input]:min-h-[var(--touch-target-min)] [&_button[aria-pressed=true]]:bg-[var(--selection-neutral-bg)] [&_button[aria-pressed=true]]:text-[var(--selection-neutral-text)] [&_button[aria-pressed=true]]:outline [&_button[aria-pressed=true]]:outline-[var(--selection-neutral-border)] flex h-full flex-col overflow-y-auto p-4 text-[var(--text-primary)]">
       {/* Search Input */}
       <div className="relative mb-5">
         <Search
@@ -55,7 +55,7 @@ export default function KnowledgeFilterPanel({
           onChange={(e) => onFilterChange({ search: e.target.value })}
           placeholder="搜索概念、命题或主题…"
           aria-label="搜索知识图谱"
-          className="w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-ground)] px-8 py-1.5 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
+          className="min-h-[var(--touch-target-min)] w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-ground)] px-8 py-1.5 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
         />
       </div>
 
