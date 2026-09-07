@@ -1,10 +1,10 @@
 # AI Personal Growth RPG — 项目全景交接与治理主文档 (Master Project Handoff)
 
-> **文档版本**: 1.0 (Master Comprehensive Handoff)  
-> **更新时间**: 2026-09-05  
+> **文档版本**: 1.1 (Master Comprehensive Handoff)  
+> **更新时间**: 2026-09-06  
 > **适用对象**: 后续所有接手的 AI 工程师、独立审查 AI、项目协作者  
-> **当前主分支基线 (main)**: `a987092512b878663eee7f34666268df7fa8d6da`  
-> **当前所处里程碑**: Phase 5 — Stage 5C-UI Skills Modernization (Round 1 开发完成，已推送分支，待 PR 审查)  
+> **当前主分支基线 (main)**: `a93e2bcada3eca63c3d69ecc633fd50df0f54e94`  
+> **当前所处里程碑**: Phase 6 — Advanced Canvas Modernization (Knowledge Graph Canvas) (CURRENT / IN PROGRESS)  
 > **代码仓库**: `Daylily-Huang/AI-Personal-Growth-RPG`  
 > **核心工作区路径**: `d:\AI_Personal_Growth_RPG`（WSL 挂载路径：`/mnt/d/AI_Personal_Growth_RPG`）
 
@@ -133,12 +133,12 @@ AI_Personal_Growth_RPG/
 | **核心页面** | Phase 5 - 5A | Dashboard 个人仪表盘视觉重构 | **FINAL FROZEN** | PR #18 |
 | **核心页面** | Phase 5 - 5B | Quests 任务系统视觉重构与无障碍治理 | **FINAL FROZEN** | PR #19 |
 | **核心页面** | **Phase 5 - 5C** | **Skills 技能树与 ReactFlow 画布现代化** | **FINAL FROZEN** | **PR #20 (Squash Commit 6e238a4)** |
-| **高级画布** | **Phase 6** | **Knowledge Graph Canvas 知识图谱画布现代化** | **READY TO START** | **待授权启动** |
+| **高级画布** | **Phase 6** | **Knowledge Graph Canvas 知识图谱画布现代化** | **CURRENT / IN PROGRESS** | **Round 1 进行中** |
 | **全站抛光** | Phase 7 | 端到端无障碍 (A11y)、全视口响应式与动效收敛 | **QUEUED** | 待 Phase 6 完成后启动 |
 
 ---
 
-## 5. 当前阶段详述：Phase 5 — Stage 5C-UI Skills Modernization
+## 5. 阶段回顾：Phase 5 — 核心业务页面全量冻结 (FINAL FROZEN)
 
 ### 5.1 本阶段核心目标
 将 `/skills` 页面及其所有子组件彻底剥离旧版暗黑赛博朋克/霓虹视效，全面迁移至**新中式水墨浅色优先（Modern Eastern Ink-Wash, Light-First）**设计体系，集成全局单实例 `InspectorDrawer`，消除所有直接引用的 `var(--gold-*)`，做到零后端变更与全绿安全门禁。
@@ -256,40 +256,17 @@ wsl -d Ubuntu -- bash -lc "cd /mnt/d/AI_Personal_Growth_RPG && pnpm build"
 
 ## 8. 接手 AI 极速上手与后续路线图推进指引 (Next Actions)
 
-当你作为新会话中的接手 AI 启动时，请按照当前项目所处的实际状态执行对应的分流逻辑：
+当前状态：Phase 5 核心业务页面（Dashboard、Quests、Skills）已全线 **FINAL FROZEN**（PR #20 Squash Commit `6e238a4`，基线冻结 Commit `a93e2bc`）。**Phase 6: Advanced Canvas Modernization (Knowledge Graph Canvas)** 已获得正式授权启动并处于 Round 1 实施状态。
 
-```
-                                  检查当前状态
-                                       │
-                  ┌────────────────────┴────────────────────┐
-                  ▼                                         ▼
-      【场景 A: 审查 AI 给出 GO】               【场景 B: 审查 AI 给出 NO-GO】
-                  │                                         │
-        1. 用户在 GitHub 合并 PR                   1. 提取审查报告中的 P1/P2
-        2. 本地切 main 分支拉取最新代码             2. 在 src/app/skills/** 手术式修复
-        3. 更新 08_PAGE_MIGRATION_PLAN            3. 运行全量测试门禁验证
-        4. 标记 Stage 5C 为 FINAL FROZEN           4. Commit 并 Push 到 feature 分支
-        5. 创建 feature/phase6 分支               5. 生成 Round 2 提审提示词给用户
-        6. 请求审查 AI 授权 Phase 6 启动
-```
-
-### 场景 A：审查通过并合并后，如何启动 Phase 6（知识图谱画布）
-1. 确认 PR 已由用户在 GitHub 上通过 **Squash and merge** 合并入 `main`。
-2. 本地拉取最新代码：
-   ```bash
-   wsl -d Ubuntu -- bash -lc "cd /mnt/d/AI_Personal_Growth_RPG && git checkout main && git pull origin main"
-   ```
-3. 更新 `docs/DesignSystem/08_PAGE_MIGRATION_PLAN.md`，将 `Stage 5C-UI Skills Modernization` 状态更新为 `[FINAL FROZEN]`。
-4. 提交文档更新：
-   ```bash
-   wsl -d Ubuntu -- bash -lc "cd /mnt/d/AI_Personal_Growth_RPG && git commit -am 'docs(roadmap): mark Stage 5C-UI Skills Modernization as FINAL FROZEN'"
-   git push origin main
-   ```
-5. 开启新分支：
-   ```bash
-   wsl -d Ubuntu -- bash -lc "cd /mnt/d/AI_Personal_Growth_RPG && git checkout -b feature/phase6-knowledge-canvas"
-   ```
-6. 向审查 AI 发送 **PHASE 6: ADVANCED CANVAS MODERNIZATION (KNOWLEDGE GRAPH) ROUND 1 IMPLEMENTATION AUTHORIZATION** 请求。
+### 当前行动：Phase 6 知识图谱画布现代化 (Round 1)
+1. **工作分支**: `feature/phase6-knowledge-canvas`（基线为 `a93e2bcada3eca63c3d69ecc633fd50df0f54e94`）。
+2. **核心目标**:
+   - `/knowledge` 画布全面浅色水墨化（Light-First Ink-Wash），清除所有旧黑底（`bg-[#0b0f17]`）、赛博朋克深色类与硬编码色值。
+   - 确定性领域聚类（Deterministic Domain/Category Clustering），纯前端布局函数，零新算法依赖，同一输入稳定输出。
+   - 关系边权威与静态化：所有边默认 `animated: false`，消除闪电与跑马灯动效；严格保留五大关系类型与对称/有向语义。
+   - 全局单实例 `InspectorDrawer` 集成（`mode="auto"`），节点与关系共用，支持只读关联技能富集（`LevelBadge`/`MasteryBadge`/`XPProgress`）与产物/证据溯源。
+   - 保证严格零后端、零共享基元、零领域模型修改。
+3. **完成标准**: 运行并通过全量质量门禁（7 套专项测试、Lint、TypeScript、Deterministic Harness、Build），由 Windows PowerShell 推送分支并提交独立审查报告。
 
 ### 场景 B：审查未通过（NEED_FIX），如何执行外科手术式修复
 1. 仔细通读审查 AI 的报告，明确每一个 P1/P2 的违规根因（如漏掉的 Token、某个 DOM 的无障碍 ARIA 属性不完整、测试缺少边界覆盖等）。
