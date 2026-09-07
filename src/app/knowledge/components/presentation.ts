@@ -11,7 +11,7 @@ import type {
 /**
  * 4-Channel Visual Encoding Definition:
  * 1. Border / Stroke pattern (solid / dashed / dotted)
- * 2. Color scheme (sky, emerald, amber, rose, purple, zinc)
+ * 2. Frozen semantic authority tokens on light surfaces
  * 3. Icon / Badge
  * 4. Explicit Text / Label
  */
@@ -35,9 +35,9 @@ export function getAuthorityVisual(
     return {
       status,
       label: "[ARCHIVED]",
-      badgeClass: "bg-zinc-800 text-zinc-400 border border-zinc-700",
-      borderClass: "border-dotted border-zinc-600/80 opacity-60",
-      bgClass: "bg-zinc-900/60",
+      badgeClass: "bg-[var(--surface-ground)] text-[var(--text-secondary)] border border-[var(--border-subtle)]",
+      borderClass: "border-dotted border-[var(--border-default)]",
+      bgClass: "bg-[var(--surface-raised)]",
       iconName: "Archive",
       strokeDasharray: "3 3",
     };
@@ -48,18 +48,18 @@ export function getAuthorityVisual(
       return {
         status: "verified",
         label: "[VERIFIED]",
-        badgeClass: "bg-emerald-950/80 text-emerald-300 border border-emerald-500/50",
-        borderClass: "border-solid border-sky-500/70 shadow-sky-950/30",
-        bgClass: "bg-slate-900/90",
+        badgeClass: "bg-[var(--authority-verified-bg)] text-[var(--authority-verified-text)] border border-[var(--authority-verified-border)]",
+        borderClass: "border-solid border-[var(--authority-verified-border)]",
+        bgClass: "bg-[var(--surface-raised)]",
         iconName: "CheckCircle2",
       };
     case "inferred":
       return {
         status: "inferred",
         label: `[AI PROPOSED ${Math.round(confidence * 100)}%]`,
-        badgeClass: "bg-amber-950/80 text-amber-300 border border-amber-500/50",
-        borderClass: "border-dashed border-amber-500/70 shadow-amber-950/30",
-        bgClass: "bg-slate-900/80",
+        badgeClass: "bg-[var(--authority-inferred-bg)] text-[var(--authority-inferred-text)] border border-[var(--authority-inferred-border)]",
+        borderClass: "border-dashed border-[var(--authority-inferred-border)]",
+        bgClass: "bg-[var(--surface-raised)]",
         iconName: "Sparkles",
         strokeDasharray: "5 5",
       };
@@ -67,18 +67,18 @@ export function getAuthorityVisual(
       return {
         status: "rejected",
         label: "[REJECTED]",
-        badgeClass: "bg-rose-950/80 text-rose-300 border border-rose-500/50",
-        borderClass: "border-solid border-rose-600/60 opacity-60",
-        bgClass: "bg-zinc-900/80",
+        badgeClass: "bg-[var(--authority-rejected-bg)] text-[var(--authority-rejected-text)] border border-[var(--authority-rejected-border)]",
+        borderClass: "border-solid border-[var(--authority-rejected-border)]",
+        bgClass: "bg-[var(--surface-raised)]",
         iconName: "XCircle",
       };
     case "superseded":
       return {
         status: "superseded",
         label: "[SUPERSEDED]",
-        badgeClass: "bg-zinc-800 text-zinc-400 border border-zinc-600",
-        borderClass: "border-dotted border-zinc-600 opacity-50",
-        bgClass: "bg-zinc-900/60",
+        badgeClass: "bg-[var(--authority-superseded-bg)] text-[var(--authority-superseded-text)] border border-[var(--authority-superseded-border)]",
+        borderClass: "border-dotted border-[var(--border-default)]",
+        bgClass: "bg-[var(--surface-raised)]",
         iconName: "HelpCircle",
       };
   }
@@ -100,15 +100,15 @@ export function getNodeTypeVisual(type: KnowledgeNodeType): NodeTypeVisual {
         label: "Concept",
         iconName: "BookOpen",
         shapeClass: "rounded-xl border",
-        headerBgClass: "bg-sky-950/40 text-sky-300",
+        headerBgClass: "bg-[var(--entity-knowledge-bg)] text-[var(--entity-knowledge-text)]",
       };
     case "claim":
       return {
         type: "claim",
         label: "Claim",
         iconName: "Quote",
-        shapeClass: "rounded-2xl border-l-4 border-l-amber-400 border-t border-r border-b",
-        headerBgClass: "bg-amber-950/40 text-amber-300",
+        shapeClass: "rounded-2xl border-l-4 border-l-[var(--entity-knowledge-border)] border-t border-r border-b",
+        headerBgClass: "bg-[var(--entity-knowledge-bg)] text-[var(--entity-knowledge-text)]",
       };
     case "topic":
       return {
@@ -116,7 +116,7 @@ export function getNodeTypeVisual(type: KnowledgeNodeType): NodeTypeVisual {
         label: "Topic",
         iconName: "FolderTree",
         shapeClass: "rounded-lg border-2 border-double",
-        headerBgClass: "bg-purple-950/40 text-purple-300",
+        headerBgClass: "bg-[var(--entity-knowledge-bg)] text-[var(--entity-knowledge-text)]",
       };
   }
 }
@@ -127,11 +127,11 @@ export interface EdgeRelationVisual {
   color: string;
   strokeDasharray?: string;
   animated: boolean;
-  marker: "arrow" | "circle" | "lightning" | "hollow-arrow" | "none";
+  marker: "arrow" | "circle" | "hollow-arrow" | "none";
   isSymmetric: boolean;
 }
 
-export function getEdgeVisual(
+function getRelationVisual(
   relationType: KnowledgeRelationType,
   verificationStatus: KnowledgeVerificationStatus,
   confidence: number,
@@ -143,9 +143,9 @@ export function getEdgeVisual(
       return {
         relationType: "prerequisite",
         label: isInferred ? `PRE-REQ (AI ${Math.round(confidence * 100)}%)` : "PREREQUISITE",
-        color: isInferred ? "#f59e0b" : "#38bdf8", // Amber / Sky
+        color: isInferred ? "var(--authority-inferred-text)" : "var(--authority-verified-text)", // Amber / Sky
         strokeDasharray: isInferred ? "5 5" : undefined,
-        animated: isInferred,
+        animated: false,
         marker: isInferred ? "hollow-arrow" : "arrow",
         isSymmetric: false,
       };
@@ -153,19 +153,19 @@ export function getEdgeVisual(
       return {
         relationType: "contains",
         label: isInferred ? `CONTAINS (AI ${Math.round(confidence * 100)}%)` : "CONTAINS",
-        color: "#c084fc", // Purple-400
+        color: "var(--entity-knowledge-text)", // Purple-400
         strokeDasharray: "4 4",
-        animated: isInferred,
-        marker: "circle",
+        animated: false,
+        marker: isInferred ? "hollow-arrow" : "arrow",
         isSymmetric: false,
       };
     case "supports":
       return {
         relationType: "supports",
         label: isInferred ? `SUPPORTS (AI ${Math.round(confidence * 100)}%)` : "SUPPORTS",
-        color: "#34d399", // Emerald-400
+        color: "var(--authority-verified-text)", // Emerald-400
         strokeDasharray: isInferred ? "5 5" : undefined,
-        animated: isInferred,
+        animated: false,
         marker: isInferred ? "hollow-arrow" : "arrow",
         isSymmetric: false,
       };
@@ -177,10 +177,10 @@ export function getEdgeVisual(
         label: isInferred
           ? `CONTRADICTS · AI ${Math.round(confidence * 100)}%`
           : "CONTRADICTS [VERIFIED]",
-        color: isInferred ? "#fb7185" : "#f43f5e", // Rose-400 / Rose-500
+        color: isInferred ? "var(--authority-inferred-text)" : "var(--state-danger-text)", // Rose-400 / Rose-500
         strokeDasharray: isInferred ? "4 3" : undefined, // Inferred is dashed, Verified is solid
-        animated: isInferred,
-        marker: "lightning",
+        animated: false,
+        marker: "none",
         isSymmetric: true,
       };
     case "relates_to":
@@ -188,13 +188,32 @@ export function getEdgeVisual(
       return {
         relationType: "relates_to",
         label: isInferred ? `RELATES (AI ${Math.round(confidence * 100)}%)` : "RELATES TO",
-        color: "#60a5fa", // Blue-400
+        color: "var(--text-secondary)", // Blue-400
         strokeDasharray: "6 4",
-        animated: isInferred,
+        animated: false,
         marker: "none",
         isSymmetric: true,
       };
   }
+}
+
+export function getEdgeVisual(
+  relationType: KnowledgeRelationType,
+  verificationStatus: KnowledgeVerificationStatus,
+  confidence: number,
+  isArchived = false,
+): EdgeRelationVisual {
+  const visual = getRelationVisual(relationType, verificationStatus, confidence);
+  if (verificationStatus === "rejected" || verificationStatus === "superseded") {
+    visual.label = `${relationType.toUpperCase()} [${verificationStatus.toUpperCase()}]`;
+    visual.color = verificationStatus === "rejected" ? "var(--authority-rejected-text)" : "var(--authority-superseded-text)";
+    visual.strokeDasharray = "2 4";
+  }
+  if (isArchived) {
+    visual.label += ` [ARCHIVED · ${verificationStatus.toUpperCase()}]`;
+    visual.strokeDasharray = "2 4";
+  }
+  return visual;
 }
 
 export function formatSourceType(sourceType: KnowledgeSourceType): string {

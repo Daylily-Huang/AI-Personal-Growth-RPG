@@ -1,3 +1,5 @@
+import { BaseModal } from "@/components/ui/BaseModal";
+import { ConfidenceBadge } from "@/components/ui/ConfidenceBadge";
 // src/app/knowledge/components/KnowledgeEdgeDetailPanel.tsx
 // Stage 6C Edge Detail & Epistemic Rationale Drawer (Right Drawer, 380px)
 
@@ -129,8 +131,8 @@ export default function KnowledgeEdgeDetailPanel({
 
   if (loading) {
     return (
-      <div className="flex h-full flex-col items-center justify-center p-6 text-zinc-400">
-        <Loader2 className="h-6 w-6 animate-spin text-emerald-400" />
+      <div className="flex h-full flex-col items-center justify-center p-6 text-[var(--text-secondary)]">
+        <Loader2 className="h-6 w-6 animate-spin motion-reduce:animate-none text-[var(--authority-verified-text)]" />
         <p className="mt-2 text-xs">正在加载关系详情与认知审计…</p>
       </div>
     );
@@ -138,13 +140,13 @@ export default function KnowledgeEdgeDetailPanel({
 
   if (error || !data) {
     return (
-      <div className="flex h-full flex-col items-center justify-center p-6 text-center text-zinc-400">
-        <AlertTriangle className="h-8 w-8 text-rose-400" />
-        <p className="mt-2 text-xs text-rose-300">{error || "无法加载连边详情"}</p>
+      <div className="flex h-full flex-col items-center justify-center p-6 text-center text-[var(--text-secondary)]">
+        <AlertTriangle className="h-8 w-8 text-[var(--state-danger-text)]" />
+        <p className="mt-2 text-xs text-[var(--state-danger-text)]">{error || "无法加载连边详情"}</p>
         <button
           type="button"
           onClick={onClose}
-          className="mt-4 rounded-lg border border-white/10 px-3 py-1.5 text-xs text-zinc-300 hover:bg-white/5"
+          className="mt-4 rounded-lg border border-[var(--border-subtle)] px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:bg-[var(--surface-ground)]"
         >
           关闭面板
         </button>
@@ -168,12 +170,12 @@ export default function KnowledgeEdgeDetailPanel({
   return (
     <div
       data-testid="knowledge-edge-detail-panel"
-      className="flex h-full flex-col overflow-y-auto bg-[#0d1320] text-zinc-200"
+      className="flex h-full flex-col overflow-y-auto bg-[var(--surface-base)] text-[var(--text-primary)]"
     >
       {/* Header */}
-      <div className="sticky top-0 z-10 flex items-center justify-between border-b border-white/10 bg-[#0d1320]/95 px-4 py-3 backdrop-blur">
+      <div className="sticky top-0 z-[var(--z-canvas)] flex items-center justify-between border-b border-[var(--border-subtle)] bg-[var(--surface-base)] px-4 py-3 backdrop-blur">
         <div className="flex items-center gap-2">
-          <span className="font-mono text-xs uppercase tracking-wider text-zinc-400">
+          <span className="font-mono text-xs uppercase tracking-wider text-[var(--text-secondary)]">
             {isSymmetric ? "对称知识关联" : "知识关联 (Edge)"}
           </span>
 
@@ -182,13 +184,13 @@ export default function KnowledgeEdgeDetailPanel({
             className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${authority.badgeClass}`}
           >
             {authority.iconName === "CheckCircle2" && (
-              <CheckCircle2 className="h-3 w-3 text-emerald-400" />
+              <CheckCircle2 className="h-3 w-3 text-[var(--authority-verified-text)]" />
             )}
             {authority.iconName === "Sparkles" && (
-              <Sparkles className="h-3 w-3 text-amber-400" />
+              <Sparkles className="h-3 w-3 text-[var(--authority-inferred-text)]" />
             )}
             {authority.iconName === "Archive" && (
-              <Archive className="h-3 w-3 text-zinc-400" />
+              <Archive className="h-3 w-3 text-[var(--text-secondary)]" />
             )}
             <span>{authority.label}</span>
           </div>
@@ -199,7 +201,7 @@ export default function KnowledgeEdgeDetailPanel({
           data-testid="close-edge-detail-btn"
           onClick={onClose}
           aria-label="关闭连边详情"
-          className="rounded p-1 text-zinc-400 hover:bg-white/5 hover:text-zinc-100"
+          className="rounded p-1 text-[var(--text-secondary)] hover:bg-[var(--surface-ground)] hover:text-[var(--text-primary)]"
         >
           <X className="h-4 w-4" />
         </button>
@@ -211,25 +213,26 @@ export default function KnowledgeEdgeDetailPanel({
         {actionSuccess && (
           <div
             data-testid="edge-action-success"
-            className="flex items-center gap-2 rounded-lg border border-emerald-500/40 bg-emerald-950/40 p-2.5 text-emerald-300"
+            className="flex items-center gap-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-raised)] p-2.5 text-[var(--authority-verified-text)]"
           >
-            <Check className="h-4 w-4 shrink-0 text-emerald-400" />
+            <Check className="h-4 w-4 shrink-0 text-[var(--authority-verified-text)]" />
             <span>{actionSuccess}</span>
           </div>
         )}
         {actionError && (
           <div
             data-testid="edge-action-error"
-            className="flex items-center gap-2 rounded-lg border border-rose-500/40 bg-rose-950/40 p-2.5 text-rose-300"
+            className="flex items-center gap-2 rounded-lg border border-[var(--state-danger-border)] bg-[var(--state-danger-bg)] p-2.5 text-[var(--state-danger-text)]"
           >
-            <AlertTriangle className="h-4 w-4 shrink-0 text-rose-400" />
+            <AlertTriangle className="h-4 w-4 shrink-0 text-[var(--state-danger-text)]" />
             <span>{actionError}</span>
           </div>
         )}
 
+        <ConfidenceBadge variant="knowledge" score={edge.confidence} />
         {/* P1-2: Source / Target vs Node A / Node B Display */}
-        <div className="rounded-xl border border-white/10 bg-black/40 p-4">
-          <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 mb-2">
+        <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-ground)] p-4">
+          <div className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary)] mb-2">
             {isSymmetric ? "对称关联节点 (双向无方向)" : "关联两端节点 (有向依赖)"}
           </div>
 
@@ -237,40 +240,40 @@ export default function KnowledgeEdgeDetailPanel({
             <button
               type="button"
               onClick={() => onSelectNode(edge.sourceNodeId)}
-              className="flex items-center justify-between rounded-lg bg-sky-950/30 p-2.5 text-left border border-sky-500/20 hover:bg-sky-900/30 transition-colors"
+              className="flex items-center justify-between rounded-lg bg-[var(--surface-raised)] p-2.5 text-left border border-[var(--border-subtle)] hover:bg-[var(--surface-raised)] transition-colors"
             >
-              <span className="font-semibold text-sky-200 truncate">
+              <span className="font-semibold text-[var(--entity-knowledge-text)] truncate">
                 {edge.sourceNodeTitle}
               </span>
-              <span className="text-[9px] font-mono text-zinc-500 ml-2 shrink-0">
+              <span className="text-[9px] font-mono text-[var(--text-secondary)] ml-2 shrink-0">
                 {isSymmetric ? "节点 A" : "起点 (Source)"}
               </span>
             </button>
 
             <div className="flex items-center justify-center gap-2 py-1">
-              <span className="rounded-full bg-purple-950 px-3 py-1 font-mono text-[10px] font-bold text-purple-300 border border-purple-500/30">
+              <span className="rounded-full bg-[var(--surface-raised)] px-3 py-1 font-mono text-[10px] font-bold text-[var(--entity-artifact-text)] border border-[var(--border-subtle)]">
                 {edge.relationType.toUpperCase()}
               </span>
               {isSymmetric ? (
                 edge.relationType === "contradicts" ? (
-                  <Zap className="h-3.5 w-3.5 text-rose-400" />
+                  <Zap className="h-3.5 w-3.5 text-[var(--state-danger-text)]" />
                 ) : (
-                  <Link2 className="h-3.5 w-3.5 text-blue-400" />
+                  <Link2 className="h-3.5 w-3.5 text-[var(--entity-knowledge-text)]" />
                 )
               ) : (
-                <ArrowRight className="h-3.5 w-3.5 text-zinc-500" />
+                <ArrowRight className="h-3.5 w-3.5 text-[var(--text-secondary)]" />
               )}
             </div>
 
             <button
               type="button"
               onClick={() => onSelectNode(edge.targetNodeId)}
-              className="flex items-center justify-between rounded-lg bg-emerald-950/30 p-2.5 text-left border border-emerald-500/20 hover:bg-emerald-900/30 transition-colors"
+              className="flex items-center justify-between rounded-lg bg-[var(--surface-raised)] p-2.5 text-left border border-[var(--border-subtle)] hover:bg-[var(--surface-raised)] transition-colors"
             >
-              <span className="font-semibold text-emerald-200 truncate">
+              <span className="font-semibold text-[var(--authority-verified-text)] truncate">
                 {edge.targetNodeTitle}
               </span>
-              <span className="text-[9px] font-mono text-zinc-500 ml-2 shrink-0">
+              <span className="text-[9px] font-mono text-[var(--text-secondary)] ml-2 shrink-0">
                 {isSymmetric ? "节点 B" : "终点 (Target)"}
               </span>
             </button>
@@ -278,39 +281,39 @@ export default function KnowledgeEdgeDetailPanel({
         </div>
 
         {/* Epistemic Provenance Rationale Note */}
-        <div className="rounded-lg border border-white/10 bg-black/30 p-3">
-          <div className="mb-2 flex items-center justify-between font-semibold uppercase tracking-wider text-[11px] text-zinc-400">
+        <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-ground)] p-3">
+          <div className="mb-2 flex items-center justify-between font-semibold uppercase tracking-wider text-[11px] text-[var(--text-secondary)]">
             <span className="flex items-center gap-1.5">
-              <ShieldCheck className="h-3.5 w-3.5 text-amber-400" />
+              <ShieldCheck className="h-3.5 w-3.5 text-[var(--authority-inferred-text)]" />
               关系推论与依据 (Epistemic Rationale)
             </span>
-            <span className="text-[10px] text-zinc-500 font-normal">
+            <span className="text-[10px] text-[var(--text-secondary)] font-normal">
               {formatSourceType(edge.sourceType)}
             </span>
           </div>
 
-          <div className="rounded bg-black/50 p-2.5 text-zinc-300 leading-relaxed border border-white/5 whitespace-pre-wrap">
+          <div className="rounded bg-[var(--surface-ground)] p-2.5 text-[var(--text-secondary)] leading-relaxed border border-[var(--border-subtle)] whitespace-pre-wrap">
             {edge.provenanceNote || (
-              <span className="italic text-zinc-600">无直接推论依据记录</span>
+              <span className="italic text-[var(--text-secondary)]">无直接推论依据记录</span>
             )}
           </div>
         </div>
 
         {/* Provenance Activities & Artifacts (if any) */}
         {(provenance.sourceActivity || provenance.sourceArtifact) && (
-          <div className="rounded-lg border border-white/5 bg-black/20 p-3 space-y-2">
-            <div className="font-semibold uppercase tracking-wider text-[11px] text-zinc-400">
+          <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-ground)] p-3 space-y-2">
+            <div className="font-semibold uppercase tracking-wider text-[11px] text-[var(--text-secondary)]">
               关联来源记录
             </div>
             {provenance.sourceActivity && (
-              <div className="flex items-center gap-2 rounded bg-sky-950/20 p-2 border border-sky-500/10 text-sky-200">
-                <Activity className="h-3.5 w-3.5 text-sky-400 shrink-0" />
+              <div className="flex items-center gap-2 rounded bg-[var(--surface-raised)] p-2 border border-[var(--border-subtle)] text-[var(--entity-knowledge-text)]">
+                <Activity className="h-3.5 w-3.5 text-[var(--entity-knowledge-text)] shrink-0" />
                 <span className="truncate">{provenance.sourceActivity.title}</span>
               </div>
             )}
             {provenance.sourceArtifact && (
-              <div className="flex items-center gap-2 rounded bg-purple-950/20 p-2 border border-purple-500/10 text-purple-200">
-                <FileCode className="h-3.5 w-3.5 text-purple-400 shrink-0" />
+              <div className="flex items-center gap-2 rounded bg-[var(--surface-raised)] p-2 border border-[var(--border-subtle)] text-[var(--entity-artifact-text)]">
+                <FileCode className="h-3.5 w-3.5 text-[var(--entity-artifact-text)] shrink-0" />
                 <span className="truncate">{provenance.sourceArtifact.title}</span>
               </div>
             )}
@@ -319,8 +322,8 @@ export default function KnowledgeEdgeDetailPanel({
 
         {/* P1-3: Verify / Reject Actions & Focused Confirmation Modal for Inferred Edge */}
         {edge.verificationStatus === "inferred" && (
-          <div className="space-y-2 border-t border-white/10 pt-4">
-            <div className="font-semibold uppercase tracking-wider text-[11px] text-zinc-400 mb-2">
+          <div className="space-y-2 border-t border-[var(--border-subtle)] pt-4">
+            <div className="font-semibold uppercase tracking-wider text-[11px] text-[var(--text-secondary)] mb-2">
               关系认识论决策
             </div>
 
@@ -333,10 +336,10 @@ export default function KnowledgeEdgeDetailPanel({
                   setConfirmRejectOpen(false);
                 }}
                 disabled={verifying || rejecting}
-                className="flex items-center justify-center gap-1.5 rounded-lg bg-emerald-600 py-2 font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+                className="flex items-center justify-center gap-1.5 rounded-lg bg-[var(--surface-raised)] py-2 font-semibold text-[var(--text-primary)] hover:bg-[var(--surface-raised)] disabled:opacity-50"
               >
                 {verifying ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
                 ) : (
                   <Check className="h-3.5 w-3.5" />
                 )}
@@ -351,10 +354,10 @@ export default function KnowledgeEdgeDetailPanel({
                   setConfirmVerifyOpen(false);
                 }}
                 disabled={verifying || rejecting}
-                className="flex items-center justify-center gap-1.5 rounded-lg border border-rose-500/40 bg-rose-950/40 py-2 font-semibold text-rose-300 hover:bg-rose-900/60 disabled:opacity-50"
+                className="flex items-center justify-center gap-1.5 rounded-lg border border-[var(--state-danger-border)] bg-[var(--state-danger-bg)] py-2 font-semibold text-[var(--state-danger-text)] hover:bg-[var(--state-danger-bg)] disabled:opacity-50"
               >
                 {rejecting ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
                 ) : (
                   <ThumbsDown className="h-3.5 w-3.5" />
                 )}
@@ -363,15 +366,15 @@ export default function KnowledgeEdgeDetailPanel({
             </div>
 
             {/* Edge Verify Confirmation Dialog */}
-            {confirmVerifyOpen && (
+            <BaseModal open={confirmVerifyOpen} onClose={() => setConfirmVerifyOpen(false)} title="确认验证">
               <div
                 data-testid="edge-verify-confirm-modal"
-                className="mt-3 rounded-lg border border-emerald-500/50 bg-emerald-950/40 p-3"
+                className="mt-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-raised)] p-3"
               >
-                <div className="font-semibold text-emerald-300">
+                <div className="font-semibold text-[var(--authority-verified-text)]">
                   确认将该推论关系晋级为已验证事实？
                 </div>
-                <div className="mt-1 text-[11px] text-zinc-300 leading-relaxed">
+                <div className="mt-1 text-[11px] text-[var(--text-secondary)] leading-relaxed">
                   置信度将提升至 100% [VERIFIED]，此认识论决策将记入永久系统审计。
                 </div>
                 <div className="mt-3 flex items-center justify-end gap-2">
@@ -379,7 +382,7 @@ export default function KnowledgeEdgeDetailPanel({
                     type="button"
                     data-testid="cancel-verify-edge-btn"
                     onClick={() => setConfirmVerifyOpen(false)}
-                    className="rounded border border-white/10 bg-black/40 px-3 py-1 text-xs text-zinc-400 hover:text-zinc-200"
+                    className="rounded border border-[var(--border-subtle)] bg-[var(--surface-ground)] px-3 py-1 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                   >
                     取消
                   </button>
@@ -387,24 +390,24 @@ export default function KnowledgeEdgeDetailPanel({
                     type="button"
                     data-testid="confirm-verify-edge-btn"
                     onClick={handleVerify}
-                    className="rounded bg-emerald-600 px-3 py-1 text-xs font-semibold text-white hover:bg-emerald-500"
+                    className="rounded bg-[var(--surface-raised)] px-3 py-1 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--surface-raised)]"
                   >
                     确认验证
                   </button>
                 </div>
               </div>
-            )}
+            </BaseModal>
 
             {/* Edge Reject Confirmation Dialog */}
-            {confirmRejectOpen && (
+            <BaseModal open={confirmRejectOpen} onClose={() => setConfirmRejectOpen(false)} title="确认否决">
               <div
                 data-testid="edge-reject-confirm-modal"
-                className="mt-3 rounded-lg border border-rose-500/50 bg-rose-950/40 p-3"
+                className="mt-3 rounded-lg border border-[var(--state-danger-border)] bg-[var(--state-danger-bg)] p-3"
               >
-                <div className="font-semibold text-rose-300">
+                <div className="font-semibold text-[var(--state-danger-text)]">
                   确认否决该 AI 提案关系？
                 </div>
-                <div className="mt-1 text-[11px] text-zinc-300 leading-relaxed">
+                <div className="mt-1 text-[11px] text-[var(--text-secondary)] leading-relaxed">
                   否决后该关系将变更为 [REJECTED]，不再作为有效事实呈现在活跃图谱中。
                 </div>
                 <div className="mt-3 flex items-center justify-end gap-2">
@@ -412,7 +415,7 @@ export default function KnowledgeEdgeDetailPanel({
                     type="button"
                     data-testid="cancel-reject-edge-btn"
                     onClick={() => setConfirmRejectOpen(false)}
-                    className="rounded border border-white/10 bg-black/40 px-3 py-1 text-xs text-zinc-400 hover:text-zinc-200"
+                    className="rounded border border-[var(--border-subtle)] bg-[var(--surface-ground)] px-3 py-1 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                   >
                     取消
                   </button>
@@ -420,13 +423,13 @@ export default function KnowledgeEdgeDetailPanel({
                     type="button"
                     data-testid="confirm-reject-edge-btn"
                     onClick={handleReject}
-                    className="rounded bg-rose-600 px-3 py-1 text-xs font-semibold text-white hover:bg-rose-500"
+                    className="rounded bg-[var(--state-danger-bg)] px-3 py-1 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--state-danger-bg)]"
                   >
                     确认否决
                   </button>
                 </div>
               </div>
-            )}
+            </BaseModal>
           </div>
         )}
       </div>
