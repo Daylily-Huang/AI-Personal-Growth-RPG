@@ -895,13 +895,13 @@ describe("Stage 6C — Knowledge Map UI & Component Interaction Tests (Live Reac
 
     // Contains -> Circle
     expect(flowEdges[1].label).toBe("CONTAINS");
-    expect(flowEdges[1].markerEnd).toBe("url(#knowledge-marker-circle)");
+    expect(flowEdges[1].markerEnd).toMatchObject({ type: "arrowclosed" });
     expect(flowEdges[1].style?.strokeWidth).toBe(2.5); // selected edge
 
-    // Contradicts (Inferred) -> Lightning + Dashed + Animated
+    // Contradicts (Inferred) -> Danger color + Dashed + Static (Symmetric: NO arrow)
     expect(flowEdges[2].label).toBe("CONTRADICTS · AI 77%");
-    expect(flowEdges[2].markerEnd).toBe("url(#knowledge-marker-lightning)");
-    expect(flowEdges[2].animated).toBe(true);
+    expect(flowEdges[2].markerEnd).toBeUndefined();
+    expect(flowEdges[2].animated).toBe(false);
     expect(flowEdges[2].style?.strokeDasharray).toBe("4 3");
 
     // Relates_to -> markerEnd is undefined (no directional arrow)

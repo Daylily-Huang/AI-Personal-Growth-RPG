@@ -13,21 +13,21 @@ describe("Stage 6C — 4-Channel Visual Presentation Helpers (Unit Tests)", () =
     expect(verified.label).toBe("[VERIFIED]");
     expect(verified.borderClass).toContain("border-solid");
     expect(verified.iconName).toBe("CheckCircle2");
-    expect(verified.badgeClass).toContain("text-emerald-300");
+    expect(verified.badgeClass).toContain("text-[var(--authority-verified-text)]");
 
     // 1.2 Inferred Node -> Dashed border, Amber, Sparkles, [AI PROPOSED 85%]
     const inferred = getAuthorityVisual("inferred", false, 0.85);
     expect(inferred.label).toBe("[AI PROPOSED 85%]");
     expect(inferred.borderClass).toContain("border-dashed");
     expect(inferred.iconName).toBe("Sparkles");
-    expect(inferred.badgeClass).toContain("text-amber-300");
+    expect(inferred.badgeClass).toContain("text-[var(--authority-inferred-text)]");
 
     // 1.3 Archived Node -> Dotted border, Zinc, Archive, [ARCHIVED]
     const archived = getAuthorityVisual("verified", true, 1.0);
     expect(archived.label).toBe("[ARCHIVED]");
     expect(archived.borderClass).toContain("border-dotted");
     expect(archived.iconName).toBe("Archive");
-    expect(archived.badgeClass).toContain("text-zinc-400");
+    expect(archived.badgeClass).toContain("text-[var(--text-secondary)]");
 
     // 1.4 Rejected Node -> Border rose, XCircle, [REJECTED]
     const rejected = getAuthorityVisual("rejected", false, 0.0);
@@ -56,7 +56,7 @@ describe("Stage 6C — 4-Channel Visual Presentation Helpers (Unit Tests)", () =
     // 3.1 Verified Prerequisite -> Solid Sky line, Arrow marker, Directed
     const prereqVerified = getEdgeVisual("prerequisite", "verified", 1.0);
     expect(prereqVerified.label).toBe("PREREQUISITE");
-    expect(prereqVerified.color).toBe("#38bdf8");
+    expect(prereqVerified.color).toBe("var(--authority-verified-text)");
     expect(prereqVerified.marker).toBe("arrow");
     expect(prereqVerified.animated).toBe(false);
     expect(prereqVerified.isSymmetric).toBe(false);
@@ -64,15 +64,15 @@ describe("Stage 6C — 4-Channel Visual Presentation Helpers (Unit Tests)", () =
     // 3.2 Inferred Prerequisite -> Dashed Amber line, Animated, Hollow-Arrow marker, Directed
     const prereqInferred = getEdgeVisual("prerequisite", "inferred", 0.78);
     expect(prereqInferred.label).toBe("PRE-REQ (AI 78%)");
-    expect(prereqInferred.color).toBe("#f59e0b");
+    expect(prereqInferred.color).toBe("var(--authority-inferred-text)");
     expect(prereqInferred.marker).toBe("hollow-arrow");
-    expect(prereqInferred.animated).toBe(true);
+    expect(prereqInferred.animated).toBe(false);
     expect(prereqInferred.isSymmetric).toBe(false);
 
     // 3.3 Contains -> Purple, Circle marker, Directed
     const contains = getEdgeVisual("contains", "verified", 1.0);
     expect(contains.label).toBe("CONTAINS");
-    expect(contains.marker).toBe("circle");
+    expect(contains.marker).toBe("arrow");
     expect(contains.isSymmetric).toBe(false);
 
     // 3.4 Supports -> Emerald, Arrow marker, Directed
@@ -84,18 +84,18 @@ describe("Stage 6C — 4-Channel Visual Presentation Helpers (Unit Tests)", () =
     // 3.5 P1-1 & P1-2: Inferred vs Verified Contradicts multi-channel distinction
     const contradictsVerified = getEdgeVisual("contradicts", "verified", 1.0);
     expect(contradictsVerified.label).toBe("CONTRADICTS [VERIFIED]");
-    expect(contradictsVerified.color).toBe("#f43f5e");
+    expect(contradictsVerified.color).toBe("var(--state-danger-text)");
     expect(contradictsVerified.strokeDasharray).toBeUndefined(); // Solid
     expect(contradictsVerified.animated).toBe(false);
-    expect(contradictsVerified.marker).toBe("lightning");
+    expect(contradictsVerified.marker).toBe("none");
     expect(contradictsVerified.isSymmetric).toBe(true);
 
     const contradictsInferred = getEdgeVisual("contradicts", "inferred", 0.82);
     expect(contradictsInferred.label).toBe("CONTRADICTS · AI 82%");
-    expect(contradictsInferred.color).toBe("#fb7185");
+    expect(contradictsInferred.color).toBe("var(--authority-inferred-text)");
     expect(contradictsInferred.strokeDasharray).toBe("4 3"); // Dashed
-    expect(contradictsInferred.animated).toBe(true);
-    expect(contradictsInferred.marker).toBe("lightning");
+    expect(contradictsInferred.animated).toBe(false);
+    expect(contradictsInferred.marker).toBe("none");
     expect(contradictsInferred.isSymmetric).toBe(true);
 
     // 3.6 P1-2: Symmetric relates_to has NO directional arrow
