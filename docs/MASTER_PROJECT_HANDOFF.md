@@ -4,7 +4,7 @@
 > **更新时间**: 2026-09-08
 > **适用对象**: 后续所有接手的 AI 工程师、独立审查 AI、项目协作者  
 > **Phase 6 合并基线 (main)**: `186e5bed71844ba274680b10ab939bc5169e669d`
-> **当前所处里程碑**: Phase 6 — Advanced Canvas Modernization (Knowledge Graph Canvas) (**FINAL FROZEN**)
+> **当前所处里程碑**: Phase 7 — Round 1 (**MERGED / COMPLETE**); Round 2 Responsive Stress Hardening (**AUTHORIZED / CODE NOT STARTED**)
 > **代码仓库**: `Daylily-Huang/AI-Personal-Growth-RPG`  
 > **核心工作区路径**: `d:\AI_Personal_Growth_RPG`（WSL 挂载路径：`/mnt/d/AI_Personal_Growth_RPG`）
 
@@ -134,7 +134,8 @@ AI_Personal_Growth_RPG/
 | **核心页面** | Phase 5 - 5B | Quests 任务系统视觉重构与无障碍治理 | **FINAL FROZEN** | PR #19 |
 | **核心页面** | **Phase 5 - 5C** | **Skills 技能树与 ReactFlow 画布现代化** | **FINAL FROZEN** | **PR #20 (Squash Commit 6e238a4)** |
 | **高级画布** | **Phase 6** | **Knowledge Graph Canvas 知识图谱画布现代化** | **FINAL FROZEN** | **PR #21，merge commit `186e5bed71844ba274680b10ab939bc5169e669d`；Exact Head `066fe811e187c547069b3ed3965f24d19e280e9a`；CI `34179971347`** |
-| **全站抛光** | **Phase 7** | **端到端无障碍 (A11y)、全视口响应式与动效收敛** | **QUEUED / NEXT FORMAL ENTRY** | Phase 6 FINAL FROZEN 后启动 |
+| **全站抛光** | **Phase 7 — Round 1** | **端到端无障碍语义、键盘导航与图谱表格替代视图** | **MERGED / COMPLETE** | **PR #22；merge commit `533ab09ebeb8bb827401446f022cf9a83c7db89c`；Exact Head `9cafc345a074577084cad08bbdbed1789911d8ff`；CI `34223921283`** |
+| **全站抛光** | **Phase 7 — Round 2** | **全视口响应式压力硬化、溢出/裁切、Drawer/Table/Graph workspace 与触控目标治理** | **AUTHORIZED / CODE NOT STARTED** | **`docs/DesignSystem/PHASE7_ROUND2_EXECUTION.md`；branch `feature/phase7-responsive-stress`** |
 
 ---
 
@@ -256,7 +257,7 @@ wsl -d Ubuntu -- bash -lc "cd /mnt/d/AI_Personal_Growth_RPG && pnpm build"
 
 ## 8. 接手 AI 极速上手与后续路线图推进指引 (Next Actions)
 
-当前状态：Phase 5 核心业务页面（Dashboard、Quests、Skills）已全线 **FINAL FROZEN**（PR #20 Squash Commit `6e238a4`，基线冻结 Commit `a93e2bc`）。**Phase 6: Advanced Canvas Modernization (Knowledge Graph Canvas)** 已完成独立复核并通过 PR #21 合并，现为 **FINAL FROZEN**。
+当前状态：Phase 5 核心业务页面（Dashboard、Quests、Skills）已全线 **FINAL FROZEN**（PR #20 Squash Commit `6e238a4`，基线冻结 Commit `a93e2bc`）。**Phase 6: Advanced Canvas Modernization (Knowledge Graph Canvas)** 已完成独立复核并通过 PR #21 合并，现为 **FINAL FROZEN**。Phase 7 Round 1 已完成独立复核并通过 PR #22 合并；Round 2 已正式授权，但代码工作尚未开始。
 
 ### Phase 6 — Knowledge Graph Canvas Modernization（FINAL FROZEN）
 1. **合并证据**：PR #21，批准 Exact Head `066fe811e187c547069b3ed3965f24d19e280e9a`，merge commit `186e5bed71844ba274680b10ab939bc5169e669d`，CI run `34179971347`。
@@ -269,7 +270,14 @@ wsl -d Ubuntu -- bash -lc "cd /mnt/d/AI_Personal_Growth_RPG && pnpm build"
    - 保证严格零后端、零共享基元、零领域模型修改。
 3. **后续规则**：Phase 6 的 backend/domain authority、Supabase、shared UI primitives、shared layout、design tokens 与 dependencies 继续冻结；任何重新开放必须先有明确的新变更授权。
 
-### 下一阶段正式入口：Phase 7 — End-to-End A11y, Responsive & Motion Polish
-1. 仅在 Phase 6 冻结边界保持不变的前提下启动。
-2. 目标：端到端键盘与屏幕阅读器可达性、全视口响应式压力测试、动效与减少动效策略收敛。
-3. 继续遵守双 AI 协同治理、独立复核、Exact Head CI 与 skipped 测试如实报告规则。
+### Phase 7 — Round 1: Accessibility Semantics + Keyboard + Graph Table Views（MERGED / COMPLETE）
+1. PR #22 以批准 Exact Head `9cafc345a074577084cad08bbdbed1789911d8ff` 合并，merge commit 为 `533ab09ebeb8bb827401446f022cf9a83c7db89c`。
+2. Approved CI `34223921283` 的 `check` 与 `supabase-integration` 均成功；DB-backed tests、deterministic harness 与 E2E 步骤实际执行并成功。
+3. Round 1 保持 backend/domain authority、Supabase、shared UI/layout、design tokens、dependencies zero drift，并保留 `/skills?view=table`、`/knowledge?view=table` 与图谱键盘语义。
+
+### 下一阶段正式入口：Phase 7 — Round 2: Responsive Stress Hardening
+1. 正式执行手册：`docs/DesignSystem/PHASE7_ROUND2_EXECUTION.md`。
+2. 实施分支策略：从当前 `main` `533ab09ebeb8bb827401446f022cf9a83c7db89c` 创建 `feature/phase7-responsive-stress`，使用独立 PR；不得直接提交 `main`，不得沿用已合并的 Round 1 分支。
+3. 范围：`320/375/768/1024/1440` 视口压力、导航模式转换、workspace grid、page-level overflow/clipping、InspectorDrawer、BaseModal、graph/table density 与现有 `var(--touch-target-min)` 治理。
+4. Round 2 继续冻结 backend/domain authority、Supabase、shared UI/layout、design tokens 与 dependencies；Round 3 motion polish、Round 4 final audit/freeze 均未授权。
+5. 继续遵守双 AI 协同治理、独立复核、Exact Head CI 与 skipped 测试如实报告规则。

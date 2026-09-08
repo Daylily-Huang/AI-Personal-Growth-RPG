@@ -28,7 +28,7 @@ The migration to the new Global Visual System follows a strict, layered implemen
 │                                 ↓                                                   │
 │    Phase 6: Advanced Canvas Modernization (Knowledge Graph Canvas) ✅ FINAL FROZEN  │
 │                                 ↓                                                   │
-│    Phase 7: End-to-End A11y, Responsive & Motion Polish 🚀 NEXT FORMAL ENTRY        │
+│    Phase 7: Round 1 ✅ MERGED → Round 2 Responsive Stress Hardening 🚀 ACTIVE ENTRY │
 └─────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -89,5 +89,13 @@ The migration to the new Global Visual System follows a strict, layered implemen
 - **Closure**: PR #21 merged at `186e5bed71844ba274680b10ab939bc5169e669d` from approved Exact Head `066fe811e187c547069b3ed3965f24d19e280e9a`; Exact Head CI run `34179971347` passed its required jobs.
 - **Frozen boundary**: Backend/domain authority, Supabase, shared UI primitives, shared layout, design tokens, and dependencies remain frozen.
 
-### Phase 7 — End-to-End A11y, Responsive & Motion Polish 🚀 NEXT FORMAL ENTRY
-- **Objective**: Full keyboard navigation, screen reader conformance, responsive stress-testing, and motion tuning.
+### Phase 7 — Round 1: Accessibility Semantics + Keyboard + Graph Table Views ✅ MERGED / COMPLETE
+- **Closure**: PR #22 merged at `533ab09ebeb8bb827401446f022cf9a83c7db89c` from approved Exact Head `9cafc345a074577084cad08bbdbed1789911d8ff`; Exact Head CI run `34223921283` passed its required jobs.
+- **Delivered**: semantic landmarks/control naming, keyboard graph traversal, `/skills?view=table`, `/knowledge?view=table`, modal/drawer Escape ownership, and authority/mastery/confidence separation.
+- **Frozen boundary**: Backend/domain authority, Supabase, shared UI primitives, shared layout, design tokens, and dependencies remain frozen.
+
+### Phase 7 — Round 2: Responsive Stress Hardening 🚀 FORMAL ENTRY / CODE NOT STARTED
+- **Objective**: Stress the existing frozen screens across `320/375/768/1024/1440` widths and surgically correct page-local responsive overflow, clipping, drawer/modal sizing, graph/table density, navigation transitions, and existing touch-target governance.
+- **Execution manual**: `docs/DesignSystem/PHASE7_ROUND2_EXECUTION.md`.
+- **Implementation branch**: `feature/phase7-responsive-stress`, created from the verified Round 1 merge on `main`; implementation must use its own PR.
+- **Explicit non-goals**: no Round 3 motion/reduced-motion tuning, no Round 4 final cross-page freeze audit, no backend/domain/Supabase/shared UI/shared layout/design-token/dependency changes.
