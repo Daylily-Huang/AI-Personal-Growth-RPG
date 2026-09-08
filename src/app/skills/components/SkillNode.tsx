@@ -5,6 +5,10 @@ import type { SkillFlowNodeData } from "@/lib/store/types";
 import { LevelBadge } from "@/components/ui/LevelBadge";
 import { MasteryBadge } from "@/components/ui/MasteryBadge";
 import { formatConfidence, getSkillStateVisual } from "./presentation";
+import {
+  getSkillGraphDirection,
+  type SkillGraphDirection,
+} from "./keyboard-navigation";
 
 /**
  * Explicit index signature is required by @xyflow/react v12
@@ -13,32 +17,46 @@ import { formatConfidence, getSkillStateVisual } from "./presentation";
 export type SkillNodeViewData = SkillFlowNodeData & {
   /** presentation-only enrichment resolved by the page from the domain list */
   domainLabel?: string | null;
+  /** page-owned selection truth shared by pointer and keyboard activation */
+  isSelected?: boolean;
+  onSelect?: (skillId: string) => void;
+  onNavigate?: (skillId: string, direction: SkillGraphDirection) => void;
   [key: string]: unknown;
 };
 
 export type SkillFlowNodeType = Node<SkillNodeViewData, "skillNode">;
 
-function SkillNodeView({ data, selected }: NodeProps<SkillFlowNodeType>) {
+function SkillNodeView({ id, data, selected }: NodeProps<SkillFlowNodeType>) {
   const visual = getSkillStateVisual(data.derivedState);
+  const isSelected = data.isSelected ?? Boolean(selected);
 
   return (
     <div
-      role="group"
+      id={`skill-graph-node-${id}`}
+      data-node-id={id}
+      role="button"
       tabIndex={0}
-      aria-label={`技能 ${data.name}，状态：${visual.label}`}
+      aria-pressed={isSelected}
+      aria-label={`技能 ${data.name}，状态：${visual.label}，等级 ${data.level}，Mastery M${data.masteryLevel}，置信度 ${formatConfidence(data.masteryConfidence)}`}
       onClick={() => {
-        if (typeof (data as Record<string, unknown>).onSelect === "function") {
-          ((data as Record<string, unknown>).onSelect as () => void)();
-        }
+        data.onSelect?.(id);
       }}
       onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
+        const direction = getSkillGraphDirection(e.key);
+        if (direction) {
           e.preventDefault();
-          e.currentTarget.click();
+          e.stopPropagation();
+          data.onNavigate?.(id, direction);
+          return;
+        }
+        if (e.key === "Enter" || e.key === " " || e.key === "Spacebar") {
+          e.preventDefault();
+          e.stopPropagation();
+          data.onSelect?.(id);
         }
       }}
       className={`relative w-56 rounded-[var(--radius-lg)] border px-3 py-2.5 text-[var(--text-primary)] transition-all outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring-color)] ${visual.containerClass} ${
-        selected
+        isSelected
           ? "ring-2 ring-[var(--focus-ring-color)] border-transparent shadow-[var(--shadow-raised)]"
           : "hover:border-[var(--border-hover-neutral)]"
       }`}

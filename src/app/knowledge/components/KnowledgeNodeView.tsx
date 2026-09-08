@@ -23,6 +23,10 @@ import {
   getAuthorityVisual,
   getNodeTypeVisual,
 } from "./presentation";
+import {
+  getKnowledgeGraphDirection,
+  type KnowledgeGraphDirection,
+} from "./keyboard-navigation";
 
 export interface KnowledgeNodeData extends Record<string, unknown> {
   id: string;
@@ -41,11 +45,12 @@ export interface KnowledgeNodeData extends Record<string, unknown> {
   outboundEdgeCount: number;
   isSelected?: boolean;
   onSelect?: (id: string) => void;
+  onNavigate?: (id: string, direction: KnowledgeGraphDirection) => void;
 }
 
 export type KnowledgeFlowNodeType = Node<KnowledgeNodeData, "knowledgeNode">;
 
-function KnowledgeNodeView({ data, selected }: NodeProps<KnowledgeFlowNodeType>) {
+function KnowledgeNodeView({ data, id, selected }: NodeProps<KnowledgeFlowNodeType>) {
   const authority = getAuthorityVisual(
     data.verificationStatus,
     data.isArchived,
@@ -60,6 +65,14 @@ function KnowledgeNodeView({ data, selected }: NodeProps<KnowledgeFlowNodeType>)
       entityType="knowledge"
       selected={Boolean(isSelected)}
       onClick={data.onSelect ? (event) => { event.stopPropagation(); data.onSelect?.(data.id); } : undefined}
+      onKeyDown={(event) => {
+        const direction = getKnowledgeGraphDirection(event.key);
+        if (!direction) return;
+        event.preventDefault();
+        event.stopPropagation();
+        data.onNavigate?.(data.id, direction);
+      }}
+      id={`knowledge-graph-node-${id}`}
       aria-label={`${data.title} · ${authority.label}`}
       data-testid={`knowledge-node-${data.id}`}
       data-node-type={data.nodeType}

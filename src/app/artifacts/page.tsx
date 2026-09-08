@@ -445,7 +445,7 @@ export default function ArtifactsPage() {
       {availableSkills.length > 0 && (
         <div className="space-y-2 pt-3 border-t border-[var(--border-subtle)]">
           <label className="text-xs font-[var(--font-weight-semibold)] text-[var(--text-muted)] uppercase tracking-wider flex items-center gap-1.5">
-            <Sparkles className="w-3.5 h-3.5 text-[var(--entity-skill-text)]" />
+            <Sparkles aria-hidden="true" className="w-3.5 h-3.5 text-[var(--entity-skill-text)]" />
             <span>关联技能 (Linked Skill)</span>
           </label>
           <div className="space-y-1 max-h-48 overflow-y-auto">
@@ -508,7 +508,7 @@ export default function ArtifactsPage() {
         <div className="flex items-center gap-2.5 justify-end">
           <SecondaryButton
             onClick={refreshArtifacts}
-            icon={<RefreshCw className="w-4 h-4" />}
+            icon={<RefreshCw aria-hidden="true" className="w-4 h-4" />}
             data-testid="artifacts-refresh-btn"
             disabled={loading}
           >
@@ -535,7 +535,7 @@ export default function ArtifactsPage() {
         </aside>
 
         {/* Center Column: Artifact Gallery & Content */}
-        <main
+        <section
           aria-label="造物陈列库"
           className="flex-1 min-w-0 overflow-y-auto p-4 lg:p-6 space-y-6"
         >
@@ -551,7 +551,7 @@ export default function ArtifactsPage() {
               className="w-full flex items-center justify-between p-3 rounded-[var(--radius-md)] bg-[var(--surface-base)] border border-[var(--border-default)] text-xs text-[var(--text-primary)] font-[var(--font-weight-medium)] min-h-[var(--touch-target-min)] cursor-pointer"
             >
               <div className="flex items-center gap-2">
-                <SlidersHorizontal className="w-4 h-4 text-[var(--text-muted)]" />
+                <SlidersHorizontal aria-hidden="true" className="w-4 h-4 text-[var(--text-muted)]" />
                 <span>成果分类与筛选</span>
                 {hasActiveFilters && (
                   <span className="px-1.5 py-0.5 rounded-[var(--radius-sm)] text-xs bg-[var(--entity-artifact-bg)] text-[var(--entity-artifact-text)] font-mono">
@@ -560,6 +560,7 @@ export default function ArtifactsPage() {
                 )}
               </div>
               <ChevronDown
+                aria-hidden="true"
                 className={`w-4 h-4 transition-transform ${mobileFilterOpen ? "rotate-180" : ""}`}
               />
             </button>
@@ -580,7 +581,7 @@ export default function ArtifactsPage() {
               data-testid="artifacts-loading-state"
               className="flex flex-col items-center justify-center py-28 space-y-3"
             >
-              <Loader2 className="w-8 h-8 animate-spin text-[var(--entity-artifact-text)]" />
+              <Loader2 aria-hidden="true" className="w-8 h-8 animate-spin text-[var(--entity-artifact-text)]" />
               <p className="text-xs text-[var(--text-muted)]">正在载入成果造物...</p>
             </div>
           ) : error ? (
@@ -589,7 +590,7 @@ export default function ArtifactsPage() {
               data-testid="artifacts-error-state"
               className="p-8 text-center space-y-3 max-w-md mx-auto my-12"
             >
-              <AlertCircle className="w-8 h-8 mx-auto text-[var(--state-danger-text)]" />
+              <AlertCircle aria-hidden="true" className="w-8 h-8 mx-auto text-[var(--state-danger-text)]" />
               <h4 className="text-sm font-[var(--font-weight-semibold)] text-[var(--text-primary)]">
                 载入造物发生错误
               </h4>
@@ -602,7 +603,7 @@ export default function ArtifactsPage() {
               data-testid="artifacts-empty-state"
               className="p-12 text-center space-y-4 max-w-lg mx-auto my-12"
             >
-              <FolderGit2 className="w-12 h-12 mx-auto text-[var(--entity-artifact-text)] opacity-60" />
+              <FolderGit2 aria-hidden="true" className="w-12 h-12 mx-auto text-[var(--entity-artifact-text)] opacity-60" />
               <div className="space-y-1">
                 <h4 className="font-serif font-[var(--font-weight-semibold)] text-base text-[var(--text-primary)]">
                   {hasActiveFilters ? "未找到匹配的造物" : "暂无沉淀成果造物"}
@@ -652,7 +653,7 @@ export default function ArtifactsPage() {
                     onClick={() => setOffset((prev) => prev + PAGE_SIZE)}
                     disabled={loadingMore}
                     loading={loadingMore}
-                    icon={<ChevronDown className="w-4 h-4" />}
+                    icon={<ChevronDown aria-hidden="true" className="w-4 h-4" />}
                     data-testid="artifacts-load-more-btn"
                   >
                     加载更多成果 (已展示 {artifacts.length} / 共 {total} 项)
@@ -661,7 +662,7 @@ export default function ArtifactsPage() {
               )}
             </div>
           )}
-        </main>
+        </section>
 
         {/* Right Column: InspectorDrawer as Sibling (Push mode on XL, Modal/Sheet on < XL) */}
         <InspectorDrawer
@@ -675,7 +676,7 @@ export default function ArtifactsPage() {
               data-testid="inspector-loading-state"
               className="flex flex-col items-center justify-center py-20 space-y-3"
             >
-              <Loader2 className="w-6 h-6 animate-spin text-[var(--entity-artifact-text)]" />
+              <Loader2 aria-hidden="true" className="w-6 h-6 animate-spin text-[var(--entity-artifact-text)]" />
               <p className="text-xs text-[var(--text-muted)]">载入造物拓扑数据...</p>
             </div>
           ) : detailError ? (
@@ -683,7 +684,7 @@ export default function ArtifactsPage() {
               data-testid="inspector-error-state"
               className="p-6 text-center space-y-3"
             >
-              <AlertCircle className="w-6 h-6 mx-auto text-[var(--state-danger-text)]" />
+              <AlertCircle aria-hidden="true" className="w-6 h-6 mx-auto text-[var(--state-danger-text)]" />
               <p className="text-xs text-[var(--text-secondary)]">{detailError}</p>
               <SecondaryButton onClick={() => selectedId && fetchDetail(selectedId)}>
                 重试加载

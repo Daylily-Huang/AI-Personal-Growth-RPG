@@ -16,6 +16,7 @@ import "@xyflow/react/dist/style.css";
 import type { SkillFlowEdge } from "@/lib/store/types";
 import SkillNodeView, { type SkillFlowNodeType } from "./SkillNode";
 import { getRelationVisual } from "./presentation";
+import type { SkillGraphDirection } from "./keyboard-navigation";
 
 const NODE_TYPES = { skillNode: SkillNodeView };
 
@@ -84,17 +85,35 @@ function CanvasInner({
   nodes,
   rawEdges,
   onSelect,
+  onNavigate,
   focusTarget,
   fitKey,
 }: {
   nodes: SkillFlowNodeType[];
   rawEdges: SkillFlowEdge[];
   onSelect: (skillId: string | null) => void;
+  onNavigate: (skillId: string, direction: SkillGraphDirection) => void;
   focusTarget: CanvasFocusTarget | null;
   fitKey: string;
 }) {
   const rf = useReactFlow();
   const edges = useMemo(() => toFlowEdges(rawEdges), [rawEdges]);
+  const interactiveNodes = useMemo(
+    () =>
+      nodes.map((node) => ({
+        ...node,
+        // React Flow's wrapper must not compete with the semantic node control
+        // below for keyboard focus; the custom node is the sole graph target.
+        focusable: false,
+        domAttributes: { tabIndex: -1, role: "presentation" },
+        data: {
+          ...node.data,
+          onSelect: (skillId: string) => onSelect(skillId),
+          onNavigate,
+        },
+      })),
+    [nodes, onNavigate, onSelect],
+  );
 
   useEffect(() => {
     if (!focusTarget) return;
@@ -119,7 +138,7 @@ function CanvasInner({
 
   return (
     <ReactFlow
-      nodes={nodes}
+      nodes={interactiveNodes}
       edges={edges}
       nodeTypes={NODE_TYPES}
       onNodeClick={(_, node) => onSelect(node.id)}
@@ -129,6 +148,7 @@ function CanvasInner({
       minZoom={0.15}
       maxZoom={1.75}
       nodesDraggable={false}
+      nodesFocusable={false}
       nodesConnectable={false}
       elementsSelectable
       deleteKeyCode={null}
@@ -158,6 +178,7 @@ export default function SkillGraphCanvas(props: {
   nodes: SkillFlowNodeType[];
   rawEdges: SkillFlowEdge[];
   onSelect: (skillId: string | null) => void;
+  onNavigate: (skillId: string, direction: SkillGraphDirection) => void;
   focusTarget: CanvasFocusTarget | null;
   fitKey: string;
 }) {

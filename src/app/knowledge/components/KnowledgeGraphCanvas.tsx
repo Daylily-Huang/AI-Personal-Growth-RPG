@@ -24,6 +24,7 @@ import type {
   KnowledgeVerificationStatus,
   KnowledgeSourceType,
 } from "@/lib/knowledge/types";
+import type { KnowledgeGraphDirection } from "./keyboard-navigation";
 
 const NODE_TYPES = {
   knowledgeNode: KnowledgeNodeView,
@@ -161,6 +162,7 @@ function CanvasInner({
   selectedEdgeId,
   onSelectNode,
   onSelectEdge,
+  onNavigate,
   onClearSelection,
   focusTarget,
   fitKey,
@@ -171,6 +173,7 @@ function CanvasInner({
   selectedEdgeId: string | null;
   onSelectNode: (nodeId: string) => void;
   onSelectEdge: (edgeId: string) => void;
+  onNavigate: (nodeId: string, direction: KnowledgeGraphDirection) => void;
   onClearSelection: () => void;
   focusTarget: CanvasFocusTarget | null;
   fitKey: string;
@@ -205,7 +208,14 @@ function CanvasInner({
           style: { width: cluster.width, height: cluster.height, zIndex: "var(--z-bg-env)", pointerEvents: "none" },
           selectable: false, focusable: false, draggable: false,
         })),
-        ...nodes.map((node) => ({ ...node, data: { ...node.data, onSelect: onSelectNode } })),
+         ...nodes.map((node) => ({
+           ...node,
+           // React Flow's wrapper must not compete with the semantic node control
+           // below for keyboard focus; the custom node is the sole graph target.
+           focusable: false,
+           domAttributes: { tabIndex: -1, role: "presentation" },
+           data: { ...node.data, onSelect: onSelectNode, onNavigate },
+         })),
       ]}
       edges={edges}
       nodeTypes={NODE_TYPES}
@@ -256,6 +266,7 @@ export interface KnowledgeGraphCanvasProps {
   selectedEdgeId: string | null;
   onSelectNode: (nodeId: string) => void;
   onSelectEdge: (edgeId: string) => void;
+  onNavigate: (nodeId: string, direction: KnowledgeGraphDirection) => void;
   onClearSelection: () => void;
   focusTarget: CanvasFocusTarget | null;
   fitKey: string;

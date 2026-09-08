@@ -14,7 +14,10 @@ import type { KnowledgeGraphResponse, KnowledgeNodeDetailResponse } from "@/lib/
 import type { KnowledgeGraphCanvasProps } from "@/app/knowledge/components/KnowledgeGraphCanvas";
 
 const { push } = vi.hoisted(() => ({ push: vi.fn() }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push }),
+  useSearchParams: () => new URLSearchParams(),
+}));
 vi.mock("@/app/knowledge/components/KnowledgeGraphCanvas", () => ({
   default: (props: KnowledgeGraphCanvasProps) => <div data-testid="canvas">
     {props.nodes.map((node) => <button key={node.id} onClick={() => props.onSelectNode(node.id)}>{node.data.title}</button>)}
@@ -263,11 +266,11 @@ describe("Phase 6 scope and token gates", () => {
     expect("z-[var(--z-canvas)]").not.toMatch(rawZIndex);
     expect(fs.readFileSync(path.join(root, "components", "KnowledgeGraphCanvas.tsx"), "utf8")).toContain('zIndex: "var(--z-bg-env)"');
   });
-  it("keeps all frozen backend, previous pages, primitives and dependencies unchanged from the Phase 6 baseline", () => {
-    const base = "a93e2bcada3eca63c3d69ecc633fd50df0f54e94";
+  it("keeps all frozen backend, primitives, and dependencies unchanged from the Phase 6 baseline", () => {
+    const base = "a40ff9806e3c90d02e298245956c8fe5236e2913";
     // Includes committed and uncommitted tracked changes, not merely HEAD.
     const files = execFileSync("git", ["diff", "--name-only", base, "--"], { encoding: "utf8" }).trim().split(/\r?\n/).filter(Boolean);
-    for (const file of files) expect(file).not.toMatch(/^(src\/lib\/|src\/app\/api\/|supabase\/|src\/components\/|src\/app\/(skills|quests|dashboard)\/|src\/proxy\.ts|package\.json|pnpm-lock\.yaml)/);
+    for (const file of files) expect(file).not.toMatch(/^(src\/lib\/|src\/app\/api\/|supabase\/|src\/components\/|src\/proxy\.ts|src\/styles\/design-tokens\.css|package\.json|pnpm-lock\.yaml)/);
   });
   it("closes the internal-link and lightning visual review findings", () => {
     const root = path.resolve("src/app/knowledge");

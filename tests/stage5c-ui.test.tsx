@@ -20,6 +20,7 @@ import { MarkerType } from "@xyflow/react";
 const pushMock = vi.hoisted(() => vi.fn());
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: pushMock }),
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 vi.mock("@xyflow/react", async (importOriginal) => {
