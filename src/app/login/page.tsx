@@ -90,13 +90,16 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0b0f17] text-zinc-100 flex flex-col justify-center items-center px-4 py-12">
+    <main
+      className="min-h-screen bg-[#0b0f17] text-zinc-100 flex flex-col justify-center items-center px-4 py-12"
+      aria-labelledby="login-title"
+    >
       <div className="w-full max-w-md space-y-8">
         <div className="text-center space-y-2">
           <div className="inline-flex items-center justify-center p-3 rounded-2xl bg-amber-400/10 border border-amber-400/20 text-amber-300 mb-2">
-            <Sparkles className="h-8 w-8" />
+            <Sparkles className="h-8 w-8" aria-hidden="true" />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-zinc-100">
+          <h1 id="login-title" className="text-2xl font-bold tracking-tight text-zinc-100">
             AI Personal Growth RPG
           </h1>
           <p className="text-sm text-zinc-400">
@@ -139,23 +142,24 @@ export default function LoginPage() {
           </div>
 
           {error ? (
-            <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-300">
+              <div role="alert" className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-300">
               {error}
             </div>
           ) : null}
 
           {message ? (
-            <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs text-emerald-300">
+              <div role="status" className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs text-emerald-300">
               {message}
             </div>
           ) : null}
 
           <form onSubmit={handleAuth} className="space-y-4">
             <div className="space-y-1">
-              <label className="block text-xs font-medium text-zinc-400">电子邮箱</label>
+               <label htmlFor="login-email" className="block text-xs font-medium text-zinc-400">电子邮箱</label>
               <div className="relative">
-                <Mail className="absolute left-3 top-2.5 h-4 w-4 text-zinc-500" />
-                <input
+                 <Mail className="absolute left-3 top-2.5 h-4 w-4 text-zinc-500" aria-hidden="true" />
+                 <input
+                   id="login-email"
                   type="email"
                   required
                   value={email}
@@ -167,10 +171,11 @@ export default function LoginPage() {
             </div>
 
             <div className="space-y-1">
-              <label className="block text-xs font-medium text-zinc-400">密码</label>
+               <label htmlFor="login-password" className="block text-xs font-medium text-zinc-400">密码</label>
               <div className="relative">
-                <KeyRound className="absolute left-3 top-2.5 h-4 w-4 text-zinc-500" />
-                <input
+                 <KeyRound className="absolute left-3 top-2.5 h-4 w-4 text-zinc-500" aria-hidden="true" />
+                 <input
+                   id="login-password"
                   type="password"
                   required
                   value={password}
@@ -182,16 +187,17 @@ export default function LoginPage() {
             </div>
 
             <button
-              type="submit"
-              disabled={loading}
+               type="submit"
+               disabled={loading}
+               aria-label={loading ? (isSignUp ? "正在创建角色" : "正在登录") : undefined}
               className="w-full flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 px-4 py-2.5 text-sm font-semibold text-black shadow-lg shadow-amber-500/20 hover:from-amber-400 hover:to-amber-500 disabled:opacity-50 cursor-pointer"
             >
               {loading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                 <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
               ) : (
                 <>
                   {isSignUp ? "创建角色并开始" : "进入 RPG 世界"}
-                  <ArrowRight className="h-4 w-4" />
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </>
               )}
             </button>
@@ -214,7 +220,7 @@ export default function LoginPage() {
                 disabled={loading}
                 className="w-full flex items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-medium text-zinc-200 hover:bg-white/10 hover:text-white disabled:opacity-50 cursor-pointer transition-colors"
               >
-                <UserCheck className="h-4 w-4 text-emerald-400" />
+                 <UserCheck className="h-4 w-4 text-emerald-400" aria-hidden="true" />
                 一键体验测试玩家账号（本地开发）
               </button>
             </>
@@ -222,10 +228,10 @@ export default function LoginPage() {
         </div>
 
         <div className="flex items-center justify-center gap-2 text-xs text-zinc-500 text-center">
-          <ShieldCheck className="h-3.5 w-3.5 text-zinc-400" />
+           <ShieldCheck className="h-3.5 w-3.5 text-zinc-400" aria-hidden="true" />
           <span>PostgreSQL RLS 隔离保护 · 权威服务端结算 · 杜绝虚假打卡</span>
         </div>
       </div>
-    </div>
+    </main>
   );
 }

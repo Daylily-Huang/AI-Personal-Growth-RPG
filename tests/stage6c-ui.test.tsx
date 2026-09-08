@@ -22,6 +22,7 @@ import { DEFAULT_FILTERS } from "@/app/knowledge/components/controller";
 const pushMock = vi.hoisted(() => vi.fn());
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: pushMock, refresh: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 vi.mock("@xyflow/react", async (importOriginal) => {

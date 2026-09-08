@@ -16,6 +16,7 @@ import "@xyflow/react/dist/style.css";
 import type { SkillFlowEdge } from "@/lib/store/types";
 import SkillNodeView, { type SkillFlowNodeType } from "./SkillNode";
 import { getRelationVisual } from "./presentation";
+import type { SkillGraphDirection } from "./keyboard-navigation";
 
 const NODE_TYPES = { skillNode: SkillNodeView };
 
@@ -84,17 +85,31 @@ function CanvasInner({
   nodes,
   rawEdges,
   onSelect,
+  onNavigate,
   focusTarget,
   fitKey,
 }: {
   nodes: SkillFlowNodeType[];
   rawEdges: SkillFlowEdge[];
   onSelect: (skillId: string | null) => void;
+  onNavigate: (skillId: string, direction: SkillGraphDirection) => void;
   focusTarget: CanvasFocusTarget | null;
   fitKey: string;
 }) {
   const rf = useReactFlow();
   const edges = useMemo(() => toFlowEdges(rawEdges), [rawEdges]);
+  const interactiveNodes = useMemo(
+    () =>
+      nodes.map((node) => ({
+        ...node,
+        data: {
+          ...node.data,
+          onSelect: (skillId: string) => onSelect(skillId),
+          onNavigate,
+        },
+      })),
+    [nodes, onNavigate, onSelect],
+  );
 
   useEffect(() => {
     if (!focusTarget) return;
@@ -119,7 +134,7 @@ function CanvasInner({
 
   return (
     <ReactFlow
-      nodes={nodes}
+      nodes={interactiveNodes}
       edges={edges}
       nodeTypes={NODE_TYPES}
       onNodeClick={(_, node) => onSelect(node.id)}
@@ -158,6 +173,7 @@ export default function SkillGraphCanvas(props: {
   nodes: SkillFlowNodeType[];
   rawEdges: SkillFlowEdge[];
   onSelect: (skillId: string | null) => void;
+  onNavigate: (skillId: string, direction: SkillGraphDirection) => void;
   focusTarget: CanvasFocusTarget | null;
   fitKey: string;
 }) {

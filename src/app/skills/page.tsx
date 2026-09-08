@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, RefreshCw, Search, SlidersHorizontal } from "lucide-react";
 import type {
   SkillDerivedState,
@@ -12,15 +13,20 @@ import DomainFilterPanel from "./components/DomainFilterPanel";
 import { resolveFocusTarget } from "./components/controller";
 import SkillGraphCanvas, { type CanvasFocusTarget } from "./components/SkillGraphCanvas";
 import SkillDetailPanel from "./components/SkillDetailPanel";
+import SkillTableView from "./components/SkillTableView";
 import { InspectorDrawer } from "@/components/layout/InspectorDrawer";
 import type { SkillFlowNodeType } from "./components/SkillNode";
+import { findNextSkillNode, type SkillGraphDirection } from "./components/keyboard-navigation";
 import {
   buildDomainList,
   filterGraph,
 } from "./components/presentation";
 
-export default function SkillsPage() {
+type SkillsViewMode = "graph" | "table";
+
+function SkillsPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [graph, setGraph] = useState<SkillTreeGraphResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -34,6 +40,10 @@ export default function SkillsPage() {
 
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [focusTarget, setFocusTarget] = useState<CanvasFocusTarget | null>(null);
+  const [keyboardFocusId, setKeyboardFocusId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<SkillsViewMode>(() =>
+    searchParams.get("view") === "table" ? "table" : "graph",
+  );
 
   // All setStates happen after an await (react-hooks/set-state-in-effect);
   // the initial loading=true comes from useState and the refresh() event
@@ -113,6 +123,34 @@ export default function SkillsPage() {
     [visible.nodes, domainNameById],
   );
 
+  const handleNavigateSkill = useCallback(
+    (skillId: string, direction: SkillGraphDirection) => {
+      const nextId = findNextSkillNode(skillId, direction, visible.nodes, visible.edges);
+      if (!nextId) return;
+
+      setKeyboardFocusId(nextId);
+      const target = visible.nodes.find((node) => node.id === nextId);
+      if (target?.position) {
+        setFocusTarget((previous) => ({
+          x: target.position.x,
+          y: target.position.y,
+          nonce: (previous?.nonce ?? 0) + 1,
+        }));
+      }
+    },
+    [visible.edges, visible.nodes],
+  );
+
+  useEffect(() => {
+    if (!keyboardFocusId || viewMode !== "graph") return;
+    document.getElementById(`skill-graph-node-${keyboardFocusId}`)?.focus();
+  }, [flowNodes, keyboardFocusId, viewMode]);
+
+  function updateViewMode(nextMode: SkillsViewMode) {
+    setViewMode(nextMode);
+    router.replace(nextMode === "table" ? "/skills?view=table" : "/skills", { scroll: false });
+  }
+
   function handleSelect(skillId: string | null) {
     if (!skillId) {
       setSelectedSkillId(null);
@@ -164,7 +202,7 @@ export default function SkillsPage() {
           aria-expanded={mobileNavOpen}
           className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-raised)] text-xs text-[var(--text-primary)] hover:bg-[var(--surface-hover-neutral)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
         >
-          <SlidersHorizontal className="w-3.5 h-3.5" />
+          <SlidersHorizontal className="w-3.5 h-3.5" aria-hidden="true" />
           <span>筛选</span>
         </button>
 
@@ -227,7 +265,21 @@ export default function SkillsPage() {
         </aside>
 
         {/* CENTER — Interactive Canvas */}
-        <section className="relative min-w-0 flex-1 h-full" aria-label="技能图谱画布">
+        <section
+          className="relative min-w-0 flex-1 h-full"
+          aria-label={viewMode === "table" ? "技能表格视图" : "技能图谱画布"}
+        >
+          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--border-subtle)] bg-[var(--surface-base)] px-3 py-2 text-xs text-[var(--text-secondary)]">
+            <span>技能节点：{visible.nodes.length}</span>
+            <button
+              type="button"
+              aria-pressed={viewMode === "table"}
+              onClick={() => updateViewMode(viewMode === "table" ? "graph" : "table")}
+              className="min-h-[var(--touch-target-min)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-raised)] px-3 py-1.5 text-[var(--text-primary)] hover:bg-[var(--surface-hover-neutral)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
+            >
+              {viewMode === "table" ? "切换图谱" : "切换表格"}
+            </button>
+          </div>
           {loading ? (
             <div className="flex h-full items-center justify-center gap-3 text-[var(--text-muted)]" role="status" aria-busy="true" aria-label="正在加载技能树">
               <Loader2 className="h-8 w-8 animate-spin motion-reduce:animate-none text-[var(--text-muted)]" aria-hidden="true" />
@@ -254,12 +306,12 @@ export default function SkillsPage() {
               <p className="max-w-md text-sm text-[var(--text-muted)]">
                 完成第一次 Growth Assessment 并确认后，系统会根据真实行为建立技能树。
               </p>
-              <a
+              <Link
                 href="/dashboard"
                 className="inline-flex items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] px-4 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--surface-hover-neutral)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
               >
                 去记录成长
-              </a>
+              </Link>
             </div>
           ) : visible.nodes.length === 0 ? (
             <div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center">
@@ -276,11 +328,14 @@ export default function SkillsPage() {
                 清除全部筛选
               </button>
             </div>
+          ) : viewMode === "table" ? (
+            <SkillTableView nodes={flowNodes} onSelect={handleSelect} />
           ) : (
             <SkillGraphCanvas
               nodes={flowNodes}
               rawEdges={visible.edges}
               onSelect={handleSelect}
+              onNavigate={handleNavigateSkill}
               focusTarget={focusTarget}
               fitKey={`${domainId ?? "all"}|${stateFilter}|${graph ? "loaded" : "empty"}|${search === "" ? "q0" : "q1"}`}
             />
@@ -308,5 +363,13 @@ export default function SkillsPage() {
         </InspectorDrawer>
       </div>
     </div>
+  );
+}
+
+export default function SkillsPage() {
+  return (
+    <Suspense fallback={<div role="status" aria-label="正在加载技能视图" />}>
+      <SkillsPageContent />
+    </Suspense>
   );
 }

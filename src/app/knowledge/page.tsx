@@ -6,8 +6,8 @@
 import { InspectorDrawer } from "@/components/layout/InspectorDrawer";
 import { BaseModal } from "@/components/ui/BaseModal";
 import { layoutKnowledgeNodes, filterKnowledgeEdges, type EdgeAuthorityFilter, type RelationFilter, type LayoutMode } from "./components/canvas-layout";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   Loader2,
@@ -27,22 +27,33 @@ import KnowledgeGraphCanvas, {
 } from "./components/KnowledgeGraphCanvas";
 import KnowledgeDetailPanel from "./components/KnowledgeDetailPanel";
 import KnowledgeEdgeDetailPanel from "./components/KnowledgeEdgeDetailPanel";
+import KnowledgeTableView from "./components/KnowledgeTableView";
 import type { KnowledgeFlowNodeType } from "./components/KnowledgeNodeView";
+import {
+  findNextKnowledgeNode,
+  type KnowledgeGraphDirection,
+} from "./components/keyboard-navigation";
 import {
   type KnowledgeFilters,
   fetchKnowledgeGraph,
   DEFAULT_FILTERS,
 } from "./components/controller";
 
-export default function KnowledgeMapPage() {
-  const { push } = useRouter();
+type KnowledgeViewMode = "graph" | "list" | "table";
+
+function KnowledgeMapPageContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { push } = router;
 
   const [graph, setGraph] = useState<KnowledgeGraphResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const [layoutMode, setLayoutMode] = useState<LayoutMode>("clustered");
-  const [viewMode, setViewMode] = useState<"graph" | "list">("graph");
+  const [viewMode, setViewMode] = useState<KnowledgeViewMode>(() =>
+    searchParams.get("view") === "table" ? "table" : "graph",
+  );
   const [edgeAuthority, setEdgeAuthority] = useState<EdgeAuthorityFilter>("all");
   const [relation, setRelation] = useState<RelationFilter>("all");
   const [refreshKey, setRefreshKey] = useState(0);
@@ -58,6 +69,7 @@ export default function KnowledgeMapPage() {
   // Mobile / Viewport State
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [focusTarget, setFocusTarget] = useState<CanvasFocusTarget | null>(null);
+  const [keyboardFocusId, setKeyboardFocusId] = useState<string | null>(null);
 
   const doFetchGraph = useCallback(async (): Promise<KnowledgeGraphResponse | null> => {
     const res = await fetchKnowledgeGraph(filters);
@@ -207,6 +219,38 @@ export default function KnowledgeMapPage() {
     }));
   }, [graph, visibleEdges]);
 
+  const handleNavigateKnowledge = useCallback(
+    (nodeId: string, direction: KnowledgeGraphDirection) => {
+      const nextId = findNextKnowledgeNode(nodeId, direction, layout.nodes, visibleEdges);
+      if (!nextId) return;
+
+      setKeyboardFocusId(nextId);
+      const target = layout.nodes.find((node) => node.id === nextId);
+      if (target?.position) {
+        setFocusTarget((previous) => ({
+          x: target.position.x,
+          y: target.position.y,
+          nonce: (previous?.nonce ?? 0) + 1,
+        }));
+      }
+    },
+    [layout.nodes, visibleEdges],
+  );
+
+  useEffect(() => {
+    if (!keyboardFocusId || viewMode !== "graph") return;
+    document.getElementById(`knowledge-graph-node-${keyboardFocusId}`)?.focus();
+  }, [flowNodes, keyboardFocusId, viewMode]);
+
+  function updateViewMode(nextMode: KnowledgeViewMode) {
+    setViewMode(nextMode);
+    if (typeof router.replace !== "function") return;
+    router.replace(
+      nextMode === "table" ? "/knowledge?view=table" : "/knowledge",
+      { scroll: false },
+    );
+  }
+
   const filterPanel = (
     <KnowledgeFilterPanel
       domains={domainItems}
@@ -228,7 +272,7 @@ export default function KnowledgeMapPage() {
           aria-label="打开筛选面板"
           className="inline-flex min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] items-center gap-1.5 px-2.5 py-1.5 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-raised)] text-xs text-[var(--text-primary)] hover:bg-[var(--surface-hover-neutral)] transition-colors"
         >
-          <SlidersHorizontal className="w-3.5 h-3.5" />
+          <SlidersHorizontal className="w-3.5 h-3.5" aria-hidden="true" />
           <span>筛选</span>
         </button>
 
@@ -274,12 +318,30 @@ export default function KnowledgeMapPage() {
         </aside>
 
         {/* CENTER — Interactive ReactFlow Canvas */}
-        <section className="relative min-w-0 flex-1 h-full flex flex-col" aria-label="知识图谱互动画布">
+        <section
+          className="relative min-w-0 flex-1 h-full flex flex-col"
+          aria-label={viewMode === "table" ? "知识图谱表格视图" : "知识图谱互动画布"}
+        >
           <div className="shrink-0 flex flex-wrap items-center gap-3 border-b border-[var(--border-subtle)] bg-[var(--surface-base)] p-3 text-xs text-[var(--text-secondary)] [&_select]:rounded-[var(--radius-md)] [&_select]:border [&_select]:border-[var(--border-subtle)] [&_select]:bg-[var(--surface-raised)] [&_select]:p-2">
             <label>布局 <select aria-label="画布布局" value={layoutMode} onChange={(event) => { setFocusTarget(null); setLayoutMode(event.target.value as LayoutMode); }} className="min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)]"><option value="clustered">领域 / 类型聚类</option><option value="relations">关系布局</option></select></label>
             <label>关系权威 <select aria-label="关系权威筛选" value={edgeAuthority} onChange={(event) => { setSelectedEdgeId(null); setEdgeAuthority(event.target.value as EdgeAuthorityFilter); }} className="min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)]"><option value="all">当前全部关系</option><option value="verified">已验证</option><option value="inferred">AI 提案</option><option value="rejected">已否决</option><option value="superseded">已替代</option><option value="archived">已归档</option></select></label>
             <label>关系类型 <select aria-label="关系类型筛选" value={relation} onChange={(event) => { setSelectedEdgeId(null); setRelation(event.target.value as RelationFilter); }} className="min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)]"><option value="all">全部类型</option><option value="prerequisite">前置依赖</option><option value="contains">包含</option><option value="supports">支持</option><option value="contradicts">矛盾（无方向）</option><option value="relates_to">相关（无方向）</option></select></label>
-            <button type="button" aria-pressed={viewMode === "list"} onClick={() => setViewMode(viewMode === "graph" ? "list" : "graph")} className="min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] px-3 py-2">{viewMode === "graph" ? "切换列表" : "切换画布"}</button>
+             <button
+               type="button"
+               aria-pressed={viewMode === "list"}
+               onClick={() => updateViewMode(viewMode === "list" ? "graph" : "list")}
+               className="min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] px-3 py-2"
+             >
+               {viewMode === "list" ? "切换画布" : "切换列表"}
+             </button>
+             <button
+               type="button"
+               aria-pressed={viewMode === "table"}
+               onClick={() => updateViewMode(viewMode === "table" ? "graph" : "table")}
+               className="min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] px-3 py-2"
+             >
+               {viewMode === "table" ? "切换画布" : "切换表格"}
+             </button>
             <span role="status">{flowNodes.length} 个节点 · {rawEdges.length} 条关系</span>
           </div>
           <div className="relative flex-1 min-h-0">
@@ -289,7 +351,7 @@ export default function KnowledgeMapPage() {
               data-testid="graph-truncated-banner"
               className="absolute left-4 top-4 z-[var(--z-canvas)] flex items-center gap-2 rounded-[var(--radius-md)] border border-[var(--state-warning-border)] bg-[var(--surface-overlay)] px-3 py-1.5 text-xs text-[var(--state-warning-text)] backdrop-blur-[var(--glass-blur-md)] shadow-[var(--shadow-overlay)]"
             >
-              <Sparkles className="h-3.5 w-3.5 text-[var(--state-warning-text)] shrink-0" />
+              <Sparkles aria-hidden="true" className="h-3.5 w-3.5 text-[var(--state-warning-text)] shrink-0" />
               <span>
                 当前图谱节点较多，已截取前 {graph.nodes.length} 个核心节点（总计 {graph.stats.totalNodes}）。可点击节点进行局部展开。
               </span>
@@ -304,7 +366,7 @@ export default function KnowledgeMapPage() {
           ) : error ? (
             <div data-testid="error-state" className="flex h-full flex-col items-center justify-center gap-4 px-6 text-center">
               <div className="flex items-center gap-2 text-[var(--state-danger-text)]">
-                <AlertCircle className="h-5 w-5" />
+                <AlertCircle aria-hidden="true" className="h-5 w-5" />
                 <span className="font-semibold">加载失败</span>
               </div>
               <p className="max-w-md text-sm text-[var(--text-muted)]">{error}</p>
@@ -314,7 +376,7 @@ export default function KnowledgeMapPage() {
                 onClick={refresh}
                 className="inline-flex min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-raised)] px-4 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--surface-hover-neutral)]"
               >
-                <RefreshCw className="h-4 w-4" /> 重试
+                <RefreshCw aria-hidden="true" className="h-4 w-4" /> 重试
               </button>
             </div>
           ) : (graph?.stats?.totalNodes ?? graph?.nodes?.length ?? 0) === 0 ? (
@@ -351,7 +413,14 @@ export default function KnowledgeMapPage() {
                 清除全部筛选
               </button>
             </div>
-          ) : viewMode === "list" ? (
+           ) : viewMode === "table" ? (
+             <KnowledgeTableView
+               nodes={flowNodes}
+               edges={rawEdges}
+               onSelectNode={handleSelectNode}
+               onSelectEdge={handleSelectEdge}
+             />
+           ) : viewMode === "list" ? (
             <div className="h-full overflow-auto p-4 space-y-4">
               <h2 className="font-serif text-lg text-[var(--text-primary)]">知识节点</h2>
               <ul className="space-y-2">{layout.nodes.map((node) => <li key={node.id}><button type="button" onClick={() => handleSelectNode(node.id)} className="min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] w-full rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-raised)] p-3 text-left text-sm text-[var(--text-primary)]">{node.title}<span className="block text-xs text-[var(--text-secondary)]">{node.domainName ?? "未分类领域"} · {node.verificationStatus}{node.isArchived ? " · 已归档" : ""}</span></button></li>)}</ul>
@@ -365,9 +434,10 @@ export default function KnowledgeMapPage() {
               clusters={layout.clusters}
               rawEdges={rawEdges}
               selectedEdgeId={visibleSelectedEdgeId}
-              onSelectNode={handleSelectNode}
-              onSelectEdge={handleSelectEdge}
-              onClearSelection={() => {
+               onSelectNode={handleSelectNode}
+               onSelectEdge={handleSelectEdge}
+               onNavigate={handleNavigateKnowledge}
+               onClearSelection={() => {
                 setSelectedNodeId(null);
                 setSelectedEdgeId(null);
               }}
@@ -389,5 +459,13 @@ export default function KnowledgeMapPage() {
         {mobileNavOpen && filterPanel}
       </BaseModal>
     </div>
+  );
+}
+
+export default function KnowledgeMapPage() {
+  return (
+    <Suspense fallback={<div role="status" aria-label="正在加载知识图谱视图" />}>
+      <KnowledgeMapPageContent />
+    </Suspense>
   );
 }
