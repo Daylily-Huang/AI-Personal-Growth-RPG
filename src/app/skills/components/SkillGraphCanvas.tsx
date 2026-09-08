@@ -102,6 +102,10 @@ function CanvasInner({
     () =>
       nodes.map((node) => ({
         ...node,
+        // React Flow's wrapper must not compete with the semantic node control
+        // below for keyboard focus; the custom node is the sole graph target.
+        focusable: false,
+        domAttributes: { tabIndex: -1, role: "presentation" },
         data: {
           ...node.data,
           onSelect: (skillId: string) => onSelect(skillId),
@@ -144,6 +148,7 @@ function CanvasInner({
       minZoom={0.15}
       maxZoom={1.75}
       nodesDraggable={false}
+      nodesFocusable={false}
       nodesConnectable={false}
       elementsSelectable
       deleteKeyCode={null}
