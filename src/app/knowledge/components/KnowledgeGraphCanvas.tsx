@@ -12,7 +12,10 @@ import {
   ReactFlowProvider,
   useReactFlow,
   type Edge,
+  type Node,
+  type NodeProps,
 } from "@xyflow/react";
+import type { KnowledgeCluster } from "./canvas-layout";
 import "@xyflow/react/dist/style.css";
 import KnowledgeNodeView, { type KnowledgeFlowNodeType } from "./KnowledgeNodeView";
 import { getEdgeVisual } from "./presentation";
@@ -24,6 +27,11 @@ import type {
 
 const NODE_TYPES = {
   knowledgeNode: KnowledgeNodeView,
+  cluster: ({ data }: NodeProps<Node<{ label: string; count: number }, "cluster">>) => (
+    <div className="h-full w-full rounded-[var(--radius-xl)] border border-dashed border-[var(--border-default)] bg-[var(--entity-knowledge-bg)] p-3 text-sm text-[var(--text-secondary)]">
+      {data.label} <span className="font-mono">{data.count}</span>
+    </div>
+  ),
 };
 
 export interface RawGraphEdge {
@@ -51,13 +59,12 @@ export function toFlowEdges(
       edge.relationType,
       edge.verificationStatus,
       edge.confidence,
+      edge.isArchived,
     );
 
     let markerEnd: Edge["markerEnd"];
     if (visual.marker === "circle") {
       markerEnd = "url(#knowledge-marker-circle)";
-    } else if (visual.marker === "lightning") {
-      markerEnd = "url(#knowledge-marker-lightning)";
     } else if (visual.marker === "hollow-arrow") {
       markerEnd = "url(#knowledge-marker-hollow-arrow)";
     } else if (visual.marker === "none") {
@@ -81,19 +88,19 @@ export function toFlowEdges(
       labelShowBg: true,
       labelBgPadding: [4, 2] as [number, number],
       labelBgStyle: {
-        fill: "#0b0f17",
+        fill: "var(--surface-raised)",
         fillOpacity: 0.9,
-        stroke: isSelected ? "#10b981" : visual.color,
+        stroke: isSelected ? "var(--selection-neutral-indicator)" : visual.color,
         strokeWidth: isSelected ? 1.5 : 0.5,
       },
       labelStyle: {
-        fill: isSelected ? "#34d399" : visual.color,
-        fontSize: 9,
+        fill: isSelected ? "var(--text-primary)" : visual.color,
+        fontSize: 11,
         fontWeight: isSelected ? 700 : 500,
       },
       animated: visual.animated,
       style: {
-        stroke: isSelected ? "#10b981" : visual.color,
+        stroke: isSelected ? "var(--selection-neutral-indicator)" : visual.color,
         strokeWidth: isSelected ? 2.5 : 1.5,
         ...(visual.strokeDasharray ? { strokeDasharray: visual.strokeDasharray } : {}),
       },
@@ -116,25 +123,7 @@ function CustomEdgeMarkerDefs() {
           markerHeight="6"
           orient="auto-start-reverse"
         >
-          <circle cx="5" cy="5" r="3.5" fill="#c084fc" />
-        </marker>
-
-        {/* Contradicts Lightning Marker */}
-        <marker
-          id="knowledge-marker-lightning"
-          viewBox="0 0 12 12"
-          refX="6"
-          refY="6"
-          markerWidth="7"
-          markerHeight="7"
-          orient="auto-start-reverse"
-        >
-          <path
-            d="M7 1L2 7h4l-1 5 6-7H7l1-4z"
-            fill="#f43f5e"
-            stroke="#9f1239"
-            strokeWidth="0.5"
-          />
+          <circle cx="5" cy="5" r="3.5" fill="var(--entity-knowledge-text)" />
         </marker>
 
         {/* Hollow Arrow Marker for AI Inferred Relations */}
@@ -150,7 +139,7 @@ function CustomEdgeMarkerDefs() {
           <polygon
             points="0 1, 8 5, 0 9, 3 5"
             fill="none"
-            stroke="#f59e0b"
+            stroke="var(--authority-inferred-text)"
             strokeWidth="1.5"
           />
         </marker>
@@ -167,6 +156,7 @@ export interface CanvasFocusTarget {
 
 function CanvasInner({
   nodes,
+  clusters = [],
   rawEdges,
   selectedEdgeId,
   onSelectNode,
@@ -176,6 +166,7 @@ function CanvasInner({
   fitKey,
 }: {
   nodes: KnowledgeFlowNodeType[];
+  clusters?: KnowledgeCluster[];
   rawEdges: RawGraphEdge[];
   selectedEdgeId: string | null;
   onSelectNode: (nodeId: string) => void;
@@ -192,25 +183,33 @@ function CanvasInner({
 
   useEffect(() => {
     if (!focusTarget) return;
-    void rf.setCenter(focusTarget.x + 100, focusTarget.y + 40, {
+    void rf.setCenter(focusTarget.x + 140, focusTarget.y + 92, {
       zoom: 1.1,
-      duration: 500,
+      duration: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 500,
     });
   }, [focusTarget, rf]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      void rf.fitView({ padding: 0.25, duration: 400 });
+      void rf.fitView({ padding: 0.25, duration: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 400 });
     }, 60);
     return () => window.clearTimeout(timer);
   }, [fitKey, rf]);
 
   return (
     <ReactFlow
-      nodes={nodes}
+      nodes={[
+        ...clusters.map((cluster): Node => ({
+          id: `cluster-${cluster.id}`, type: "cluster", position: { x: cluster.x, y: cluster.y },
+          data: { label: cluster.label, count: cluster.count },
+          style: { width: cluster.width, height: cluster.height, zIndex: "var(--z-bg-env)", pointerEvents: "none" },
+          selectable: false, focusable: false, draggable: false,
+        })),
+        ...nodes.map((node) => ({ ...node, data: { ...node.data, onSelect: onSelectNode } })),
+      ]}
       edges={edges}
       nodeTypes={NODE_TYPES}
-      onNodeClick={(_, node) => onSelectNode(node.id)}
+      onNodeClick={(_, node) => { if (node.type !== "cluster") onSelectNode(node.id); }}
       onEdgeClick={(_, edge) => onSelectEdge(edge.id)}
       onPaneClick={onClearSelection}
       fitView
@@ -218,26 +217,33 @@ function CanvasInner({
       minZoom={0.1}
       maxZoom={2.0}
       nodesDraggable={false}
+      nodesFocusable={false}
       nodesConnectable={false}
       elementsSelectable
       deleteKeyCode={null}
       proOptions={{ hideAttribution: true }}
-      colorMode="dark"
-      className="h-full w-full bg-[#0b0f17]"
+      colorMode="light"
+      className="h-full w-full bg-[var(--surface-base)]"
     >
-      <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="#334155" />
-      <Controls position="bottom-right" showInteractive={false} />
+      <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="var(--border-default)" />
+      <Controls
+        position="bottom-right"
+        showInteractive={false}
+        className="!bg-[var(--surface-raised)] !border !border-[var(--border-subtle)] !rounded-[var(--radius-md)] [&_.react-flow__controls-button]:!min-h-[var(--touch-target-min)] [&_.react-flow__controls-button]:!min-w-[var(--touch-target-min)]"
+      />
       <MiniMap
         pannable
         zoomable
         position="bottom-left"
-        className="!bg-slate-900 !border !border-white/10"
+        className="!bg-[var(--surface-raised)] !border !border-[var(--border-subtle)]"
         nodeColor={(n) => {
           const status = (n.data as { verificationStatus?: string }).verificationStatus;
-          if (status === "verified") return "#0ea5e9";
-          if (status === "inferred") return "#f59e0b";
-          return "#71717a";
+          if (n.type === "cluster") return "var(--surface-ground)";
+          if (status === "verified") return "var(--authority-verified-text)";
+          if (status === "inferred") return "var(--authority-inferred-text)";
+          return "var(--text-secondary)";
         }}
+        maskColor="var(--surface-base)"
       />
     </ReactFlow>
   );
@@ -245,6 +251,7 @@ function CanvasInner({
 
 export interface KnowledgeGraphCanvasProps {
   nodes: KnowledgeFlowNodeType[];
+  clusters?: KnowledgeCluster[];
   rawEdges: RawGraphEdge[];
   selectedEdgeId: string | null;
   onSelectNode: (nodeId: string) => void;

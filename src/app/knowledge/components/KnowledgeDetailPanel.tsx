@@ -1,3 +1,7 @@
+import LinkedSkillSummary from "./LinkedSkillSummary";
+import { BaseModal } from "@/components/ui/BaseModal";
+import { ConfidenceBadge } from "@/components/ui/ConfidenceBadge";
+import Link from "next/link";
 // src/app/knowledge/components/KnowledgeDetailPanel.tsx
 // Stage 6C Node Detail & Provenance Audit Panel (Right Drawer, 380px)
 
@@ -143,8 +147,8 @@ export default function KnowledgeDetailPanel({
 
   if (loading) {
     return (
-      <div className="flex h-full flex-col items-center justify-center p-6 text-zinc-400">
-        <Loader2 className="h-6 w-6 animate-spin text-emerald-400" />
+      <div className="flex h-full flex-col items-center justify-center p-6 text-[var(--text-secondary)]">
+        <Loader2 className="h-6 w-6 animate-spin motion-reduce:animate-none text-[var(--authority-verified-text)]" />
         <p className="mt-2 text-xs">正在加载节点详情与溯源审计…</p>
       </div>
     );
@@ -152,13 +156,13 @@ export default function KnowledgeDetailPanel({
 
   if (error || !data) {
     return (
-      <div className="flex h-full flex-col items-center justify-center p-6 text-center text-zinc-400">
-        <AlertTriangle className="h-8 w-8 text-rose-400" />
-        <p className="mt-2 text-xs text-rose-300">{error || "无法加载节点详情"}</p>
+      <div className="flex h-full flex-col items-center justify-center p-6 text-center text-[var(--text-secondary)]">
+        <AlertTriangle className="h-8 w-8 text-[var(--state-danger-text)]" />
+        <p className="mt-2 text-xs text-[var(--state-danger-text)]">{error || "无法加载节点详情"}</p>
         <button
           type="button"
           onClick={onClose}
-          className="mt-4 rounded-lg border border-white/10 px-3 py-1.5 text-xs text-zinc-300 hover:bg-white/5"
+          className="mt-4 min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] rounded-lg border border-[var(--border-subtle)] px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:bg-[var(--surface-ground)]"
         >
           关闭面板
         </button>
@@ -182,10 +186,10 @@ export default function KnowledgeDetailPanel({
   return (
     <div
       data-testid="knowledge-detail-panel"
-      className="flex h-full flex-col overflow-y-auto bg-[#0d1320] text-zinc-200"
+      className="flex h-full flex-col overflow-y-auto bg-[var(--surface-base)] text-[var(--text-primary)]"
     >
       {/* Header */}
-      <div className="sticky top-0 z-10 flex items-center justify-between border-b border-white/10 bg-[#0d1320]/95 px-4 py-3 backdrop-blur">
+      <div className="sticky top-0 z-[var(--z-canvas)] flex items-center justify-between border-b border-[var(--border-subtle)] bg-[var(--surface-base)] px-4 py-3 backdrop-blur">
         <div className="flex items-center gap-1.5">
           <div
             className={`flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-medium ${typeVisual.headerBgClass}`}
@@ -201,13 +205,13 @@ export default function KnowledgeDetailPanel({
             className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${authority.badgeClass}`}
           >
             {authority.iconName === "CheckCircle2" && (
-              <CheckCircle2 className="h-3 w-3 text-emerald-400" />
+              <CheckCircle2 className="h-3 w-3 text-[var(--authority-verified-text)]" />
             )}
             {authority.iconName === "Sparkles" && (
-              <Sparkles className="h-3 w-3 text-amber-400" />
+              <Sparkles className="h-3 w-3 text-[var(--authority-inferred-text)]" />
             )}
             {authority.iconName === "Archive" && (
-              <Archive className="h-3 w-3 text-zinc-400" />
+              <Archive className="h-3 w-3 text-[var(--text-secondary)]" />
             )}
             <span>{authority.label}</span>
           </div>
@@ -218,7 +222,7 @@ export default function KnowledgeDetailPanel({
           data-testid="close-detail-btn"
           onClick={onClose}
           aria-label="关闭详情面板"
-          className="rounded p-1 text-zinc-400 hover:bg-white/5 hover:text-zinc-100"
+          className="min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] rounded p-1 text-[var(--text-secondary)] hover:bg-[var(--surface-ground)] hover:text-[var(--text-primary)]"
         >
           <X className="h-4 w-4" />
         </button>
@@ -230,63 +234,66 @@ export default function KnowledgeDetailPanel({
         {actionSuccess && (
           <div
             data-testid="action-success-alert"
-            className="flex items-center gap-2 rounded-lg border border-emerald-500/40 bg-emerald-950/40 p-2.5 text-emerald-300"
+            className="flex items-center gap-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-raised)] p-2.5 text-[var(--authority-verified-text)]"
           >
-            <Check className="h-4 w-4 shrink-0 text-emerald-400" />
+            <Check className="h-4 w-4 shrink-0 text-[var(--authority-verified-text)]" />
             <span>{actionSuccess}</span>
           </div>
         )}
         {actionError && (
           <div
             data-testid="action-error-alert"
-            className="flex items-center gap-2 rounded-lg border border-rose-500/40 bg-rose-950/40 p-2.5 text-rose-300"
+            className="flex items-center gap-2 rounded-lg border border-[var(--state-danger-border)] bg-[var(--state-danger-bg)] p-2.5 text-[var(--state-danger-text)]"
           >
-            <AlertTriangle className="h-4 w-4 shrink-0 text-rose-400" />
+            <AlertTriangle className="h-4 w-4 shrink-0 text-[var(--state-danger-text)]" />
             <span>{actionError}</span>
           </div>
         )}
 
         {/* 1. What is this? */}
         <div>
-          <h2 data-testid="detail-title" className="text-base font-bold leading-snug text-zinc-100">
+          <h2 data-testid="detail-title" className="text-base font-bold leading-snug text-[var(--text-primary)]">
             {node.title}
           </h2>
-          <div className="mt-2 text-zinc-400 whitespace-pre-wrap leading-relaxed">
-            {node.description || <span className="italic text-zinc-600">暂无详细描述阐释</span>}
+          <div className="mt-2 text-[var(--text-secondary)] whitespace-pre-wrap leading-relaxed">
+            {node.description || <span className="italic text-[var(--text-secondary)]">暂无详细描述阐释</span>}
           </div>
         </div>
 
         {/* 2. Where does it belong? */}
-        <div className="rounded-lg border border-white/5 bg-black/20 p-3">
-          <div className="mb-2 font-semibold uppercase tracking-wider text-[11px] text-zinc-400">
+        <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-ground)] p-3">
+          <div className="mb-2 font-semibold uppercase tracking-wider text-[11px] text-[var(--text-secondary)]">
             知识归属与技能关联
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <div className="flex items-center gap-1 text-sky-300 bg-sky-950/50 border border-sky-800/40 rounded px-2 py-1">
+            <div className="flex items-center gap-1 text-[var(--entity-knowledge-text)] bg-[var(--surface-raised)] border border-[var(--border-subtle)] rounded px-2 py-1">
               <span>领域:</span>
               <span className="font-semibold">{node.domainName || "未指定领域"}</span>
             </div>
             {node.skillName && (
-              <a
+              <Link
                 href="/skills"
-                className="flex items-center gap-1 text-emerald-300 bg-emerald-950/50 border border-emerald-800/40 rounded px-2 py-1 hover:bg-emerald-900/60"
+                className="inline-flex min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] items-center gap-1 text-[var(--authority-verified-text)] bg-[var(--surface-raised)] border border-[var(--border-subtle)] rounded px-2 py-1 hover:bg-[var(--surface-raised)]"
               >
                 <span>技能:</span>
                 <span className="font-semibold">{node.skillName}</span>
                 <ExternalLink className="h-3 w-3 ml-0.5" />
-              </a>
+              </Link>
             )}
           </div>
         </div>
 
+        {node.skillId && <LinkedSkillSummary key={node.skillId} skillId={node.skillId} />}
+        <ConfidenceBadge variant="knowledge" score={node.confidence} />
+
         {/* 3. Why does the system believe this? (Provenance Box) */}
-        <div className="rounded-lg border border-white/10 bg-black/30 p-3">
-          <div className="mb-2 flex items-center justify-between font-semibold uppercase tracking-wider text-[11px] text-zinc-400">
+        <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-ground)] p-3">
+          <div className="mb-2 flex items-center justify-between font-semibold uppercase tracking-wider text-[11px] text-[var(--text-secondary)]">
             <span className="flex items-center gap-1.5">
-              <ShieldCheck className="h-3.5 w-3.5 text-sky-400" />
+              <ShieldCheck className="h-3.5 w-3.5 text-[var(--entity-knowledge-text)]" />
               溯源证据审计 (Provenance & Evidence)
             </span>
-            <span className="text-[10px] text-zinc-500 font-normal">
+            <span className="text-[10px] text-[var(--text-secondary)] font-normal">
               {formatSourceType(node.sourceType)}
             </span>
           </div>
@@ -294,7 +301,7 @@ export default function KnowledgeDetailPanel({
           {!hasProvenance ? (
             <div
               data-testid="empty-provenance-box"
-              className="rounded border border-dashed border-zinc-700/60 p-3 text-center text-zinc-500 italic"
+              className="rounded border border-dashed border-[var(--border-subtle)] p-3 text-center text-[var(--text-secondary)] italic"
             >
               无直接关联的行为或产出物记录 (手动录入或无溯源)
             </div>
@@ -304,14 +311,14 @@ export default function KnowledgeDetailPanel({
               {provenance.sourceActivity && (
                 <div
                   data-testid="provenance-activity-card"
-                  className="flex items-start gap-2.5 rounded-lg border border-sky-500/20 bg-sky-950/20 p-2.5"
+                  className="flex items-start gap-2.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-raised)] p-2.5"
                 >
-                  <Activity className="h-4 w-4 mt-0.5 shrink-0 text-sky-400" />
+                  <Activity className="h-4 w-4 mt-0.5 shrink-0 text-[var(--entity-knowledge-text)]" />
                   <div className="min-w-0 flex-1">
-                    <div className="font-medium text-sky-200 truncate">
+                    <div className="font-medium text-[var(--entity-knowledge-text)] truncate">
                       {provenance.sourceActivity.title}
                     </div>
-                    <div className="text-[10px] text-zinc-400 mt-0.5">
+                    <div className="text-[10px] text-[var(--text-secondary)] mt-0.5">
                       类型: {provenance.sourceActivity.activityType} • 完成时间:{" "}
                       {new Date(provenance.sourceActivity.completedAt).toLocaleDateString()}
                     </div>
@@ -323,16 +330,17 @@ export default function KnowledgeDetailPanel({
               {provenance.sourceArtifact && (
                 <div
                   data-testid="provenance-artifact-card"
-                  className="flex items-start gap-2.5 rounded-lg border border-purple-500/20 bg-purple-950/20 p-2.5"
+                  className="flex items-start gap-2.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-raised)] p-2.5"
                 >
-                  <FileCode className="h-4 w-4 mt-0.5 shrink-0 text-purple-400" />
+                  <FileCode className="h-4 w-4 mt-0.5 shrink-0 text-[var(--entity-artifact-text)]" />
                   <div className="min-w-0 flex-1">
-                    <div className="font-medium text-purple-200 truncate">
+                    <div className="font-medium text-[var(--entity-artifact-text)] truncate">
                       {provenance.sourceArtifact.title}
                     </div>
-                    <div className="text-[10px] text-zinc-400 mt-0.5">
+                    <div className="text-[10px] text-[var(--text-secondary)] mt-0.5">
                       产出物类型: {provenance.sourceArtifact.type}
                     </div>
+                    <Link href="/artifacts" className="inline-flex min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] items-center underline text-[var(--text-secondary)]">前往产物档案库</Link>
                   </div>
                 </div>
               )}
@@ -340,17 +348,17 @@ export default function KnowledgeDetailPanel({
               {/* Evidence Records (E0~E6) */}
               {provenance.evidenceRecords.length > 0 && (
                 <div className="mt-2 space-y-1.5">
-                  <div className="text-[10px] font-semibold text-zinc-400">真实证据链:</div>
+                  <div className="text-[10px] font-semibold text-[var(--text-secondary)]">真实证据链:</div>
                   {provenance.evidenceRecords.map((ev) => (
                     <div
                       key={ev.id}
                       data-testid={`evidence-record-${ev.id}`}
-                      className="flex items-start gap-2 rounded bg-black/40 p-2 text-[11px] border border-white/5"
+                      className="flex items-start gap-2 rounded bg-[var(--surface-ground)] p-2 text-[11px] border border-[var(--border-subtle)]"
                     >
-                      <span className="rounded bg-emerald-950 px-1.5 py-0.5 font-mono text-[9px] font-bold text-emerald-400 border border-emerald-600/40">
+                      <span className="rounded bg-[var(--surface-raised)] px-1.5 py-0.5 font-mono text-[9px] font-bold text-[var(--authority-verified-text)] border border-[var(--border-subtle)]">
                         {ev.type}
                       </span>
-                      <span className="flex-1 text-zinc-300 leading-snug">{ev.content}</span>
+                      <span className="flex-1 text-[var(--text-secondary)] leading-snug">{ev.content}<span className="block text-[var(--text-secondary)]">{ev.verified ? "已验证证据" : "未验证证据"}</span></span>
                     </div>
                   ))}
                 </div>
@@ -361,17 +369,17 @@ export default function KnowledgeDetailPanel({
 
         {/* 4. What is connected? */}
         <div className="space-y-3">
-          <div className="font-semibold uppercase tracking-wider text-[11px] text-zinc-400">
+          <div className="font-semibold uppercase tracking-wider text-[11px] text-[var(--text-secondary)]">
             图谱连接 (Connections)
           </div>
 
           {/* Inbound */}
           <div>
-            <div className="text-[10px] text-zinc-500 mb-1">
+            <div className="text-[10px] text-[var(--text-secondary)] mb-1">
               前置 / 支撑来源 (Inbound: {connections.inbound.length})
             </div>
             {connections.inbound.length === 0 ? (
-              <div className="text-zinc-600 italic">暂无上游前置</div>
+              <div className="text-[var(--text-secondary)] italic">暂无上游前置</div>
             ) : (
               <div className="space-y-1">
                 {connections.inbound.map((conn) => (
@@ -379,10 +387,10 @@ export default function KnowledgeDetailPanel({
                     key={conn.edgeId}
                     type="button"
                     onClick={() => onSelectNode(conn.sourceNodeId)}
-                    className="flex w-full items-center justify-between rounded bg-black/20 px-2.5 py-1.5 text-left text-xs hover:bg-white/5 border border-white/5"
+                    className="flex min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] w-full items-center justify-between rounded bg-[var(--surface-ground)] px-2.5 py-1.5 text-left text-xs hover:bg-[var(--surface-ground)] border border-[var(--border-subtle)]"
                   >
-                    <span className="text-zinc-200 truncate">{conn.sourceNodeTitle}</span>
-                    <span className="text-[9px] font-mono rounded bg-sky-950 px-1.5 py-0.5 text-sky-400 border border-sky-800/40 shrink-0 ml-2">
+                    <span className="text-[var(--text-primary)] truncate">{conn.sourceNodeTitle}</span>
+                    <span className="text-[9px] font-mono rounded bg-[var(--surface-raised)] px-1.5 py-0.5 text-[var(--entity-knowledge-text)] border border-[var(--border-subtle)] shrink-0 ml-2">
                       {conn.relationType}
                     </span>
                   </button>
@@ -393,11 +401,11 @@ export default function KnowledgeDetailPanel({
 
           {/* Outbound */}
           <div>
-            <div className="text-[10px] text-zinc-500 mb-1">
+            <div className="text-[10px] text-[var(--text-secondary)] mb-1">
               下游延伸 / 包含 (Outbound: {connections.outbound.length})
             </div>
             {connections.outbound.length === 0 ? (
-              <div className="text-zinc-600 italic">暂无下游节点</div>
+              <div className="text-[var(--text-secondary)] italic">暂无下游节点</div>
             ) : (
               <div className="space-y-1">
                 {connections.outbound.map((conn) => (
@@ -405,10 +413,10 @@ export default function KnowledgeDetailPanel({
                     key={conn.edgeId}
                     type="button"
                     onClick={() => onSelectNode(conn.targetNodeId)}
-                    className="flex w-full items-center justify-between rounded bg-black/20 px-2.5 py-1.5 text-left text-xs hover:bg-white/5 border border-white/5"
+                    className="flex min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] w-full items-center justify-between rounded bg-[var(--surface-ground)] px-2.5 py-1.5 text-left text-xs hover:bg-[var(--surface-ground)] border border-[var(--border-subtle)]"
                   >
-                    <span className="text-zinc-200 truncate">{conn.targetNodeTitle}</span>
-                    <span className="text-[9px] font-mono rounded bg-purple-950 px-1.5 py-0.5 text-purple-400 border border-purple-800/40 shrink-0 ml-2">
+                    <span className="text-[var(--text-primary)] truncate">{conn.targetNodeTitle}</span>
+                    <span className="text-[9px] font-mono rounded bg-[var(--surface-raised)] px-1.5 py-0.5 text-[var(--entity-artifact-text)] border border-[var(--border-subtle)] shrink-0 ml-2">
                       {conn.relationType}
                     </span>
                   </button>
@@ -419,8 +427,8 @@ export default function KnowledgeDetailPanel({
         </div>
 
         {/* 5. How can I manage it? (Authority & Management CTAs) */}
-        <div className="space-y-2 border-t border-white/10 pt-4">
-          <div className="font-semibold uppercase tracking-wider text-[11px] text-zinc-400">
+        <div className="space-y-2 border-t border-[var(--border-subtle)] pt-4">
+          <div className="font-semibold uppercase tracking-wider text-[11px] text-[var(--text-secondary)]">
             节点管理与认识论决策
           </div>
 
@@ -436,10 +444,10 @@ export default function KnowledgeDetailPanel({
                     setConfirmRejectOpen(false);
                   }}
                   disabled={verifying || rejecting}
-                  className="flex items-center justify-center gap-1.5 rounded-lg bg-emerald-600 py-2 font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+                  className="flex min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] items-center justify-center gap-1.5 rounded-lg bg-[var(--surface-raised)] py-2 font-semibold text-[var(--text-primary)] hover:bg-[var(--surface-raised)] disabled:opacity-50"
                 >
                   {verifying ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
                   ) : (
                     <Check className="h-3.5 w-3.5" />
                   )}
@@ -454,10 +462,10 @@ export default function KnowledgeDetailPanel({
                     setConfirmVerifyOpen(false);
                   }}
                   disabled={verifying || rejecting}
-                  className="flex items-center justify-center gap-1.5 rounded-lg border border-rose-500/40 bg-rose-950/40 py-2 font-semibold text-rose-300 hover:bg-rose-900/60 disabled:opacity-50"
+                  className="flex min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] items-center justify-center gap-1.5 rounded-lg border border-[var(--state-danger-border)] bg-[var(--state-danger-bg)] py-2 font-semibold text-[var(--state-danger-text)] hover:bg-[var(--state-danger-bg)] disabled:opacity-50"
                 >
                   {rejecting ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
                   ) : (
                     <ThumbsDown className="h-3.5 w-3.5" />
                   )}
@@ -466,15 +474,15 @@ export default function KnowledgeDetailPanel({
               </div>
 
               {/* Node Verify Confirmation Modal */}
-              {confirmVerifyOpen && (
+              <BaseModal open={confirmVerifyOpen} onClose={() => setConfirmVerifyOpen(false)} title="确认验证">
                 <div
                   data-testid="node-verify-confirm-modal"
-                  className="rounded-lg border border-emerald-500/50 bg-emerald-950/40 p-3"
+                  className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-raised)] p-3"
                 >
-                  <div className="font-semibold text-emerald-300">
+                  <div className="font-semibold text-[var(--authority-verified-text)]">
                     确认将该 AI 提案节点晋级为已验证事实？
                   </div>
-                  <div className="mt-1 text-[11px] text-zinc-300 leading-relaxed">
+                  <div className="mt-1 text-[11px] text-[var(--text-secondary)] leading-relaxed">
                     置信度将提升至 100% [VERIFIED]，此认识论决策将记入永久系统审计。
                   </div>
                   <div className="mt-3 flex items-center justify-end gap-2">
@@ -482,7 +490,7 @@ export default function KnowledgeDetailPanel({
                       type="button"
                       data-testid="cancel-verify-node-btn"
                       onClick={() => setConfirmVerifyOpen(false)}
-                      className="rounded border border-white/10 bg-black/40 px-3 py-1 text-xs text-zinc-400 hover:text-zinc-200"
+                      className="min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] rounded border border-[var(--border-subtle)] bg-[var(--surface-ground)] px-3 py-1 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                     >
                       取消
                     </button>
@@ -490,24 +498,24 @@ export default function KnowledgeDetailPanel({
                       type="button"
                       data-testid="confirm-verify-node-btn"
                       onClick={handleVerify}
-                      className="rounded bg-emerald-600 px-3 py-1 text-xs font-semibold text-white hover:bg-emerald-500"
+                      className="min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] rounded bg-[var(--surface-raised)] px-3 py-1 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--surface-raised)]"
                     >
                       确认验证
                     </button>
                   </div>
                 </div>
-              )}
+              </BaseModal>
 
               {/* Node Reject Confirmation Modal */}
-              {confirmRejectOpen && (
+              <BaseModal open={confirmRejectOpen} onClose={() => setConfirmRejectOpen(false)} title="确认否决">
                 <div
                   data-testid="node-reject-confirm-modal"
-                  className="rounded-lg border border-rose-500/50 bg-rose-950/40 p-3"
+                  className="rounded-lg border border-[var(--state-danger-border)] bg-[var(--state-danger-bg)] p-3"
                 >
-                  <div className="font-semibold text-rose-300">
+                  <div className="font-semibold text-[var(--state-danger-text)]">
                     确认否决该 AI 提案节点？
                   </div>
-                  <div className="mt-1 text-[11px] text-zinc-300 leading-relaxed">
+                  <div className="mt-1 text-[11px] text-[var(--text-secondary)] leading-relaxed">
                     否决后该节点将变更为 [REJECTED]，不再作为有效事实呈现在活跃图谱中。
                   </div>
                   <div className="mt-3 flex items-center justify-end gap-2">
@@ -515,7 +523,7 @@ export default function KnowledgeDetailPanel({
                       type="button"
                       data-testid="cancel-reject-node-btn"
                       onClick={() => setConfirmRejectOpen(false)}
-                      className="rounded border border-white/10 bg-black/40 px-3 py-1 text-xs text-zinc-400 hover:text-zinc-200"
+                      className="min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] rounded border border-[var(--border-subtle)] bg-[var(--surface-ground)] px-3 py-1 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                     >
                       取消
                     </button>
@@ -523,13 +531,13 @@ export default function KnowledgeDetailPanel({
                       type="button"
                       data-testid="confirm-reject-node-btn"
                       onClick={handleReject}
-                      className="rounded bg-rose-600 px-3 py-1 text-xs font-semibold text-white hover:bg-rose-500"
+                      className="min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] rounded bg-[var(--state-danger-bg)] px-3 py-1 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--state-danger-bg)]"
                     >
                       确认否决
                     </button>
                   </div>
                 </div>
-              )}
+              </BaseModal>
             </div>
           )}
 
@@ -538,7 +546,7 @@ export default function KnowledgeDetailPanel({
             type="button"
             data-testid="expand-as-root-btn"
             onClick={() => onFocusRoot(node.id)}
-            className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-950/30 py-2 text-xs font-semibold text-emerald-300 hover:bg-emerald-900/40"
+            className="flex min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] w-full items-center justify-center gap-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-raised)] py-2 text-xs font-semibold text-[var(--authority-verified-text)] hover:bg-[var(--surface-raised)]"
           >
             <Network className="h-3.5 w-3.5" />
             以此为焦点展开局部图谱 (Expand Ego Graph)
@@ -549,7 +557,7 @@ export default function KnowledgeDetailPanel({
             type="button"
             data-testid="open-edit-modal-btn"
             onClick={() => setEditModalOpen(true)}
-            className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-white/10 bg-black/20 py-2 text-xs text-zinc-300 hover:bg-white/5 hover:text-zinc-100"
+            className="flex min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] w-full items-center justify-center gap-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-ground)] py-2 text-xs text-[var(--text-secondary)] hover:bg-[var(--surface-ground)] hover:text-[var(--text-primary)]"
           >
             <Edit3 className="h-3.5 w-3.5" />
             编辑节点元数据

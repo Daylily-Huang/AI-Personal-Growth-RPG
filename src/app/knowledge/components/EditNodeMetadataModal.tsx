@@ -2,7 +2,8 @@
 // Stage 6C Modal for whitelisted Node Metadata Updates (PATCH /api/knowledge/[id])
 
 import { useState } from "react";
-import { X, Loader2, Save, AlertCircle } from "lucide-react";
+import { BaseModal } from "@/components/ui/BaseModal";
+import { Loader2, Save, AlertCircle } from "lucide-react";
 import { updateKnowledgeNodeMetadata } from "./controller";
 import type { DomainItem } from "./KnowledgeFilterPanel";
 
@@ -100,32 +101,12 @@ export default function EditNodeMetadataModal({
   }
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="edit-node-modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
-    >
-      <div className="w-full max-w-md rounded-xl border border-white/10 bg-[#0d1320] p-6 shadow-2xl">
-        <div className="flex items-center justify-between border-b border-white/10 pb-3">
-          <h3 id="edit-node-modal-title" className="text-sm font-semibold text-zinc-100">
-            编辑知识节点元数据
-          </h3>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="关闭"
-            className="rounded p-1 text-zinc-400 hover:bg-white/5 hover:text-zinc-200"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-
+    <BaseModal open={isOpen} onClose={() => { if (!saving) onClose(); }} title="编辑知识节点元数据">
         <form onSubmit={handleSave} className="mt-4 space-y-4 text-xs">
           {error && (
             <div
               data-testid="edit-node-error"
-              className="flex items-center gap-2 rounded-lg border border-rose-500/40 bg-rose-950/40 p-2.5 text-rose-300"
+              className="flex items-center gap-2 rounded-lg border border-[var(--state-danger-border)] bg-[var(--state-danger-bg)] p-2.5 text-[var(--state-danger-text)]"
             >
               <AlertCircle className="h-4 w-4 shrink-0" />
               <span>{error}</span>
@@ -134,22 +115,22 @@ export default function EditNodeMetadataModal({
 
           {/* Title Input */}
           <div>
-            <label htmlFor="node-title-input" className="mb-1 block font-medium text-zinc-300">
-              节点名称 / 标题 <span className="text-rose-400">*</span>
+            <label htmlFor="node-title-input" className="mb-1 block font-medium text-[var(--text-secondary)]">
+              节点名称 / 标题 <span className="text-[var(--state-danger-text)]">*</span>
             </label>
             <input
               id="node-title-input"
               data-testid="edit-node-title-input"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-xs text-zinc-100 placeholder:text-zinc-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400"
+              className="min-h-[var(--touch-target-min)] w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-ground)] px-3 py-2 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
               required
             />
           </div>
 
           {/* Description Input */}
           <div>
-            <label htmlFor="node-desc-input" className="mb-1 block font-medium text-zinc-300">
+            <label htmlFor="node-desc-input" className="mb-1 block font-medium text-[var(--text-secondary)]">
               知识阐释 / 详细描述
             </label>
             <textarea
@@ -159,13 +140,13 @@ export default function EditNodeMetadataModal({
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
               placeholder="添加该概念、命题的详细定义或上下文阐释…"
-              className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-xs text-zinc-100 placeholder:text-zinc-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400"
+              className="min-h-[var(--touch-target-min)] w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-ground)] px-3 py-2 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
             />
           </div>
 
           {/* Domain Selector */}
           <div>
-            <label htmlFor="node-domain-select" className="mb-1 block font-medium text-zinc-300">
+            <label htmlFor="node-domain-select" className="mb-1 block font-medium text-[var(--text-secondary)]">
               所属领域 (Domain)
             </label>
             <select
@@ -173,7 +154,7 @@ export default function EditNodeMetadataModal({
               data-testid="edit-node-domain-select"
               value={domainId ?? ""}
               onChange={(e) => setDomainId(e.target.value ? e.target.value : null)}
-              className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-xs text-zinc-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400"
+              className="min-h-[var(--touch-target-min)] w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-ground)] px-3 py-2 text-xs text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
             >
               <option value="">未分类领域</option>
               {domains.map((dom) => (
@@ -185,27 +166,27 @@ export default function EditNodeMetadataModal({
           </div>
 
           {/* Archive Toggle */}
-          <div className="flex items-center gap-2 pt-2">
+          <label htmlFor="node-archive-checkbox" className="flex min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] cursor-pointer items-center gap-2 pt-2 font-medium text-[var(--text-secondary)]">
             <input
               type="checkbox"
               id="node-archive-checkbox"
               data-testid="edit-node-archive-checkbox"
               checked={isArchived}
               onChange={(e) => setIsArchived(e.target.checked)}
-              className="h-4 w-4 rounded border-white/10 bg-black/40 text-emerald-500 focus:ring-emerald-400"
+              className="h-4 w-4 shrink-0 rounded border-[var(--border-subtle)] bg-[var(--surface-ground)] text-[var(--authority-verified-text)] focus:ring-[var(--focus-ring-color)]"
             />
-            <label htmlFor="node-archive-checkbox" className="font-medium text-zinc-300">
+            <span>
               将该节点归档 (Archived，不在默认活跃图谱中显示)
-            </label>
-          </div>
+            </span>
+          </label>
 
           {/* Action Buttons */}
-          <div className="flex items-center justify-end gap-2 border-t border-white/10 pt-4">
+          <div className="flex items-center justify-end gap-2 border-t border-[var(--border-subtle)] pt-4">
             <button
               type="button"
               data-testid="cancel-edit-metadata-btn"
               onClick={onClose}
-              className="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-zinc-400 hover:bg-white/5 hover:text-zinc-200"
+              className="min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] rounded-lg border border-[var(--border-subtle)] px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:bg-[var(--surface-ground)] hover:text-[var(--text-primary)]"
             >
               取消
             </button>
@@ -213,10 +194,10 @@ export default function EditNodeMetadataModal({
               type="submit"
               data-testid="save-node-metadata-btn"
               disabled={saving}
-              className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+              className="flex min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] items-center gap-1.5 rounded-lg bg-[var(--surface-raised)] px-4 py-1.5 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--surface-raised)] disabled:opacity-50"
             >
               {saving ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
               ) : (
                 <Save className="h-3.5 w-3.5" />
               )}
@@ -224,7 +205,6 @@ export default function EditNodeMetadataModal({
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </BaseModal>
   );
 }
