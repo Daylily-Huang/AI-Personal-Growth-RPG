@@ -251,12 +251,17 @@ describe("Phase 6 scope and token gates", () => {
     const root = path.resolve("src/app/knowledge");
     const files = fs.readdirSync(root, { recursive: true }).map(String).filter((file) => /\.(tsx?|css)$/.test(file));
     const tokens = fs.readFileSync("src/styles/design-tokens.css", "utf8");
+    const rawZIndex = /(?:-?z-\d+\b|-?z-\[\s*-?\d+\s*\]|["']?zIndex["']?\s*:\s*-?\d+)/i;
     for (const file of files) {
       const text = fs.readFileSync(path.join(root, file), "utf8");
       for (const [, token] of text.matchAll(/var\((--[\w-]+)\)/g)) expect(tokens, `${file}: ${token}`).toContain(`${token}:`);
-      expect(text, file).not.toMatch(/#[0-9a-f]{3,8}\b|\bz-\d+\b|var\(--(?:gold|border-gold|text-gold)-/i);
+      expect(text, file).not.toMatch(/#[0-9a-f]{3,8}\b|var\(--(?:gold|border-gold|text-gold)-/i);
+      expect(text, `${file}: raw z-index`).not.toMatch(rawZIndex);
       if (file !== "components/LinkedSkillSummary.tsx" && file !== "components\\LinkedSkillSummary.tsx") expect(text, file).not.toMatch(/<MasteryBadge|<XPProgress/);
     }
+    for (const raw of ["z-10", "-z-10", "z-[999]", "zIndex: -1", '"zIndex": 10', "'zIndex': -1"]) expect(raw).toMatch(rawZIndex);
+    expect("z-[var(--z-canvas)]").not.toMatch(rawZIndex);
+    expect(fs.readFileSync(path.join(root, "components", "KnowledgeGraphCanvas.tsx"), "utf8")).toContain('zIndex: "var(--z-bg-env)"');
   });
   it("keeps all frozen backend, previous pages, primitives and dependencies unchanged from the Phase 6 baseline", () => {
     const base = "a93e2bcada3eca63c3d69ecc633fd50df0f54e94";

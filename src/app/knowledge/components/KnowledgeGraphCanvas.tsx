@@ -202,7 +202,7 @@ function CanvasInner({
         ...clusters.map((cluster): Node => ({
           id: `cluster-${cluster.id}`, type: "cluster", position: { x: cluster.x, y: cluster.y },
           data: { label: cluster.label, count: cluster.count },
-          style: { width: cluster.width, height: cluster.height, zIndex: -1, pointerEvents: "none" },
+          style: { width: cluster.width, height: cluster.height, zIndex: "var(--z-bg-env)", pointerEvents: "none" },
           selectable: false, focusable: false, draggable: false,
         })),
         ...nodes.map((node) => ({ ...node, data: { ...node.data, onSelect: onSelectNode } })),
