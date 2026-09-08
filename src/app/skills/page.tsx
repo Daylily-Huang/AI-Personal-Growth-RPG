@@ -191,7 +191,7 @@ function SkillsPageContent() {
   );
 
   return (
-    <div className="flex flex-col h-full w-full min-h-0 overflow-hidden">
+    <div className="flex flex-col h-[calc(100dvh-var(--header-height)-var(--mobile-nav-height))] w-full min-h-0 overflow-hidden md:h-[calc(100dvh-var(--header-height))]">
       <h2 className="sr-only">技能图谱能力网络</h2>
 
       {/* Mobile/Tablet Local Toolbar (below lg) */}

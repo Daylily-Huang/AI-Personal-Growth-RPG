@@ -436,6 +436,16 @@ describe("Phase 7 Round 1 semantic graph tables", () => {
 });
 
 describe("Phase 7 Round 1 URL-backed views and overlay ownership", () => {
+  it("keeps the Skills workspace height explicit across mobile and desktop shell modes", () => {
+    const { container } = render(<SkillsPage />);
+
+    const workspace = container.firstElementChild;
+    expect(workspace).toBeTruthy();
+    expect(workspace?.getAttribute("class")).toContain("h-[calc(100dvh-var(--header-height)-var(--mobile-nav-height))]");
+    expect(workspace?.getAttribute("class")).toContain("md:h-[calc(100dvh-var(--header-height))]");
+    expect(screen.getByRole("region", { name: "技能图谱画布" })).toBeTruthy();
+  });
+
   it("restores Skill table mode from view=table and updates the URL through the router", async () => {
     mocks.search = "view=table";
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(json({ domains: [], nodes: [skillNodes[0]], edges: [] } satisfies SkillTreeGraphResponse)));
