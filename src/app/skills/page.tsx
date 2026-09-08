@@ -201,7 +201,7 @@ function SkillsPageContent() {
           onClick={() => setMobileNavOpen(true)}
           aria-label="打开筛选面板"
           aria-expanded={mobileNavOpen}
-          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-raised)] text-xs text-[var(--text-primary)] hover:bg-[var(--surface-hover-neutral)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
+          className="inline-flex min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] items-center gap-1.5 px-2.5 py-1.5 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-raised)] text-xs text-[var(--text-primary)] hover:bg-[var(--surface-hover-neutral)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
         >
           <SlidersHorizontal className="w-3.5 h-3.5" aria-hidden="true" />
           <span>筛选</span>
@@ -217,7 +217,7 @@ function SkillsPageContent() {
             onChange={(e) => setSearch(e.target.value)}
             placeholder="搜索技能…"
             aria-label="搜索技能"
-            className="w-full rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-ground)] pl-8 pr-2.5 py-1 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-disabled)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
+            className="min-h-[var(--touch-target-min)] w-full rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-ground)] pl-8 pr-2.5 py-1 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-disabled)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
           />
         </div>
       </div>
@@ -230,7 +230,7 @@ function SkillsPageContent() {
             <button
               type="button"
               onClick={() => setMobileNavOpen(false)}
-              className="rounded-[var(--radius-sm)] p-1 text-[var(--text-muted)] hover:bg-[var(--surface-hover-neutral)] hover:text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
+              className="min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] rounded-[var(--radius-sm)] p-1 text-[var(--text-muted)] hover:bg-[var(--surface-hover-neutral)] hover:text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
               aria-label="关闭筛选面板"
             >
               ✕
@@ -258,7 +258,7 @@ function SkillsPageContent() {
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="搜索技能名称或别名…"
                 aria-label="搜索技能"
-                className="w-full rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-ground)] pl-8 pr-3 py-1.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-disabled)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
+                className="min-h-[var(--touch-target-min)] w-full rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-ground)] pl-8 pr-3 py-1.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-disabled)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
               />
             </div>
           </div>
@@ -293,7 +293,7 @@ function SkillsPageContent() {
               <button
                 type="button"
                 onClick={refresh}
-                className="inline-flex items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-raised)] px-4 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--surface-hover-neutral)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
+                className="inline-flex min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-raised)] px-4 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--surface-hover-neutral)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
               >
                 <RefreshCw className="h-4 w-4" aria-hidden="true" /> 重试
               </button>
@@ -309,7 +309,7 @@ function SkillsPageContent() {
               </p>
               <Link
                 href="/dashboard"
-                className="inline-flex items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] px-4 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--surface-hover-neutral)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
+                className="inline-flex min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] px-4 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--surface-hover-neutral)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
               >
                 去记录成长
               </Link>
@@ -324,7 +324,7 @@ function SkillsPageContent() {
                   setStateFilter("all");
                   setSearch("");
                 }}
-                className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:bg-[var(--surface-hover-neutral)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
+                className="min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:bg-[var(--surface-hover-neutral)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
               >
                 清除全部筛选
               </button>

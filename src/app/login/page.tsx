@@ -116,7 +116,7 @@ export default function LoginPage() {
                 setError(null);
                 setMessage(null);
               }}
-              className={`flex-1 text-center py-2 text-sm font-medium transition-colors border-b-2 -mb-4 ${
+              className={`min-h-[var(--touch-target-min)] flex-1 text-center py-2 text-sm font-medium transition-colors border-b-2 -mb-4 ${
                 !isSignUp
                   ? "border-amber-400 text-amber-300"
                   : "border-transparent text-zinc-400 hover:text-zinc-200"
@@ -131,7 +131,7 @@ export default function LoginPage() {
                 setError(null);
                 setMessage(null);
               }}
-              className={`flex-1 text-center py-2 text-sm font-medium transition-colors border-b-2 -mb-4 ${
+              className={`min-h-[var(--touch-target-min)] flex-1 text-center py-2 text-sm font-medium transition-colors border-b-2 -mb-4 ${
                 isSignUp
                   ? "border-amber-400 text-amber-300"
                   : "border-transparent text-zinc-400 hover:text-zinc-200"
@@ -165,7 +165,7 @@ export default function LoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="player@example.com"
-                  className="w-full rounded-lg border border-white/10 bg-black/40 pl-9 pr-3 py-2 text-sm text-zinc-200 placeholder-zinc-600 focus:border-amber-400 focus:outline-none"
+                  className="min-h-[var(--touch-target-min)] w-full rounded-lg border border-white/10 bg-black/40 pl-9 pr-3 py-2 text-sm text-zinc-200 placeholder-zinc-600 focus:border-amber-400 focus:outline-none"
                 />
               </div>
             </div>
@@ -181,7 +181,7 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full rounded-lg border border-white/10 bg-black/40 pl-9 pr-3 py-2 text-sm text-zinc-200 placeholder-zinc-600 focus:border-amber-400 focus:outline-none"
+                  className="min-h-[var(--touch-target-min)] w-full rounded-lg border border-white/10 bg-black/40 pl-9 pr-3 py-2 text-sm text-zinc-200 placeholder-zinc-600 focus:border-amber-400 focus:outline-none"
                 />
               </div>
             </div>
@@ -190,7 +190,7 @@ export default function LoginPage() {
                type="submit"
                disabled={loading}
                aria-label={loading ? (isSignUp ? "正在创建角色" : "正在登录") : undefined}
-              className="w-full flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 px-4 py-2.5 text-sm font-semibold text-black shadow-lg shadow-amber-500/20 hover:from-amber-400 hover:to-amber-500 disabled:opacity-50 cursor-pointer"
+              className="min-h-[var(--touch-target-min)] w-full flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 px-4 py-2.5 text-sm font-semibold text-black shadow-lg shadow-amber-500/20 hover:from-amber-400 hover:to-amber-500 disabled:opacity-50 cursor-pointer"
             >
               {loading ? (
                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
@@ -218,7 +218,7 @@ export default function LoginPage() {
                 type="button"
                 onClick={handleQuickDemoLogin}
                 disabled={loading}
-                className="w-full flex items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-medium text-zinc-200 hover:bg-white/10 hover:text-white disabled:opacity-50 cursor-pointer transition-colors"
+                className="min-h-[var(--touch-target-min)] w-full flex items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-medium text-zinc-200 hover:bg-white/10 hover:text-white disabled:opacity-50 cursor-pointer transition-colors"
               >
                  <UserCheck className="h-4 w-4 text-emerald-400" aria-hidden="true" />
                 一键体验测试玩家账号（本地开发）

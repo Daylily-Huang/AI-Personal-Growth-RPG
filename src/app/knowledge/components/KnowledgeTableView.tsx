@@ -72,7 +72,7 @@ export default function KnowledgeTableView({
                       type="button"
                       onClick={() => onSelectNode(node.id)}
                       aria-label={`查看知识节点 ${node.data.title}，${authority.label}`}
-                      className="rounded-[var(--radius-sm)] text-left font-semibold underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
+                      className="min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] rounded-[var(--radius-sm)] text-left font-semibold underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
                     >
                       {node.data.title}
                     </button>
@@ -132,7 +132,7 @@ export default function KnowledgeTableView({
                       type="button"
                       onClick={() => onSelectEdge(edge.id)}
                       aria-label={`查看知识关系 ${sourceTitle} ${edge.relationType} ${targetTitle}`}
-                      className="rounded-[var(--radius-sm)] text-left underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
+                      className="min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] rounded-[var(--radius-sm)] text-left underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
                     >
                       {sourceTitle}
                     </button>

@@ -137,7 +137,9 @@ function CanvasInner({
   }, [fitKey, rf]);
 
   return (
-    <ReactFlow
+    <>
+      <style>{`.skills-graph-controls .react-flow__controls-button { min-height: var(--touch-target-min); min-width: var(--touch-target-min); }`}</style>
+      <ReactFlow
       nodes={interactiveNodes}
       edges={edges}
       nodeTypes={NODE_TYPES}
@@ -160,7 +162,7 @@ function CanvasInner({
       <Controls
         position="bottom-right"
         showInteractive={false}
-        className="!bg-[var(--surface-raised)] !border !border-[var(--border-subtle)] !rounded-[var(--radius-md)] !shadow-[var(--shadow-card)]"
+        className="skills-graph-controls !bg-[var(--surface-raised)] !border !border-[var(--border-subtle)] !rounded-[var(--radius-md)] !shadow-[var(--shadow-card)]"
       />
       <MiniMap
         pannable
@@ -170,7 +172,8 @@ function CanvasInner({
         nodeColor="var(--border-default)"
         maskColor="rgba(239, 236, 228, 0.70)"
       />
-    </ReactFlow>
+      </ReactFlow>
+    </>
   );
 }
 
