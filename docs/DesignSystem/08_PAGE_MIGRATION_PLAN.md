@@ -26,9 +26,9 @@ The migration to the new Global Visual System follows a strict, layered implemen
 │                                 ↓                                                   │
 │    Phase 5: Core Screens (Dashboard ✅ FROZEN -> Quests ✅ FROZEN -> Skills ✅ FROZEN)│
 │                                 ↓                                                   │
-│    Phase 6: Advanced Canvas Modernization (Knowledge Graph Canvas) 🚀 NEXT          │
+│    Phase 6: Advanced Canvas Modernization (Knowledge Graph Canvas) ✅ FINAL FROZEN  │
 │                                 ↓                                                   │
-│    Phase 7: End-to-End A11y, Responsive & Motion Polish                             │
+│    Phase 7: End-to-End A11y, Responsive & Motion Polish 🚀 NEXT FORMAL ENTRY        │
 └─────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -82,10 +82,12 @@ The migration to the new Global Visual System follows a strict, layered implemen
   - `/quests`: Quest hierarchy tree, milestone progress meters, full 7-state lifecycle matrix, BaseModal creation flow, and semantic nested lists. ✅ **FINAL FROZEN** (Stage 5B-UI via PR #19)
   - `/skills`: Interactive skill tree with light-first ink-wash nodes, M0–M10 mastery badges, and evidence inspection. ✅ **FINAL FROZEN** (Stage 5C-UI via PR #20)
 
-### Phase 6 — Knowledge Map Canvas Modernization (NEXT)
+### Phase 6 — Knowledge Map Canvas Modernization ✅ FINAL FROZEN
 - **Objective**: Modernize the force-directed graph canvas for Knowledge Nodes.
 - **Deliverables**:
   - Canvas graph viewport with semantic node clustering, edge authority filters, and real-time inspector linkage.
+- **Closure**: PR #21 merged at `186e5bed71844ba274680b10ab939bc5169e669d` from approved Exact Head `066fe811e187c547069b3ed3965f24d19e280e9a`; Exact Head CI run `34179971347` passed its required jobs.
+- **Frozen boundary**: Backend/domain authority, Supabase, shared UI primitives, shared layout, design tokens, and dependencies remain frozen.
 
-### Phase 7 — End-to-End A11y, Responsive & Motion Polish
+### Phase 7 — End-to-End A11y, Responsive & Motion Polish 🚀 NEXT FORMAL ENTRY
 - **Objective**: Full keyboard navigation, screen reader conformance, responsive stress-testing, and motion tuning.

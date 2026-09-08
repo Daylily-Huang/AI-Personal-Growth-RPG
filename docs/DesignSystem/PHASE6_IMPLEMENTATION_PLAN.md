@@ -1,6 +1,6 @@
 # Phase 6 — 知识图谱画布实施与验收
 
-基线：main `a93e2bcada3eca63c3d69ecc633fd50df0f54e94`。分支：`feature/phase6-knowledge-canvas`。状态：实施中，未冻结。
+基线：main `a93e2bcada3eca63c3d69ecc633fd50df0f54e94`。分支：`feature/phase6-knowledge-canvas`。合并基线：main `186e5bed71844ba274680b10ab939bc5169e669d`。状态：**FINAL FROZEN**。
 
 ## 范围与设计决定
 
@@ -41,3 +41,12 @@
 | 冻结边界 | 相对基线及未提交差异均不得修改后端、共享基元和依赖 |
 
 质量门禁：知识专项、全量 `pnpm test`、`pnpm harness:deterministic`、`pnpm lint`、`pnpm tsc --noEmit`、`pnpm build`。数据库测试是否执行需据实际环境记录。
+
+## Phase 6 FINAL FROZEN
+
+- PR：`#21`
+- Approved Exact Head：`066fe811e187c547069b3ed3965f24d19e280e9a`
+- Merge commit：`186e5bed71844ba274680b10ab939bc5169e669d`
+- Exact Head CI：run `34179971347`，`check` 与 `supabase-integration` 均成功；DB-backed 与 E2E 结果按实际执行状态记录。
+- Frozen invariants：Knowledge authority、knowledge confidence、Skill mastery、XP 与 Evidence 语义保持分离；Linked Skill Summary 只读；knowledge UI 不修改 backend/domain authority、Supabase、shared UI primitives、shared layout、design tokens 或 dependencies。
+- 下一阶段正式入口：**Phase 7 — End-to-End A11y, Responsive & Motion Polish**。

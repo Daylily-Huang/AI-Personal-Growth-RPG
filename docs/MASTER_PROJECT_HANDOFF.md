@@ -1,10 +1,10 @@
 # AI Personal Growth RPG — 项目全景交接与治理主文档 (Master Project Handoff)
 
-> **文档版本**: 1.1 (Master Comprehensive Handoff)  
-> **更新时间**: 2026-09-06  
+> **文档版本**: 1.2 (Master Comprehensive Handoff)
+> **更新时间**: 2026-09-08
 > **适用对象**: 后续所有接手的 AI 工程师、独立审查 AI、项目协作者  
-> **当前主分支基线 (main)**: `a93e2bcada3eca63c3d69ecc633fd50df0f54e94`  
-> **当前所处里程碑**: Phase 6 — Advanced Canvas Modernization (Knowledge Graph Canvas) (CURRENT / IN PROGRESS)  
+> **Phase 6 合并基线 (main)**: `186e5bed71844ba274680b10ab939bc5169e669d`
+> **当前所处里程碑**: Phase 6 — Advanced Canvas Modernization (Knowledge Graph Canvas) (**FINAL FROZEN**)
 > **代码仓库**: `Daylily-Huang/AI-Personal-Growth-RPG`  
 > **核心工作区路径**: `d:\AI_Personal_Growth_RPG`（WSL 挂载路径：`/mnt/d/AI_Personal_Growth_RPG`）
 
@@ -98,8 +98,8 @@ AI_Personal_Growth_RPG/
 │   │   ├── api/                    # 后端 HTTP 路由（在 UI 现代化阶段绝对冻结！）
 │   │   ├── dashboard/              # 仪表盘主页 (Phase 5A ✅ FINAL FROZEN)
 │   │   ├── quests/                 # 任务系统主页 (Phase 5B ✅ FINAL FROZEN)
-│   │   ├── skills/                 # 技能树主页 (Phase 5C 🚀 ROUND 1 待审)
-│   │   ├── knowledge/              # 知识图谱主页 (Phase 6 ⏳ 待启动)
+│   │   ├── skills/                 # 技能树主页 (Phase 5C ✅ FINAL FROZEN)
+│   │   ├── knowledge/              # 知识图谱主页 (Phase 6 ✅ FINAL FROZEN)
 │   │   └── artifacts/              # 产物系统主页 (Phase 4 ✅ FINAL FROZEN)
 │   ├── components/
 │   │   ├── layout/                 # 全局布局骨架 (AppHeader, AppSidebar, InspectorDrawer)
@@ -133,8 +133,8 @@ AI_Personal_Growth_RPG/
 | **核心页面** | Phase 5 - 5A | Dashboard 个人仪表盘视觉重构 | **FINAL FROZEN** | PR #18 |
 | **核心页面** | Phase 5 - 5B | Quests 任务系统视觉重构与无障碍治理 | **FINAL FROZEN** | PR #19 |
 | **核心页面** | **Phase 5 - 5C** | **Skills 技能树与 ReactFlow 画布现代化** | **FINAL FROZEN** | **PR #20 (Squash Commit 6e238a4)** |
-| **高级画布** | **Phase 6** | **Knowledge Graph Canvas 知识图谱画布现代化** | **ROUND 2 COMPLETE / REVIEW PENDING** | **PR #21，待独立复审** |
-| **全站抛光** | Phase 7 | 端到端无障碍 (A11y)、全视口响应式与动效收敛 | **QUEUED** | 待 Phase 6 完成后启动 |
+| **高级画布** | **Phase 6** | **Knowledge Graph Canvas 知识图谱画布现代化** | **FINAL FROZEN** | **PR #21，merge commit `186e5bed71844ba274680b10ab939bc5169e669d`；Exact Head `066fe811e187c547069b3ed3965f24d19e280e9a`；CI `34179971347`** |
+| **全站抛光** | **Phase 7** | **端到端无障碍 (A11y)、全视口响应式与动效收敛** | **QUEUED / NEXT FORMAL ENTRY** | Phase 6 FINAL FROZEN 后启动 |
 
 ---
 
@@ -256,22 +256,20 @@ wsl -d Ubuntu -- bash -lc "cd /mnt/d/AI_Personal_Growth_RPG && pnpm build"
 
 ## 8. 接手 AI 极速上手与后续路线图推进指引 (Next Actions)
 
-当前状态：Phase 5 核心业务页面（Dashboard、Quests、Skills）已全线 **FINAL FROZEN**（PR #20 Squash Commit `6e238a4`，基线冻结 Commit `a93e2bc`）。**Phase 6: Advanced Canvas Modernization (Knowledge Graph Canvas)** 的 Round 2 五项审查闭环已完成，PR #21 保持开放并等待独立复审。
+当前状态：Phase 5 核心业务页面（Dashboard、Quests、Skills）已全线 **FINAL FROZEN**（PR #20 Squash Commit `6e238a4`，基线冻结 Commit `a93e2bc`）。**Phase 6: Advanced Canvas Modernization (Knowledge Graph Canvas)** 已完成独立复核并通过 PR #21 合并，现为 **FINAL FROZEN**。
 
-### 当前行动：Phase 6 知识图谱画布现代化 (Round 2 已完成，待独立复审)
-1. **工作分支**: `feature/phase6-knowledge-canvas`（基线为 `a93e2bcada3eca63c3d69ecc633fd50df0f54e94`）。
-2. **核心目标**:
+### Phase 6 — Knowledge Graph Canvas Modernization（FINAL FROZEN）
+1. **合并证据**：PR #21，批准 Exact Head `066fe811e187c547069b3ed3965f24d19e280e9a`，merge commit `186e5bed71844ba274680b10ab939bc5169e669d`，CI run `34179971347`。
+2. **冻结范围**:
    - `/knowledge` 画布全面浅色水墨化（Light-First Ink-Wash），清除所有旧黑底（`bg-[#0b0f17]`）、赛博朋克深色类与硬编码色值。
    - 确定性领域聚类（Deterministic Domain/Category Clustering），纯前端布局函数，零新算法依赖，同一输入稳定输出。
    - 关系边权威与静态化：所有边默认 `animated: false`，消除闪电与跑马灯动效；严格保留五大关系类型与对称/有向语义。
    - 全局单实例 `InspectorDrawer` 集成（`mode="auto"`），节点与关系共用，支持只读关联技能富集（`LevelBadge`/`MasteryBadge`/`XPProgress`）与产物/证据溯源；Linked Skill Summary 明确属于 Skill 子区块，不改变 Knowledge 语义。
    - `KnowledgeNodeView` 使用冻结的交互式 `RPGCard`，通过 `role="button"`、`tabIndex=0` 和 Enter/Space 激活提供键盘语义，不是原生 `<button>`。
    - 保证严格零后端、零共享基元、零领域模型修改。
-3. **完成标准**: 运行并通过全量质量门禁（7 套专项测试、Lint、TypeScript、Deterministic Harness、Build），由 Windows PowerShell 推送分支并提交独立审查报告。
+3. **后续规则**：Phase 6 的 backend/domain authority、Supabase、shared UI primitives、shared layout、design tokens 与 dependencies 继续冻结；任何重新开放必须先有明确的新变更授权。
 
-### 场景 B：审查未通过（NEED_FIX），如何执行外科手术式修复
-1. 仔细通读审查 AI 的报告，明确每一个 P1/P2 的违规根因（如漏掉的 Token、某个 DOM 的无障碍 ARIA 属性不完整、测试缺少边界覆盖等）。
-2. 严守边界：**绝对不要触碰后端、API、数据库或共享基元**，所有修复严格限制在 `src/app/skills/**` 和对应测试文件内。
-3. 保持修复极简且精准，杜绝大面积重写。
-4. 修复完成后重新跑通第 7 节中的全量质量门禁。
-5. 提交并推送，输出清晰的修复清单，请求进入下一轮审查。
+### 下一阶段正式入口：Phase 7 — End-to-End A11y, Responsive & Motion Polish
+1. 仅在 Phase 6 冻结边界保持不变的前提下启动。
+2. 目标：端到端键盘与屏幕阅读器可达性、全视口响应式压力测试、动效与减少动效策略收敛。
+3. 继续遵守双 AI 协同治理、独立复核、Exact Head CI 与 skipped 测试如实报告规则。
