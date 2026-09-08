@@ -2,6 +2,20 @@ import type { KnowledgeFlowNodeType } from "./KnowledgeNodeView";
 import type { RawGraphEdge } from "./KnowledgeGraphCanvas";
 import { getAuthorityVisual, getEdgeVisual, getNodeTypeVisual } from "./presentation";
 
+function getEdgeAuthorityLabel(edge: RawGraphEdge): string {
+  const authority = getAuthorityVisual(
+    edge.verificationStatus,
+    edge.isArchived,
+    edge.confidence,
+  );
+  const statusLabel = edge.verificationStatus.toUpperCase();
+  const lifecycleLabel = edge.isArchived ? "ARCHIVED" : "ACTIVE";
+  const inferredDetail = edge.verificationStatus === "inferred" && !edge.isArchived
+    ? ` · ${authority.label}`
+    : "";
+  return `${statusLabel} · ${lifecycleLabel}${inferredDetail}`;
+}
+
 export interface KnowledgeTableViewProps {
   nodes: KnowledgeFlowNodeType[];
   edges: RawGraphEdge[];
@@ -125,7 +139,7 @@ export default function KnowledgeTableView({
                   </td>
                   <td className="px-3 py-3">{relationSymbol} {edge.relationType}</td>
                   <td className="px-3 py-3">{targetTitle}</td>
-                  <td className="px-3 py-3">{visual.label}</td>
+                  <td className="px-3 py-3">{getEdgeAuthorityLabel(edge)}</td>
                   <td className="px-3 py-3">{Math.round(edge.confidence * 100)}%</td>
                 </tr>
               );

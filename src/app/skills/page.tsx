@@ -117,10 +117,11 @@ function SkillsPageContent() {
         data: {
           ...node.data,
           domainLabel: node.domainId ? domainNameById.get(node.domainId) ?? null : null,
+          isSelected: selectedSkillId === node.id,
         },
         type: "skillNode" as const,
       })),
-    [visible.nodes, domainNameById],
+    [visible.nodes, domainNameById, selectedSkillId],
   );
 
   const handleNavigateSkill = useCallback(
@@ -329,7 +330,7 @@ function SkillsPageContent() {
               </button>
             </div>
           ) : viewMode === "table" ? (
-            <SkillTableView nodes={flowNodes} onSelect={handleSelect} />
+            <SkillTableView nodes={flowNodes} edges={visible.edges} onSelect={handleSelect} />
           ) : (
             <SkillGraphCanvas
               nodes={flowNodes}

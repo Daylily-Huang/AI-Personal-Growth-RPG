@@ -33,9 +33,31 @@ vi.mock("@xyflow/react", async (importOriginal) => {
 });
 
 vi.mock("@/app/skills/components/SkillGraphCanvas", () => ({
-  default: ({ nodes }: { nodes: Array<{ id: string; data: { name: string } }> }) => (
+  default: ({
+    nodes,
+    onSelect,
+  }: {
+    nodes: Array<{ id: string; data: { name: string; isSelected?: boolean } }>;
+    onSelect: (skillId: string | null) => void;
+  }) => (
     <div data-testid="skills-canvas">
-      {nodes.map((node) => <span key={node.id}>{node.data.name}</span>)}
+      {nodes.map((node) => (
+        <button
+          key={node.id}
+          type="button"
+          aria-label={node.data.name}
+          aria-pressed={Boolean(node.data.isSelected)}
+          onClick={() => onSelect(node.id)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " " || event.key === "Spacebar") {
+              event.preventDefault();
+              onSelect(node.id);
+            }
+          }}
+        >
+          {node.data.name}
+        </button>
+      ))}
     </div>
   ),
 }));
@@ -80,6 +102,7 @@ const skillNodes = [
 const skillEdges: SkillFlowEdge[] = [
   { id: "ab", source: "a", target: "b", relation: "prerequisite" },
   { id: "ac", source: "a", target: "c", relation: "supports" },
+  { id: "bc", source: "b", target: "c", relation: "contains" },
 ];
 
 const knowledgeNode = (
@@ -137,12 +160,58 @@ const knowledgeGraph: KnowledgeGraphResponse = {
       verifiedAt: null,
       verifiedBy: null,
     },
+    {
+      id: "ca",
+      source: "c",
+      target: "a",
+      relationType: "relates_to",
+      verificationStatus: "rejected",
+      isArchived: false,
+      confidence: 0.2,
+      sourceType: "ai_proposal",
+      sourceId: null,
+      provenanceNote: null,
+      verifiedAt: null,
+      verifiedBy: null,
+    },
+    {
+      id: "ac-superseded",
+      source: "a",
+      target: "c",
+      relationType: "supports",
+      verificationStatus: "superseded",
+      isArchived: false,
+      confidence: 0.4,
+      sourceType: "user_created",
+      sourceId: null,
+      provenanceNote: null,
+      verifiedAt: null,
+      verifiedBy: null,
+    },
+    {
+      id: "cb-archived",
+      source: "c",
+      target: "b",
+      relationType: "prerequisite",
+      verificationStatus: "verified",
+      isArchived: true,
+      confidence: 0.8,
+      sourceType: "user_created",
+      sourceId: null,
+      provenanceNote: null,
+      verifiedAt: null,
+      verifiedBy: null,
+    },
   ],
-  stats: { totalNodes: 3, verifiedNodes: 3, inferredNodes: 0, totalEdges: 2, verifiedEdges: 1, inferredEdges: 1, isTruncated: false },
+  stats: { totalNodes: 3, verifiedNodes: 3, inferredNodes: 0, totalEdges: 5, verifiedEdges: 2, inferredEdges: 1, isTruncated: false },
 };
 
 function json(value: unknown) {
   return new Response(JSON.stringify(value), { status: 200, headers: { "Content-Type": "application/json" } });
+}
+
+function expectAriaPressed(element: HTMLElement, value: boolean) {
+  expect(element.getAttribute("aria-pressed")).toBe(String(value));
 }
 
 function skillNodeProps(data: SkillNodeViewData, id = "skill-a"): ComponentProps<typeof SkillNodeView> {
@@ -242,6 +311,52 @@ describe("Phase 7 Round 1 graph keyboard traversal", () => {
     expect(knowledgeOnNavigate).toHaveBeenCalledWith("a", "down");
     expect(knowledgeOnSelect).toHaveBeenCalledTimes(2);
   });
+
+  it("keeps the page-owned selected state synchronized for keyboard, pointer, and clearing", () => {
+    function SelectionHarness() {
+      const [selectedId, setSelectedId] = React.useState<string | null>(null);
+      return (
+        <div>
+          {skillNodes.slice(0, 2).map((node) => (
+            <SkillNodeView
+              key={node.id}
+              {...skillNodeProps({
+                ...node.data,
+                isSelected: selectedId === node.id,
+                onSelect: setSelectedId,
+              }, node.id)}
+            />
+          ))}
+          <button type="button" onClick={() => setSelectedId(null)}>
+            清除技能选择
+          </button>
+        </div>
+      );
+    }
+
+    render(<SelectionHarness />);
+    const skillA = screen.getByRole("button", { name: /技能 a/ });
+    const skillB = screen.getByRole("button", { name: /技能 b/ });
+
+    expectAriaPressed(skillA, false);
+    expectAriaPressed(skillB, false);
+
+    fireEvent.keyDown(skillA, { key: "Enter" });
+    expectAriaPressed(skillA, true);
+    expectAriaPressed(skillB, false);
+
+    fireEvent.keyDown(skillB, { key: " " });
+    expectAriaPressed(skillA, false);
+    expectAriaPressed(skillB, true);
+
+    fireEvent.click(skillA);
+    expectAriaPressed(skillA, true);
+    expectAriaPressed(skillB, false);
+
+    fireEvent.click(screen.getByRole("button", { name: "清除技能选择" }));
+    expectAriaPressed(skillA, false);
+    expectAriaPressed(skillB, false);
+  });
 });
 
 describe("Phase 7 Round 1 semantic graph tables", () => {
@@ -263,6 +378,7 @@ describe("Phase 7 Round 1 semantic graph tables", () => {
           data: { ...node.data, domainLabel: "科研" },
           type: "skillNode" as const,
         }))}
+        edges={skillEdges}
         onSelect={onSelect}
       />,
     );
@@ -272,6 +388,14 @@ describe("Phase 7 Round 1 semantic graph tables", () => {
     expect(onSelect).toHaveBeenCalledWith("a");
     expect(within(table).getAllByText("M2").length).toBeGreaterThan(0);
     expect(within(table).getAllByText("70%").length).toBeGreaterThan(0);
+    const relations = screen.getByRole("table", { name: "当前筛选下的技能图谱关系" });
+    expect(within(relations).getAllByRole("columnheader")).toHaveLength(3);
+    expect(within(relations).getByText(/prerequisite/)).toBeTruthy();
+    expect(within(relations).getByText(/contains/)).toBeTruthy();
+    expect(within(relations).getByText(/supports/)).toBeTruthy();
+    expect(within(screen.getByTestId("skills-relations-table-row-ab")).getByText("技能 a")).toBeTruthy();
+    expect(within(screen.getByTestId("skills-relations-table-row-ab")).getByText("技能 b")).toBeTruthy();
+    expect(within(screen.getByTestId("skills-relations-table-row-bc")).getByText("技能 c")).toBeTruthy();
   });
 
   it("renders Knowledge nodes and relationships as semantic tables without conflation", () => {
@@ -296,7 +420,14 @@ describe("Phase 7 Round 1 semantic graph tables", () => {
     const relations = screen.getByRole("table", { name: "当前筛选下的知识关系及其权威状态" });
     expect(within(relations).getAllByRole("columnheader")).toHaveLength(5);
     expect(within(relations).getByText(/— contradicts/)).toBeTruthy();
-    expect(within(relations).getByText(/→ supports/)).toBeTruthy();
+    expect(within(relations).getAllByText(/→ supports/).length).toBe(2);
+    expect(within(relations).getByText(/— relates_to/)).toBeTruthy();
+    expect(within(relations).getByText(/→ prerequisite/)).toBeTruthy();
+    expect(within(relations).getByText("VERIFIED · ACTIVE")).toBeTruthy();
+    expect(within(relations).getByText(/INFERRED · ACTIVE · \[AI PROPOSED 60%\]/)).toBeTruthy();
+    expect(within(relations).getByText("REJECTED · ACTIVE")).toBeTruthy();
+    expect(within(relations).getByText("SUPERSEDED · ACTIVE")).toBeTruthy();
+    expect(within(relations).getByText("VERIFIED · ARCHIVED")).toBeTruthy();
     fireEvent.click(within(relations).getAllByRole("button", { name: /查看知识关系/ })[0]);
     expect(onSelectEdge).toHaveBeenCalledWith("ab");
     fireEvent.click(screen.getByRole("button", { name: /查看知识节点 知识 a/ }));
@@ -314,6 +445,61 @@ describe("Phase 7 Round 1 URL-backed views and overlay ownership", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "切换图谱" }));
     expect(mocks.replace).toHaveBeenCalledWith("/skills", { scroll: false });
+  });
+
+  it("keeps Skill page selection truth aligned for keyboard and pointer activation", async () => {
+    const detail = {
+      skill: {
+        id: "a",
+        name: "技能 a",
+        aliases: [],
+        description: null,
+        domainId: "domain-a",
+        domainName: "科研",
+        level: 3,
+        xp: 120,
+        nextLevelXp: 200,
+        masteryLevel: 2,
+        masteryConfidence: 0.7,
+        derivedState: "learning",
+        lastUsedAt: null,
+        createdAt: "2026-01-01T00:00:00.000Z",
+      },
+      prerequisites: [],
+      nextUnlocks: [],
+      evidenceTimeline: [],
+      masteryHistory: [],
+      recentTransactions: [],
+    };
+    vi.stubGlobal("fetch", vi.fn((input: unknown) => {
+      const path = String(input);
+      return Promise.resolve(path.startsWith("/api/skills/") ? json(detail) : json({
+        domains: [],
+        nodes: skillNodes.slice(0, 2),
+        edges: skillEdges.slice(0, 1),
+      } satisfies SkillTreeGraphResponse));
+    }));
+
+    render(<SkillsPage />);
+    const skillA = await screen.findByRole("button", { name: "技能 a" });
+    const skillB = screen.getByRole("button", { name: "技能 b" });
+
+    fireEvent.keyDown(skillA, { key: "Enter" });
+    expectAriaPressed(skillA, true);
+    expect(screen.getByTestId("inspector-drawer-root")).toBeTruthy();
+
+    fireEvent.keyDown(skillB, { key: " " });
+    expectAriaPressed(skillA, false);
+    expectAriaPressed(skillB, true);
+
+    fireEvent.click(skillA);
+    expectAriaPressed(skillA, true);
+    expectAriaPressed(skillB, false);
+
+    fireEvent.keyDown(window, { key: "Escape" });
+    expectAriaPressed(skillA, false);
+    expectAriaPressed(skillB, false);
+    expect(screen.queryByTestId("inspector-drawer-root")).toBeNull();
   });
 
   it("restores Knowledge table mode and safely falls back for an unsupported view", async () => {

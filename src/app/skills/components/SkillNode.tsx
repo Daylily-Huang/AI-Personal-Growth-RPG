@@ -17,6 +17,8 @@ import {
 export type SkillNodeViewData = SkillFlowNodeData & {
   /** presentation-only enrichment resolved by the page from the domain list */
   domainLabel?: string | null;
+  /** page-owned selection truth shared by pointer and keyboard activation */
+  isSelected?: boolean;
   onSelect?: (skillId: string) => void;
   onNavigate?: (skillId: string, direction: SkillGraphDirection) => void;
   [key: string]: unknown;
@@ -26,6 +28,7 @@ export type SkillFlowNodeType = Node<SkillNodeViewData, "skillNode">;
 
 function SkillNodeView({ id, data, selected }: NodeProps<SkillFlowNodeType>) {
   const visual = getSkillStateVisual(data.derivedState);
+  const isSelected = data.isSelected ?? Boolean(selected);
 
   return (
     <div
@@ -33,7 +36,7 @@ function SkillNodeView({ id, data, selected }: NodeProps<SkillFlowNodeType>) {
       data-node-id={id}
       role="button"
       tabIndex={0}
-      aria-pressed={Boolean(selected)}
+      aria-pressed={isSelected}
       aria-label={`技能 ${data.name}，状态：${visual.label}，等级 ${data.level}，Mastery M${data.masteryLevel}，置信度 ${formatConfidence(data.masteryConfidence)}`}
       onClick={() => {
         data.onSelect?.(id);
@@ -53,7 +56,7 @@ function SkillNodeView({ id, data, selected }: NodeProps<SkillFlowNodeType>) {
         }
       }}
       className={`relative w-56 rounded-[var(--radius-lg)] border px-3 py-2.5 text-[var(--text-primary)] transition-all outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring-color)] ${visual.containerClass} ${
-        selected
+        isSelected
           ? "ring-2 ring-[var(--focus-ring-color)] border-transparent shadow-[var(--shadow-raised)]"
           : "hover:border-[var(--border-hover-neutral)]"
       }`}
