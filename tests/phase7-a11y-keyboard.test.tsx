@@ -11,6 +11,7 @@ import KnowledgeTableView from "@/app/knowledge/components/KnowledgeTableView";
 import SkillsPage from "@/app/skills/page";
 import KnowledgeMapPage from "@/app/knowledge/page";
 import LoginPage from "@/app/login/page";
+import DashboardPage from "@/app/dashboard/page";
 import { findNextSkillNode } from "@/app/skills/components/keyboard-navigation";
 import { findNextKnowledgeNode } from "@/app/knowledge/components/keyboard-navigation";
 import { BaseModal } from "@/components/ui/BaseModal";
@@ -367,6 +368,9 @@ describe("Phase 7 Round 1 semantic graph tables", () => {
     expect(screen.getByRole("heading", { name: "AI Personal Growth RPG", level: 1 })).toBeDefined();
     expect(screen.getByLabelText("电子邮箱").getAttribute("id")).toBe("login-email");
     expect(screen.getByLabelText("密码").getAttribute("id")).toBe("login-password");
+    expect(screen.getByRole("button", { name: "登录已有账号" }).getAttribute("class")).toContain("min-h-[var(--touch-target-min)]");
+    expect(screen.getByLabelText("电子邮箱").getAttribute("class")).toContain("min-h-[var(--touch-target-min)]");
+    expect(screen.getByRole("button", { name: "进入 RPG 世界" }).getAttribute("class")).toContain("min-h-[var(--touch-target-min)]");
   });
 
   it("renders a genuine Skill table and preserves the existing inspection path", () => {
@@ -384,6 +388,7 @@ describe("Phase 7 Round 1 semantic graph tables", () => {
     );
     const table = screen.getByRole("table", { name: "当前筛选下的技能成长读模型" });
     expect(within(table).getAllByRole("columnheader")).toHaveLength(8);
+    expect(within(table).getByRole("button", { name: /查看技能 技能 a/ }).getAttribute("class")).toContain("min-h-[var(--touch-target-min)]");
     fireEvent.click(within(table).getByRole("button", { name: /查看技能 技能 a/ }));
     expect(onSelect).toHaveBeenCalledWith("a");
     expect(within(table).getAllByText("M2").length).toBeGreaterThan(0);
@@ -428,6 +433,8 @@ describe("Phase 7 Round 1 semantic graph tables", () => {
     expect(within(relations).getByText("REJECTED · ACTIVE")).toBeTruthy();
     expect(within(relations).getByText("SUPERSEDED · ACTIVE")).toBeTruthy();
     expect(within(relations).getByText("VERIFIED · ARCHIVED")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /查看知识节点 知识 a/ }).getAttribute("class")).toContain("min-h-[var(--touch-target-min)]");
+    expect(within(relations).getAllByRole("button", { name: /查看知识关系/ })[0].getAttribute("class")).toContain("min-h-[var(--touch-target-min)]");
     fireEvent.click(within(relations).getAllByRole("button", { name: /查看知识关系/ })[0]);
     expect(onSelectEdge).toHaveBeenCalledWith("ab");
     fireEvent.click(screen.getByRole("button", { name: /查看知识节点 知识 a/ }));
@@ -436,6 +443,45 @@ describe("Phase 7 Round 1 semantic graph tables", () => {
 });
 
 describe("Phase 7 Round 1 URL-backed views and overlay ownership", () => {
+  it("keeps Dashboard loading overflow owned by a page-local boundary", () => {
+    vi.stubGlobal("fetch", vi.fn(() => new Promise(() => undefined)));
+    render(<DashboardPage />);
+    const loadingState = screen.getByRole("status");
+    const owner = loadingState.parentElement;
+    expect(owner?.className).toContain("min-w-0");
+    expect(owner?.className).toContain("overflow-x-clip");
+  });
+
+  it("keeps page-local Skills controls on the existing touch-target contract", async () => {
+    mocks.search = "view=table";
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(json({ domains: [], nodes: [skillNodes[0]], edges: [] } satisfies SkillTreeGraphResponse)));
+    render(<SkillsPage />);
+    const table = await screen.findByTestId("skills-accessible-table");
+
+    expect(screen.getByRole("button", { name: "打开筛选面板" }).getAttribute("class")).toContain("min-h-[var(--touch-target-min)]");
+    for (const searchInput of screen.getAllByRole("textbox", { name: "搜索技能" })) {
+      expect(searchInput.getAttribute("class")).toContain("min-h-[var(--touch-target-min)]");
+    }
+
+    fireEvent.click(screen.getByRole("button", { name: "打开筛选面板" }));
+    expect(screen.getByRole("button", { name: "关闭筛选面板" }).getAttribute("class")).toContain("min-h-[var(--touch-target-min)]");
+    for (const domainButton of screen.getAllByRole("button", { name: /全部领域/ })) {
+      expect(domainButton.getAttribute("class")).toContain("min-h-[var(--touch-target-min)]");
+    }
+
+    expect(within(table).getByRole("button", { name: /查看技能 技能 a/ }).getAttribute("class")).toContain("min-h-[var(--touch-target-min)]");
+  });
+
+  it("keeps the Skills workspace height explicit across mobile and desktop shell modes", () => {
+    const { container } = render(<SkillsPage />);
+
+    const workspace = container.firstElementChild;
+    expect(workspace).toBeTruthy();
+    expect(workspace?.getAttribute("class")).toContain("h-[calc(100dvh-var(--header-height)-var(--mobile-nav-height))]");
+    expect(workspace?.getAttribute("class")).toContain("md:h-[calc(100dvh-var(--header-height))]");
+    expect(screen.getByRole("region", { name: "技能图谱画布" })).toBeTruthy();
+  });
+
   it("restores Skill table mode from view=table and updates the URL through the router", async () => {
     mocks.search = "view=table";
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(json({ domains: [], nodes: [skillNodes[0]], edges: [] } satisfies SkillTreeGraphResponse)));

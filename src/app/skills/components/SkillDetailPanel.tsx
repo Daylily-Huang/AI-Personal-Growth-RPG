@@ -218,7 +218,7 @@ export default function SkillDetailPanel({
                   onClick={openEditor}
                   aria-label="编辑技能元数据"
                   title="编辑元数据"
-                  className="rounded-[var(--radius-sm)] p-1.5 text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-hover-neutral)] hover:text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
+                  className="min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] rounded-[var(--radius-sm)] p-1.5 text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-hover-neutral)] hover:text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
                 >
                   <Pencil className="h-4 w-4" />
                 </button>
@@ -230,7 +230,7 @@ export default function SkillDetailPanel({
                     detail.skill.derivedState === "archived" ? "取消归档" : "归档技能"
                   }
                   title={detail.skill.derivedState === "archived" ? "取消归档" : "归档"}
-                  className="rounded-[var(--radius-sm)] p-1.5 text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-hover-neutral)] hover:text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)] disabled:opacity-50"
+                  className="min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] rounded-[var(--radius-sm)] p-1.5 text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-hover-neutral)] hover:text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)] disabled:opacity-50"
                 >
                   {detail.skill.derivedState === "archived" ? (
                     <ArchiveRestore className="h-4 w-4" />
@@ -244,7 +244,7 @@ export default function SkillDetailPanel({
               type="button"
               onClick={onClose}
               aria-label="关闭详情面板"
-              className="rounded-[var(--radius-sm)] p-1.5 text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-hover-neutral)] hover:text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
+              className="min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] rounded-[var(--radius-sm)] p-1.5 text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-hover-neutral)] hover:text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
             >
               <X className="h-4 w-4" />
             </button>
@@ -266,7 +266,7 @@ export default function SkillDetailPanel({
             <button
               type="button"
               onClick={reload}
-              className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-raised)] px-3 py-1.5 text-sm text-[var(--text-primary)] hover:bg-[var(--surface-hover-neutral)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
+              className="min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-raised)] px-3 py-1.5 text-sm text-[var(--text-primary)] hover:bg-[var(--surface-hover-neutral)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
             >
               重试
             </button>
@@ -378,7 +378,7 @@ export default function SkillDetailPanel({
                       <button
                         type="button"
                         onClick={() => onFocusSkill(prereq.id)}
-                        className="flex w-full items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-raised)] px-2 py-1.5 text-left text-xs transition-colors hover:border-[var(--border-hover-neutral)] hover:bg-[var(--surface-hover-neutral)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
+                        className="flex min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] w-full items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-raised)] px-2 py-1.5 text-left text-xs transition-colors hover:border-[var(--border-hover-neutral)] hover:bg-[var(--surface-hover-neutral)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
                       >
                         {prereq.isFulfilled ? (
                           <CheckCircle2 aria-hidden="true" className="h-4 w-4 shrink-0 text-[var(--state-success-text)]" />
@@ -413,7 +413,7 @@ export default function SkillDetailPanel({
                         <button
                           type="button"
                           onClick={() => onFocusSkill(unlock.id)}
-                          className="flex w-full items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-raised)] px-2.5 py-1.5 text-left text-xs transition-colors hover:border-[var(--border-hover-neutral)] hover:bg-[var(--surface-hover-neutral)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
+                          className="flex min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] w-full items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-raised)] px-2.5 py-1.5 text-left text-xs transition-colors hover:border-[var(--border-hover-neutral)] hover:bg-[var(--surface-hover-neutral)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
                         >
                           <span className="min-w-0 flex-1 truncate text-[var(--text-primary)]">{unlock.name}</span>
                           <span className={`shrink-0 rounded-[var(--radius-sm)] px-1.5 py-0.5 text-[10px] ${uv.badgeClass}`}>
@@ -549,7 +549,7 @@ export default function SkillDetailPanel({
             <input
               value={form.name}
               onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-              className="w-full rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-ground)] px-2 py-1.5 text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
+              className="min-h-[var(--touch-target-min)] w-full rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-ground)] px-2 py-1.5 text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
             />
           </label>
           <label className="block">
@@ -557,7 +557,7 @@ export default function SkillDetailPanel({
             <input
               value={form.aliases}
               onChange={(e) => setForm((f) => ({ ...f, aliases: e.target.value }))}
-              className="w-full rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-ground)] px-2 py-1.5 text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
+              className="min-h-[var(--touch-target-min)] w-full rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-ground)] px-2 py-1.5 text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
             />
           </label>
           <label className="block">
@@ -566,7 +566,7 @@ export default function SkillDetailPanel({
               rows={3}
               value={form.description}
               onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-              className="w-full resize-none rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-ground)] px-2 py-1.5 text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
+              className="min-h-[var(--touch-target-min)] w-full resize-none rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-ground)] px-2 py-1.5 text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
             />
           </label>
           <label className="block">
@@ -574,7 +574,7 @@ export default function SkillDetailPanel({
             <select
               value={form.domainId}
               onChange={(e) => setForm((f) => ({ ...f, domainId: e.target.value }))}
-              className="w-full rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-ground)] px-2 py-1.5 text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
+              className="min-h-[var(--touch-target-min)] w-full rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-ground)] px-2 py-1.5 text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
             >
               <option value="">（未分配）</option>
               {domains.map((domain) => (

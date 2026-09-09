@@ -29,7 +29,7 @@ export default function DomainFilterPanel({
           type="button"
           onClick={() => onSelectDomain(null)}
           aria-pressed={activeDomainId === null}
-          className={`flex w-full items-center justify-between rounded-[var(--radius-md)] px-2.5 py-1.5 text-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)] ${
+          className={`flex min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] w-full items-center justify-between rounded-[var(--radius-md)] px-2.5 py-1.5 text-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)] ${
             activeDomainId === null
               ? "bg-[var(--selection-neutral-bg)] border border-[var(--selection-neutral-border)] text-[var(--selection-neutral-text)] font-medium shadow-[var(--shadow-card)]"
               : "border border-transparent text-[var(--text-secondary)] hover:bg-[var(--surface-hover-neutral)] hover:text-[var(--text-primary)]"
@@ -46,7 +46,7 @@ export default function DomainFilterPanel({
                 onClick={() => onSelectDomain(domain.id)}
                 aria-pressed={activeDomainId === domain.id}
                 style={{ paddingLeft: `${10 + domain.depth * 14}px` }}
-                className={`flex w-full items-center justify-between rounded-[var(--radius-md)] py-1.5 pr-2.5 text-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)] ${
+                className={`flex min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] w-full items-center justify-between rounded-[var(--radius-md)] py-1.5 pr-2.5 text-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)] ${
                   activeDomainId === domain.id
                     ? "bg-[var(--selection-neutral-bg)] border border-[var(--selection-neutral-border)] text-[var(--selection-neutral-text)] font-medium shadow-[var(--shadow-card)]"
                     : "border border-transparent text-[var(--text-secondary)] hover:bg-[var(--surface-hover-neutral)] hover:text-[var(--text-primary)]"
@@ -78,7 +78,7 @@ export default function DomainFilterPanel({
               type="button"
               onClick={() => onSelectState(option.value)}
               aria-pressed={stateFilter === option.value}
-              className={`rounded-full border px-2.5 py-1 text-xs transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)] ${
+              className={`min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] rounded-full border px-2.5 py-1 text-xs transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)] ${
                 stateFilter === option.value
                   ? "border-[var(--selection-neutral-border)] bg-[var(--selection-neutral-bg)] text-[var(--selection-neutral-text)] font-medium shadow-[var(--shadow-card)]"
                   : "border-[var(--border-subtle)] bg-[var(--surface-base)] text-[var(--text-muted)] hover:border-[var(--border-default)] hover:text-[var(--text-secondary)] hover:bg-[var(--surface-hover-neutral)]"

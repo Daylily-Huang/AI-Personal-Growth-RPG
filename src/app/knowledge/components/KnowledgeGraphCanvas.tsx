@@ -200,7 +200,9 @@ function CanvasInner({
   }, [fitKey, rf]);
 
   return (
-    <ReactFlow
+    <>
+      <style>{`.knowledge-graph-controls .react-flow__controls-button { min-height: var(--touch-target-min); min-width: var(--touch-target-min); }`}</style>
+      <ReactFlow
       nodes={[
         ...clusters.map((cluster): Node => ({
           id: `cluster-${cluster.id}`, type: "cluster", position: { x: cluster.x, y: cluster.y },
@@ -239,7 +241,7 @@ function CanvasInner({
       <Controls
         position="bottom-right"
         showInteractive={false}
-        className="!bg-[var(--surface-raised)] !border !border-[var(--border-subtle)] !rounded-[var(--radius-md)] [&_.react-flow__controls-button]:!min-h-[var(--touch-target-min)] [&_.react-flow__controls-button]:!min-w-[var(--touch-target-min)]"
+        className="knowledge-graph-controls !bg-[var(--surface-raised)] !border !border-[var(--border-subtle)] !rounded-[var(--radius-md)]"
       />
       <MiniMap
         pannable
@@ -255,7 +257,8 @@ function CanvasInner({
         }}
         maskColor="var(--surface-base)"
       />
-    </ReactFlow>
+      </ReactFlow>
+    </>
   );
 }
 

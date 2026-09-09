@@ -48,7 +48,7 @@ export default function SkillTableView({ nodes, edges, onSelect }: SkillTableVie
                       type="button"
                       onClick={() => onSelect(node.id)}
                       aria-label={`查看技能 ${node.data.name}，${visual.label}`}
-                      className="rounded-[var(--radius-sm)] text-left font-semibold underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
+                      className="min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] rounded-[var(--radius-sm)] text-left font-semibold underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]"
                     >
                       {node.data.name}
                     </button>
