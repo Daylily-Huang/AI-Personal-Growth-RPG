@@ -11,6 +11,7 @@ import KnowledgeTableView from "@/app/knowledge/components/KnowledgeTableView";
 import SkillsPage from "@/app/skills/page";
 import KnowledgeMapPage from "@/app/knowledge/page";
 import LoginPage from "@/app/login/page";
+import DashboardPage from "@/app/dashboard/page";
 import { findNextSkillNode } from "@/app/skills/components/keyboard-navigation";
 import { findNextKnowledgeNode } from "@/app/knowledge/components/keyboard-navigation";
 import { BaseModal } from "@/components/ui/BaseModal";
@@ -442,6 +443,15 @@ describe("Phase 7 Round 1 semantic graph tables", () => {
 });
 
 describe("Phase 7 Round 1 URL-backed views and overlay ownership", () => {
+  it("keeps Dashboard loading overflow owned by a page-local boundary", () => {
+    vi.stubGlobal("fetch", vi.fn(() => new Promise(() => undefined)));
+    render(<DashboardPage />);
+    const loadingState = screen.getByRole("status");
+    const owner = loadingState.parentElement;
+    expect(owner?.className).toContain("min-w-0");
+    expect(owner?.className).toContain("overflow-x-clip");
+  });
+
   it("keeps page-local Skills controls on the existing touch-target contract", async () => {
     mocks.search = "view=table";
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(json({ domains: [], nodes: [skillNodes[0]], edges: [] } satisfies SkillTreeGraphResponse)));

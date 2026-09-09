@@ -202,7 +202,11 @@ export default function DashboardPage() {
   };
 
   if (loading && !dashboard) {
-    return <LoadingState />;
+    return (
+      <div className="min-w-0 max-w-full overflow-x-clip">
+        <LoadingState />
+      </div>
+    );
   }
 
   if (error && !dashboard) {
