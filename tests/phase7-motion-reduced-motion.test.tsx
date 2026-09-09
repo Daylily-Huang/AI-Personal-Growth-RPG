@@ -7,7 +7,7 @@ import path from "node:path";
 import type { SkillFlowEdge } from "@/lib/store/types";
 import type { KnowledgeGraphResponse } from "@/lib/knowledge/types";
 import SkillGraphCanvas, { toFlowEdges as toSkillFlowEdges } from "@/app/skills/components/SkillGraphCanvas";
-import KnowledgeGraphCanvas, { toFlowEdges as toKnowledgeFlowEdges } from "@/app/knowledge/components/KnowledgeGraphCanvas";
+import KnowledgeGraphCanvas, { toFlowEdges as toKnowledgeFlowEdges, type RawGraphEdge } from "@/app/knowledge/components/KnowledgeGraphCanvas";
 import type { SkillFlowNodeType } from "@/app/skills/components/SkillNode";
 import type { KnowledgeFlowNodeType } from "@/app/knowledge/components/KnowledgeNodeView";
 
@@ -16,13 +16,30 @@ const camera = vi.hoisted(() => ({
   fitView: vi.fn(() => Promise.resolve()),
 }));
 
+const flowSnapshot = vi.hoisted(() => ({
+  nodes: [] as unknown[],
+  edges: [] as unknown[],
+}));
+
 vi.mock("@xyflow/react", () => ({
   BackgroundVariant: { Dots: "dots" },
   MarkerType: { ArrowClosed: "arrowclosed" },
   Background: () => null,
   Controls: () => null,
   MiniMap: () => null,
-  ReactFlow: ({ children }: { children: React.ReactNode }) => <div data-testid="mock-react-flow">{children}</div>,
+  ReactFlow: ({
+    children,
+    nodes,
+    edges,
+  }: {
+    children: React.ReactNode;
+    nodes?: unknown[];
+    edges?: unknown[];
+  }) => {
+    flowSnapshot.nodes = nodes ?? [];
+    flowSnapshot.edges = edges ?? [];
+    return <div data-testid="mock-react-flow">{children}</div>;
+  },
   ReactFlowProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   useReactFlow: () => camera,
 }));
@@ -104,11 +121,11 @@ async function flushGraphEffects() {
   });
 }
 
-function renderSkillsGraph(focusNonce: number) {
+function renderSkillsGraph(focusNonce: number, rawEdges: SkillFlowEdge[] = []) {
   return render(
     <SkillGraphCanvas
       nodes={[skillNode]}
-      rawEdges={[]}
+      rawEdges={rawEdges}
       onSelect={vi.fn()}
       onNavigate={vi.fn()}
       focusTarget={{ x: 12, y: 24, nonce: focusNonce }}
@@ -117,12 +134,12 @@ function renderSkillsGraph(focusNonce: number) {
   );
 }
 
-function renderKnowledgeGraph(focusNonce: number) {
+function renderKnowledgeGraph(focusNonce: number, rawEdges: RawGraphEdge[] = []) {
   return render(
     <KnowledgeGraphCanvas
       nodes={[knowledgeNode]}
       clusters={[]}
-      rawEdges={[]}
+      rawEdges={rawEdges}
       selectedEdgeId={null}
       onSelectNode={vi.fn()}
       onSelectEdge={vi.fn()}
@@ -138,6 +155,8 @@ beforeEach(() => {
   vi.useFakeTimers();
   camera.setCenter.mockClear();
   camera.fitView.mockClear();
+  flowSnapshot.nodes = [];
+  flowSnapshot.edges = [];
 });
 
 afterEach(() => {
@@ -190,6 +209,89 @@ describe("Phase 7 Round 3 motion and reduced-motion contract", () => {
 
     expect(camera.setCenter).toHaveBeenCalledWith(124, 80, expect.objectContaining({ duration: 0 }));
     expect(camera.fitView).toHaveBeenCalledWith(expect.objectContaining({ duration: 0 }));
+  });
+
+  it("preserves authoritative graph facts across normal and reduced motion", async () => {
+    const skillEdge: SkillFlowEdge = {
+      id: "skill-edge",
+      source: "skill-a",
+      target: "skill-b",
+      relation: "prerequisite",
+    };
+    const knowledgeEdge: RawGraphEdge = {
+      id: "knowledge-edge",
+      source: "knowledge-a",
+      target: "knowledge-b",
+      relationType: "supports",
+      verificationStatus: "verified",
+      isArchived: false,
+      confidence: 0.9,
+      sourceType: "user_created",
+      sourceId: null,
+      provenanceNote: null,
+      verifiedAt: null,
+      verifiedBy: null,
+    };
+    const readSemanticSnapshot = () => ({
+      nodes: flowSnapshot.nodes.map((node) => {
+        const item = node as { id: string; data: Record<string, unknown> };
+        return {
+          id: item.id,
+          name: item.data.name,
+          title: item.data.title,
+          level: item.data.level,
+          xp: item.data.xp,
+          masteryLevel: item.data.masteryLevel,
+          masteryConfidence: item.data.masteryConfidence,
+          verificationStatus: item.data.verificationStatus,
+          confidence: item.data.confidence,
+          isArchived: item.data.isArchived,
+        };
+      }),
+      edges: flowSnapshot.edges.map((edge) => {
+        const item = edge as { id: string; source: string; target: string; label?: unknown; animated?: unknown };
+        return {
+          id: item.id,
+          source: item.source,
+          target: item.target,
+          label: item.label,
+          animated: item.animated,
+        };
+      }),
+    });
+
+    setMotionPreference(false);
+    renderSkillsGraph(4, [skillEdge]);
+    await flushGraphEffects();
+    const normalSkills = readSemanticSnapshot();
+    cleanup();
+    vi.restoreAllMocks();
+    flowSnapshot.nodes = [];
+    flowSnapshot.edges = [];
+
+    setMotionPreference(true);
+    renderSkillsGraph(5, [skillEdge]);
+    await flushGraphEffects();
+    expect(readSemanticSnapshot()).toEqual(normalSkills);
+
+    cleanup();
+    vi.restoreAllMocks();
+    flowSnapshot.nodes = [];
+    flowSnapshot.edges = [];
+
+    setMotionPreference(false);
+    renderKnowledgeGraph(6, [knowledgeEdge]);
+    await flushGraphEffects();
+    const normalKnowledge = readSemanticSnapshot();
+    cleanup();
+    vi.restoreAllMocks();
+    flowSnapshot.nodes = [];
+    flowSnapshot.edges = [];
+
+    setMotionPreference(true);
+    renderKnowledgeGraph(7, [knowledgeEdge]);
+    await flushGraphEffects();
+    expect(readSemanticSnapshot()).toEqual(normalKnowledge);
   });
 
   it("preserves static graph-edge presentation for Skill and Knowledge", () => {
