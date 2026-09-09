@@ -20,6 +20,20 @@ import type { SkillGraphDirection } from "./keyboard-navigation";
 
 const NODE_TYPES = { skillNode: SkillNodeView };
 
+function resolveGraphCameraDuration(reducedMotion: boolean): number {
+  if (reducedMotion || typeof window === "undefined") return 0;
+
+  const tokenValue = window
+    .getComputedStyle(document.documentElement)
+    .getPropertyValue("--duration-normal")
+    .trim();
+  const match = tokenValue.match(/^(-?\d*\.?\d+)(ms|s)$/);
+  if (!match) return 0;
+
+  const value = Number.parseFloat(match[1]);
+  return match[2] === "s" ? value * 1000 : value;
+}
+
 /** Pure mapping (Stage 5B relation facts → React Flow edge config), exported for tests. */
 export function toFlowEdges(edges: SkillFlowEdge[]): Edge[] {
   return edges.map((edge, index) => {
@@ -122,7 +136,7 @@ function CanvasInner({
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     void rf.setCenter(focusTarget.x + 112, focusTarget.y + 56, {
       zoom: 1.15,
-      duration: reducedMotion ? 0 : 600,
+      duration: resolveGraphCameraDuration(reducedMotion),
     });
   }, [focusTarget, rf]);
 
@@ -131,7 +145,7 @@ function CanvasInner({
       typeof window !== "undefined" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const timer = window.setTimeout(() => {
-      void rf.fitView({ padding: 0.2, duration: reducedMotion ? 0 : 450 });
+      void rf.fitView({ padding: 0.2, duration: resolveGraphCameraDuration(reducedMotion) });
     }, 60);
     return () => window.clearTimeout(timer);
   }, [fitKey, rf]);

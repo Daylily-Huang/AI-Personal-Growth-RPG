@@ -193,7 +193,7 @@ export default function LoginPage() {
               className="min-h-[var(--touch-target-min)] w-full flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 px-4 py-2.5 text-sm font-semibold text-black shadow-lg shadow-amber-500/20 hover:from-amber-400 hover:to-amber-500 disabled:opacity-50 cursor-pointer"
             >
               {loading ? (
-                 <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                 <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
               ) : (
                 <>
                   {isSignUp ? "创建角色并开始" : "进入 RPG 世界"}

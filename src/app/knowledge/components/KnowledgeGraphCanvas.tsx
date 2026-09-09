@@ -35,6 +35,20 @@ const NODE_TYPES = {
   ),
 };
 
+function resolveGraphCameraDuration(reducedMotion: boolean): number {
+  if (reducedMotion || typeof window === "undefined") return 0;
+
+  const tokenValue = window
+    .getComputedStyle(document.documentElement)
+    .getPropertyValue("--duration-normal")
+    .trim();
+  const match = tokenValue.match(/^(-?\d*\.?\d+)(ms|s)$/);
+  if (!match) return 0;
+
+  const value = Number.parseFloat(match[1]);
+  return match[2] === "s" ? value * 1000 : value;
+}
+
 export interface RawGraphEdge {
   id: string;
   source: string;
@@ -188,13 +202,16 @@ function CanvasInner({
     if (!focusTarget) return;
     void rf.setCenter(focusTarget.x + 140, focusTarget.y + 92, {
       zoom: 1.1,
-      duration: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 500,
+      duration: resolveGraphCameraDuration(window.matchMedia("(prefers-reduced-motion: reduce)").matches),
     });
   }, [focusTarget, rf]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      void rf.fitView({ padding: 0.25, duration: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 400 });
+      void rf.fitView({
+        padding: 0.25,
+        duration: resolveGraphCameraDuration(window.matchMedia("(prefers-reduced-motion: reduce)").matches),
+      });
     }, 60);
     return () => window.clearTimeout(timer);
   }, [fitKey, rf]);
