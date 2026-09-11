@@ -1,0 +1,506 @@
+[
+ {
+  "f": "001-root__375__no-preference",
+  "w": 375,
+  "leftGap": 14,
+  "rightGap": 0,
+  "asym": true
+ },
+ {
+  "f": "002-root__768__no-preference",
+  "w": 768,
+  "leftGap": 7,
+  "rightGap": 3,
+  "asym": true
+ },
+ {
+  "f": "003-root__1024__no-preference",
+  "w": 1024,
+  "leftGap": 4,
+  "rightGap": 3,
+  "asym": true
+ },
+ {
+  "f": "004-root__1440__no-preference",
+  "w": 1440,
+  "leftGap": 8,
+  "rightGap": 3,
+  "asym": true
+ },
+ {
+  "f": "005-root__375__reduce",
+  "w": 375,
+  "leftGap": 14,
+  "rightGap": 0,
+  "asym": true
+ },
+ {
+  "f": "006-root__768__reduce",
+  "w": 768,
+  "leftGap": 7,
+  "rightGap": 3,
+  "asym": true
+ },
+ {
+  "f": "007-root__1024__reduce",
+  "w": 1024,
+  "leftGap": 4,
+  "rightGap": 3,
+  "asym": true
+ },
+ {
+  "f": "008-root__1440__reduce",
+  "w": 1440,
+  "leftGap": 8,
+  "rightGap": 3,
+  "asym": true
+ },
+ {
+  "f": "009-login__375__no-preference",
+  "w": 375,
+  "leftGap": 20,
+  "rightGap": 0,
+  "asym": true
+ },
+ {
+  "f": "010-login__768__no-preference",
+  "w": 768,
+  "leftGap": 20,
+  "rightGap": 160,
+  "asym": false
+ },
+ {
+  "f": "011-login__1024__no-preference",
+  "w": 1024,
+  "leftGap": 20,
+  "rightGap": 288,
+  "asym": false
+ },
+ {
+  "f": "012-login__1440__no-preference",
+  "w": 1440,
+  "leftGap": 20,
+  "rightGap": 496,
+  "asym": false
+ },
+ {
+  "f": "013-login__375__reduce",
+  "w": 375,
+  "leftGap": 0,
+  "rightGap": 0,
+  "asym": false
+ },
+ {
+  "f": "014-login__768__reduce",
+  "w": 768,
+  "leftGap": 0,
+  "rightGap": 0,
+  "asym": false
+ },
+ {
+  "f": "015-login__1024__reduce",
+  "w": 1024,
+  "leftGap": 0,
+  "rightGap": 0,
+  "asym": false
+ },
+ {
+  "f": "016-login__1440__reduce",
+  "w": 1440,
+  "leftGap": 0,
+  "rightGap": 0,
+  "asym": false
+ },
+ {
+  "f": "017-dashboard__375__no-preference",
+  "w": 375,
+  "leftGap": 14,
+  "rightGap": 0,
+  "asym": true
+ },
+ {
+  "f": "018-dashboard__768__no-preference",
+  "w": 768,
+  "leftGap": 7,
+  "rightGap": 3,
+  "asym": true
+ },
+ {
+  "f": "019-dashboard__1024__no-preference",
+  "w": 1024,
+  "leftGap": 4,
+  "rightGap": 3,
+  "asym": true
+ },
+ {
+  "f": "020-dashboard__1440__no-preference",
+  "w": 1440,
+  "leftGap": 8,
+  "rightGap": 3,
+  "asym": true
+ },
+ {
+  "f": "021-dashboard__375__reduce",
+  "w": 375,
+  "leftGap": 14,
+  "rightGap": 0,
+  "asym": true
+ },
+ {
+  "f": "022-dashboard__768__reduce",
+  "w": 768,
+  "leftGap": 7,
+  "rightGap": 3,
+  "asym": true
+ },
+ {
+  "f": "023-dashboard__1024__reduce",
+  "w": 1024,
+  "leftGap": 4,
+  "rightGap": 3,
+  "asym": true
+ },
+ {
+  "f": "024-dashboard__1440__reduce",
+  "w": 1440,
+  "leftGap": 8,
+  "rightGap": 3,
+  "asym": true
+ },
+ {
+  "f": "025-quests__375__no-preference",
+  "w": 375,
+  "leftGap": 0,
+  "rightGap": 0,
+  "asym": false
+ },
+ {
+  "f": "026-quests__768__no-preference",
+  "w": 768,
+  "leftGap": 0,
+  "rightGap": 16,
+  "asym": false
+ },
+ {
+  "f": "027-quests__1024__no-preference",
+  "w": 1024,
+  "leftGap": 4,
+  "rightGap": 22,
+  "asym": false
+ },
+ {
+  "f": "028-quests__1440__no-preference",
+  "w": 1440,
+  "leftGap": 8,
+  "rightGap": 30,
+  "asym": false
+ },
+ {
+  "f": "029-quests__375__reduce",
+  "w": 375,
+  "leftGap": 0,
+  "rightGap": 0,
+  "asym": false
+ },
+ {
+  "f": "030-quests__768__reduce",
+  "w": 768,
+  "leftGap": 0,
+  "rightGap": 16,
+  "asym": false
+ },
+ {
+  "f": "031-quests__1024__reduce",
+  "w": 1024,
+  "leftGap": 4,
+  "rightGap": 22,
+  "asym": false
+ },
+ {
+  "f": "032-quests__1440__reduce",
+  "w": 1440,
+  "leftGap": 8,
+  "rightGap": 30,
+  "asym": false
+ },
+ {
+  "f": "033-skills__375__no-preference",
+  "w": 375,
+  "leftGap": 10,
+  "rightGap": 0,
+  "asym": true
+ },
+ {
+  "f": "034-skills__768__no-preference",
+  "w": 768,
+  "leftGap": 8,
+  "rightGap": 2,
+  "asym": true
+ },
+ {
+  "f": "035-skills__1024__no-preference",
+  "w": 1024,
+  "leftGap": 4,
+  "rightGap": 11,
+  "asym": false
+ },
+ {
+  "f": "036-skills__1440__no-preference",
+  "w": 1440,
+  "leftGap": 8,
+  "rightGap": 12,
+  "asym": false
+ },
+ {
+  "f": "037-skills__375__reduce",
+  "w": 375,
+  "leftGap": 0,
+  "rightGap": 0,
+  "asym": false
+ },
+ {
+  "f": "038-skills__768__reduce",
+  "w": 768,
+  "leftGap": 8,
+  "rightGap": 2,
+  "asym": true
+ },
+ {
+  "f": "039-skills__1024__reduce",
+  "w": 1024,
+  "leftGap": 4,
+  "rightGap": 11,
+  "asym": false
+ },
+ {
+  "f": "040-skills__1440__reduce",
+  "w": 1440,
+  "leftGap": 8,
+  "rightGap": 12,
+  "asym": false
+ },
+ {
+  "f": "041-skills-table__375__no-preference",
+  "w": 375,
+  "leftGap": 0,
+  "rightGap": 0,
+  "asym": false
+ },
+ {
+  "f": "042-skills-table__768__no-preference",
+  "w": 768,
+  "leftGap": 0,
+  "rightGap": 10,
+  "asym": false
+ },
+ {
+  "f": "043-skills-table__1024__no-preference",
+  "w": 1024,
+  "leftGap": 4,
+  "rightGap": 0,
+  "asym": true
+ },
+ {
+  "f": "044-skills-table__1440__no-preference",
+  "w": 1440,
+  "leftGap": 8,
+  "rightGap": 12,
+  "asym": false
+ },
+ {
+  "f": "045-skills-table__375__reduce",
+  "w": 375,
+  "leftGap": 0,
+  "rightGap": 0,
+  "asym": false
+ },
+ {
+  "f": "046-skills-table__768__reduce",
+  "w": 768,
+  "leftGap": 0,
+  "rightGap": 10,
+  "asym": false
+ },
+ {
+  "f": "047-skills-table__1024__reduce",
+  "w": 1024,
+  "leftGap": 4,
+  "rightGap": 0,
+  "asym": true
+ },
+ {
+  "f": "048-skills-table__1440__reduce",
+  "w": 1440,
+  "leftGap": 8,
+  "rightGap": 12,
+  "asym": false
+ },
+ {
+  "f": "049-knowledge__375__no-preference",
+  "w": 375,
+  "leftGap": 0,
+  "rightGap": 0,
+  "asym": false
+ },
+ {
+  "f": "050-knowledge__768__no-preference",
+  "w": 768,
+  "leftGap": 8,
+  "rightGap": 10,
+  "asym": false
+ },
+ {
+  "f": "051-knowledge__1024__no-preference",
+  "w": 1024,
+  "leftGap": 4,
+  "rightGap": 41,
+  "asym": false
+ },
+ {
+  "f": "052-knowledge__1440__no-preference",
+  "w": 1440,
+  "leftGap": 8,
+  "rightGap": 41,
+  "asym": false
+ },
+ {
+  "f": "053-knowledge__375__reduce",
+  "w": 375,
+  "leftGap": 0,
+  "rightGap": 0,
+  "asym": false
+ },
+ {
+  "f": "054-knowledge__768__reduce",
+  "w": 768,
+  "leftGap": 8,
+  "rightGap": 10,
+  "asym": false
+ },
+ {
+  "f": "055-knowledge__1024__reduce",
+  "w": 1024,
+  "leftGap": 4,
+  "rightGap": 25,
+  "asym": false
+ },
+ {
+  "f": "056-knowledge__1440__reduce",
+  "w": 1440,
+  "leftGap": 8,
+  "rightGap": 41,
+  "asym": false
+ },
+ {
+  "f": "057-knowledge-table__375__no-preference",
+  "w": 375,
+  "leftGap": 0,
+  "rightGap": 0,
+  "asym": false
+ },
+ {
+  "f": "058-knowledge-table__768__no-preference",
+  "w": 768,
+  "leftGap": 8,
+  "rightGap": 10,
+  "asym": false
+ },
+ {
+  "f": "059-knowledge-table__1024__no-preference",
+  "w": 1024,
+  "leftGap": 4,
+  "rightGap": 41,
+  "asym": false
+ },
+ {
+  "f": "060-knowledge-table__1440__no-preference",
+  "w": 1440,
+  "leftGap": 8,
+  "rightGap": 41,
+  "asym": false
+ },
+ {
+  "f": "061-knowledge-table__375__reduce",
+  "w": 375,
+  "leftGap": 0,
+  "rightGap": 0,
+  "asym": false
+ },
+ {
+  "f": "062-knowledge-table__768__reduce",
+  "w": 768,
+  "leftGap": 8,
+  "rightGap": 10,
+  "asym": false
+ },
+ {
+  "f": "063-knowledge-table__1024__reduce",
+  "w": 1024,
+  "leftGap": 4,
+  "rightGap": 25,
+  "asym": false
+ },
+ {
+  "f": "064-knowledge-table__1440__reduce",
+  "w": 1440,
+  "leftGap": 8,
+  "rightGap": 41,
+  "asym": false
+ },
+ {
+  "f": "065-artifacts__375__no-preference",
+  "w": 375,
+  "leftGap": 0,
+  "rightGap": 0,
+  "asym": false
+ },
+ {
+  "f": "066-artifacts__768__no-preference",
+  "w": 768,
+  "leftGap": 8,
+  "rightGap": 25,
+  "asym": false
+ },
+ {
+  "f": "067-artifacts__1024__no-preference",
+  "w": 1024,
+  "leftGap": 4,
+  "rightGap": 3,
+  "asym": true
+ },
+ {
+  "f": "068-artifacts__1440__no-preference",
+  "w": 1440,
+  "leftGap": 8,
+  "rightGap": 3,
+  "asym": true
+ },
+ {
+  "f": "069-artifacts__375__reduce",
+  "w": 375,
+  "leftGap": 0,
+  "rightGap": 0,
+  "asym": false
+ },
+ {
+  "f": "070-artifacts__768__reduce",
+  "w": 768,
+  "leftGap": 8,
+  "rightGap": 25,
+  "asym": false
+ },
+ {
+  "f": "071-artifacts__1024__reduce",
+  "w": 1024,
+  "leftGap": 4,
+  "rightGap": 3,
+  "asym": true
+ },
+ {
+  "f": "072-artifacts__1440__reduce",
+  "w": 1440,
+  "leftGap": 8,
+  "rightGap": 3,
+  "asym": true
+ }
+]

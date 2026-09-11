@@ -1,0 +1,722 @@
+[
+  {
+    "file": "001-root__375__no-preference.png",
+    "width": 375,
+    "height": 900,
+    "background": "248,246,242",
+    "inkRatio": 0.0667,
+    "rightEdgeInk": 204,
+    "leftEdgeInk": 0,
+    "rightEdgeUnbalanced": true
+  },
+  {
+    "file": "002-root__768__no-preference.png",
+    "width": 768,
+    "height": 900,
+    "background": "254,254,253",
+    "inkRatio": 0.1065,
+    "rightEdgeInk": 0,
+    "leftEdgeInk": 4,
+    "rightEdgeUnbalanced": false
+  },
+  {
+    "file": "003-root__1024__no-preference.png",
+    "width": 1024,
+    "height": 900,
+    "background": "254,254,253",
+    "inkRatio": 0.0954,
+    "rightEdgeInk": 0,
+    "leftEdgeInk": 4,
+    "rightEdgeUnbalanced": false
+  },
+  {
+    "file": "004-root__1440__no-preference.png",
+    "width": 1440,
+    "height": 900,
+    "background": "254,254,253",
+    "inkRatio": 0.0931,
+    "rightEdgeInk": 0,
+    "leftEdgeInk": 4,
+    "rightEdgeUnbalanced": false
+  },
+  {
+    "file": "005-root__375__reduce.png",
+    "width": 375,
+    "height": 900,
+    "background": "248,246,242",
+    "inkRatio": 0.0667,
+    "rightEdgeInk": 204,
+    "leftEdgeInk": 0,
+    "rightEdgeUnbalanced": true
+  },
+  {
+    "file": "006-root__768__reduce.png",
+    "width": 768,
+    "height": 900,
+    "background": "254,254,253",
+    "inkRatio": 0.1065,
+    "rightEdgeInk": 0,
+    "leftEdgeInk": 4,
+    "rightEdgeUnbalanced": false
+  },
+  {
+    "file": "007-root__1024__reduce.png",
+    "width": 1024,
+    "height": 900,
+    "background": "254,254,253",
+    "inkRatio": 0.0953,
+    "rightEdgeInk": 0,
+    "leftEdgeInk": 4,
+    "rightEdgeUnbalanced": false
+  },
+  {
+    "file": "008-root__1440__reduce.png",
+    "width": 1440,
+    "height": 900,
+    "background": "254,254,253",
+    "inkRatio": 0.0949,
+    "rightEdgeInk": 0,
+    "leftEdgeInk": 4,
+    "rightEdgeUnbalanced": false
+  },
+  {
+    "file": "009-login__375__no-preference.png",
+    "width": 375,
+    "height": 900,
+    "background": "11,15,23",
+    "inkRatio": 0.1003,
+    "rightEdgeInk": 180,
+    "leftEdgeInk": 0,
+    "rightEdgeUnbalanced": true
+  },
+  {
+    "file": "010-login__768__no-preference.png",
+    "width": 768,
+    "height": 900,
+    "background": "11,15,23",
+    "inkRatio": 0.0565,
+    "rightEdgeInk": 0,
+    "leftEdgeInk": 0,
+    "rightEdgeUnbalanced": false
+  },
+  {
+    "file": "011-login__1024__no-preference.png",
+    "width": 1024,
+    "height": 900,
+    "background": "11,15,23",
+    "inkRatio": 0.0424,
+    "rightEdgeInk": 0,
+    "leftEdgeInk": 0,
+    "rightEdgeUnbalanced": false
+  },
+  {
+    "file": "012-login__1440__no-preference.png",
+    "width": 1440,
+    "height": 900,
+    "background": "11,15,23",
+    "inkRatio": 0.0301,
+    "rightEdgeInk": 0,
+    "leftEdgeInk": 0,
+    "rightEdgeUnbalanced": false
+  },
+  {
+    "file": "013-login__375__reduce.png",
+    "width": 375,
+    "height": 900,
+    "background": "11,15,23",
+    "inkRatio": 0.2042,
+    "rightEdgeInk": 372,
+    "leftEdgeInk": 192,
+    "rightEdgeUnbalanced": false
+  },
+  {
+    "file": "014-login__768__reduce.png",
+    "width": 768,
+    "height": 900,
+    "background": "11,15,23",
+    "inkRatio": 0.1618,
+    "rightEdgeInk": 192,
+    "leftEdgeInk": 192,
+    "rightEdgeUnbalanced": false
+  },
+  {
+    "file": "015-login__1024__reduce.png",
+    "width": 1024,
+    "height": 900,
+    "background": "11,15,23",
+    "inkRatio": 0.148,
+    "rightEdgeInk": 192,
+    "leftEdgeInk": 192,
+    "rightEdgeUnbalanced": false
+  },
+  {
+    "file": "016-login__1440__reduce.png",
+    "width": 1440,
+    "height": 900,
+    "background": "11,15,23",
+    "inkRatio": 0.1361,
+    "rightEdgeInk": 192,
+    "leftEdgeInk": 192,
+    "rightEdgeUnbalanced": false
+  },
+  {
+    "file": "017-dashboard__375__no-preference.png",
+    "width": 375,
+    "height": 900,
+    "background": "248,246,242",
+    "inkRatio": 0.0667,
+    "rightEdgeInk": 204,
+    "leftEdgeInk": 0,
+    "rightEdgeUnbalanced": true
+  },
+  {
+    "file": "018-dashboard__768__no-preference.png",
+    "width": 768,
+    "height": 900,
+    "background": "254,254,253",
+    "inkRatio": 0.1065,
+    "rightEdgeInk": 0,
+    "leftEdgeInk": 4,
+    "rightEdgeUnbalanced": false
+  },
+  {
+    "file": "019-dashboard__1024__no-preference.png",
+    "width": 1024,
+    "height": 900,
+    "background": "254,254,253",
+    "inkRatio": 0.0954,
+    "rightEdgeInk": 0,
+    "leftEdgeInk": 4,
+    "rightEdgeUnbalanced": false
+  },
+  {
+    "file": "020-dashboard__1440__no-preference.png",
+    "width": 1440,
+    "height": 900,
+    "background": "254,254,253",
+    "inkRatio": 0.0931,
+    "rightEdgeInk": 0,
+    "leftEdgeInk": 4,
+    "rightEdgeUnbalanced": false
+  },
+  {
+    "file": "021-dashboard__375__reduce.png",
+    "width": 375,
+    "height": 900,
+    "background": "248,246,242",
+    "inkRatio": 0.0667,
+    "rightEdgeInk": 204,
+    "leftEdgeInk": 0,
+    "rightEdgeUnbalanced": true
+  },
+  {
+    "file": "022-dashboard__768__reduce.png",
+    "width": 768,
+    "height": 900,
+    "background": "254,254,253",
+    "inkRatio": 0.1065,
+    "rightEdgeInk": 0,
+    "leftEdgeInk": 4,
+    "rightEdgeUnbalanced": false
+  },
+  {
+    "file": "023-dashboard__1024__reduce.png",
+    "width": 1024,
+    "height": 900,
+    "background": "254,254,253",
+    "inkRatio": 0.0953,
+    "rightEdgeInk": 0,
+    "leftEdgeInk": 4,
+    "rightEdgeUnbalanced": false
+  },
+  {
+    "file": "024-dashboard__1440__reduce.png",
+    "width": 1440,
+    "height": 900,
+    "background": "254,254,253",
+    "inkRatio": 0.0949,
+    "rightEdgeInk": 0,
+    "leftEdgeInk": 4,
+    "rightEdgeUnbalanced": false
+  },
+  {
+    "file": "025-quests__375__no-preference.png",
+    "width": 375,
+    "height": 900,
+    "background": "247,246,241",
+    "inkRatio": 0.1451,
+    "rightEdgeInk": 173,
+    "leftEdgeInk": 120,
+    "rightEdgeUnbalanced": false
+  },
+  {
+    "file": "026-quests__768__no-preference.png",
+    "width": 768,
+    "height": 900,
+    "background": "254,254,253",
+    "inkRatio": 0.2911,
+    "rightEdgeInk": 2,
+    "leftEdgeInk": 4,
+    "rightEdgeUnbalanced": false
+  },
+  {
+    "file": "027-quests__1024__no-preference.png",
+    "width": 1024,
+    "height": 900,
+    "background": "254,254,253",
+    "inkRatio": 0.2952,
+    "rightEdgeInk": 2,
+    "leftEdgeInk": 4,
+    "rightEdgeUnbalanced": false
+  },
+  {
+    "file": "028-quests__1440__no-preference.png",
+    "width": 1440,
+    "height": 900,
+    "background": "254,254,253",
+    "inkRatio": 0.2691,
+    "rightEdgeInk": 2,
+    "leftEdgeInk": 4,
+    "rightEdgeUnbalanced": false
+  },
+  {
+    "file": "029-quests__375__reduce.png",
+    "width": 375,
+    "height": 900,
+    "background": "247,246,241",
+    "inkRatio": 0.145,
+    "rightEdgeInk": 173,
+    "leftEdgeInk": 120,
+    "rightEdgeUnbalanced": false
+  },
+  {
+    "file": "030-quests__768__reduce.png",
+    "width": 768,
+    "height": 900,
+    "background": "254,254,253",
+    "inkRatio": 0.2911,
+    "rightEdgeInk": 2,
+    "leftEdgeInk": 4,
+    "rightEdgeUnbalanced": false
+  },
+  {
+    "file": "031-quests__1024__reduce.png",
+    "width": 1024,
+    "height": 900,
+    "background": "254,254,253",
+    "inkRatio": 0.2951,
+    "rightEdgeInk": 2,
+    "leftEdgeInk": 4,
+    "rightEdgeUnbalanced": false
+  },
+  {
+    "file": "032-quests__1440__reduce.png",
+    "width": 1440,
+    "height": 900,
+    "background": "254,254,253",
+    "inkRatio": 0.2687,
+    "rightEdgeInk": 2,
+    "leftEdgeInk": 4,
+    "rightEdgeUnbalanced": false
+  },
+  {
+    "file": "033-skills__375__no-preference.png",
+    "width": 375,
+    "height": 900,
+    "background": "247,246,241",
+    "inkRatio": 0.1484,
+    "rightEdgeInk": 180,
+    "leftEdgeInk": 120,
+    "rightEdgeUnbalanced": false
+  },
+  {
+    "file": "034-skills__768__no-preference.png",
+    "width": 768,
+    "height": 900,
+    "background": "254,254,253",
+    "inkRatio": 0.0798,
+    "rightEdgeInk": 6,
+    "leftEdgeInk": 4,
+    "rightEdgeUnbalanced": false
+  },
+  {
+    "file": "035-skills__1024__no-preference.png",
+    "width": 1024,
+    "height": 900,
+    "background": "254,254,253",
+    "inkRatio": 0.0969,
+    "rightEdgeInk": 4,
+    "leftEdgeInk": 4,
+    "rightEdgeUnbalanced": false
+  },
+  {
+    "file": "036-skills__1440__no-preference.png",
+    "width": 1440,
+    "height": 900,
+    "background": "254,254,253",
+    "inkRatio": 0.0886,
+    "rightEdgeInk": 4,
+    "leftEdgeInk": 4,
+    "rightEdgeUnbalanced": false
+  },
+  {
+    "file": "037-skills__375__reduce.png",
+    "width": 375,
+    "height": 900,
+    "background": "247,246,241",
+    "inkRatio": 0.0761,
+    "rightEdgeInk": 130,
+    "leftEdgeInk": 120,
+    "rightEdgeUnbalanced": false
+  },
+  {
+    "file": "038-skills__768__reduce.png",
+    "width": 768,
+    "height": 900,
+    "background": "254,254,253",
+    "inkRatio": 0.0392,
+    "rightEdgeInk": 6,
+    "leftEdgeInk": 4,
+    "rightEdgeUnbalanced": false
+  },
+  {
+    "file": "039-skills__1024__reduce.png",
+    "width": 1024,
+    "height": 900,
+    "background": "254,254,253",
+    "inkRatio": 0.0549,
+    "rightEdgeInk": 4,
+    "leftEdgeInk": 4,
+    "rightEdgeUnbalanced": false
+  },
+  {
+    "file": "040-skills__1440__reduce.png",
+    "width": 1440,
+    "height": 900,
+    "background": "254,254,253",
+    "inkRatio": 0.0584,
+    "rightEdgeInk": 4,
+    "leftEdgeInk": 4,
+    "rightEdgeUnbalanced": false
+  },
+  {
+    "file": "041-skills-table__375__no-preference.png",
+    "width": 375,
+    "height": 900,
+    "background": "247,246,241",
+    "inkRatio": 0.1019,
+    "rightEdgeInk": 196,
+    "leftEdgeInk": 120,
+    "rightEdgeUnbalanced": false
+  },
+  {
+    "file": "042-skills-table__768__no-preference.png",
+    "width": 768,
+    "height": 900,
+    "background": "254,254,253",
+    "inkRatio": 0.0544,
+    "rightEdgeInk": 14,
+    "leftEdgeInk": 4,
+    "rightEdgeUnbalanced": false
+  },
+  {
+    "file": "043-skills-table__1024__no-preference.png",
+    "width": 1024,
+    "height": 900,
+    "background": "254,254,253",
+    "inkRatio": 0.0673,
+    "rightEdgeInk": 84,
+    "leftEdgeInk": 4,
+    "rightEdgeUnbalanced": true
+  },
+  {
+    "file": "044-skills-table__1440__no-preference.png",
+    "width": 1440,
+    "height": 900,
+    "background": "254,254,253",
+    "inkRatio": 0.0664,
+    "rightEdgeInk": 4,
+    "leftEdgeInk": 4,
+    "rightEdgeUnbalanced": false
+  },
+  {
+    "file": "045-skills-table__375__reduce.png",
+    "width": 375,
+    "height": 900,
+    "background": "247,246,241",
+    "inkRatio": 0.1019,
+    "rightEdgeInk": 196,
+    "leftEdgeInk": 120,
+    "rightEdgeUnbalanced": false
+  },
+  {
+    "file": "046-skills-table__768__reduce.png",
+    "width": 768,
+    "height": 900,
+    "background": "254,254,253",
+    "inkRatio": 0.0544,
+    "rightEdgeInk": 14,
+    "leftEdgeInk": 4,
+    "rightEdgeUnbalanced": false
+  },
+  {
+    "file": "047-skills-table__1024__reduce.png",
+    "width": 1024,
+    "height": 900,
+    "background": "254,254,253",
+    "inkRatio": 0.0671,
+    "rightEdgeInk": 84,
+    "leftEdgeInk": 4,
+    "rightEdgeUnbalanced": true
+  },
+  {
+    "file": "048-skills-table__1440__reduce.png",
+    "width": 1440,
+    "height": 900,
+    "background": "254,254,253",
+    "inkRatio": 0.0682,
+    "rightEdgeInk": 4,
+    "leftEdgeInk": 4,
+    "rightEdgeUnbalanced": false
+  },
+  {
+    "file": "049-knowledge__375__no-preference.png",
+    "width": 375,
+    "height": 900,
+    "background": "247,246,241",
+    "inkRatio": 0.1429,
+    "rightEdgeInk": 153,
+    "leftEdgeInk": 120,
+    "rightEdgeUnbalanced": false
+  },
+  {
+    "file": "050-knowledge__768__no-preference.png",
+    "width": 768,
+    "height": 900,
+    "background": "254,254,253",
+    "inkRatio": 0.052,
+    "rightEdgeInk": 6,
+    "leftEdgeInk": 4,
+    "rightEdgeUnbalanced": false
+  },
+  {
+    "file": "051-knowledge__1024__no-preference.png",
+    "width": 1024,
+    "height": 900,
+    "background": "254,254,253",
+    "inkRatio": 0.1193,
+    "rightEdgeInk": 4,
+    "leftEdgeInk": 4,
+    "rightEdgeUnbalanced": false
+  },
+  {
+    "file": "052-knowledge__1440__no-preference.png",
+    "width": 1440,
+    "height": 900,
+    "background": "254,254,253",
+    "inkRatio": 0.1018,
+    "rightEdgeInk": 4,
+    "leftEdgeInk": 4,
+    "rightEdgeUnbalanced": false
+  },
+  {
+    "file": "053-knowledge__375__reduce.png",
+    "width": 375,
+    "height": 900,
+    "background": "247,246,241",
+    "inkRatio": 0.1429,
+    "rightEdgeInk": 153,
+    "leftEdgeInk": 120,
+    "rightEdgeUnbalanced": false
+  },
+  {
+    "file": "054-knowledge__768__reduce.png",
+    "width": 768,
+    "height": 900,
+    "background": "254,254,253",
+    "inkRatio": 0.052,
+    "rightEdgeInk": 6,
+    "leftEdgeInk": 4,
+    "rightEdgeUnbalanced": false
+  },
+  {
+    "file": "055-knowledge__1024__reduce.png",
+    "width": 1024,
+    "height": 900,
+    "background": "254,254,253",
+    "inkRatio": 0.114,
+    "rightEdgeInk": 4,
+    "leftEdgeInk": 4,
+    "rightEdgeUnbalanced": false
+  },
+  {
+    "file": "056-knowledge__1440__reduce.png",
+    "width": 1440,
+    "height": 900,
+    "background": "254,254,253",
+    "inkRatio": 0.0999,
+    "rightEdgeInk": 4,
+    "leftEdgeInk": 4,
+    "rightEdgeUnbalanced": false
+  },
+  {
+    "file": "057-knowledge-table__375__no-preference.png",
+    "width": 375,
+    "height": 900,
+    "background": "247,246,241",
+    "inkRatio": 0.1428,
+    "rightEdgeInk": 153,
+    "leftEdgeInk": 120,
+    "rightEdgeUnbalanced": false
+  },
+  {
+    "file": "058-knowledge-table__768__no-preference.png",
+    "width": 768,
+    "height": 900,
+    "background": "254,254,253",
+    "inkRatio": 0.052,
+    "rightEdgeInk": 6,
+    "leftEdgeInk": 4,
+    "rightEdgeUnbalanced": false
+  },
+  {
+    "file": "059-knowledge-table__1024__no-preference.png",
+    "width": 1024,
+    "height": 900,
+    "background": "254,254,253",
+    "inkRatio": 0.1193,
+    "rightEdgeInk": 4,
+    "leftEdgeInk": 4,
+    "rightEdgeUnbalanced": false
+  },
+  {
+    "file": "060-knowledge-table__1440__no-preference.png",
+    "width": 1440,
+    "height": 900,
+    "background": "254,254,253",
+    "inkRatio": 0.1018,
+    "rightEdgeInk": 4,
+    "leftEdgeInk": 4,
+    "rightEdgeUnbalanced": false
+  },
+  {
+    "file": "061-knowledge-table__375__reduce.png",
+    "width": 375,
+    "height": 900,
+    "background": "247,246,241",
+    "inkRatio": 0.1428,
+    "rightEdgeInk": 153,
+    "leftEdgeInk": 120,
+    "rightEdgeUnbalanced": false
+  },
+  {
+    "file": "062-knowledge-table__768__reduce.png",
+    "width": 768,
+    "height": 900,
+    "background": "254,254,253",
+    "inkRatio": 0.052,
+    "rightEdgeInk": 6,
+    "leftEdgeInk": 4,
+    "rightEdgeUnbalanced": false
+  },
+  {
+    "file": "063-knowledge-table__1024__reduce.png",
+    "width": 1024,
+    "height": 900,
+    "background": "254,254,253",
+    "inkRatio": 0.114,
+    "rightEdgeInk": 4,
+    "leftEdgeInk": 4,
+    "rightEdgeUnbalanced": false
+  },
+  {
+    "file": "064-knowledge-table__1440__reduce.png",
+    "width": 1440,
+    "height": 900,
+    "background": "254,254,253",
+    "inkRatio": 0.0999,
+    "rightEdgeInk": 4,
+    "leftEdgeInk": 4,
+    "rightEdgeUnbalanced": false
+  },
+  {
+    "file": "065-artifacts__375__no-preference.png",
+    "width": 375,
+    "height": 900,
+    "background": "247,246,241",
+    "inkRatio": 0.1441,
+    "rightEdgeInk": 312,
+    "leftEdgeInk": 120,
+    "rightEdgeUnbalanced": false
+  },
+  {
+    "file": "066-artifacts__768__no-preference.png",
+    "width": 768,
+    "height": 900,
+    "background": "254,254,253",
+    "inkRatio": 0.031,
+    "rightEdgeInk": 2,
+    "leftEdgeInk": 4,
+    "rightEdgeUnbalanced": false
+  },
+  {
+    "file": "067-artifacts__1024__no-preference.png",
+    "width": 1024,
+    "height": 900,
+    "background": "254,254,253",
+    "inkRatio": 0.0654,
+    "rightEdgeInk": 0,
+    "leftEdgeInk": 4,
+    "rightEdgeUnbalanced": false
+  },
+  {
+    "file": "068-artifacts__1440__no-preference.png",
+    "width": 1440,
+    "height": 900,
+    "background": "254,254,253",
+    "inkRatio": 0.0646,
+    "rightEdgeInk": 0,
+    "leftEdgeInk": 4,
+    "rightEdgeUnbalanced": false
+  },
+  {
+    "file": "069-artifacts__375__reduce.png",
+    "width": 375,
+    "height": 900,
+    "background": "247,246,241",
+    "inkRatio": 0.1441,
+    "rightEdgeInk": 312,
+    "leftEdgeInk": 120,
+    "rightEdgeUnbalanced": false
+  },
+  {
+    "file": "070-artifacts__768__reduce.png",
+    "width": 768,
+    "height": 900,
+    "background": "254,254,253",
+    "inkRatio": 0.031,
+    "rightEdgeInk": 2,
+    "leftEdgeInk": 4,
+    "rightEdgeUnbalanced": false
+  },
+  {
+    "file": "071-artifacts__1024__reduce.png",
+    "width": 1024,
+    "height": 900,
+    "background": "254,254,253",
+    "inkRatio": 0.0653,
+    "rightEdgeInk": 0,
+    "leftEdgeInk": 4,
+    "rightEdgeUnbalanced": false
+  },
+  {
+    "file": "072-artifacts__1440__reduce.png",
+    "width": 1440,
+    "height": 900,
+    "background": "254,254,253",
+    "inkRatio": 0.0653,
+    "rightEdgeInk": 0,
+    "leftEdgeInk": 4,
+    "rightEdgeUnbalanced": false
+  }
+]
