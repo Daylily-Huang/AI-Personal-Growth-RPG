@@ -35,11 +35,16 @@ import SkillNodeView, {
 import KnowledgeNodeView, {
   type KnowledgeNodeData,
 } from "@/app/knowledge/components/KnowledgeNodeView";
+import SkillTableView from "@/app/skills/components/SkillTableView";
+import KnowledgeTableView from "@/app/knowledge/components/KnowledgeTableView";
+import type { SkillFlowNodeType } from "@/app/skills/components/SkillNode";
+import type { KnowledgeFlowNodeType } from "@/app/knowledge/components/KnowledgeNodeView";
 import { toFlowEdges as toSkillFlowEdges } from "@/app/skills/components/SkillGraphCanvas";
 import { toFlowEdges as toKnowledgeFlowEdges } from "@/app/knowledge/components/KnowledgeGraphCanvas";
 import {
   formatConfidence,
   getRelationVisual,
+  getSkillStateVisual,
 } from "@/app/skills/components/presentation";
 import {
   getAuthorityVisual,
@@ -129,6 +134,14 @@ const knowledgeData = (
   sourceId: null,
   inboundEdgeCount: 2,
   outboundEdgeCount: 1,
+  // Production-like interaction handlers. The real Knowledge canvas enriches
+  // every node with onSelect/onNavigate before handing it to React Flow
+  // (KnowledgeGraphCanvas.tsx), and RPGCard only claims role="button" /
+  // tabIndex / data-interactive when onClick is supplied. A fixture without
+  // these would render a non-actionable card and let the role assertion pass
+  // vacuously against an empty [role] list.
+  onSelect: () => undefined,
+  onNavigate: () => undefined,
   ...overrides,
 });
 
@@ -154,6 +167,26 @@ function skillNodeProps(data: SkillNodeViewData, id: string): SkillNodeProps {
 
 function knowledgeNodeProps(data: KnowledgeNodeData, id: string): KnowledgeNodeProps {
   return { id, data, type: "knowledgeNode", ...flowNodeGeometry } as unknown as KnowledgeNodeProps;
+}
+
+/** A real SkillFlowNode as the page builds it, for table-view rendering. */
+function skillFlowNode(id: string, name: string, domainLabel = "科研"): SkillFlowNodeType {
+  return {
+    id,
+    position: { x: 0, y: 0 },
+    type: "skillNode",
+    data: { ...skillData({ name, domainLabel }) },
+  } as unknown as SkillFlowNodeType;
+}
+
+/** A real KnowledgeFlowNode as the page builds it, for table-view rendering. */
+function knowledgeFlowNode(id: string, title: string): KnowledgeFlowNodeType {
+  return {
+    id,
+    position: { x: 0, y: 0 },
+    type: "knowledgeNode",
+    data: knowledgeData({ id, title }),
+  } as unknown as KnowledgeFlowNodeType;
 }
 
 /* ------------------------------------------------------------------ *
@@ -195,13 +228,15 @@ function installMotionPreference(preference: MotionPreference, duration = "250ms
  * differ between two independent renders and could never be read by a user:
  *
  *   - motion utility classes (`animate-*`, `motion-reduce:*`, `transition-*`, `duration-*`)
- *   - React-generated element ids (`_r_*_`) and `clipPath` references derived from them
- *     (e.g. `MasteryBadge`'s SVG clipping path)
+ *   - React-generated element ids (`_r_*_`) *and only the references derived from
+ *     those ids* (e.g. `MasteryBadge`'s `clipPath="url(#«r0»)"`), by replacing the
+ *     auto-id substring rather than discarding the whole attribute value
  *
  * Everything else — text, roles, accessible names, and every semantic attribute —
  * is compared verbatim.
  */
 const REACT_AUTO_ID = /_r_[a-z0-9]+_/;
+const REACT_AUTO_ID_GLOBAL = new RegExp(REACT_AUTO_ID.source, "g");
 
 function stripMotionUtilities(value: string | null): string {
   return (value ?? "")
@@ -215,12 +250,22 @@ function stripMotionUtilities(value: string | null): string {
     .join(" ");
 }
 
+/**
+ * Replace only the React `useId()` auto-id substrings, wherever they appear.
+ *
+ * This deliberately does NOT discard whole attribute values. A `clipPath`
+ * reference such as `url(#«r0»)` is normalised to `url(#[auto-id])` because the
+ * id is auto-generated, while an unrelated stable reference such as
+ * `url(#semantic-mask-A)` is left untouched and therefore still compared
+ * verbatim between the two preference renders.
+ */
+function normalizeAutoIds(value: string): string {
+  return value.replace(REACT_AUTO_ID_GLOBAL, "[auto-id]");
+}
+
 function stableAttributeValue(name: string, value: string): string {
-  if (name === "clippath" || name === "clip-path") return "[clipPath]";
-  if (name === "id" || name.endsWith("id")) {
-    return value.replace(new RegExp(REACT_AUTO_ID.source, "g"), "[auto-id]");
-  }
-  return value.replace(new RegExp(REACT_AUTO_ID.source, "g"), "[auto-id]");
+  void name;
+  return normalizeAutoIds(value);
 }
 
 function visibleSemanticFacts(container: HTMLElement) {
@@ -330,7 +375,8 @@ describe("Round 3 §18.7 — rendered semantic equivalence across motion prefere
       "SkillNodeView",
     );
 
-    // The authoritative facts really are present in the DOM, not merely equal.
+    // The authoritative facts really are present in the DOM, not merely equal
+    // between the two preference renders.
     const text = renderUnderPreference(
       "reduce",
       <SkillNodeView {...skillNodeProps(data, "skill-a")} />,
@@ -340,6 +386,24 @@ describe("Round 3 §18.7 — rendered semantic equivalence across motion prefere
     expect(text).toContain(`${data.xp} XP`);
     expect(text).toContain(`M${data.masteryLevel}`);
     expect(text).toContain(formatConfidence(data.masteryConfidence));
+
+    // Derived state is an explicit expected-present fact. Snapshot equality
+    // alone cannot prove it is rendered at all, so assert it per state against
+    // the presentation mapping in both preferences.
+    for (const derivedState of ["learning", "proficient", "advanced", "locked"] as const) {
+      const stateLabel = getSkillStateVisual(derivedState).label;
+      const stateData = skillData({ derivedState });
+      for (const preference of ["no-preference", "reduce"] as const) {
+        const rendered = renderUnderPreference(
+          preference,
+          <SkillNodeView {...skillNodeProps(stateData, "skill-a")} />,
+        );
+        expect(
+          rendered.text,
+          `SkillNodeView(${derivedState}) must render its state label under ${preference}`,
+        ).toContain(stateLabel);
+      }
+    }
   });
 
   it("renders identical Knowledge authoritative facts (authority, confidence, type, archive lifecycle) under both preferences", () => {
@@ -403,6 +467,142 @@ describe("Round 3 §18.7 — rendered semantic equivalence across motion prefere
       ).text,
     ).toContain(getAuthorityVisual("verified", false, 0.9).label);
   });
+
+  it("exercises the production interactive Knowledge node contract under both preferences", () => {
+    const data = knowledgeData();
+    const authorityLabel = getAuthorityVisual(
+      data.verificationStatus,
+      data.isArchived,
+      data.confidence,
+    ).label;
+
+    for (const preference of ["no-preference", "reduce"] as const) {
+      const { container } = (() => {
+        installMotionPreference(preference);
+        return render(<KnowledgeNodeView {...knowledgeNodeProps(data, data.id)} />);
+      })();
+
+      // The interactive role is owned by RPGCard and only claimed when the
+      // production canvas supplies onClick. Assert it directly so this test
+      // cannot pass against an empty [role] list.
+      const actionable = container.querySelector<HTMLElement>("[role='button']");
+      expect(
+        actionable,
+        `knowledge node must be an actionable control under ${preference}`,
+      ).toBeTruthy();
+      expect(actionable?.getAttribute("tabindex")).toBe("0");
+      expect(actionable?.getAttribute("data-interactive")).toBe("true");
+      expect(actionable?.getAttribute("data-testid")).toBe(`knowledge-node-${data.id}`);
+      expect(actionable?.getAttribute("aria-label")).toBe(`${data.title} · ${authorityLabel}`);
+      expect(actionable?.getAttribute("data-authority-status")).toBe(data.verificationStatus);
+      expect(actionable?.getAttribute("data-is-archived")).toBe(String(data.isArchived));
+
+      // The role/name tuple must also be visible to the deep comparator.
+      const facts = visibleSemanticFacts(container as HTMLElement);
+      expect(facts.roles).toContainEqual({
+        role: "button",
+        name: `${data.title} · ${authorityLabel}`,
+      });
+
+      cleanup();
+    }
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * §18.7 — rendered relation labels (read-model DOM, both preferences)
+ * ------------------------------------------------------------------ */
+
+describe("Round 3 §18.7 — relation labels proven in rendered read-model DOM", () => {
+  const skillRelationEdges: SkillFlowEdge[] = [
+    { id: "e-prereq", source: "skill-a", target: "skill-b", relation: "prerequisite" },
+    { id: "e-contains", source: "skill-a", target: "skill-b", relation: "contains" },
+    { id: "e-supports", source: "skill-a", target: "skill-b", relation: "supports" },
+  ];
+
+  const knowledgeRelationEdges = [
+    { relationType: "prerequisite", verificationStatus: "verified", isArchived: false, confidence: 0.9 },
+    { relationType: "contains", verificationStatus: "verified", isArchived: false, confidence: 0.9 },
+    { relationType: "supports", verificationStatus: "verified", isArchived: false, confidence: 0.9 },
+    { relationType: "contradicts", verificationStatus: "verified", isArchived: false, confidence: 0.9 },
+    { relationType: "relates_to", verificationStatus: "verified", isArchived: false, confidence: 0.9 },
+  ] as const;
+
+  function skillTable() {
+    return (
+      <SkillTableView
+        nodes={[skillFlowNode("skill-a", "生态建模"), skillFlowNode("skill-b", "统计分析")]}
+        edges={skillRelationEdges}
+        onSelect={() => undefined}
+      />
+    );
+  }
+
+  function knowledgeTable() {
+    const nodes = [
+      knowledgeFlowNode("knowledge-a", "中度干扰假说"),
+      knowledgeFlowNode("knowledge-b", "物种共存"),
+    ];
+    const edges = knowledgeRelationEdges.map((edge, index) => ({
+      id: `k-edge-${index}`,
+      source: "knowledge-a",
+      target: "knowledge-b",
+      ...edge,
+      sourceType: "user_created" as const,
+      sourceId: null,
+      provenanceNote: null,
+      verifiedAt: null,
+      verifiedBy: null,
+    }));
+    return (
+      <KnowledgeTableView
+        nodes={nodes}
+        edges={edges as never}
+        onSelectNode={() => undefined}
+        onSelectEdge={() => undefined}
+      />
+    );
+  }
+
+  it("renders every Skills relation label into the DOM under both preferences", () => {
+    expectSemanticEquivalence(skillTable(), "SkillTableView relations");
+
+    for (const preference of ["no-preference", "reduce"] as const) {
+      const { container } = (() => {
+        installMotionPreference(preference);
+        return render(skillTable());
+      })();
+      const text = (container.textContent ?? "").replace(/\s+/g, " ");
+      for (const edge of skillRelationEdges) {
+        const label = getRelationVisual(edge.relation).label;
+        expect(text, `skills relation ${edge.relation} label must render (${preference})`).toContain(
+          `${edge.relation}（${label}）`,
+        );
+      }
+      cleanup();
+    }
+  });
+
+  it("renders every Knowledge relation label into the DOM under both preferences", () => {
+    expectSemanticEquivalence(knowledgeTable(), "KnowledgeTableView relations");
+
+    for (const preference of ["no-preference", "reduce"] as const) {
+      const { container } = (() => {
+        installMotionPreference(preference);
+        return render(knowledgeTable());
+      })();
+      const text = (container.textContent ?? "").replace(/\s+/g, " ");
+      for (const edge of knowledgeRelationEdges) {
+        const visual = getEdgeVisual(edge.relationType, "verified", 0.9, false);
+        const symbol = visual.isSymmetric ? "—" : "→";
+        expect(
+          text,
+          `knowledge relation ${edge.relationType} label must render (${preference})`,
+        ).toContain(`${symbol} ${edge.relationType}`);
+      }
+      cleanup();
+    }
+  });
 });
 
 /* ------------------------------------------------------------------ *
@@ -464,6 +664,51 @@ describe("Round 3 §18.2 — Skills keyboard and selected state under reduced mo
     expect(selectionRing).toEqual(["ring-2"]);
     expect(unselectedNode?.className.split(/\s+/)).not.toContain("ring-2");
     expect(selectedFacts("reduce").text).toBe(unselectedFacts.text);
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * Normalization boundary guard (re-review P1-01 defect C)
+ * ------------------------------------------------------------------ */
+
+describe("Round 3 §18.7 — normalization boundary is narrow and self-enforcing", () => {
+  it("normalizes only React auto-id substrings, never whole semantic references", () => {
+    // Auto-id-derived references are normalised...
+    expect(normalizeAutoIds("url(#_r_0_)")).toBe("url(#[auto-id])");
+    expect(normalizeAutoIds("_r_a1b2_")).toBe("[auto-id]");
+    // ...but a stable, semantic reference is preserved verbatim and would still
+    // surface a real difference between two renders.
+    expect(normalizeAutoIds("url(#semantic-mask-A)")).toBe("url(#semantic-mask-A)");
+    expect(normalizeAutoIds("url(#semantic-mask-A)")).not.toBe(
+      normalizeAutoIds("url(#semantic-mask-B)"),
+    );
+    // A non-auto-generated clipPath therefore cannot be masked by normalisation.
+    expect(stableAttributeValue("clip-path", "url(#semantic-mask-A)")).not.toBe(
+      stableAttributeValue("clip-path", "url(#semantic-mask-B)"),
+    );
+    // An auto-generated clipPath reference still compares equal across renders.
+    expect(stableAttributeValue("clip-path", "url(#_r_0_)")).toBe(
+      stableAttributeValue("clip-path", "url(#_r_9_)"),
+    );
+  });
+
+  it("catches a real semantic divergence between two renders", () => {
+    installMotionPreference("no-preference");
+    const normalFacts = visibleSemanticFacts(
+      render(<SkillNodeView {...skillNodeProps(skillData(), "skill-a")} />).container as HTMLElement,
+    );
+    cleanup();
+
+    installMotionPreference("reduce");
+    const reducedFacts = visibleSemanticFacts(
+      render(
+        <SkillNodeView {...skillNodeProps(skillData({ masteryLevel: 3 }), "skill-a")} />,
+      ).container as HTMLElement,
+    );
+
+    // The comparator must fail on an authoritative difference, proving the
+    // normalisation above does not swallow semantic changes.
+    expect(reducedFacts.text).not.toBe(normalFacts.text);
   });
 });
 
