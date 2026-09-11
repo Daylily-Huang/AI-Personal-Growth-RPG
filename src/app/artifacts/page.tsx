@@ -581,7 +581,7 @@ export default function ArtifactsPage() {
               data-testid="artifacts-loading-state"
               className="flex flex-col items-center justify-center py-28 space-y-3"
             >
-              <Loader2 aria-hidden="true" className="w-8 h-8 animate-spin text-[var(--entity-artifact-text)]" />
+              <Loader2 aria-hidden="true" className="w-8 h-8 animate-spin motion-reduce:animate-none text-[var(--entity-artifact-text)]" />
               <p className="text-xs text-[var(--text-muted)]">正在载入成果造物...</p>
             </div>
           ) : error ? (
@@ -676,7 +676,7 @@ export default function ArtifactsPage() {
               data-testid="inspector-loading-state"
               className="flex flex-col items-center justify-center py-20 space-y-3"
             >
-              <Loader2 aria-hidden="true" className="w-6 h-6 animate-spin text-[var(--entity-artifact-text)]" />
+              <Loader2 aria-hidden="true" className="w-6 h-6 animate-spin motion-reduce:animate-none text-[var(--entity-artifact-text)]" />
               <p className="text-xs text-[var(--text-muted)]">载入造物拓扑数据...</p>
             </div>
           ) : detailError ? (
