@@ -8,6 +8,10 @@
 **Reviewer role:** execution AI, performing the §19 static visual pass over the existing matrix
 **Governing manual:** `docs/DesignSystem/PHASE7_ROUND3_EXECUTION.md` §19.1–§19.5, §21, §23, §26
 
+> **Errata (2026-09-12):** two statements in this document were corrected — the blanket
+> HTTP-200 claim (P2-01) and the `/skills@375 normal` cell (P2-02). See
+> [`PHASE7_ROUND3_SECTION19_ERRATA.md`](./PHASE7_ROUND3_SECTION19_ERRATA.md).
+>
 > This document **adds evidence only**. It does not modify production code, tests, authoritative
 > rule documents, or any existing independent-review verdict. No merge was performed. Round 4 was
 > not started. Phase 7 is not declared FINAL FROZEN.
@@ -103,14 +107,16 @@ widths and both preferences), so the two routes contribute one visual surface ea
 | `/login` | clipping | clipping | OK | OK | OK | OK | OK | OK |
 | `/dashboard` | clipping | clipping | OK | OK | OK | OK | OK | OK |
 | `/quests` | clipping | clipping | OK | OK | OK | OK | OK | OK |
-| `/skills` | clipping + **empty graph** | **empty graph** | OK | **empty graph** | OK | **empty graph** | OK | **empty graph** |
+| `/skills` | clipping (3 nodes present) | **empty graph** | OK (3 nodes) | **empty graph** | OK (3 nodes) | **empty graph** | OK (3 nodes) | **empty graph** |
 | `/skills?view=table` | clipping | clipping | OK | OK | OK | OK | OK | OK |
 | `/knowledge` | clipping (control row) | clipping (control row) | OK | OK | OK | OK | OK | OK |
 | `/knowledge?view=table` | clipping (control row) | clipping (control row) | OK | OK | OK | OK | OK | OK |
 | `/artifacts` | clipping | clipping | OK | OK | OK | OK | OK | OK |
 
 "OK" = rendered correctly, no clipping, preference-equivalent content.
-All 72 cells returned HTTP 200 and produced a non-empty render.
+Response status per cell is recorded in `results.tsv`. **Eight cells are HTTP 307, not 200**: all eight `/` cells redirect to `/dashboard` (`001`–`008`). Every other route cell is HTTP 200. All 72 cells produced a non-empty render.
+
+> Errata: an earlier revision of this document stated that all 72 cells returned HTTP 200. That was wrong and is corrected here; see `PHASE7_ROUND3_SECTION19_ERRATA.md`.
 
 ---
 
