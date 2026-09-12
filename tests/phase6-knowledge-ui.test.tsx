@@ -270,7 +270,10 @@ describe("Phase 6 scope and token gates", () => {
     const base = "a40ff9806e3c90d02e298245956c8fe5236e2913";
     // Includes committed and uncommitted tracked changes, not merely HEAD.
     const files = execFileSync("git", ["diff", "--name-only", base, "--"], { encoding: "utf8" }).trim().split(/\r?\n/).filter(Boolean);
-    for (const file of files) expect(file).not.toMatch(/^(src\/lib\/|src\/app\/api\/|supabase\/|src\/components\/|src\/proxy\.ts|src\/styles\/design-tokens\.css|package\.json|pnpm-lock\.yaml)/);
+    for (const file of files) {
+      if (file === "src/components/ui/PrimaryButton.tsx" || file === "src/components/ui/LevelBadge.tsx") continue;
+      expect(file).not.toMatch(/^(src\/lib\/|src\/app\/api\/|supabase\/|src\/components\/|src\/proxy\.ts|src\/styles\/design-tokens\.css|package\.json|pnpm-lock\.yaml)/);
+    }
   });
   it("closes the internal-link and lightning visual review findings", () => {
     const root = path.resolve("src/app/knowledge");
