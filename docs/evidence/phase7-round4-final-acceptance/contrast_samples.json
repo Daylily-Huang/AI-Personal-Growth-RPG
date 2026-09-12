@@ -1,0 +1,82 @@
+[
+  {
+    "tag": "span",
+    "text": "AI Personal Growth",
+    "color": "rgb(28, 33, 39)",
+    "backgroundColor": "rgba(0, 0, 0, 0)",
+    "fontSize": "14px",
+    "fontWeight": "600"
+  },
+  {
+    "tag": "span",
+    "text": "RPG WORKSPACE",
+    "color": "rgb(102, 112, 133)",
+    "backgroundColor": "rgba(0, 0, 0, 0)",
+    "fontSize": "12px",
+    "fontWeight": "400"
+  },
+  {
+    "tag": "span",
+    "text": "仪表盘",
+    "color": "rgb(28, 33, 39)",
+    "backgroundColor": "rgba(0, 0, 0, 0)",
+    "fontSize": "14px",
+    "fontWeight": "500"
+  },
+  {
+    "tag": "span",
+    "text": "任务志",
+    "color": "rgb(71, 84, 103)",
+    "backgroundColor": "rgba(0, 0, 0, 0)",
+    "fontSize": "14px",
+    "fontWeight": "500"
+  },
+  {
+    "tag": "span",
+    "text": "技能谱",
+    "color": "rgb(71, 84, 103)",
+    "backgroundColor": "rgba(0, 0, 0, 0)",
+    "fontSize": "14px",
+    "fontWeight": "500"
+  },
+  {
+    "tag": "span",
+    "text": "知识图",
+    "color": "rgb(71, 84, 103)",
+    "backgroundColor": "rgba(0, 0, 0, 0)",
+    "fontSize": "14px",
+    "fontWeight": "500"
+  },
+  {
+    "tag": "span",
+    "text": "产出台",
+    "color": "rgb(71, 84, 103)",
+    "backgroundColor": "rgba(0, 0, 0, 0)",
+    "fontSize": "14px",
+    "fontWeight": "500"
+  },
+  {
+    "tag": "span",
+    "text": "demo_player@growth-rpg.de",
+    "color": "rgb(71, 84, 103)",
+    "backgroundColor": "rgba(0, 0, 0, 0)",
+    "fontSize": "12px",
+    "fontWeight": "400"
+  },
+  {
+    "tag": "span",
+    "text": "LV.1",
+    "color": "rgb(28, 33, 39)",
+    "backgroundColor": "rgba(255, 255, 255, 0.92)",
+    "fontSize": "12px",
+    "fontWeight": "600"
+  },
+  {
+    "tag": "button",
+    "text": "折叠导航\nCtrl+B",
+    "color": "rgb(102, 112, 133)",
+    "backgroundColor": "rgba(0, 0, 0, 0)",
+    "fontSize": "12px",
+    "fontWeight": "400"
+  }
+]

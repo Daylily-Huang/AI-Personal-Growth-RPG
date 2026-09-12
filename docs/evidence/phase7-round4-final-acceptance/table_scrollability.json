@@ -1,0 +1,284 @@
+[
+  {
+    "docScrollWidth": 375,
+    "docClientWidth": 375,
+    "details": [
+      {
+        "tableId": "skills-accessible-table",
+        "scrollerTag": "div",
+        "scrollerClass": "h-full overflow-auto p-4 space-y-6",
+        "clientW": 375,
+        "scrollW": 776,
+        "canScroll": true,
+        "scrolledLeft": 401,
+        "maxScroll": 401,
+        "headers": [
+          "技能",
+          "领域",
+          "等级",
+          "Mastery",
+          "Mastery 置信度",
+          "XP",
+          "状态",
+          "前置关系"
+        ],
+        "lastHeader": "前置关系",
+        "sampleLastCells": [
+          {
+            "text": "0 个前置（未满足 0）",
+            "rect": {
+              "left": 204,
+              "right": 375,
+              "width": 171
+            }
+          },
+          {
+            "text": "0 个前置（未满足 0）",
+            "rect": {
+              "left": 204,
+              "right": 375,
+              "width": 171
+            }
+          },
+          {
+            "text": "0 个前置（未满足 0）",
+            "rect": {
+              "left": 204,
+              "right": 375,
+              "width": 171
+            }
+          }
+        ]
+      },
+      {
+        "tableId": "skills-relations-table",
+        "scrollerTag": "div",
+        "scrollerClass": "h-full overflow-auto p-4 space-y-6",
+        "clientW": 375,
+        "scrollW": 776,
+        "canScroll": true,
+        "scrolledLeft": 401,
+        "maxScroll": 401,
+        "headers": [
+          "来源技能",
+          "关系",
+          "目标技能"
+        ],
+        "lastHeader": "目标技能",
+        "sampleLastCells": []
+      }
+    ],
+    "route": "/skills?view=table",
+    "pref": "no-preference",
+    "initShot": "C:\\Users\\Administrator\\.gemini\\antigravity\\brain\\363f700b-5370-4a34-a544-c866e5c8c0c3\\scratch\\round4_evidence\\shots\\WORKSTREAM_B_init__skills_view=table_no-preference.png",
+    "scrolledShot": "C:\\Users\\Administrator\\.gemini\\antigravity\\brain\\363f700b-5370-4a34-a544-c866e5c8c0c3\\scratch\\round4_evidence\\shots\\WORKSTREAM_B_scrolled__skills_view=table_no-preference.png"
+  },
+  {
+    "docScrollWidth": 375,
+    "docClientWidth": 375,
+    "details": [
+      {
+        "tableId": "skills-accessible-table",
+        "scrollerTag": "div",
+        "scrollerClass": "h-full overflow-auto p-4 space-y-6",
+        "clientW": 375,
+        "scrollW": 776,
+        "canScroll": true,
+        "scrolledLeft": 401,
+        "maxScroll": 401,
+        "headers": [
+          "技能",
+          "领域",
+          "等级",
+          "Mastery",
+          "Mastery 置信度",
+          "XP",
+          "状态",
+          "前置关系"
+        ],
+        "lastHeader": "前置关系",
+        "sampleLastCells": [
+          {
+            "text": "0 个前置（未满足 0）",
+            "rect": {
+              "left": 204,
+              "right": 375,
+              "width": 171
+            }
+          },
+          {
+            "text": "0 个前置（未满足 0）",
+            "rect": {
+              "left": 204,
+              "right": 375,
+              "width": 171
+            }
+          },
+          {
+            "text": "0 个前置（未满足 0）",
+            "rect": {
+              "left": 204,
+              "right": 375,
+              "width": 171
+            }
+          }
+        ]
+      },
+      {
+        "tableId": "skills-relations-table",
+        "scrollerTag": "div",
+        "scrollerClass": "h-full overflow-auto p-4 space-y-6",
+        "clientW": 375,
+        "scrollW": 776,
+        "canScroll": true,
+        "scrolledLeft": 401,
+        "maxScroll": 401,
+        "headers": [
+          "来源技能",
+          "关系",
+          "目标技能"
+        ],
+        "lastHeader": "目标技能",
+        "sampleLastCells": []
+      }
+    ],
+    "route": "/skills?view=table",
+    "pref": "reduce",
+    "initShot": "C:\\Users\\Administrator\\.gemini\\antigravity\\brain\\363f700b-5370-4a34-a544-c866e5c8c0c3\\scratch\\round4_evidence\\shots\\WORKSTREAM_B_init__skills_view=table_reduce.png",
+    "scrolledShot": "C:\\Users\\Administrator\\.gemini\\antigravity\\brain\\363f700b-5370-4a34-a544-c866e5c8c0c3\\scratch\\round4_evidence\\shots\\WORKSTREAM_B_scrolled__skills_view=table_reduce.png"
+  },
+  {
+    "docScrollWidth": 375,
+    "docClientWidth": 375,
+    "details": [
+      {
+        "tableId": "knowledge-nodes-table",
+        "scrollerTag": "div",
+        "scrollerClass": "h-full overflow-auto p-4 space-y-6",
+        "clientW": 375,
+        "scrollW": 836,
+        "canScroll": true,
+        "scrolledLeft": 461,
+        "maxScroll": 461,
+        "headers": [
+          "知识标题",
+          "节点类型",
+          "领域",
+          "权威状态",
+          "知识置信度",
+          "关联技能",
+          "连接数"
+        ],
+        "lastHeader": "连接数",
+        "sampleLastCells": [
+          {
+            "text": "0",
+            "rect": {
+              "left": 312,
+              "right": 375,
+              "width": 63
+            }
+          },
+          {
+            "text": "0",
+            "rect": {
+              "left": 312,
+              "right": 375,
+              "width": 63
+            }
+          }
+        ]
+      },
+      {
+        "tableId": "knowledge-relations-table",
+        "scrollerTag": "div",
+        "scrollerClass": "h-full overflow-auto p-4 space-y-6",
+        "clientW": 375,
+        "scrollW": 836,
+        "canScroll": true,
+        "scrolledLeft": 461,
+        "maxScroll": 461,
+        "headers": [
+          "来源节点",
+          "关系",
+          "目标节点",
+          "权威状态",
+          "关系置信度"
+        ],
+        "lastHeader": "关系置信度",
+        "sampleLastCells": []
+      }
+    ],
+    "route": "/knowledge?view=table",
+    "pref": "no-preference",
+    "initShot": "C:\\Users\\Administrator\\.gemini\\antigravity\\brain\\363f700b-5370-4a34-a544-c866e5c8c0c3\\scratch\\round4_evidence\\shots\\WORKSTREAM_B_init__knowledge_view=table_no-preference.png",
+    "scrolledShot": "C:\\Users\\Administrator\\.gemini\\antigravity\\brain\\363f700b-5370-4a34-a544-c866e5c8c0c3\\scratch\\round4_evidence\\shots\\WORKSTREAM_B_scrolled__knowledge_view=table_no-preference.png"
+  },
+  {
+    "docScrollWidth": 375,
+    "docClientWidth": 375,
+    "details": [
+      {
+        "tableId": "knowledge-nodes-table",
+        "scrollerTag": "div",
+        "scrollerClass": "h-full overflow-auto p-4 space-y-6",
+        "clientW": 375,
+        "scrollW": 836,
+        "canScroll": true,
+        "scrolledLeft": 461,
+        "maxScroll": 461,
+        "headers": [
+          "知识标题",
+          "节点类型",
+          "领域",
+          "权威状态",
+          "知识置信度",
+          "关联技能",
+          "连接数"
+        ],
+        "lastHeader": "连接数",
+        "sampleLastCells": [
+          {
+            "text": "0",
+            "rect": {
+              "left": 312,
+              "right": 375,
+              "width": 63
+            }
+          },
+          {
+            "text": "0",
+            "rect": {
+              "left": 312,
+              "right": 375,
+              "width": 63
+            }
+          }
+        ]
+      },
+      {
+        "tableId": "knowledge-relations-table",
+        "scrollerTag": "div",
+        "scrollerClass": "h-full overflow-auto p-4 space-y-6",
+        "clientW": 375,
+        "scrollW": 836,
+        "canScroll": true,
+        "scrolledLeft": 461,
+        "maxScroll": 461,
+        "headers": [
+          "来源节点",
+          "关系",
+          "目标节点",
+          "权威状态",
+          "关系置信度"
+        ],
+        "lastHeader": "关系置信度",
+        "sampleLastCells": []
+      }
+    ],
+    "route": "/knowledge?view=table",
+    "pref": "reduce",
+    "initShot": "C:\\Users\\Administrator\\.gemini\\antigravity\\brain\\363f700b-5370-4a34-a544-c866e5c8c0c3\\scratch\\round4_evidence\\shots\\WORKSTREAM_B_init__knowledge_view=table_reduce.png",
+    "scrolledShot": "C:\\Users\\Administrator\\.gemini\\antigravity\\brain\\363f700b-5370-4a34-a544-c866e5c8c0c3\\scratch\\round4_evidence\\shots\\WORKSTREAM_B_scrolled__knowledge_view=table_reduce.png"
+  }
+]

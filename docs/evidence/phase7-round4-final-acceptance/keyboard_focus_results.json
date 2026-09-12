@@ -1,0 +1,104 @@
+{
+  "dashboard_tab": {
+    "tabHistory": [
+      {
+        "tag": "a",
+        "id": null,
+        "dataTestId": null,
+        "text": "AI Personal Growth\nRPG WORKSPA",
+        "outlineStyle": "solid",
+        "outlineWidth": "2px",
+        "outlineColor": "rgb(212, 154, 38)",
+        "boxShadow": "none"
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "dataTestId": "nav-item-dashboard",
+        "text": "仪表盘",
+        "outlineStyle": "solid",
+        "outlineWidth": "2px",
+        "outlineColor": "rgb(212, 154, 38)",
+        "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 1px 3px 0px, rgba(0, 0, 0, 0.1) 0px 1px 2px -1px"
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "dataTestId": "nav-item-quests",
+        "text": "任务志",
+        "outlineStyle": "solid",
+        "outlineWidth": "2px",
+        "outlineColor": "rgb(212, 154, 38)",
+        "boxShadow": "none"
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "dataTestId": "nav-item-skills",
+        "text": "技能谱",
+        "outlineStyle": "solid",
+        "outlineWidth": "2px",
+        "outlineColor": "rgb(212, 154, 38)",
+        "boxShadow": "none"
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "dataTestId": "nav-item-knowledge",
+        "text": "知识图",
+        "outlineStyle": "solid",
+        "outlineWidth": "2px",
+        "outlineColor": "rgb(212, 154, 38)",
+        "boxShadow": "none"
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "dataTestId": "nav-item-artifacts",
+        "text": "产出台",
+        "outlineStyle": "solid",
+        "outlineWidth": "2px",
+        "outlineColor": "rgb(212, 154, 38)",
+        "boxShadow": "none"
+      }
+    ],
+    "screenshot": "C:\\Users\\Administrator\\.gemini\\antigravity\\brain\\363f700b-5370-4a34-a544-c866e5c8c0c3\\scratch\\round4_evidence\\shots\\WORKSTREAM_C_dashboard_tab_focus.png"
+  },
+  "skills_graph_keyboard": {
+    "initial": {
+      "focusedInitial": true,
+      "id": "2056b052-2936-402b-8ec3-ac4cfa0272f8",
+      "text": "SkillNone\nLV.1\nM1\n学习中\n20 XP · "
+    },
+    "afterArrow": {
+      "tag": "div",
+      "id": "2056b052-2936-402b-8ec3-ac4cfa0272f8",
+      "text": "SkillNone\nLV.1\nM1\n学习中\n20 XP · "
+    },
+    "drawerOnEnter": {
+      "drawerOpen": false,
+      "drawerText": null
+    },
+    "drawerOnEscape": {
+      "drawerStillOpen": false,
+      "restoredFocusTag": "div",
+      "restoredFocusId": "2056b052-2936-402b-8ec3-ac4cfa0272f8"
+    },
+    "screenshot": "C:\\Users\\Administrator\\.gemini\\antigravity\\brain\\363f700b-5370-4a34-a544-c866e5c8c0c3\\scratch\\round4_evidence\\shots\\WORKSTREAM_C_skills_keyboard_drawer.png"
+  },
+  "modal_test": {
+    "openResult": {
+      "clicked": false
+    },
+    "modalCheck": {
+      "hasDialog": false,
+      "dialogAriaModal": null,
+      "activeElementInDialog": false,
+      "activeTag": "body"
+    },
+    "afterEscape": {
+      "dialogStillPresent": false
+    },
+    "screenshot": "C:\\Users\\Administrator\\.gemini\\antigravity\\brain\\363f700b-5370-4a34-a544-c866e5c8c0c3\\scratch\\round4_evidence\\shots\\WORKSTREAM_C_artifacts_modal_open.png"
+  }
+}
