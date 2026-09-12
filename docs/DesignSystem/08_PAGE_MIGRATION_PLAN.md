@@ -28,7 +28,7 @@ The migration to the new Global Visual System follows a strict, layered implemen
 │                                 ↓                                                   │
 │    Phase 6: Advanced Canvas Modernization (Knowledge Graph Canvas) ✅ FINAL FROZEN  │
 │                                 ↓                                                   │
-│    Phase 7: Round 1 ✅ MERGED → Round 2 Responsive Stress Hardening 🚀 ACTIVE ENTRY │
+│    Phase 7: Global Polish & Cross-Page Acceptance (Round 1~4) ✅ FINAL FROZEN       │
 └─────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -94,8 +94,16 @@ The migration to the new Global Visual System follows a strict, layered implemen
 - **Delivered**: semantic landmarks/control naming, keyboard graph traversal, `/skills?view=table`, `/knowledge?view=table`, modal/drawer Escape ownership, and authority/mastery/confidence separation.
 - **Frozen boundary**: Backend/domain authority, Supabase, shared UI primitives, shared layout, design tokens, and dependencies remain frozen.
 
-### Phase 7 — Round 2: Responsive Stress Hardening 🚀 FORMAL ENTRY / CODE NOT STARTED
-- **Objective**: Stress the existing frozen screens across `320/375/768/1024/1440` widths and surgically correct page-local responsive overflow, clipping, drawer/modal sizing, graph/table density, navigation transitions, and existing touch-target governance.
-- **Execution manual**: `docs/DesignSystem/PHASE7_ROUND2_EXECUTION.md`.
-- **Implementation branch**: `feature/phase7-responsive-stress`, created from the verified Round 1 merge on `main`; implementation must use its own PR.
-- **Explicit non-goals**: no Round 3 motion/reduced-motion tuning, no Round 4 final cross-page freeze audit, no backend/domain/Supabase/shared UI/shared layout/design-token/dependency changes.
+### Phase 7 — Global Polish, Responsive Hardening, Reduced Motion & Final Freeze ✅ FINAL FROZEN
+- **Round 1 (A11y & Keyboard)**: PR #22 merged at `533ab09ebeb8bb827401446f022cf9a83c7db89c` (CI `34223921283`).
+- **Round 2 (Responsive Stress)**: PR #23 merged at `9d394d137781b0a887cf8976ceb740eb618b7636` (CI `34379381800`).
+- **Round 3 (Reduced Motion)**: PR #25 (merge `a825605f6ce83baea2ec24765799da9799298c4f`) & PR #27 (merge `0e7591607507b3ac59519ab0dc656a3eed2512c4`, CI `34622336564`).
+- **Round 4 (Final Cross-Page Acceptance & Phase 7 Freeze)**:
+  - PR #28 merged at `653fe018f6cee38b2263fbcca19dffbf624d4c18` from approved Exact Head `f1e426ce6f64135066a652882d27c03b9cf6dca0`.
+  - Exact-Head Acceptance CI `34707377871` passed completely (`check` and `supabase-integration` success).
+  - Post-merge main push CI `34708617506` completed with failure (KNOWN PUSH-TO-MAIN GOVERNANCE GUARD INCOMPATIBILITY in `tests/phase5-quests-ui.test.tsx` and `tests/phase5-skills-ui.test.tsx`).
+  - Final R3 Evidence: `evidence/phase7-round4-final-acceptance-r3` @ `bcec4d2b0c898071f706b7f655b0214d23a92a35`.
+  - Final Independent Review: `review/phase7-round4-r3-final-independent-review-20260913` @ `eb22caa91de40fe402bb3c8d732186ee5f037f9d`.
+  - P1-05 contrast compliance resolved (`PrimaryButton` 6.52:1, `LevelBadge` 6.52:1).
+  - 72/72 browser matrix cells verified with 0 overflow and 0 console errors.
+- **FINAL STATUS**: **PHASE 7 FINAL FROZEN**.
