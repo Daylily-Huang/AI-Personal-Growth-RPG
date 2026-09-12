@@ -319,18 +319,47 @@ describe("Phase 7 Round 3 motion and reduced-motion contract", () => {
     expect(knowledgeEdges.every((edge) => edge.animated === false)).toBe(true);
   });
 
-  it("keeps the global reduced-motion reset and page loading indicators paired", () => {
+  it("keeps the global reduced-motion reset and pairs every page-level animation in the six Round 3 routes", () => {
     const globals = fs.readFileSync(path.resolve(process.cwd(), "src/app/globals.css"), "utf8");
     expect(globals).toContain("@media (prefers-reduced-motion: reduce)");
     expect(globals).toContain("animation-duration: 0.01ms !important;");
     expect(globals).toContain("transition-duration: 0.01ms !important;");
     expect(globals).toContain("scroll-behavior: auto !important;");
 
-    for (const relativePath of ["src/app/login/page.tsx", "src/app/artifacts/page.tsx"]) {
-      const source = fs.readFileSync(path.resolve(process.cwd(), relativePath), "utf8");
-      const animatedLoaders = source.match(/animate-spin/g) ?? [];
-      const reducedLoaders = source.match(/motion-reduce:animate-none/g) ?? [];
-      expect(reducedLoaders.length, `${relativePath} loader motion contract`).toBeGreaterThanOrEqual(animatedLoaders.length);
+    // Supplementary governance scan covering every Round 3 loading route and its
+    // page-local components. Behavioural proof lives in
+    // tests/phase7-round3-evidence.test.tsx (§18.4); a source scan alone is not
+    // accepted as Round 3 validation (manual §18 opening rule, §26).
+    const routeRoots = [
+      "src/app/login",
+      "src/app/dashboard",
+      "src/app/quests",
+      "src/app/skills",
+      "src/app/knowledge",
+      "src/app/artifacts",
+    ];
+
+    const scanned: string[] = [];
+    for (const root of routeRoots) {
+      const absoluteRoot = path.resolve(process.cwd(), root);
+      const entries = fs.readdirSync(absoluteRoot, { recursive: true }).map(String);
+      const sources = entries.filter((entry) => /\.tsx$/.test(entry) && !/\.test\.tsx$/.test(entry));
+      expect(sources.length, `${root} must contain at least one component source`).toBeGreaterThan(0);
+
+      for (const entry of sources) {
+        const relativePath = path.join(root, entry);
+        const source = fs.readFileSync(path.resolve(process.cwd(), relativePath), "utf8");
+        const animated = source.match(/animate-(?:spin|pulse)/g) ?? [];
+        const paired = source.match(/motion-reduce:animate-none/g) ?? [];
+        expect(
+          paired.length,
+          `${relativePath}: ${animated.length} animation util(s) but only ${paired.length} reduced-motion counterpart(s)`,
+        ).toBeGreaterThanOrEqual(animated.length);
+        scanned.push(relativePath);
+      }
     }
+
+    // The scan must really cover the six routes, not silently degrade.
+    expect(scanned.length).toBeGreaterThanOrEqual(routeRoots.length);
   });
 });
