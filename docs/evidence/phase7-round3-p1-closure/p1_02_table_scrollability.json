@@ -1,0 +1,160 @@
+[
+  {
+    "route": "/skills?view=table",
+    "width": 375,
+    "pref": "no-preference",
+    "tableTest": [
+      {
+        "tableId": "skills-accessible-table",
+        "scrollerTag": "div",
+        "scrollerClass": "h-full overflow-auto p-4 space-y-6",
+        "clientW": 375,
+        "scrollW": 776,
+        "canScroll": true,
+        "scrolledLeft": 401,
+        "maxScroll": 401,
+        "headers": [
+          "技能",
+          "领域",
+          "等级",
+          "Mastery",
+          "Mastery 置信度",
+          "XP",
+          "状态",
+          "前置关系"
+        ],
+        "lastHeader": "前置关系",
+        "sampleLastCells": [
+          {
+            "text": "0 个前置（未满足 0）",
+            "rect": {
+              "left": 204,
+              "right": 375,
+              "width": 171
+            }
+          },
+          {
+            "text": "0 个前置（未满足 0）",
+            "rect": {
+              "left": 204,
+              "right": 375,
+              "width": 171
+            }
+          },
+          {
+            "text": "0 个前置（未满足 0）",
+            "rect": {
+              "left": 204,
+              "right": 375,
+              "width": 171
+            }
+          }
+        ]
+      },
+      {
+        "tableId": "skills-relations-table",
+        "scrollerTag": "div",
+        "scrollerClass": "h-full overflow-auto p-4 space-y-6",
+        "clientW": 375,
+        "scrollW": 776,
+        "canScroll": true,
+        "scrolledLeft": 401,
+        "maxScroll": 401,
+        "headers": [
+          "来源技能",
+          "关系",
+          "目标技能"
+        ],
+        "lastHeader": "目标技能",
+        "sampleLastCells": []
+      }
+    ],
+    "scrolledShot": "C:\\Users\\Administrator\\.gemini\\antigravity\\brain\\363f700b-5370-4a34-a544-c866e5c8c0c3\\scratch\\p1_evidence\\shots\\P1-02_table_scrolled_right___skills_view=table__w375__no-preference.png"
+  },
+  {
+    "route": "/skills?view=table",
+    "width": 375,
+    "pref": "reduce",
+    "tableTest": [
+      {
+        "tableId": "skills-accessible-table",
+        "scrollerTag": "div",
+        "scrollerClass": "h-full overflow-auto p-4 space-y-6",
+        "clientW": 375,
+        "scrollW": 776,
+        "canScroll": true,
+        "scrolledLeft": 401,
+        "maxScroll": 401,
+        "headers": [
+          "技能",
+          "领域",
+          "等级",
+          "Mastery",
+          "Mastery 置信度",
+          "XP",
+          "状态",
+          "前置关系"
+        ],
+        "lastHeader": "前置关系",
+        "sampleLastCells": [
+          {
+            "text": "0 个前置（未满足 0）",
+            "rect": {
+              "left": 204,
+              "right": 375,
+              "width": 171
+            }
+          },
+          {
+            "text": "0 个前置（未满足 0）",
+            "rect": {
+              "left": 204,
+              "right": 375,
+              "width": 171
+            }
+          },
+          {
+            "text": "0 个前置（未满足 0）",
+            "rect": {
+              "left": 204,
+              "right": 375,
+              "width": 171
+            }
+          }
+        ]
+      },
+      {
+        "tableId": "skills-relations-table",
+        "scrollerTag": "div",
+        "scrollerClass": "h-full overflow-auto p-4 space-y-6",
+        "clientW": 375,
+        "scrollW": 776,
+        "canScroll": true,
+        "scrolledLeft": 401,
+        "maxScroll": 401,
+        "headers": [
+          "来源技能",
+          "关系",
+          "目标技能"
+        ],
+        "lastHeader": "目标技能",
+        "sampleLastCells": []
+      }
+    ],
+    "scrolledShot": "C:\\Users\\Administrator\\.gemini\\antigravity\\brain\\363f700b-5370-4a34-a544-c866e5c8c0c3\\scratch\\p1_evidence\\shots\\P1-02_table_scrolled_right___skills_view=table__w375__reduce.png"
+  },
+  {
+    "route": "/knowledge?view=table",
+    "width": 375,
+    "pref": "no-preference",
+    "tableTest": [],
+    "scrolledShot": "C:\\Users\\Administrator\\.gemini\\antigravity\\brain\\363f700b-5370-4a34-a544-c866e5c8c0c3\\scratch\\p1_evidence\\shots\\P1-02_table_scrolled_right___knowledge_view=table__w375__no-preference.png"
+  },
+  {
+    "route": "/knowledge?view=table",
+    "width": 375,
+    "pref": "reduce",
+    "tableTest": [],
+    "scrolledShot": "C:\\Users\\Administrator\\.gemini\\antigravity\\brain\\363f700b-5370-4a34-a544-c866e5c8c0c3\\scratch\\p1_evidence\\shots\\P1-02_table_scrolled_right___knowledge_view=table__w375__reduce.png"
+  }
+]
