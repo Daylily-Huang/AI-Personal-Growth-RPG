@@ -1,0 +1,253 @@
+[
+  {
+    "route": "/quests",
+    "surface": "PrimaryButton default",
+    "state": "default",
+    "selector": "button[data-testid=\"primary-button\"]",
+    "fontSize": "14px",
+    "fontWeight": "600",
+    "foregroundRGBA": "rgb(28, 33, 39)",
+    "elementBackgroundRGBA": "rgb(212, 154, 38)",
+    "ancestorLayers": [
+      "BUTTON.inline-flex: rgb(212, 154, 38)",
+      "DIV.min-h-screen: rgb(247, 246, 242)",
+      "BODY.min-h-full: rgb(247, 246, 242)"
+    ],
+    "effectiveCompositedBackgroundRGB": "rgb(212, 154, 38)",
+    "relativeLuminanceForeground": 0.0148,
+    "relativeLuminanceBackground": 0.3725,
+    "computedContrastRatio": 6.52,
+    "threshold": 4.5,
+    "pass": true
+  },
+  {
+    "route": "/quests",
+    "surface": "PrimaryButton hover",
+    "state": "hover",
+    "selector": "button[data-testid=\"primary-button\"]",
+    "fontSize": "14px",
+    "fontWeight": "600",
+    "foregroundRGBA": "rgb(28, 33, 39)",
+    "elementBackgroundRGBA": "rgb(212, 154, 38)",
+    "ancestorLayers": [
+      "BUTTON.inline-flex: rgb(212, 154, 38)",
+      "DIV.min-h-screen: rgb(247, 246, 242)",
+      "BODY.min-h-full: rgb(247, 246, 242)"
+    ],
+    "effectiveCompositedBackgroundRGB": "rgb(212, 154, 38)",
+    "relativeLuminanceForeground": 0.0148,
+    "relativeLuminanceBackground": 0.3725,
+    "computedContrastRatio": 6.52,
+    "threshold": 4.5,
+    "pass": true
+  },
+  {
+    "route": "/quests",
+    "surface": "PrimaryButton keyboard focus",
+    "state": "focus",
+    "selector": "button[data-testid=\"primary-button\"]",
+    "fontSize": "14px",
+    "fontWeight": "600",
+    "foregroundRGBA": "rgb(28, 33, 39)",
+    "elementBackgroundRGBA": "rgb(212, 154, 38)",
+    "ancestorLayers": [
+      "BUTTON.inline-flex: rgb(212, 154, 38)",
+      "DIV.min-h-screen: rgb(247, 246, 242)",
+      "BODY.min-h-full: rgb(247, 246, 242)"
+    ],
+    "effectiveCompositedBackgroundRGB": "rgb(212, 154, 38)",
+    "relativeLuminanceForeground": 0.0148,
+    "relativeLuminanceBackground": 0.3725,
+    "computedContrastRatio": 6.52,
+    "threshold": 4.5,
+    "pass": true
+  },
+  {
+    "route": "/quests",
+    "surface": "Quest Page Title",
+    "state": "default",
+    "selector": "h2",
+    "fontSize": "24px",
+    "fontWeight": "700",
+    "foregroundRGBA": "rgb(28, 33, 39)",
+    "elementBackgroundRGBA": "rgba(0, 0, 0, 0)",
+    "ancestorLayers": [
+      "DIV.min-h-screen: rgb(247, 246, 242)",
+      "BODY.min-h-full: rgb(247, 246, 242)"
+    ],
+    "effectiveCompositedBackgroundRGB": "rgb(247, 246, 242)",
+    "relativeLuminanceForeground": 0.0148,
+    "relativeLuminanceBackground": 0.921,
+    "computedContrastRatio": 14.98,
+    "threshold": 4.5,
+    "pass": true
+  },
+  {
+    "route": "/quests",
+    "surface": "Quest Tab Pill",
+    "state": "default",
+    "selector": "[role=\"tab\"]",
+    "fontSize": "14px",
+    "fontWeight": "500",
+    "foregroundRGBA": "rgb(28, 33, 39)",
+    "elementBackgroundRGBA": "rgba(0, 0, 0, 0)",
+    "ancestorLayers": [
+      "DIV.min-h-screen: rgb(247, 246, 242)",
+      "BODY.min-h-full: rgb(247, 246, 242)"
+    ],
+    "effectiveCompositedBackgroundRGB": "rgb(247, 246, 242)",
+    "relativeLuminanceForeground": 0.0148,
+    "relativeLuminanceBackground": 0.921,
+    "computedContrastRatio": 14.98,
+    "threshold": 4.5,
+    "pass": true
+  },
+  {
+    "route": "/skills",
+    "surface": "LevelBadge on Skills graph context",
+    "state": "default",
+    "selector": "[data-testid=\"level-badge\"]",
+    "fontSize": "12px",
+    "fontWeight": "700",
+    "foregroundRGBA": "rgb(212, 154, 38)",
+    "elementBackgroundRGBA": "rgb(28, 33, 39)",
+    "ancestorLayers": [
+      "SPAN.relative: rgb(28, 33, 39)",
+      "DIV.relative: rgba(255, 255, 255, 0.82)",
+      "DIV.min-h-screen: rgb(247, 246, 242)",
+      "BODY.min-h-full: rgb(247, 246, 242)"
+    ],
+    "effectiveCompositedBackgroundRGB": "rgb(28, 33, 39)",
+    "relativeLuminanceForeground": 0.3725,
+    "relativeLuminanceBackground": 0.0148,
+    "computedContrastRatio": 6.52,
+    "threshold": 4.5,
+    "pass": true
+  },
+  {
+    "route": "/skills",
+    "surface": "Graph Node Title",
+    "state": "default",
+    "selector": "[id^=\"skill-graph-node-\"] span.font-semibold",
+    "fontSize": "14px",
+    "fontWeight": "600",
+    "foregroundRGBA": "rgb(28, 33, 39)",
+    "elementBackgroundRGBA": "rgba(0, 0, 0, 0)",
+    "ancestorLayers": [
+      "DIV.relative: rgba(255, 255, 255, 0.82)",
+      "DIV.min-h-screen: rgb(247, 246, 242)",
+      "BODY.min-h-full: rgb(247, 246, 242)"
+    ],
+    "effectiveCompositedBackgroundRGB": "rgb(254, 253, 253)",
+    "relativeLuminanceForeground": 0.0148,
+    "relativeLuminanceBackground": 0.9841,
+    "computedContrastRatio": 15.96,
+    "threshold": 4.5,
+    "pass": true
+  },
+  {
+    "route": "/skills",
+    "surface": "Domain Filter Pill",
+    "state": "default",
+    "selector": "aside button, aside [role=\"button\"]",
+    "fontSize": "12px",
+    "fontWeight": "400",
+    "foregroundRGBA": "rgb(102, 112, 133)",
+    "elementBackgroundRGBA": "rgba(0, 0, 0, 0)",
+    "ancestorLayers": [
+      "ASIDE.hidden: rgba(255, 255, 255, 0.82)",
+      "DIV.min-h-screen: rgb(247, 246, 242)",
+      "BODY.min-h-full: rgb(247, 246, 242)"
+    ],
+    "effectiveCompositedBackgroundRGB": "rgb(254, 253, 253)",
+    "relativeLuminanceForeground": 0.1611,
+    "relativeLuminanceBackground": 0.9841,
+    "computedContrastRatio": 4.9,
+    "threshold": 4.5,
+    "pass": true
+  },
+  {
+    "route": "/dashboard",
+    "surface": "LevelBadge default on representative glass context",
+    "state": "default",
+    "selector": "[data-testid=\"level-badge\"]",
+    "fontSize": "14px",
+    "fontWeight": "700",
+    "foregroundRGBA": "rgb(212, 154, 38)",
+    "elementBackgroundRGBA": "rgb(28, 33, 39)",
+    "ancestorLayers": [
+      "SPAN.relative: rgb(28, 33, 39)",
+      "DIV.relative: rgba(255, 255, 255, 0.82)",
+      "DIV.min-h-screen: rgb(247, 246, 242)",
+      "BODY.min-h-full: rgb(247, 246, 242)"
+    ],
+    "effectiveCompositedBackgroundRGB": "rgb(28, 33, 39)",
+    "relativeLuminanceForeground": 0.3725,
+    "relativeLuminanceBackground": 0.0148,
+    "computedContrastRatio": 6.52,
+    "threshold": 4.5,
+    "pass": true
+  },
+  {
+    "route": "/dashboard",
+    "surface": "Primary Heading on Glass",
+    "state": "default",
+    "selector": "h1, h2",
+    "fontSize": "16px",
+    "fontWeight": "600",
+    "foregroundRGBA": "rgb(28, 33, 39)",
+    "elementBackgroundRGBA": "rgba(0, 0, 0, 0)",
+    "ancestorLayers": [
+      "HEADER.sticky: rgba(255, 255, 255, 0.82)",
+      "DIV.min-h-screen: rgb(247, 246, 242)",
+      "BODY.min-h-full: rgb(247, 246, 242)"
+    ],
+    "effectiveCompositedBackgroundRGB": "rgb(254, 253, 253)",
+    "relativeLuminanceForeground": 0.0148,
+    "relativeLuminanceBackground": 0.9841,
+    "computedContrastRatio": 15.96,
+    "threshold": 4.5,
+    "pass": true
+  },
+  {
+    "route": "/dashboard",
+    "surface": "Secondary Metadata on Glass",
+    "state": "default",
+    "selector": "span.text-zinc-400, p",
+    "fontSize": "14px",
+    "fontWeight": "400",
+    "foregroundRGBA": "rgb(102, 112, 133)",
+    "elementBackgroundRGBA": "rgba(0, 0, 0, 0)",
+    "ancestorLayers": [
+      "DIV.min-h-screen: rgb(247, 246, 242)",
+      "BODY.min-h-full: rgb(247, 246, 242)"
+    ],
+    "effectiveCompositedBackgroundRGB": "rgb(247, 246, 242)",
+    "relativeLuminanceForeground": 0.1611,
+    "relativeLuminanceBackground": 0.921,
+    "computedContrastRatio": 4.6,
+    "threshold": 4.5,
+    "pass": true
+  },
+  {
+    "route": "/dashboard",
+    "surface": "Interactive Action Button",
+    "state": "default",
+    "selector": "a[href*=\"/skills\"], button",
+    "fontSize": "16px",
+    "fontWeight": "400",
+    "foregroundRGBA": "rgb(71, 84, 103)",
+    "elementBackgroundRGBA": "rgba(0, 0, 0, 0)",
+    "ancestorLayers": [
+      "ASIDE.hidden: rgba(255, 255, 255, 0.82)",
+      "DIV.min-h-screen: rgb(247, 246, 242)",
+      "BODY.min-h-full: rgb(247, 246, 242)"
+    ],
+    "effectiveCompositedBackgroundRGB": "rgb(254, 253, 253)",
+    "relativeLuminanceForeground": 0.0866,
+    "relativeLuminanceBackground": 0.9841,
+    "computedContrastRatio": 7.57,
+    "threshold": 4.5,
+    "pass": true
+  }
+]
