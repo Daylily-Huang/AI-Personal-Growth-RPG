@@ -501,6 +501,8 @@ describe("Stage 5C-UI Skills Modernization — Governance Audits", () => {
       "src/lib/store/repository.ts",
       "src/lib/store/settlement.service.ts",
       "src/lib/store/supabase-repository.ts",
+      "src/components/ui/PrimaryButton.tsx",
+      "src/components/ui/LevelBadge.tsx",
     ];
 
     for (const file of modifiedFiles) {
