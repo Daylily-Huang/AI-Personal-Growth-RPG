@@ -196,7 +196,7 @@ describe("Shared UI Primitives — Component Library Verification", () => {
   // ==========================================================================
   // 2. BADGES & ENTITY PRESENTATION
   // ==========================================================================
-  it("9. LevelBadge renders LV integer with octagonal seal silhouette", () => {
+  it("9. LevelBadge renders LV integer with octagonal seal silhouette and dark slate interior contrast compliance", () => {
     render(<LevelBadge level={14} />);
     const badge = screen.getByTestId("level-badge");
     expect(badge.textContent).toBe("LV.14");
@@ -204,6 +204,10 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     expect(badge.getAttribute("data-shape")).toBe("octagonal-seal");
     expect(badge.className).toContain("clip-path:polygon");
     expect(badge.getAttribute("aria-label")).toBe("玩家等级 LV.14");
+    expect(badge.className).toContain("bg-[var(--text-primary)]");
+    expect(badge.className).toContain("text-[var(--gold-400)]");
+    expect(badge.className).toContain("border-[var(--gold-400)]");
+    expect(badge.className).not.toContain("bg-[var(--surface-raised)]");
   });
 
   it("10. LevelBadge does not expose mastery semantics", () => {
@@ -1139,6 +1143,9 @@ describe("Shared UI Primitives — Component Library Verification", () => {
     expect(btn.className).toContain("active:duration-[var(--duration-instant)]");
     expect(btn.className).toContain("active:ease-[var(--ease-in-out-subtle)]");
     expect(btn.className).toContain("active:[transform:var(--active-surface-depression)]");
+    expect(btn.className).toContain("bg-[var(--gold-400)]");
+    expect(btn.className).toContain("text-[var(--text-primary)]");
+    expect(btn.className).not.toContain("text-[var(--text-inverse)]");
   });
 
   it("62. Buttons expose aria-busy and disabled state while loading and resist hostile consumer overrides", () => {

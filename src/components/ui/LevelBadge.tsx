@@ -27,7 +27,7 @@ export const LevelBadge = forwardRef<HTMLSpanElement, LevelBadgeProps>(
         data-level={safeLevel}
         aria-label={`玩家等级 LV.${safeLevel}`}
         title={`LV.${safeLevel}`}
-        className={`relative inline-flex items-center justify-center font-mono font-[var(--font-weight-bold)] text-[var(--gold-400)] bg-[var(--surface-raised)] border border-[var(--border-gold-strong)] shadow-[var(--glow-gold-subtle)] text-center select-none truncate [clip-path:polygon(25%_0%,75%_0%,100%_25%,100%_75%,75%_100%,25%_100%,0%_75%,0%_25%)] ${sizeClasses[size]} ${className}`}
+        className={`relative inline-flex items-center justify-center font-mono font-[var(--font-weight-bold)] text-[var(--gold-400)] bg-[var(--text-primary)] border border-[var(--gold-400)] shadow-[var(--glow-gold-subtle)] text-center select-none truncate [clip-path:polygon(25%_0%,75%_0%,100%_25%,100%_75%,75%_100%,25%_100%,0%_75%,0%_25%)] ${sizeClasses[size]} ${className}`}
         {...props}
       >
         LV.{safeLevel}
