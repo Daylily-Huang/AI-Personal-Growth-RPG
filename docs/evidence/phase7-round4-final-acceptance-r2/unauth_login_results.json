@@ -1,0 +1,306 @@
+[
+  {
+    "cellId": "login_375_no-preference",
+    "route": "/login",
+    "authStatus": "unauthenticated",
+    "width": 375,
+    "motion": "no-preference",
+    "resolvedPath": "/login",
+    "pageTitle": "AI Personal Growth RPG",
+    "h1": "AI Personal Growth RPG",
+    "hasForm": true,
+    "hasEmailInput": true,
+    "hasPasswordInput": true,
+    "hasSubmitButton": true,
+    "horizontalOverflow": {
+      "scrollWidth": 375,
+      "clientWidth": 375,
+      "hasHorizontalOverflow": false,
+      "overflowPx": 0
+    },
+    "consoleErrorsCount": 0,
+    "consoleErrors": [],
+    "tabTrace": [
+      {
+        "step": "initial_focus",
+        "activeElementId": "login-email"
+      },
+      {
+        "step": "tab_1",
+        "activeElementId": "login-password"
+      },
+      {
+        "step": "tab_2",
+        "activeElement": "BUTTON:submit"
+      }
+    ],
+    "screenshot": "screenshots/login_375_no-preference.png",
+    "status": "PASS"
+  },
+  {
+    "cellId": "login_375_reduce",
+    "route": "/login",
+    "authStatus": "unauthenticated",
+    "width": 375,
+    "motion": "reduce",
+    "resolvedPath": "/login",
+    "pageTitle": "AI Personal Growth RPG",
+    "h1": "AI Personal Growth RPG",
+    "hasForm": true,
+    "hasEmailInput": true,
+    "hasPasswordInput": true,
+    "hasSubmitButton": true,
+    "horizontalOverflow": {
+      "scrollWidth": 375,
+      "clientWidth": 375,
+      "hasHorizontalOverflow": false,
+      "overflowPx": 0
+    },
+    "consoleErrorsCount": 0,
+    "consoleErrors": [],
+    "tabTrace": [
+      {
+        "step": "initial_focus",
+        "activeElementId": "login-email"
+      },
+      {
+        "step": "tab_1",
+        "activeElementId": "login-password"
+      },
+      {
+        "step": "tab_2",
+        "activeElement": "BUTTON:submit"
+      }
+    ],
+    "screenshot": "screenshots/login_375_reduce.png",
+    "status": "PASS"
+  },
+  {
+    "cellId": "login_768_no-preference",
+    "route": "/login",
+    "authStatus": "unauthenticated",
+    "width": 768,
+    "motion": "no-preference",
+    "resolvedPath": "/login",
+    "pageTitle": "AI Personal Growth RPG",
+    "h1": "AI Personal Growth RPG",
+    "hasForm": true,
+    "hasEmailInput": true,
+    "hasPasswordInput": true,
+    "hasSubmitButton": true,
+    "horizontalOverflow": {
+      "scrollWidth": 768,
+      "clientWidth": 768,
+      "hasHorizontalOverflow": false,
+      "overflowPx": 0
+    },
+    "consoleErrorsCount": 0,
+    "consoleErrors": [],
+    "tabTrace": [
+      {
+        "step": "initial_focus",
+        "activeElementId": "login-email"
+      },
+      {
+        "step": "tab_1",
+        "activeElementId": "login-password"
+      },
+      {
+        "step": "tab_2",
+        "activeElement": "BUTTON:submit"
+      }
+    ],
+    "screenshot": "screenshots/login_768_no-preference.png",
+    "status": "PASS"
+  },
+  {
+    "cellId": "login_768_reduce",
+    "route": "/login",
+    "authStatus": "unauthenticated",
+    "width": 768,
+    "motion": "reduce",
+    "resolvedPath": "/login",
+    "pageTitle": "AI Personal Growth RPG",
+    "h1": "AI Personal Growth RPG",
+    "hasForm": true,
+    "hasEmailInput": true,
+    "hasPasswordInput": true,
+    "hasSubmitButton": true,
+    "horizontalOverflow": {
+      "scrollWidth": 768,
+      "clientWidth": 768,
+      "hasHorizontalOverflow": false,
+      "overflowPx": 0
+    },
+    "consoleErrorsCount": 0,
+    "consoleErrors": [],
+    "tabTrace": [
+      {
+        "step": "initial_focus",
+        "activeElementId": "login-email"
+      },
+      {
+        "step": "tab_1",
+        "activeElementId": "login-password"
+      },
+      {
+        "step": "tab_2",
+        "activeElement": "BUTTON:submit"
+      }
+    ],
+    "screenshot": "screenshots/login_768_reduce.png",
+    "status": "PASS"
+  },
+  {
+    "cellId": "login_1024_no-preference",
+    "route": "/login",
+    "authStatus": "unauthenticated",
+    "width": 1024,
+    "motion": "no-preference",
+    "resolvedPath": "/login",
+    "pageTitle": "AI Personal Growth RPG",
+    "h1": "AI Personal Growth RPG",
+    "hasForm": true,
+    "hasEmailInput": true,
+    "hasPasswordInput": true,
+    "hasSubmitButton": true,
+    "horizontalOverflow": {
+      "scrollWidth": 1024,
+      "clientWidth": 1024,
+      "hasHorizontalOverflow": false,
+      "overflowPx": 0
+    },
+    "consoleErrorsCount": 0,
+    "consoleErrors": [],
+    "tabTrace": [
+      {
+        "step": "initial_focus",
+        "activeElementId": "login-email"
+      },
+      {
+        "step": "tab_1",
+        "activeElementId": "login-password"
+      },
+      {
+        "step": "tab_2",
+        "activeElement": "BUTTON:submit"
+      }
+    ],
+    "screenshot": "screenshots/login_1024_no-preference.png",
+    "status": "PASS"
+  },
+  {
+    "cellId": "login_1024_reduce",
+    "route": "/login",
+    "authStatus": "unauthenticated",
+    "width": 1024,
+    "motion": "reduce",
+    "resolvedPath": "/login",
+    "pageTitle": "AI Personal Growth RPG",
+    "h1": "AI Personal Growth RPG",
+    "hasForm": true,
+    "hasEmailInput": true,
+    "hasPasswordInput": true,
+    "hasSubmitButton": true,
+    "horizontalOverflow": {
+      "scrollWidth": 1024,
+      "clientWidth": 1024,
+      "hasHorizontalOverflow": false,
+      "overflowPx": 0
+    },
+    "consoleErrorsCount": 0,
+    "consoleErrors": [],
+    "tabTrace": [
+      {
+        "step": "initial_focus",
+        "activeElementId": "login-email"
+      },
+      {
+        "step": "tab_1",
+        "activeElementId": "login-password"
+      },
+      {
+        "step": "tab_2",
+        "activeElement": "BUTTON:submit"
+      }
+    ],
+    "screenshot": "screenshots/login_1024_reduce.png",
+    "status": "PASS"
+  },
+  {
+    "cellId": "login_1440_no-preference",
+    "route": "/login",
+    "authStatus": "unauthenticated",
+    "width": 1440,
+    "motion": "no-preference",
+    "resolvedPath": "/login",
+    "pageTitle": "AI Personal Growth RPG",
+    "h1": "AI Personal Growth RPG",
+    "hasForm": true,
+    "hasEmailInput": true,
+    "hasPasswordInput": true,
+    "hasSubmitButton": true,
+    "horizontalOverflow": {
+      "scrollWidth": 1440,
+      "clientWidth": 1440,
+      "hasHorizontalOverflow": false,
+      "overflowPx": 0
+    },
+    "consoleErrorsCount": 0,
+    "consoleErrors": [],
+    "tabTrace": [
+      {
+        "step": "initial_focus",
+        "activeElementId": "login-email"
+      },
+      {
+        "step": "tab_1",
+        "activeElementId": "login-password"
+      },
+      {
+        "step": "tab_2",
+        "activeElement": "BUTTON:submit"
+      }
+    ],
+    "screenshot": "screenshots/login_1440_no-preference.png",
+    "status": "PASS"
+  },
+  {
+    "cellId": "login_1440_reduce",
+    "route": "/login",
+    "authStatus": "unauthenticated",
+    "width": 1440,
+    "motion": "reduce",
+    "resolvedPath": "/login",
+    "pageTitle": "AI Personal Growth RPG",
+    "h1": "AI Personal Growth RPG",
+    "hasForm": true,
+    "hasEmailInput": true,
+    "hasPasswordInput": true,
+    "hasSubmitButton": true,
+    "horizontalOverflow": {
+      "scrollWidth": 1440,
+      "clientWidth": 1440,
+      "hasHorizontalOverflow": false,
+      "overflowPx": 0
+    },
+    "consoleErrorsCount": 0,
+    "consoleErrors": [],
+    "tabTrace": [
+      {
+        "step": "initial_focus",
+        "activeElementId": "login-email"
+      },
+      {
+        "step": "tab_1",
+        "activeElementId": "login-password"
+      },
+      {
+        "step": "tab_2",
+        "activeElement": "BUTTON:submit"
+      }
+    ],
+    "screenshot": "screenshots/login_1440_reduce.png",
+    "status": "PASS"
+  }
+]

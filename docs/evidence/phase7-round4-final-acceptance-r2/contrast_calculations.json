@@ -1,0 +1,162 @@
+[
+  {
+    "route": "/dashboard",
+    "surface": "Primary Heading on Glass",
+    "selector": "h1, h2",
+    "foregroundRGBA": "rgb(28, 33, 39)",
+    "elementBackgroundRGBA": "rgba(0, 0, 0, 0)",
+    "ancestorLayers": [
+      "HEADER.sticky: rgba(255, 255, 255, 0.82)",
+      "DIV.min-h-screen: rgb(247, 246, 242)",
+      "BODY.min-h-full: rgb(247, 246, 242)"
+    ],
+    "effectiveCompositedBackgroundRGB": "rgb(254, 253, 253)",
+    "relativeLuminanceForeground": 0.0148,
+    "relativeLuminanceBackground": 0.9841,
+    "computedContrastRatio": 15.96,
+    "threshold": 4.5,
+    "pass": true
+  },
+  {
+    "route": "/dashboard",
+    "surface": "Secondary Metadata on Glass",
+    "selector": "span.text-zinc-400, p",
+    "foregroundRGBA": "rgb(102, 112, 133)",
+    "elementBackgroundRGBA": "rgba(0, 0, 0, 0)",
+    "ancestorLayers": [
+      "DIV.min-h-screen: rgb(247, 246, 242)",
+      "BODY.min-h-full: rgb(247, 246, 242)"
+    ],
+    "effectiveCompositedBackgroundRGB": "rgb(247, 246, 242)",
+    "relativeLuminanceForeground": 0.1611,
+    "relativeLuminanceBackground": 0.921,
+    "computedContrastRatio": 4.6,
+    "threshold": 4.5,
+    "pass": true
+  },
+  {
+    "route": "/dashboard",
+    "surface": "Interactive Action Button",
+    "selector": "a[href*=\"/skills\"], button",
+    "foregroundRGBA": "rgb(71, 84, 103)",
+    "elementBackgroundRGBA": "rgba(0, 0, 0, 0)",
+    "ancestorLayers": [
+      "ASIDE.hidden: rgba(255, 255, 255, 0.82)",
+      "DIV.min-h-screen: rgb(247, 246, 242)",
+      "BODY.min-h-full: rgb(247, 246, 242)"
+    ],
+    "effectiveCompositedBackgroundRGB": "rgb(254, 253, 253)",
+    "relativeLuminanceForeground": 0.0866,
+    "relativeLuminanceBackground": 0.9841,
+    "computedContrastRatio": 7.57,
+    "threshold": 3,
+    "pass": true
+  },
+  {
+    "route": "/skills",
+    "surface": "Graph Node Title",
+    "selector": "[id^=\"skill-graph-node-\"] span.font-semibold",
+    "foregroundRGBA": "rgb(28, 33, 39)",
+    "elementBackgroundRGBA": "rgba(0, 0, 0, 0)",
+    "ancestorLayers": [
+      "DIV.relative: rgba(255, 255, 255, 0.82)",
+      "DIV.min-h-screen: rgb(247, 246, 242)",
+      "BODY.min-h-full: rgb(247, 246, 242)"
+    ],
+    "effectiveCompositedBackgroundRGB": "rgb(254, 253, 253)",
+    "relativeLuminanceForeground": 0.0148,
+    "relativeLuminanceBackground": 0.9841,
+    "computedContrastRatio": 15.96,
+    "threshold": 4.5,
+    "pass": true
+  },
+  {
+    "route": "/skills",
+    "surface": "Graph Level Badge",
+    "selector": "[id^=\"skill-graph-node-\"] span[class*=\"badge\"], [id^=\"skill-graph-node-\"] span.text-xs",
+    "foregroundRGBA": "rgb(212, 154, 38)",
+    "elementBackgroundRGBA": "rgba(255, 255, 255, 0.92)",
+    "ancestorLayers": [
+      "SPAN.relative: rgba(255, 255, 255, 0.92)",
+      "DIV.relative: rgba(255, 255, 255, 0.82)",
+      "DIV.min-h-screen: rgb(247, 246, 242)",
+      "BODY.min-h-full: rgb(247, 246, 242)"
+    ],
+    "effectiveCompositedBackgroundRGB": "rgb(255, 255, 255)",
+    "relativeLuminanceForeground": 0.3725,
+    "relativeLuminanceBackground": 1,
+    "computedContrastRatio": 2.49,
+    "threshold": 3,
+    "pass": false
+  },
+  {
+    "route": "/skills",
+    "surface": "Domain Filter Pill",
+    "selector": "aside button, aside [role=\"button\"]",
+    "foregroundRGBA": "rgb(102, 112, 133)",
+    "elementBackgroundRGBA": "rgba(0, 0, 0, 0)",
+    "ancestorLayers": [
+      "ASIDE.hidden: rgba(255, 255, 255, 0.82)",
+      "DIV.min-h-screen: rgb(247, 246, 242)",
+      "BODY.min-h-full: rgb(247, 246, 242)"
+    ],
+    "effectiveCompositedBackgroundRGB": "rgb(254, 253, 253)",
+    "relativeLuminanceForeground": 0.1611,
+    "relativeLuminanceBackground": 0.9841,
+    "computedContrastRatio": 4.9,
+    "threshold": 4.5,
+    "pass": true
+  },
+  {
+    "route": "/quests",
+    "surface": "Quest Page Title",
+    "selector": "h2",
+    "foregroundRGBA": "rgb(28, 33, 39)",
+    "elementBackgroundRGBA": "rgba(0, 0, 0, 0)",
+    "ancestorLayers": [
+      "DIV.min-h-screen: rgb(247, 246, 242)",
+      "BODY.min-h-full: rgb(247, 246, 242)"
+    ],
+    "effectiveCompositedBackgroundRGB": "rgb(247, 246, 242)",
+    "relativeLuminanceForeground": 0.0148,
+    "relativeLuminanceBackground": 0.921,
+    "computedContrastRatio": 14.98,
+    "threshold": 4.5,
+    "pass": true
+  },
+  {
+    "route": "/quests",
+    "surface": "Primary Button Text",
+    "selector": "button[data-testid=\"primary-button\"]",
+    "foregroundRGBA": "rgb(255, 255, 255)",
+    "elementBackgroundRGBA": "rgb(212, 154, 38)",
+    "ancestorLayers": [
+      "BUTTON.inline-flex: rgb(212, 154, 38)",
+      "DIV.min-h-screen: rgb(247, 246, 242)",
+      "BODY.min-h-full: rgb(247, 246, 242)"
+    ],
+    "effectiveCompositedBackgroundRGB": "rgb(212, 154, 38)",
+    "relativeLuminanceForeground": 1,
+    "relativeLuminanceBackground": 0.3725,
+    "computedContrastRatio": 2.49,
+    "threshold": 3,
+    "pass": false
+  },
+  {
+    "route": "/quests",
+    "surface": "Quest Tab Pill",
+    "selector": "[role=\"tab\"]",
+    "foregroundRGBA": "rgb(28, 33, 39)",
+    "elementBackgroundRGBA": "rgba(0, 0, 0, 0)",
+    "ancestorLayers": [
+      "DIV.min-h-screen: rgb(247, 246, 242)",
+      "BODY.min-h-full: rgb(247, 246, 242)"
+    ],
+    "effectiveCompositedBackgroundRGB": "rgb(247, 246, 242)",
+    "relativeLuminanceForeground": 0.0148,
+    "relativeLuminanceBackground": 0.921,
+    "computedContrastRatio": 14.98,
+    "threshold": 4.5,
+    "pass": true
+  }
+]

@@ -1,0 +1,94 @@
+{
+  "modalLifecycle": {
+    "opener": {
+      "id": "test-quest-modal-opener",
+      "text": "新建任务",
+      "tagName": "BUTTON"
+    },
+    "openState": {
+      "role": "dialog",
+      "ariaModal": "true",
+      "activeElementId": "test-quest-modal-opener",
+      "activeElementTag": "BUTTON"
+    },
+    "initialFocusInDialog": {
+      "id": "quest-title-input",
+      "insideDialog": true
+    },
+    "focusTrapSteps": [
+      {
+        "step": 0,
+        "activeId": "quest-description-input",
+        "activeTag": "TEXTAREA",
+        "isInsideDialog": true
+      },
+      {
+        "step": 1,
+        "activeId": "quest-type-select",
+        "activeTag": "SELECT",
+        "isInsideDialog": true
+      },
+      {
+        "step": 2,
+        "activeId": "quest-size-select",
+        "activeTag": "SELECT",
+        "isInsideDialog": true
+      },
+      {
+        "step": 3,
+        "activeId": "quest-parent-select",
+        "activeTag": "SELECT",
+        "isInsideDialog": true
+      },
+      {
+        "step": 4,
+        "activeId": "",
+        "activeTag": "INPUT",
+        "isInsideDialog": true
+      },
+      {
+        "step": 5,
+        "activeId": "",
+        "activeTag": "INPUT",
+        "isInsideDialog": true
+      }
+    ],
+    "allStepsContained": true,
+    "closeState": {
+      "dialogStillMounted": false,
+      "activeElementId": "test-quest-modal-opener",
+      "focusRestoredToOpener": true
+    },
+    "status": "PASS"
+  },
+  "skillsGraph": {
+    "initialFocus": "skill-graph-node-2056b052-2936-402b-8ec3-ac4cfa0272f8",
+    "traversalRight": {
+      "id": "skill-graph-node-0e74ea58-58f9-4265-8493-ed456e9d81d3",
+      "nodeId": "0e74ea58-58f9-4265-8493-ed456e9d81d3",
+      "ariaLabel": "技能 SkillUpgrade，状态：已锁定，等级 1，Mastery M2，置信度 90%"
+    },
+    "traversalLeft": {
+      "id": "skill-graph-node-2056b052-2936-402b-8ec3-ac4cfa0272f8",
+      "nodeId": "2056b052-2936-402b-8ec3-ac4cfa0272f8",
+      "ariaLabel": "技能 SkillNone，状态：学习中，等级 1，Mastery M1，置信度 50%"
+    },
+    "drawerOnEnter": {
+      "drawerOpen": true,
+      "panelRole": "dialog",
+      "panelAriaModal": "true",
+      "titleText": "技能全景档案"
+    },
+    "drawerAfterEscape": {
+      "drawerStillOpen": false,
+      "activeElementId": "skill-graph-node-0e74ea58-58f9-4265-8493-ed456e9d81d3",
+      "focusRestoredToNode": true
+    },
+    "drawerOnSpace": {
+      "drawerOpen": true
+    },
+    "reducedMotionNavLeft": "skill-graph-node-2056b052-2936-402b-8ec3-ac4cfa0272f8",
+    "reducedMotionNavRight": "skill-graph-node-0e74ea58-58f9-4265-8493-ed456e9d81d3",
+    "status": "PASS"
+  }
+}
