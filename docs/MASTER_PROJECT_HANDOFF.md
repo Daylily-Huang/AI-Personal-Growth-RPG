@@ -135,8 +135,8 @@ AI_Personal_Growth_RPG/
 | **核心页面** | **Phase 5 - 5C** | **Skills 技能树与 ReactFlow 画布现代化** | **FINAL FROZEN** | **PR #20 (Squash Commit 6e238a4)** |
 | **高级画布** | **Phase 6** | **Knowledge Graph Canvas 知识图谱画布现代化** | **FINAL FROZEN** | **PR #21，merge commit `186e5bed71844ba274680b10ab939bc5169e669d`；Exact Head `066fe811e187c547069b3ed3965f24d19e280e9a`；CI `34179971347`** |
 | **全站抛光** | **Phase 7 — Round 1** | **端到端无障碍语义、键盘导航与图谱表格替代视图** | **MERGED / COMPLETE** | **PR #22；merge commit `533ab09ebeb8bb827401446f022cf9a83c7db89c`；Exact Head `9cafc345a074577084cad08bbdbed1789911d8ff`；CI `34223921283`** |
-| **全站抛光** | **Phase 7 — Round 2** | **全视口响应式压力硬化、溢出/裁切、Drawer/Table/Graph workspace 与触控目标治理** | **MERGED / COMPLETE** | **PR #23；merge commit `9d394d137781b0a887cf8976ceb740eb618b7636`；Exact Head `d17dbd8f884b763d23cc7070078cece1e386eec8`；CI `34379381800`** |
-| **全站抛光** | **Phase 7 — Round 3** | **动效降级与全站动效收敛 (Reduced Motion)、语义证据补齐** | **MERGED / COMPLETE** | **PR #25 (merge `a825605f6ce83baea2ec24765799da9799298c4f`), PR #27 (merge `0e7591607507b3ac59519ab0dc656a3eed2512c4`；Exact Head `bbb09ec4ae2121599f277a1aa41565ede79dbee7`；CI `34622336564`)** |
+| **全站抛光** | **Phase 7 — Round 2** | **全视口响应式压力硬化、溢出/裁切、Drawer/Table/Graph workspace 与触控目标治理** | **MERGED / COMPLETE** | **PR #23；merge commit `9d394d11e3c858fe02abf52a18351482975a372c`；Exact Head `d17dbd8f884b763d23cc7070078cece1e386eec8`；CI `34379381800`** |
+| **全站抛光** | **Phase 7 — Round 3** | **动效降级与全站动效收敛 (Reduced Motion)、语义证据补齐** | **MERGED / COMPLETE** | **PR #25 (merge `a8256051319db4ce5eadc7bdf585f197ad1f99f6`), PR #27 (merge `0e7591607507b3ac59519ab0dc656a3eed2512c4`；Exact Head `bbb09ec4ae2121599f277a1aa41565ede79dbee7`；CI `34622336564`)** |
 | **终局冻结** | **Phase 7 — Round 4** | **全页交叉验收、活跃文本对比度合规 (P1-05)、72 格全矩阵运行时证据归档与终局冻结** | **FINAL FROZEN** | **PR #28；merge commit `653fe018f6cee38b2263fbcca19dffbf624d4c18`；Reviewed Exact Head `f1e426ce6f64135066a652882d27c03b9cf6dca0`；Exact-Head CI `34707377871` (success)；post-merge push CI `34708617506` (failure — KNOWN PUSH-TO-MAIN GOVERNANCE GUARD INCOMPATIBILITY)** |
 
 ---
@@ -284,11 +284,11 @@ wsl -d Ubuntu -- bash -lc "cd /mnt/d/AI_Personal_Growth_RPG && pnpm build"
    - 核心交付：语义化地标/控件命名、键盘图谱遍历、`/skills?view=table` 与 `/knowledge?view=table` 原生替代视图、Modal/Drawer Escape 归属与焦点管理。
 
 2. **Round 2: Responsive Stress Hardening (MERGED / COMPLETE)**
-   - 合并依据：PR #23，merge commit `9d394d137781b0a887cf8976ceb740eb618b7636`，Exact Head `d17dbd8f884b763d23cc7070078cece1e386eec8`，CI `34379381800`。
+   - 合并依据：PR #23，merge commit `9d394d11e3c858fe02abf52a18351482975a372c`，Exact Head `d17dbd8f884b763d23cc7070078cece1e386eec8`，CI `34379381800`。
    - 核心交付：全视口（320/375/768/1024/1440）响应式断点硬化、Drawer/Modal 尺寸适配、移动端触控目标治理、图谱与表格密度调节。
 
 3. **Round 3: Reduced Motion Polish & Semantic Evidence (MERGED / COMPLETE)**
-   - 合并依据：PR #25（动效实现，merge commit `a825605f6ce83baea2ec24765799da9799298c4f`）与 PR #27（语义证据补齐，merge commit `0e7591607507b3ac59519ab0dc656a3eed2512c4`，Exact Head `bbb09ec4ae2121599f277a1aa41565ede79dbee7`，CI `34622336564`）。
+   - 合并依据：PR #25（动效实现，merge commit `a8256051319db4ce5eadc7bdf585f197ad1f99f6`）与 PR #27（语义证据补齐，merge commit `0e7591607507b3ac59519ab0dc656a3eed2512c4`，Exact Head `bbb09ec4ae2121599f277a1aa41565ede79dbee7`，CI `34622336564`）。
    - 核心交付：全局 `prefers-reduced-motion` 动效优雅降级（瞬时过渡与动画抑制）、图谱与抽屉生命周期语义证据闭环。
 
 4. **Round 4: Final Cross-Page Acceptance & Phase 7 Freeze Candidate (FINAL FROZEN)**
@@ -298,9 +298,18 @@ wsl -d Ubuntu -- bash -lc "cd /mnt/d/AI_Personal_Growth_RPG && pnpm build"
    - **Exact-Head Acceptance CI**：Run `34707377871`，Conclusion: `success`（`check` 与 `supabase-integration` 均全绿完成）。
    - **终局证据分支 (Final R3 Evidence)**：`evidence/phase7-round4-final-acceptance-r3`（Commit `bcec4d2b0c898071f706b7f655b0214d23a92a35`），包含完整 `FINAL_ACCEPTANCE_REPORT.md`、对比度计算 `contrast_calculations.json`、全量矩阵 `matrix_results.json`、未认证 `/login` 结果 `unauth_login_results.json` 及 72 张截图归档。
    - **独立审查结论 (Final Independent Review)**：分支 `review/phase7-round4-r3-final-independent-review-20260913`（Commit `eb22caa91de40fe402bb3c8d732186ee5f037f9d`），报告文件 `docs/DesignSystem/PHASE7_ROUND4_R3_FINAL_INDEPENDENT_REVIEW.md` 与 `docs/DesignSystem/PHASE7_FINAL_FREEZE_POST_MERGE_BASELINE.md`。最终判定 P0=0, P1=0, P2=0，`ROUND 4 FINAL ACCEPTANCE: GO`，`PHASE 7 FINAL FROZEN: AUTHORIZED / YES`。
-   - **P1-05 闭环修复**：
-     - `src/components/ui/PrimaryButton.tsx`：文字采用深石板中性色 `--text-primary`（`#1c2127`），在古金底色 `--gold-400`（`#d49a26`）上实测对比度 6.52:1（hover 态 11.49:1），彻底满足 WCAG 2.1 AA 正常字号 $\ge 4.5:1$ 要求。
-     - `src/components/ui/LevelBadge.tsx`：内衬采用深石板底色 `bg-[var(--text-primary)]` 并配以古金边框 `border-[var(--gold-400)]`，文字保持金色粗体 `text-[var(--gold-400)]`，在不透明深色内衬上对比度为 6.52:1，彻底满足 $\ge 4.5:1$ 要求。
+   - **P1-05 闭环修复与对比度证据分类**：
+     - `src/components/ui/PrimaryButton.tsx`：文字采用深石板中性色 `--text-primary`（`#1c2127`），在古金底色 `--gold-400`（`#d49a26`）上默认态/聚焦态实测对比度为 6.52:1（`RUNTIME VERIFIED`，远超 WCAG 2.1 AA 正常字号 $\ge 4.5:1$ 要求）。hover 态源码级绑定 `hover:bg-[var(--gold-300)]`（`#f2d87e`）搭配 `text-primary`（`SOURCE VERIFIED`），依据冻结 Token 与确定性相对亮度公式推导对比度为 11.49:1（`INFERENCE`）；注意原 R3 归档 hover 行因采样时底色为 gold-400 判定为 `NOT VERIFIED`，不作为 runtime verified hover 证据。
+     - `src/components/ui/LevelBadge.tsx`：内衬采用深石板底色 `bg-[var(--text-primary)]` 并配以古金边框 `border-[var(--gold-400)]`，文字保持金色粗体 `text-[var(--gold-400)]`，在不透明深色内衬上实测对比度为 6.52:1（`RUNTIME VERIFIED`，满足 $\ge 4.5:1$ 要求）。
+   - **已知物理辅助技术与触控设备限制 (Final Freeze Acceptance Limitations)**：
+     依据 Phase 7 终局独立审查报告，本次验收严格区分仿真环境与物理实机验证，以下项目明确记录为限制项：
+     ```text
+     VoiceOver:             NOT VERIFIED
+     NVDA:                  NOT VERIFIED
+     JAWS:                  NOT VERIFIED
+     physical touch device: NOT VERIFIED
+     ```
+     核心审计原则为：`emulated != physical device`，`source scan != runtime proof`。此类限制属于自动化与无头环境下的已知约束，绝不伪称为 PASS，亦不影响 Phase 7 终局冻结（FINAL FROZEN）之效力。
    - **Post-Merge Main Push CI 记录与定性**：
      - Run ID：`34708617506`，Conclusion：`failure`（**不得**标为 green）。
      - 独立审查已确认该失败仅来源于 `tests/phase5-quests-ui.test.tsx:259` 与 `tests/phase5-skills-ui.test.tsx:482` 中的 merge-base delta guard（因在 main push 事件中 `git diff <HEAD>...HEAD` 为空导致 `modifiedFiles.length > 0` 断言失败）。
@@ -313,5 +322,5 @@ Phase 7 全站视觉现代化现已全面闭环并永久冻结。所有后续工
 后续建议执行顺序：
 1. **CI 治理缺陷修复任务 (Governance Guard Fix)**：
    - 独立分支修复 `tests/phase5-quests-ui.test.tsx` 与 `tests/phase5-skills-ui.test.tsx`，使其在 `push-to-main` 事件下兼容正确的 commit range 比较，恢复 main push CI 绿灯。
-2. **Phase 8: Outer Growth Loop Roadmap (待正式授权)**：
-   - 依据 `docs/PHASE8_OUTER_GROWTH_LOOP_ROADMAP.md`，构建长期成长闭环：Season（成长赛季/章节）、Strategy（个人策略库/Playbook）、State（状态感知与精力管理）与 Reward（现实激励兑现）。
+2. **Phase 8: Outer Growth Loop (待正式授权与独立规划)**：
+   - 外部长期成长闭环（Season 赛季/章节、Strategy 个人策略库/Playbook、State 状态感知与精力管理、Reward 现实激励兑现）待后续正式授权后单独建档规划，本阶段不引用未跟踪文档。

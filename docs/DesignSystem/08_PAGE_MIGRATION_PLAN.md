@@ -96,8 +96,8 @@ The migration to the new Global Visual System follows a strict, layered implemen
 
 ### Phase 7 — Global Polish, Responsive Hardening, Reduced Motion & Final Freeze ✅ FINAL FROZEN
 - **Round 1 (A11y & Keyboard)**: PR #22 merged at `533ab09ebeb8bb827401446f022cf9a83c7db89c` (CI `34223921283`).
-- **Round 2 (Responsive Stress)**: PR #23 merged at `9d394d137781b0a887cf8976ceb740eb618b7636` (CI `34379381800`).
-- **Round 3 (Reduced Motion)**: PR #25 (merge `a825605f6ce83baea2ec24765799da9799298c4f`) & PR #27 (merge `0e7591607507b3ac59519ab0dc656a3eed2512c4`, CI `34622336564`).
+- **Round 2 (Responsive Stress)**: PR #23 merged at `9d394d11e3c858fe02abf52a18351482975a372c` (CI `34379381800`).
+- **Round 3 (Reduced Motion)**: PR #25 (merge `a8256051319db4ce5eadc7bdf585f197ad1f99f6`) & PR #27 (merge `0e7591607507b3ac59519ab0dc656a3eed2512c4`, CI `34622336564`).
 - **Round 4 (Final Cross-Page Acceptance & Phase 7 Freeze)**:
   - PR #28 merged at `653fe018f6cee38b2263fbcca19dffbf624d4c18` from approved Exact Head `f1e426ce6f64135066a652882d27c03b9cf6dca0`.
   - Exact-Head Acceptance CI `34707377871` passed completely (`check` and `supabase-integration` success).
