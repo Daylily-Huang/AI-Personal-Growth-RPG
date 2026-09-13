@@ -8,7 +8,7 @@
  * - 3. Zero Raw Z-Index: No raw Tailwind z-* classes in Quests code
  * - 4. Zero Dark Hardcoded Classes: Comprehensive dark color scanner (bg-black, text-white, slate/zinc)
  * - 5. Heading Hierarchy: Zero duplicate h1, page uses h2 (AppHeader has h1), cards use h3
- * - 6. Fail-Closed Committed PR Backend Delta Guard (strict merge-base, no HEAD~1 fallback)
+ * - 6. Fail-Closed Committed PR Backend Delta Guard (full merge-base delta on PRs; first-parent delta on current-main push)
  * - 7. Complete 7-State QuestStatus Matrix: locked, available, active, paused, completed, failed, archived
  * - 8. +25% Progress Mutation Authority: Strictly restricted to active quests
  * - 9. CreateQuestModal Fail-Closed Error Mapping: Allowlist only, zero SQL/constraint/DB leaks
@@ -22,7 +22,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
 import fs from "node:fs";
 import path from "node:path";
-import { execSync } from "node:child_process";
 import QuestsPage from "@/app/quests/page";
 import type { Quest, QuestTreeNode } from "@/lib/store/types";
 import {
@@ -35,6 +34,7 @@ import {
   QuestsEmptyState,
   QuestsErrorState,
 } from "@/components/quests";
+import { findPolicyViolations, resolveGovernanceChangedFiles } from "./helpers/governance-delta";
 
 // Mock next/navigation
 const { mockPush, mockRefresh } = vi.hoisted(() => ({
@@ -241,22 +241,16 @@ describe("Stage 5B-UI Quests Modernization — Governance Audits", () => {
     }
   });
 
-  it("FAIL-CLOSED: committed PR backend & domain delta guard against merge-base (NO HEAD~1 fallback)", () => {
-    let mergeBase = "";
-    try {
-      mergeBase = execSync("git merge-base origin/main HEAD", { encoding: "utf8" }).trim();
-    } catch {
-      try {
-        mergeBase = execSync("git merge-base main HEAD", { encoding: "utf8" }).trim();
-      } catch (err) {
-        throw new Error(`FAIL-CLOSED: Unable to resolve merge-base against origin/main or main: ${err}`);
-      }
-    }
+  it("FAIL-CLOSED: committed PR backend & domain delta guard (full merge-base delta on PRs; first-parent delta on current-main push)", () => {
+    // Shared fail-closed resolver (tests/helpers/governance-delta.ts):
+    // - mergeBase != HEAD (PR / feature branch): full `mergeBase...HEAD` delta,
+    //   never a HEAD~1 shortcut.
+    // - mergeBase == HEAD (push to current main): the pushed commit's
+    //   first-parent delta `HEAD^1..HEAD`.
+    // Unresolvable ancestry or an empty changed-file range throws FAIL-CLOSED.
+    const delta = resolveGovernanceChangedFiles();
 
-    expect(mergeBase).toBeTruthy();
-    const diff = execSync(`git diff --name-only ${mergeBase}...HEAD`, { encoding: "utf8" });
-    const modifiedFiles = diff.split("\n").map((s) => s.trim()).filter(Boolean);
-    expect(modifiedFiles.length).toBeGreaterThan(0);
+    expect(delta.files.length).toBeGreaterThan(0);
 
     const forbiddenPrefixes = [
       "src/app/api/",
@@ -282,13 +276,15 @@ describe("Stage 5B-UI Quests Modernization — Governance Audits", () => {
       "src/components/ui/LevelBadge.tsx",
     ];
 
-    for (const file of modifiedFiles) {
-      if (authorizedBugfixes.includes(file)) continue;
-      for (const prefix of forbiddenPrefixes) {
-        expect(file.startsWith(prefix)).toBe(false);
-      }
-      expect(file).not.toBe("package.json");
-      expect(file).not.toBe("pnpm-lock.yaml");
+    const violations = findPolicyViolations(delta.files, {
+      forbiddenPrefixes,
+      authorizedExceptions: authorizedBugfixes,
+      forbiddenExactFiles: ["package.json", "pnpm-lock.yaml"],
+    });
+    if (violations.length > 0) {
+      throw new Error(
+        `FAIL-CLOSED: forbidden governance delta detected in ${delta.mode} range ${delta.range}:\n  ${violations.join("\n  ")}`,
+      );
     }
   });
 });
