@@ -2,7 +2,7 @@
 
 把现实中的学习、工作、技能训练与人生目标，转化为可验证的成长 RPG。
 
-当前实现状态：**Phase 5 核心业务界面现代化收尾（Stage 5A/5B 最终冻结，Stage 5C Skills 现代化待审）**。  
+当前实现状态：**Phase 7 全站视觉体系现代化与核心业务页面已全面终局冻结（FINAL FROZEN）**。  
 👉 **项目全景架构与治理主文档**：请参阅 [`docs/MASTER_PROJECT_HANDOFF.md`](docs/MASTER_PROJECT_HANDOFF.md)。
 
 ## 当前系统里程碑进度
@@ -17,7 +17,7 @@
 - ✅ **Skills 技能树**（/skills，ReactFlow 水墨画布，单实例 InspectorDrawer 集成）
 - ✅ **Knowledge 知识图谱**（/knowledge，知识节点/连边，推断/验证状态机）
 - ✅ **Artifact 成果库**（/artifacts，Durable Work Product，关系图谱与链接）
-- 🚀 **全局水墨浅色优先视觉现代化**（Phase 1~4 已最终冻结，Phase 5 核心页面收尾中）
+- ✅ **全局水墨浅色优先视觉现代化与全站端到端无障碍**（Phase 1~7 已全面宣告 **FINAL FROZEN**）
 
 ## 技术栈
 
