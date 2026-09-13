@@ -16,7 +16,7 @@
  *  9. Semantic Route Contract: /skills is configured as fullBleed in AppShellBoundary
  * 10. Heading Hierarchy: Skills page does not use h1 (AppHeader owns h1), uses h2 for main section, h3 for cards/panels
  * 11. Reduced Motion Contract: motion-reduce:animate-none on all pulse animations, reduced-motion canvas durations
- * 12. Fail-Closed PR Delta Guard: Committed git merge-base against origin/main/main forbidding backend/domain/primitives/deps
+ * 12. Fail-Closed PR Delta Guard: Full merge-base delta on PRs / first-parent delta on current-main push, forbidding backend/domain/primitives/deps
  *
  * Part 2: Pure Presentation & Edge Semantics Matrix
  * 13. Complete Derived State Visual Mapping (locked, available, learning, proficient, advanced, archived)
@@ -41,8 +41,8 @@ import { describe, it, expect, vi, beforeAll, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
 import fs from "node:fs";
 import path from "node:path";
-import { execSync } from "node:child_process";
 import { MarkerType } from "@xyflow/react";
+import { findPolicyViolations, resolveGovernanceChangedFiles } from "./helpers/governance-delta";
 
 import SkillsPage from "@/app/skills/page";
 import SkillNodeView, { type SkillNodeViewData } from "@/app/skills/components/SkillNode";
@@ -464,22 +464,16 @@ describe("Stage 5C-UI Skills Modernization — Governance Audits", () => {
     }
   });
 
-  it("12. FAIL-CLOSED: committed PR backend & domain delta guard against merge-base (NO HEAD~1 fallback)", () => {
-    let mergeBase = "";
-    try {
-      mergeBase = execSync("git merge-base origin/main HEAD", { encoding: "utf8" }).trim();
-    } catch {
-      try {
-        mergeBase = execSync("git merge-base main HEAD", { encoding: "utf8" }).trim();
-      } catch (err) {
-        throw new Error(`FAIL-CLOSED: Unable to resolve merge-base against origin/main or main: ${err}`);
-      }
-    }
+  it("12. FAIL-CLOSED: committed PR backend & domain delta guard (full merge-base delta on PRs; first-parent delta on current-main push)", () => {
+    // Shared fail-closed resolver (tests/helpers/governance-delta.ts):
+    // - mergeBase != HEAD (PR / feature branch): full `mergeBase...HEAD` delta,
+    //   never a HEAD~1 shortcut.
+    // - mergeBase == HEAD (push to current main): the pushed commit's
+    //   first-parent delta `HEAD^1..HEAD`.
+    // Unresolvable ancestry or an empty changed-file range throws FAIL-CLOSED.
+    const delta = resolveGovernanceChangedFiles();
 
-    expect(mergeBase).toBeTruthy();
-    const diff = execSync(`git diff --name-only ${mergeBase}...HEAD`, { encoding: "utf8" });
-    const modifiedFiles = diff.split("\n").map((s) => s.trim()).filter(Boolean);
-    expect(modifiedFiles.length).toBeGreaterThan(0);
+    expect(delta.files.length).toBeGreaterThan(0);
 
     const forbiddenPrefixes = [
       "src/app/api/",
@@ -505,13 +499,15 @@ describe("Stage 5C-UI Skills Modernization — Governance Audits", () => {
       "src/components/ui/LevelBadge.tsx",
     ];
 
-    for (const file of modifiedFiles) {
-      if (authorizedBugfixes.includes(file)) continue;
-      for (const prefix of forbiddenPrefixes) {
-        expect(file.startsWith(prefix)).toBe(false);
-      }
-      expect(file).not.toBe("package.json");
-      expect(file).not.toBe("pnpm-lock.yaml");
+    const violations = findPolicyViolations(delta.files, {
+      forbiddenPrefixes,
+      authorizedExceptions: authorizedBugfixes,
+      forbiddenExactFiles: ["package.json", "pnpm-lock.yaml"],
+    });
+    if (violations.length > 0) {
+      throw new Error(
+        `FAIL-CLOSED: forbidden governance delta detected in ${delta.mode} range ${delta.range}:\n  ${violations.join("\n  ")}`,
+      );
     }
   });
 });
