@@ -20,8 +20,8 @@ App Root
 ├── [Dashboard]              # "Now / Next / Recent Growth Truth" (Primary Command Center)
 │
 ├── [Growth]                 # Execution Core (Frozen Semantics)
-│   ├── Quests               # Main, Epic, Major, Side Quests
-│   ├── Skills               # Skill Trees, Levels, and Mastery Tiers
+│   ├── Quests               # Main, Epic, Major, Side Quests (quest_size, is_boss, is_main_quest)
+│   ├── Skills               # Skill Trees, Levels, and Mastery Tiers (M0–M10)
 │   ├── Knowledge            # Nodes, Concepts, and Synthesis
 │   └── Artifacts            # Durable work products & verified evidence
 │
@@ -64,13 +64,16 @@ flowchart TD
 ## 4. Phase-by-Phase Deliverables & Acceptance Criteria
 
 ### Phase 8B: Season + Structured Review
-- **Prerequisites**: Phase 8A Architecture Freeze formally accepted and merged.
+- **Prerequisites**:
+  - Phase 8A Architecture Freeze formally accepted and merged.
+  - **Baseline Gate & Replacement of Absent `v1.0-core` Tag**:
+    GitHub lookup confirmed that `refs/tags/v1.0-core` is `404 / NOT PRESENT`. Phase 8B production implementation cannot begin merely because Phase 8A PR is merged. The independent Phase 8B controlling document must pin the exact Phase 8A merge commit SHA as its immutable implementation baseline. That Gatekeeper-pinned SHA explicitly replaces the absent `v1.0-core` tag gate.
 - **Scope**:
   - Database schema: `seasons`, `season_quests`, `season_reviews`, `outer_loop_proposals`, `outer_loop_audit_events`.
-  - Single active season constraint enforcement (O13).
-  - $N:N$ Season-to-Quest relationship with `MAIN` and `FOCUS` roles (O14, O15).
+  - Single active season constraint enforcement (Rule: `SINGLE_ACTIVE_SEASON`, Harness O013).
+  - $N:N$ Season-to-Quest relationship with `MAIN` and `FOCUS` roles (Rule: `SEASON_QUEST_N_TO_N`, Harness O014, O015).
   - Derived Season activity read model (zero schema changes to `activities`).
-  - Structured Review authoring and finalization pipeline (O16).
+  - Structured Review authoring and finalization pipeline (Rule: `REVIEW_AUTHORITY_BOUNDARY`, Harness O016).
   - UI: `/journey/seasons` and `/journey/reviews`.
 - **Exit Gate**: Passing tests O006, O013, O014, O015, O016, O022.
 
@@ -87,10 +90,11 @@ flowchart TD
 - **Prerequisites**: Phase 8C accepted and merged.
 - **Scope**:
   - Database schema: `strategies`, `strategy_versions`, `strategy_supports`.
-  - 5-state lifecycle (`HYPOTHESIS` -> `TESTING` -> `SUPPORTED` / `CONTEXTUAL` -> `WEAKENED` -> `RETIRED`).
+  - 6-status lifecycle (`HYPOTHESIS`, `TESTING`, `SUPPORTED`, `CONTEXTUAL`, `WEAKENED`, `RETIRED`).
   - Strict multi-observation threshold: $\ge 2$ distinct dates, $\ge 1$ completed season, $\ge 2$ core achievements (O6).
-  - Deterministic derived ordinal confidence rubric: `LOW`, `MODERATE`, `HIGH`, `VERY_HIGH` (O17).
-  - AI GM proposal and counter-evidence alerting pipeline (O8, O21).
+  - Deterministic derived ordinal confidence rubric: `LOW`, `MODERATE`, `HIGH`, `VERY_HIGH` (Rule: `DETERMINISTIC_DERIVED_CONFIDENCE`, Harness O017).
+  - Source identity de-duplication constraint on `strategy_supports`.
+  - AI GM proposal and counter-evidence alerting pipeline (Rule: `PROPOSAL_COMMIT_PIPELINE`, Harness O008, O021).
   - UI: `/journey/playbook`.
 - **Exit Gate**: Passing tests O008, O009, O017, O021.
 
@@ -99,10 +103,11 @@ flowchart TD
 - **Scope**:
   - Database schema: `reward_accounts`, `reward_transactions`, `wishes`, `reward_redemptions`.
   - Strict physical isolation from `xp_transactions` (O2, O3).
-  - Append-only ledger events: `EARN`, `CORRECTION`, `RESERVE`, `UNRESERVE`, `REDEEM`, `REFUND`.
-  - Anti-farming narrow earning sources: Seasons, Boss Quests, Mastery, Artifacts (O10).
-  - Idempotent settlement and correction deficit handling (O4, O5, O20).
-  - Wish lifecycle: `IDEA` -> `ACTIVE` -> `PRIMARY` (max 1) -> `RESERVED` -> `REDEEMED`.
+  - Single-account append-only event ledger: `EARN`, `CORRECTION`, `RESERVE`, `UNRESERVE`, `REDEEM`, `REFUND`.
+  - Deterministic canonical ledger fold: `foldRewardLedger`.
+  - Anti-farming narrow earning sources: Seasons, eligible quests (`quest_size IN ('major', 'epic', 'main') OR is_boss = true`), verified Mastery (M6, M8, M10), Artifacts (O10).
+  - Server-authoritative minting and canonical source de-duplication constraint.
+  - Wish lifecycle: `IDEA` -> `ACTIVE` -> `PRIMARY` (max 1) -> `RESERVED` -> `REDEEMED`, `IDEA / ACTIVE / PRIMARY -> ARCHIVED | CANCELLED`, `RESERVED -> PRIMARY`.
   - UI: `/rewards/wishes`.
 - **Exit Gate**: Passing tests O001, O002, O003, O004, O005, O019, O020.
 
@@ -112,7 +117,8 @@ flowchart TD
   - Database schema: `milestones`.
   - Recognition layer: `CORE_VERIFIED` and `USER_CONFIRMED_REAL_WORLD` (O12).
   - Prohibition of vanity streaks and app-use counters.
-  - Idempotent link to Reward Credit minting.
+  - Separation of real-world self-attestation from reward eligibility.
+  - Core source anchoring preventing wrapper double-minting.
   - UI: `/rewards/milestones`.
 - **Exit Gate**: Passing tests O012, O021.
 

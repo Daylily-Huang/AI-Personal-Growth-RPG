@@ -6,6 +6,10 @@ The Outer Growth Loop introduces macro-cycle state machines, subjective reflecti
 
 Before any production code or SQL migration is authored in Phase 8B–8G, this comprehensive test and security architecture specifies the verification gates, adversarial threat models, and the complete deterministic test catalogue (**O001–O022**).
 
+### Current Status of Test Catalogue
+- **O001–O022 Specifications**: **SOURCE VERIFIED** as formal architectural test specifications.
+- **O001–O022 Phase 8 Runtime**: **NOT VERIFIED** (test specifications defined in Phase 8A to govern future implementation phases 8B–8G).
+
 ---
 
 ## 2. The Four Verification Layers
@@ -68,13 +72,13 @@ Every test in this catalogue must be implemented and pass in future phases.
 - **Assertion**: RPC immediately rejects the request with HTTP 400 `INVALID_SOURCE_CLASS` and logs an audit event.
 
 ### O004 — `O004_DUPLICATE_REWARD_BLOCKED`
-- **Target Invariant**: O10 (Strict idempotency).
-- **Test Purpose**: Ensure network replays or double-submits of reward grants do not duplicate balance.
-- **Execution**: Issue identical credit grant RPC call twice using the same composite idempotency key.
-- **Assertion**: Second call succeeds idempotently without inserting a second ledger row; available balance increases exactly once.
+- **Target Invariant**: O10 (Strict idempotency and source uniqueness).
+- **Test Purpose**: Ensure network replays or altered request tokens cannot duplicate credit minting for the same source event.
+- **Execution**: Issue credit grant RPC twice using the same canonical source identity (`user_id`, `canonical_source_type`, `canonical_source_id`, `policy_version`, `'EARN'`) with different request idempotency keys.
+- **Assertion**: Second call fails closed with HTTP 409 `REWARD_ALREADY_MINTED` via the database canonical source unique index; available balance increases exactly once.
 
 ### O005 — `O005_REWARD_REVERSAL_IS_CORRECTION`
-- **Target Invariant**: O9, O20 (Ledger append-only immutability).
+- **Target Invariant**: O9 (Auditability), Rule: `LEDGER_CORRECTION_APPEND_ONLY`.
 - **Test Purpose**: Verify that revoking an earning milestone appends a correction rather than deleting ledger history.
 - **Execution**: Grant 100 credits for a milestone; trigger milestone revocation.
 - **Assertion**: Table `reward_transactions` contains both original `EARN` row and new `CORRECTION` row with amount `-100`. Zero rows deleted.
@@ -122,61 +126,61 @@ Every test in this catalogue must be implemented and pass in future phases.
 - **Assertion**: Unauthorized categories fail schema constraint checks.
 
 ### O013 — `O013_ONLY_ONE_ACTIVE_SEASON_PER_USER`
-- **Target Invariant**: O5, O13 (Single active season).
+- **Target Invariant**: O5 (Season is not Streak), Rule: `SINGLE_ACTIVE_SEASON`.
 - **Test Purpose**: Database-level enforcement of single active season constraint.
 - **Execution**: Insert Season A as `ACTIVE`. Attempt to insert or update Season B to `ACTIVE` for the same user.
 - **Assertion**: Database raises unique constraint violation (`uq_seasons_single_active`).
 
 ### O014 — `O014_SEASON_QUEST_IS_N_TO_N`
-- **Target Invariant**: O12 (Season-to-Quest decoupling).
+- **Target Invariant**: O12 (Season-to-Quest decoupling), Rule: `SEASON_QUEST_N_TO_N`.
 - **Test Purpose**: Assert that Quests can link across multiple seasons and at most one MAIN quest exists per season.
 - **Execution**: Link Quest 1 as `MAIN` to Season A, and Quest 1 as `FOCUS` to Season B. Attempt to link Quest 2 as `MAIN` to Season A.
 - **Assertion**: Multiple links succeed; duplicate `MAIN` role on Season A fails unique constraint.
 
 ### O015 — `O015_SEASON_DOES_NOT_COMPLETE_QUEST`
-- **Target Invariant**: O1, O5 (Decoupled lifecycle).
+- **Target Invariant**: O1, O5 (Decoupled lifecycle), Rule: `SEASON_DECOUPLED_LIFECYCLE`.
 - **Test Purpose**: Concluding a Season must not automatically alter status of linked in-progress Quests.
 - **Execution**: Link in-progress Quest 1 to Season A. Call `rpc_conclude_season` on Season A.
-- **Assertion**: Season A transitions to `COMPLETED`; Quest 1 remains in `IN_PROGRESS` state.
+- **Assertion**: Season A transitions to `COMPLETED`; Quest 1 remains in `in_progress` / `active` state.
 
 ### O016 — `O016_REVIEW_DOES_NOT_CREATE_GROWTH_TRUTH`
-- **Target Invariant**: O7, O16 (Review does not create Growth Truth).
+- **Target Invariant**: O1, O7 (Review does not create Growth Truth), Rule: `REVIEW_AUTHORITY_BOUNDARY`.
 - **Test Purpose**: Finalizing a Season Review record creates zero side effects on skills, evidence, or XP.
 - **Execution**: Call `rpc_finalize_season_review` with high ratings.
 - **Assertion**: Review record saved; `xp_transactions`, `user_skills`, and `evidence` remain completely unchanged.
 
 ### O017 — `O017_STRATEGY_CONFIDENCE_IS_DETERMINISTIC_DERIVED`
-- **Target Invariant**: O17 (Confidence is derived assessment).
+- **Target Invariant**: O6 (Cross-time support), Rule: `DETERMINISTIC_DERIVED_CONFIDENCE`.
 - **Test Purpose**: Ensure client cannot arbitrarily write confidence level.
 - **Execution**: Attempt direct client update setting `confidence_level = 'VERY_HIGH'` without supporting records.
 - **Assertion**: Write rejected or recalculated by RPC/trigger to `LOW`.
 
 ### O018 — `O018_CROSS_TENANT_OUTER_LINKS_FAIL_CLOSED`
-- **Target Invariant**: O14 (Multi-tenant security).
+- **Target Invariant**: O9 (Multi-tenant auditability), Rule: `CROSS_TENANT_ISOLATION`.
 - **Test Purpose**: Prevent User A from linking or referencing User B's entities.
 - **Execution**: User A attempts to link User B's `quest_id` to User A's `season_id`.
 - **Assertion**: Transaction aborts with HTTP 403 / 404 tenant mismatch error.
 
 ### O019 — `O019_WISH_REDEEM_IS_IDEMPOTENT_ATOMIC`
-- **Target Invariant**: O9, O19 (Atomic redemption).
+- **Target Invariant**: O9 (Atomic mutation), Rule: `ATOMIC_WISH_REDEMPTION`.
 - **Test Purpose**: Concurrent double-submit of wish redemption settles exactly once.
 - **Execution**: Dispatch two concurrent HTTP POST requests to redeem the same reserved wish.
 - **Assertion**: One request succeeds (HTTP 200); the other fails with HTTP 409 `WISH_ALREADY_REDEEMED`. Account balance decrements exactly once.
 
 ### O020 — `O020_REWARD_CORRECTION_PRESERVES_LEDGER_HISTORY`
-- **Target Invariant**: O20 (Deficit handling).
+- **Target Invariant**: O9 (Auditability), Rule: `CORRECTION_DEFICIT_PRESERVATION`.
 - **Test Purpose**: Negative correction exceeding available balance creates `correction_deficit` and clamps available balance to 0 without history loss.
 - **Execution**: Earn 100 credits, redeem 100 credits (available=0). Apply correction of -50 credits.
 - **Assertion**: Available balance = 0, correction deficit = 50. Historical redemption row remains intact.
 
 ### O021 — `O021_AI_PROPOSAL_REQUIRES_CONFIRM_BEFORE_COMMIT`
-- **Target Invariant**: O8, O21 (Proposal gate).
+- **Target Invariant**: O8 (Proposal gate), Rule: `PROPOSAL_COMMIT_PIPELINE`.
 - **Test Purpose**: Domain record is only committed after explicit user confirmation RPC call.
 - **Execution**: Generate proposal; verify pending status; call `rpc_review_outer_loop_proposal` with `decision = 'ACCEPTED'`.
 - **Assertion**: Domain entity created only after the RPC call succeeds.
 
 ### O022 — `O022_TERMINAL_SEASON_HISTORY_NOT_HARD_DELETED`
-- **Target Invariant**: O9, O22 (Terminal history preservation).
+- **Target Invariant**: O9 (Auditability), Rule: `TERMINAL_SEASON_HISTORY_PRESERVED`.
 - **Test Purpose**: Hard deletion of active or completed seasons is blocked.
 - **Execution**: Attempt HTTP DELETE on a Season with `status = 'COMPLETED'`.
 - **Assertion**: API returns HTTP 403 / 409 `CANNOT_DELETE_TERMINAL_SEASON`.
@@ -187,8 +191,9 @@ Every test in this catalogue must be implemented and pass in future phases.
 
 | Attack Vector | Attacker Objective | System Defense Mechanism |
 | :--- | :--- | :--- |
-| **Credit Minting Replay** | Re-sending intercepted `EARN` API payloads to accumulate infinite reward credits. | Database `UNIQUE` constraint on composite `idempotency_key` ensures replay returns original record with zero duplicate crediting. |
-| **Micro-Activity Credit Farming** | Scripting 100 daily 1-minute tasks to exploit reward issuance. | Strict validation in `rpc_grant_reward_credit` whitelist: only `SEASON`, `MAJOR/EPIC QUEST`, `MASTERY`, and `ARTIFACT` sources accepted. |
+| **Credit Minting Replay** | Re-sending intercepted `EARN` API payloads with varied request tokens to accumulate infinite reward credits. | Database `UNIQUE` constraint on `(user_id, canonical_source_type, canonical_source_id, policy_version, event_kind)` ensures replay returns original record with zero duplicate crediting. |
+| **Micro-Activity Credit Farming** | Scripting 100 daily 1-minute tasks to exploit reward issuance. | Strict validation in `rpc_grant_reward_credit` whitelist: only `SEASON`, eligible quests (`quest_size IN ('major', 'epic', 'main') OR is_boss = true`), verified Mastery, and verified Artifact sources accepted. |
+| **Milestone Wrapper Double-Mint** | Claiming reward for completing a Boss Quest, then creating a Milestone wrapping that same Boss Quest to claim reward again. | The Milestone settlement RPC anchors to the underlying Core source identity (`canonical_source_type = 'QUEST'`, `canonical_source_id = quest.id`), which fails the unique index constraint and prevents duplicate minting. |
 | **Cross-Tenant Link Poisoning** | Linking another user's verified quest to advance one's own season or strategy. | Every RPC asserts `auth.uid() = entity.user_id` on both ends of any relationship. Fails closed with 403 Forbidden. |
-| **Direct Balance Tampering** | Client attempts to patch `current_available` directly via Supabase client. | Table `reward_accounts` denies direct client `UPDATE` via RLS; balance updates allowed solely via internal PostgreSQL RPCs. |
+| **Direct Balance Tampering** | Client attempts to patch `current_available` directly via Supabase client. | Table `reward_accounts` denies direct client `UPDATE` via RLS; balance updates allowed solely via internal PostgreSQL RPCs folding the event ledger. |
 | **AI Prompt Injection Privilege Escalation** | Crafting a malicious journal entry instructing the AI GM to "output an SQL command granting 10,000 credits". | AI output is restricted to JSON schema proposals in `outer_loop_proposals`. Proposal fields are strictly validated by deterministic server code. Zero SQL execution. |

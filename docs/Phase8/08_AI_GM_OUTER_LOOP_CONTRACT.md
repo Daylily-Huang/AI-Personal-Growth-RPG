@@ -52,7 +52,7 @@ erDiagram
 
 ---
 
-## 3. Canonical Six-Stage Mutation Pipeline
+## 3. Canonical Six-Stage Mutation Pipeline & Concurrency Resolution
 
 Every state modification originating from AI GM intelligence must execute sequentially through the six-stage pipeline:
 
@@ -71,7 +71,16 @@ flowchart TD
 2. **Stage 2 (Preview)**: The UI renders the proposal as an interactive card or modal showing clear diffs and rationale.
 3. **Stage 3 (User Sovereignty)**: The user makes an uncoerced decision: Accept, Edit payload fields, or Dismiss.
 4. **Stage 4 (Deterministic Validation)**: The target RPC validates that all proposed foreign keys belong to the user and that business invariants (e.g., single active season, valid state ranges) are upheld.
-5. **Stage 5 (Atomic Commit)**: The target domain record (e.g., `strategies`, `seasons`) is created inside a database transaction, and `outer_loop_proposals` is updated with `resulting_entity_id`.
+5. **Stage 5 (Atomic Commit & Race Condition Guard)**:
+   - To prevent double-submit races from creating duplicate domain entities, the RPC executes an atomic CAS:
+     ```sql
+     UPDATE outer_loop_proposals
+     SET status = p_decision, reviewed_at = clock_timestamp()
+     WHERE id = p_proposal_id AND status = 'PROPOSED'
+     RETURNING *;
+     ```
+   - If zero rows are returned, the transaction rolls back immediately with HTTP 409 `PROPOSAL_ALREADY_REVIEWED`. Exactly ONE domain entity is created.
+   - The target domain record (`seasons`, `strategies`, etc.) is inserted and `resulting_entity_id` is written.
 6. **Stage 6 (Audit)**: An entry is written to `outer_loop_audit_events`.
 
 ---

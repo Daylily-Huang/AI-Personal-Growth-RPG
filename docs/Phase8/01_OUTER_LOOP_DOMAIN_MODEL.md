@@ -1,67 +1,69 @@
-# AI Personal Growth RPG — Phase 8 Outer Loop Domain Model
+# Phase 8 — Outer Loop Domain Model Architecture
 
-> **文档版本**: 1.0 (Phase 8A Architecture Freeze)  
-> **文档定位**: 外部闭环领域模型核心定义、实体分类、关系图谱与生命周期状态机  
+> **状态**: PHASE 8A ARCHITECTURE FREEZE (R1 Corrective Edition)  
+> **定位**: 外部成长闭环领域模型全景定义  
 > **上位控制规范**: `docs/DesignSystem/PHASE8A_OUTER_GROWTH_LOOP_ARCHITECTURE_FREEZE_CONTROLLING.md`  
 
 ---
 
-# 1. 实体分级与分类架构 (Entity Classification)
+# 1. 领域模型总览与分层哲学
 
-为了防止概念过度膨胀并捍卫 Growth Core 的唯一权威，Phase 8 将所有涉及的概念严格分为三类：**持久化领域对象**、**派生与只读计算视图**、以及**明确拒绝收录的对象**。
+Outer Growth Loop（外部闭环）承接 Core Growth System（成长内核）生成的确定性事实，通过**时间化、反思化、方法化、激励化与荣誉化**五大维度，为用户的现实成长提供长程操作系统。
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────┐
-│                           1. 持久化领域对象 (Persistent)                         │
-│  - Seasons (成长赛季)                - SeasonQuestLinks (关联目标)              │
-│  - SeasonReviews (结构化复盘)        - JournalEntries (主观日记与状态)           │
-│  - Strategies (策略假说)             - StrategySupports (跨时间证据支撑)        │
-│  - RewardAccounts (奖励账户)         - RewardTransactions (奖励流水账本)         │
-│  - Wishes (愿望清单)                 - RewardRedemptions (兑现记录)             │
-│  - Milestones (里程碑成就)           - OuterLoopProposals (统一提议信封)        │
-│  - OuterLoopAuditEvents (审计日志)                                             │
-│  [8G可选]: FocusSessions (专注记录), GrowthProtocols/ProtocolVersions (执行模板) │
-├─────────────────────────────────────────────────────────────────────────────────┤
-│                           2. 派生只读视图 (Derived Views)                        │
-│  - Season Progress (赛季进度推导)    - Season Activity Set (赛季活动集映射)     │
-│  - Strategy Confidence (确定性置信度)- Available / Reserved Reward Balance     │
-│  - Past Self Comparison (过去自我对比)- State Trend Summaries (状态趋势分析)     │
-│  - Milestone Candidates (待核验成就) - Next Best Action (行动建议)              │
-├─────────────────────────────────────────────────────────────────────────────────┤
-│                           3. 明确拒绝实体 (Explicitly Rejected)                 │
-│  - Goal (严禁重复立项，Quest 独占)    - PastSelf 表 (纯只读对比，不建实体表)      │
-│  - Streak (禁止强制连击打卡概念)      - XP Wallet / Coin (XP 严禁货币化)         │
-│  - CharacterStatFromMood (状态非能力)- JournalEvidence (严禁日记隐式升级掌握度) │
-│  - Marketplace / SocialLeaderboard (严肃自驱，严禁社交攀比与交易市场)             │
+│                           外环领域模型分层视图                                  │
+│                                                                                 │
+│  [激励与荣誉]  RewardAccount ──> RewardTransaction (只增事件) ──> Wish / Redemptions │
+│                Milestones (真实成长与客观核验荣誉)                             │
+│                                                                                 │
+│  [认知与方法]  Strategies (6状态个人方法库) <── StrategySupports (跨时间证据集)  │
+│                JournalEntries (主观日记分类与7维状态标量上下文)                 │
+│                                                                                 │
+│  [组织与周期]  Seasons (14~84天周期，单活跃约束) ──> SeasonQuestLink (N:N 解耦) │
+│                SeasonReviews (终审不可变版本化复盘)                             │
+└───────────────────────────────────────┬─────────────────────────────────────────┘
+                                        │ 只读引用 / 映射推导 (严禁反向污染)
+                                        ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                     内核领域模型 (Frozen Core Entities)                         │
+│                                                                                 │
+│  Quests (树状任务: quest_size, is_boss, is_main_quest, status: lowercase)      │
+│  Activities (现实行为事实: id, quest_id, created_at)                           │
+│  Growth Engine (XP Transactions 只增流水, Mastery M0~M10 评定, Artifacts 档案)   │
 └─────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-# 2. 领域实体详述 (Persistent Domain Records)
+# 2. 实体分类与权威边界 (Entity Classification)
 
-### 2.1 赛季与规划域 (Season & Planning)
-- **Season (成长赛季)**：用户在有限时间周期（14~84天，推荐28天）内的聚焦成长容器。定义核心目标、基线契约、预期成果与复盘总结。
-- **SeasonQuestLink (赛季任务关联)**：Season 与 Quest 之间的多对多（N:N）关联。定义角色为 `MAIN`（主线任务，每个赛季至多 0..1 个）或 `FOCUS`（焦点任务，0..N 个）。
-- **SeasonReview (赛季复盘)**：在赛季周期内或结束时生成的结构化、用户确认的复盘分析记录（分为 `WEEKLY`, `FINAL`, `AD_HOC`）。
+依据控制规范，Phase 8 架构严格区分**持久化领域实体**、**明确派生视图**与**明确拒绝实体**。
 
-### 2.2 反思与状态域 (Journal & State Context)
-- **JournalEntry (主观日记与身心状态)**：记录用户在成长过程中的主观感受、摩擦力、心流阻碍与决策反思。内嵌 7 维状态标量（能量、专注、压力、阻力、恢复度、心境效价、自我效能感），作为上下文解释变量。
+### 2.1 周期域 (Seasons & Reviews)
+- **Season (成长赛季)**：宏观成长章节的时间与情境容器（推荐28天，允许14~84天）。具有独立生命周期，**同一用户全局至多存在 1 个 `ACTIVE` 赛季**。
+- **SeasonQuestLink (赛季任务关联)**：Season 与 Quest 的 $N:N$ 关联中间实体，具有角色标注 (`role: MAIN | FOCUS`)。单个赛季至多拥有 1 个 `MAIN` Quest。
+- **SeasonReview (赛季复盘)**：在赛季周期内或结束时生成的结构化、用户确认的复盘分析记录（分为 `WEEKLY`, `FINAL`, `AD_HOC`）。草稿态在 `OuterLoopProposal`，持久化记录终身只读版本化。
 
-### 2.3 方法论域 (Personal Playbook & Strategy)
-- **Strategy (策略假说)**：提炼“在何种情境下，采用何种具体行为/范式能够稳定达成正向成长”的假设与个人工作法。
-- **StrategySupport (策略支撑溯源)**：记录每一次对特定策略产生正向验证或反向证伪的跨时间观察记录。
+### 2.2 反思与状态域 (Journal & State)
+- **JournalEntry (主观日记与状态记录)**：用户主观感受、摩擦力反思与精力记录的统一持久化实体。携带 7 维主观状态标量（精力、专注度、压力、阻力、恢复度、心境效价、自我信心）。
+- **硬性边界**：`JournalEntry != Verified Evidence`。主观日记永远不能直接提升 Mastery，不作为底层技能升级凭据。
 
-### 2.4 激励与兑现域 (Reward Economy & Wishes)
-- **RewardAccount (奖励账户)**：记录用户现实心愿积分的唯一账户实体。
-- **RewardTransaction (奖励流水账本)**：采用只增不可篡改（Append-Only）的严格对账流水，记录积分的产生 (`EARN`)、校正 (`CORRECTION`)、预扣 (`RESERVE`)、解冻 (`UNRESERVE`)、兑换 (`REDEEM`) 与返还 (`REFUND`)。
-- **Wish (心愿)**：用户现实中渴望兑现的真实正反馈（如旅行、大餐、心仪数码产品等）。
-- **RewardRedemption (兑现结算)**：记录心愿被积分实际兑付的终审确认。
+### 2.3 方法论域 (Personal Playbook)
+- **Strategy (策略假说与行动法)**：回答“在何种情境下，采取何种个人行动方案对我有成效”。拥有 6 状态严谨生命周期 (`HYPOTHESIS`, `TESTING`, `SUPPORTED`, `CONTEXTUAL`, `WEAKENED`, `RETIRED`)。
+- **StrategySupport (策略支持与反例记录)**：对策略在实践中产生的支持事件与反例事实的只增记录，绑定来源引用与评估版本，数据库级防重。
+
+### 2.4 激励域 (Reward Economy)
+- **RewardAccount (奖励账户)**：用户奖励积分可用与冻结余额的高速汇总视图（强依赖只增流水严格维护平账）。
+- **RewardTransaction (奖励事件账本)**：物理隔离的**单账户只增事件流水账本 (Single-Account Append-Only Event Ledger)**。仅包含 `EARN`, `CORRECTION`, `RESERVE`, `UNRESERVE`, `REDEEM`, `REFUND` 6 大事件类型，支持确定性 `foldRewardLedger` 余额折叠。
+- **Wish (心愿单)**：用户设定的现实世界犒劳目标。至多拥有 1 个 `PRIMARY` 活跃心愿。
+- **RewardRedemption (兑现凭证)**：心愿正式兑现后的物理收据。
 
 ### 2.5 荣誉域 (Milestones)
 - **Milestone (里程碑)**：记录用户达成重大技术、产物或人生质变的永久荣誉节点（分为 `CORE_VERIFIED` 与 `USER_CONFIRMED_REAL_WORLD`）。
+- **硬性边界**：自主认证的现实里程碑不自动成为奖励铸币水龙头，必须经由独立/确定性策略核验方可铸币。若包装底层 Core 事件，必须锚定 Core 原始来源防重复铸币。
 
-### 2.6 审计与提议基础设施 (Governance Infrastructure)
+### 2.6 治理与提议基础设施 (Governance Infrastructure)
 - **OuterLoopProposal (外环统一提议信封)**：AI 介入外环各项事务的唯一规范数据载体，强制遵循“提议 -> 预览 -> 用户确认/编辑/拒绝 -> 确定性提交”流水线。
 - **OuterLoopAuditEvent (外环审计日志)**：对所有状态跃迁、异常回滚与敏感操作的只增审计流水。
 
@@ -75,82 +77,108 @@ classDiagram
         <<Core Entity (Frozen)>>
         +UUID id
         +string title
-        +string status
-        +string quest_size
+        +string status "locked | available | active | paused | completed | failed | archived"
+        +string quest_size "micro | minor | standard | major | epic | main"
+        +boolean is_main_quest
+        +boolean is_boss
     }
     class Activity {
         <<Core Entity (Frozen)>>
         +UUID id
         +UUID quest_id
-        +timestamptz activity_time
+        +timestamptz created_at
     }
     class Season {
         +UUID id
         +string title
-        +date start_date
-        +date target_end_date
-        +string status
+        +integer target_duration_days
+        +date planned_start_date
+        +date planned_end_date
+        +timestamptz started_at
+        +timestamptz ended_at
+        +string status "DRAFT | PLANNED | ACTIVE | COMPLETED | ENDED_EARLY | ABANDONED | CANCELLED"
     }
     class SeasonQuestLink {
         +UUID season_id
         +UUID quest_id
-        +string role
+        +string role "MAIN | FOCUS"
     }
     class SeasonReview {
         +UUID id
         +UUID season_id
-        +string review_type
-        +jsonb synthesis
-        +string status
+        +string review_type "WEEKLY | FINAL | AD_HOC"
+        +jsonb objective_summary
+        +text qualitative_reflection
+        +integer version
+        +UUID superseded_by_id
     }
     class JournalEntry {
         +UUID id
-        +UUID season_id_context
+        +UUID user_id
         +string entry_type
-        +text content
-        +jsonb state_context
+        +text content_markdown
+        +integer energy
+        +integer focus
+        +integer stress
+        +integer resistance
+        +integer recovery
+        +integer mood_valence
+        +integer self_confidence
+        +timestamptz logged_at
     }
     class Strategy {
         +UUID id
         +string title
-        +text context_condition
-        +text approach
-        +string status
+        +text context_trigger
+        +text action_protocol
+        +text expected_outcome
+        +string lifecycle_status "HYPOTHESIS | TESTING | SUPPORTED | CONTEXTUAL | WEAKENED | RETIRED"
+        +string confidence_level "LOW | MODERATE | HIGH | VERY_HIGH"
+        +integer version
     }
     class StrategySupport {
         +UUID id
         +UUID strategy_id
-        +string source_type
+        +string observation_type "SUPPORT | COUNTER_EVIDENCE"
+        +string source_class
         +UUID source_id
-        +string observation_type
+        +string evaluator_version
     }
     class RewardAccount {
         +UUID user_id
+        +integer lifetime_earned
+        +integer lifetime_redeemed
+        +integer current_reserved
+        +integer current_available
+        +integer correction_deficit
     }
     class RewardTransaction {
         +UUID id
         +UUID user_id
-        +string event_kind
-        +int amount
+        +string event_kind "EARN | CORRECTION | RESERVE | UNRESERVE | REDEEM | REFUND"
+        +integer amount
+        +string canonical_source_type
+        +UUID canonical_source_id
+        +string policy_version
         +string idempotency_key
     }
     class Wish {
         +UUID id
         +string title
-        +int cost_credits
-        +string status
+        +integer credit_cost
+        +string status "IDEA | ACTIVE | PRIMARY | RESERVED | REDEEMED | ARCHIVED | CANCELLED"
     }
     class RewardRedemption {
         +UUID id
         +UUID wish_id
         +UUID transaction_id
-        +string status
+        +integer credits_spent
     }
     class Milestone {
         +UUID id
-        +string milestone_type
-        +string category
-        +string status
+        +string milestone_key
+        +string recognition_class "CORE_VERIFIED | USER_CONFIRMED_REAL_WORLD"
+        +string status "ACTIVE | REVOKED | CORRECTED"
     }
 
     Season "1" -- "0..*" SeasonQuestLink : links
@@ -177,50 +205,59 @@ stateDiagram-v2
     [*] --> DRAFT : 创建草稿
     DRAFT --> PLANNED : 锁定基线与目标
     DRAFT --> CANCELLED : 放弃草稿
-    PLANNED --> ACTIVE : 激活开始 (全库同用户唯一)
+    PLANNED --> ACTIVE : 激活开始 (rpc_activate_season, 仅限PLANNED进入, 单ACTIVE约束)
     PLANNED --> CANCELLED : 取消计划
-    ACTIVE --> COMPLETED : 达成目标 + 确认 Final Review
+    ACTIVE --> COMPLETED : 周期结束 + 确认 Final Review
     ACTIVE --> ENDED_EARLY : 提前达成 + 确认 Final Review
-    ACTIVE --> ABANDONED : 放弃中止 + 记录审计理由
+    ACTIVE --> ABANDONED : 中途放弃 + 必须提供终止审计原因
     COMPLETED --> [*]
     ENDED_EARLY --> [*]
     ABANDONED --> [*]
     CANCELLED --> [*]
 ```
 - **硬性约束**：
-  - 一旦进入 `ACTIVE`，严禁通过常规 API 硬删除，必须流转至终止态并留痕。
+  - `rpc_activate_season` 严禁允许 `DRAFT -> ACTIVE`，必须先流转为 `PLANNED` 并设定明确成功标准。
+  - 一旦进入 `ACTIVE`，严禁通过常规产品 API 硬删除，必须流转至终止态并留痕。
   - 同一用户任意时刻至多只能拥有 1 个 `ACTIVE` 状态的 Season。
 
-### 4.2 Strategy 生命周期
+### 4.2 Strategy 6状态生命周期
 ```mermaid
 stateDiagram-v2
-    [*] --> HYPOTHESIS : 提出工作法假设
-    HYPOTHESIS --> TESTING : 选定进入实践检验
-    TESTING --> SUPPORTED : 跨时间验证通过 (>=2独立观察 + >=1完成赛季 + 经反例评估)
-    TESTING --> CONTEXTUAL : 仅特定特定情境有效
-    SUPPORTED --> WEAKENED : 出现持续反例或情境改变
-    CONTEXTUAL --> WEAKENED : 出现持续反例
-    WEAKENED --> SUPPORTED : 重新修正并在新周期验证
+    [*] --> HYPOTHESIS : 提出工作法假设 (用户创建或接受AI提议)
+    HYPOTHESIS --> TESTING : 纳入活跃赛季或任务进行实践检验
+    TESTING --> SUPPORTED : 满足严格跨期门禁 (>=2不同日期观察 + >=1完成赛季 + >=2Core成就 + 净支持率>=75%)
+    TESTING --> CONTEXTUAL : 验证有效但仅在特定边界情境有效
+    SUPPORTED --> WEAKENED : 反面证据累积导致净支持率跌破阈值
+    CONTEXTUAL --> WEAKENED : 情境适用性失效或反例累积
+    WEAKENED --> TESTING : 重新校准并投入新周期验证
     HYPOTHESIS --> RETIRED : 放弃假设
-    TESTING --> RETIRED : 证伪并废弃
-    SUPPORTED --> RETIRED : 历史沉淀/不再适用
-    CONTEXTUAL --> RETIRED : 历史沉淀/不再适用
+    TESTING --> RETIRED : 证伪废弃
+    SUPPORTED --> RETIRED : 永久沉淀/不再适用
+    CONTEXTUAL --> RETIRED : 永久沉淀/不再适用
     WEAKENED --> RETIRED : 彻底废弃
 ```
-- **硬性约束**：AI 绝无权限将 Strategy 直接置为 `SUPPORTED`；置信度为纯确定性推导值。
+- **硬性约束**：AI 绝无权限将 Strategy 直接置为 `SUPPORTED`；置信度为纯确定性推导值 (`LOW`, `MODERATE`, `HIGH`, `VERY_HIGH`)。
 
-### 4.3 Wish 生命周期
+### 4.3 Wish 唯一规范生命周期
 ```mermaid
 stateDiagram-v2
-    [*] --> BACKLOG : 录入心愿
-    BACKLOG --> ACTIVE : 设为当前目标心愿 (至多1个 PRIMARY)
-    ACTIVE --> REDEEMABLE : 积分满足且条件就绪
-    REDEEMABLE --> RESERVED : 发起兑现，积分预扣
-    RESERVED --> REDEEMED : 确认兑现完成，积分核销
-    RESERVED --> REDEEMABLE : 取消兑现，积分解冻 (UNRESERVE)
-    BACKLOG --> ARCHIVED : 归档放弃
-    ACTIVE --> ARCHIVED : 归档放弃
+    [*] --> IDEA : 录入心愿想法
+    IDEA --> ACTIVE : 纳入候选心愿池
+    ACTIVE --> PRIMARY : 设为主目标心愿 (同用户至多1个 PRIMARY)
+    PRIMARY --> RESERVED : 积分充足且用户确认，发起预扣 (RESERVE)
+    RESERVED --> REDEEMED : 现实中兑现犒赏，账本核销 (REDEEM)
+    RESERVED --> PRIMARY : 显式解冻取消预扣 (UNRESERVE)
+    IDEA --> ARCHIVED : 归档丢弃
+    ACTIVE --> ARCHIVED : 归档丢弃
+    PRIMARY --> ARCHIVED : 归档丢弃
+    IDEA --> CANCELLED : 显式取消
+    ACTIVE --> CANCELLED : 显式取消
+    PRIMARY --> CANCELLED : 显式取消
+    REDEEMED --> [*]
 ```
+- **硬性约束**：彻底废止 `BACKLOG` 与 `REDEEMABLE` 词汇；Cooldown 不是生命周期状态，仅作为元数据字段 `cooldown_until`。
 
-### 4.4 SeasonReview 生命周期
-- `DRAFT` (草稿生成) → `CONFIRMED` (用户确认终审，只读固化) → `SUPERSEDED` (若后续修正，保留原件并生成新版本指向上版)。
+### 4.4 SeasonReview 提议与不可变版本化模型
+- **提议信封分流**：AI GM 生成的复盘草稿存放在 `OuterLoopProposal` (`status = 'PROPOSED'`)，在客户端提供交互式 Diff 与编辑预览。
+- **持久化记录即终态**：用户确认后，原子写入 `SeasonReview` 实体。持久化复盘记录自写入起即为不可变 (`immutable`)，不设内部 DRAFT 状态。
+- **版本更迭溯源**：若后续对已终审复盘做事实补正，不就地修改历史，而是创建新版 `SeasonReview`，通过 `version` 与 `superseded_by_id` 形成单向版本溯源链。

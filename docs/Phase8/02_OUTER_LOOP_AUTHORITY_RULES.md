@@ -5,8 +5,8 @@
 This document codifies the non-negotiable architectural boundaries, governance rules, and system invariants governing the Outer Growth Loop of the AI Personal Growth RPG.
 
 The Inner Growth Loop (Phases 1–7) established deterministic Growth Truth:
-- Every XP mutation is traceable through an append-only ledger (`xp_transactions`).
-- Every Skill and Mastery assessment requires deterministic verification backed by verified Evidence.
+- Every XP mutation is traceable through an append-only ledger (`xp_transactions`), preserving deterministic correction semantics.
+- Every Skill and Mastery assessment requires deterministic verification backed by verified Evidence according to the authoritative M0–M10 model.
 - Artifacts, Knowledge, Quests, and Activities form an immutable historical record of genuine personal development.
 
 The Outer Growth Loop (Phase 8) introduces macro-cycle governance: Seasons, Structured Reviews, Subjective Journaling, Personal Playbooks (Strategies), a physically isolated Reward Economy (Wishes), and Milestones.
@@ -36,7 +36,7 @@ Authority in the Outer Growth Loop is strictly compartmentalized across four tie
 - **Failure Mode**: Any operation attempting to modify a Growth Core record during an Outer Loop lifecycle event fails closed with a severe invariant violation error.
 
 ### O2 — XP is Permanently Non-Spendable
-- **Definition**: XP is a permanent, monotonic measure of validated capability development. It is never a currency, never a spendable balance, and never a reward credit.
+- **Definition**: XP is a permanent measure of validated capability development. It is governed strictly by the append-only XP ledger (preserving existing deterministic `CORRECTION` transaction semantics for audit corrections). It is never a currency, never a spendable balance, and never a reward credit.
   ```text
   XP != Currency
   XP != Reward Credit
@@ -101,10 +101,10 @@ Authority in the Outer Growth Loop is strictly compartmentalized across four tie
 - **Definition**: Users cannot generate reward credits through repetitive micro-activities, task spamming, rapid journaling, or artificial activity creation.
 - **Architectural Guard**: Reward credits may only be minted from sparse, high-value, independently verifiable milestone events:
   1. Successful Season completion with confirmed final review.
-  2. Verified completion of eligible Major/Epic/Boss Quests.
-  3. Mastery threshold milestones verified by Growth Core evidence.
+  2. Verified completion of eligible quests (`quest.status = 'completed' AND (quest.quest_size IN ('major', 'epic', 'main') OR quest.is_boss = true)`).
+  3. Mastery threshold milestones verified by Growth Core evidence (authoritative Mastery levels M0–M10).
   4. Durable, high-order Artifact creation or independently confirmed real-world milestones.
-- **Idempotency Guard**: Every credit grant requires a unique composite idempotency key `(user_id, source_type, source_id, policy_version, event_kind)`. Replays fail closed or return the existing transaction.
+- **Idempotency Guard**: Every credit grant requires a unique composite canonical source identity `(user_id, canonical_source_type, canonical_source_id, policy_version, event_kind)`. Replays fail closed or return the existing transaction.
 
 ### O11 — Temporary State Cannot Become Permanent Capability
 - **Definition**: Subjective context variables (Energy, Focus, Stress, Resistance, Recovery, Mood Valence, Self-Reported Confidence) fluctuate dynamically and reflect momentary state, not permanent personal capability.
@@ -114,7 +114,7 @@ Authority in the Outer Growth Loop is strictly compartmentalized across four tie
 ### O12 — Existing Frozen Entities are Reused Before Parallel Concepts are Created
 - **Definition**: The Outer Growth Loop builds upon the solid foundation of the Core Growth Engine rather than duplicating existing primitives under new names.
 - **Architectural Guard**:
-  - No new `Goal` table: Quests already own the hierarchical goal structure (Main, Epic, Major, Side).
+  - No new `Goal` table: Quests already own the hierarchical goal structure (main, epic, major, standard, minor, micro).
   - No new `PastSelf` table: Historical comparison is a derived read-only view over immutable ledgers.
   - No new `Streak` table: Daily counts contradict qualitative season arcs.
   - No new `XPWallet`: Reward credits are managed in `reward_accounts`.
@@ -125,7 +125,7 @@ Authority in the Outer Growth Loop is strictly compartmentalized across four tie
 ## 4. Deletion, Archival, and Deficit Handling Rules
 
 ### 4.1 Immutability and Archival Hierarchy
-1. **Ledgers are Permanent**: `reward_transactions` is strictly append-only. Rows are never updated or deleted. Corrections are made via offsetting `CORRECTION` transactions.
+1. **Ledgers are Permanent**: `reward_transactions` is strictly an append-only event ledger. Rows are never updated or deleted. Corrections are made via offsetting `CORRECTION` transactions.
 2. **Terminal Lifecycle States are Preserved**: Once a Season becomes `ACTIVE`, or a Wish is `REDEEMED`, or a Review is `FINALIZED`, the record can never be hard-deleted via normal application APIs.
 3. **Draft Pruning**: Only `DRAFT` or `PLANNED` Seasons that were never activated and have zero linked historical records may be discarded.
 4. **Strategies and Protocols**: Retired or ineffective strategies transition to `RETIRED` with failure notes; their historical validation data remains intact.
@@ -135,7 +135,7 @@ If a historical review or milestone verification is reversed or found to be inva
 - If the correction results in net earned credits falling below already redeemed credits, the account balance enters an auditable **Correction Deficit**.
 - The system **does not** retroactively revoke real-world redeemed wishes or rewrite history.
 - Spendable balance is clamped at `0` until future legitimate milestone earns offset the deficit.
-- This is standard double-entry accounting discipline, not a punitive game mechanic.
+- This is strict append-only event ledger accounting discipline, not a punitive game mechanic.
 
 ---
 

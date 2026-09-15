@@ -1,6 +1,6 @@
 # AI Personal Growth RPG — Phase 8 Outer Growth Loop Master Roadmap
 
-> **文档版本**: 2.0 (Phase 8A Architecture Freeze Edition)  
+> **文档版本**: 2.1 (Phase 8A Architecture Freeze Edition - R1 Corrective)  
 > **当前状态**: PHASE 8A ARCHITECTURE FREEZE — PURE SPEC / DOCS ONLY  
 > **生产代码授权**: NOT AUTHORIZED (生产实现严格禁止，直到 Phase 8A 独立审查签署 GO)  
 > **基线主分支 (main)**: `0a85de522503cf3f0a656f74f248c9a65e7b5da5`  
@@ -16,8 +16,8 @@
 在 Phase 1 至 Phase 7 的演化中，本项目已经成功构建并冻结了严肃、不可篡改的 **Core Growth System（成长内核）**：
 - 现实活动记录 (`Activity`) 与两阶段确认流 (`Two-Phase Confirmation`)；
 - 确定性经验与掌握度引擎 (`Growth Engine`：XP 计算、等级、掌握度 M0–M10、衰减与质变惩罚)；
-- 不可篡改的成长流水账本 (`xp_transactions` / Ledger)；
-- 具有树状主支线层级的任务体系 (`Quests`)；
+- 不可篡改的成长流水账本 (`xp_transactions` / Ledger，具备确定性矫正语义)；
+- 具有树状主支线层级的任务体系 (`Quests`，authoritative 字段：`quest_size`, `is_boss`, `is_main_quest`, `status`)；
 - 水墨拓扑技能树 (`Skills`)、知识图谱 (`Knowledge`) 与持久交付物档案 (`Artifacts`)；
 - 全站新中式水墨浅色优先视觉系统、响应式断点与端到端无障碍语义（Phase 7 全面 FINAL FROZEN）。
 
@@ -47,6 +47,27 @@ Phase 8 的目标**不是重做或取代既有成长内核**，而是在不可�
 **当前权威主分支基线**：`0a85de522503cf3f0a656f74f248c9a65e7b5da5`。  
 所有 Phase 8 的设计工作均建立在该基线之上。现有 Growth Core 的表结构、结算 RPC、确定性引擎与视觉体系处于绝对冻结状态。
 
+### Phase 7 历史验收证据边界保留声明 (Non-Blocking Carry-Forward)
+Phase 7 已于 PR #28 正式终审合入并标记 **FINAL FROZEN**。为维护严谨的证据链条与技术诚实性，此处忠实结转其已知测试局限，绝不隐式扩大证据效力，亦不重开 Phase 7 验收：
+```text
+Phase 7 remains FINAL FROZEN.
+
+VoiceOver:             NOT VERIFIED
+NVDA:                  NOT VERIFIED
+JAWS:                  NOT VERIFIED
+physical touch device: NOT VERIFIED
+
+emulated != physical device
+source scan != runtime proof
+```
+
+### v1.0-core Tag 门禁状态与 Phase 8B 基线替代声明
+经独立审查核实，`refs/tags/v1.0-core` 标签在 GitHub 远端尚未建立 (`404 / NOT PRESENT`)。
+依据 Phase 8A 治理规则：
+- 该缺失不阻塞 Phase 8A 架构文档的冻结；
+- **Phase 8B 的生产实现绝不能仅凭 Phase 8A PR 的合入而自发启动**；
+- 独立审查 AI 在签署 Phase 8B 控制文件时，必须将未来 Phase 8A 架构合入的**确切 Main Merge Commit SHA** 作为不可变更的实现基线，该显式 SHA 声明正式替代缺失的 `v1.0-core` 标签门禁。
+
 ---
 
 # 2. 外部闭环与内核边界隔离 (Boundary Invariants)
@@ -74,9 +95,9 @@ Phase 8 的目标**不是重做或取代既有成长内核**，而是在不可�
    - Outer Loop 仅允许**引用 (reference)、聚合 (aggregate)、推导 (derive)、语境化 (contextualize)、组织 (organize)、提议 (propose) 与复盘 (review)**。
    - Outer Loop 绝不允许成为“第二成长引擎”，任何 Phase 8 实体不得直接改写历史成长真理。
 3. **XP 永久不可消费 (XP is Non-Spendable)**：
-   - `XP != Currency`，`XP != Reward Credit`。XP 永远不能用于购买现实愿望、扣减、兑换或转账。
-4. **奖励经济独立账本 (Physical Ledger Isolation)**：
-   - 现实奖励积分（Reward Credit）采用物理隔离的独立流水账本 (`reward_transactions`) 与独立结算 RPC，绝不复用 `xp_transactions`。
+   - `XP != Currency`，`XP != Reward Credit`。XP 永远不能用于购买现实愿望、扣减、兑换或转账。其历史变更完全受 append-only XP 账本监管（保留既有 CORRECTION 矫正语义，非现实货币意义上的扣减）。
+4. **奖励经济单账户只增事件流水账本 (Append-Only Event Ledger Isolation)**：
+   - 现实奖励积分（Reward Credit）采用物理隔离的只增事件流水账本 (`reward_transactions`) 与独立结算 RPC，绝不复用 `xp_transactions`。
 
 ---
 
@@ -121,20 +142,20 @@ Phase 8G: 可选扩展层 (Focus / Protocols / Past Self)
 
 | 文档编号与路径 | 核心规范内容 | 关键约束与设计原则 |
 | :--- | :--- | :--- |
-| `00_PHASE8_MASTER_ROADMAP.md` | Phase 8 总体路线图与愿景 | 修正过时基线，建立 Phase 8B~8G 依赖链路与愿景。 |
-| `01_OUTER_LOOP_DOMAIN_MODEL.md` | 外部闭环领域模型全景 | 划分持久化领域对象、AI 提议、派生视图与禁止对象。 |
-| `02_OUTER_LOOP_AUTHORITY_RULES.md` | 权限矩阵与不可违背铁律 (O1~O12) | 明确用户、确定性 RPC、AI 的权限边界，确立审计法则。 |
-| `03_SEASON_AND_REVIEW_SPEC.md` | Season 与 Review 规格说明 | 14~84天周期，单 Active 约束，N:N 任务关联，三级复盘。 |
-| `04_JOURNAL_AND_STATE_SPEC.md` | 日记与状态上下文规格说明 | 主观日记分类，7维状态标量，严禁日记隐式升级掌握度。 |
-| `05_STRATEGY_PLAYBOOK_SPEC.md` | 策略与个人方法库规格说明 | 5态生命周期，跨时间严苛验证，确定性置信度推导。 |
-| `06_REWARD_ECONOMY_AND_WISHES_SPEC.md` | 奖励经济与心愿单规格说明 | 物理隔离账本，6大只增事件，稀疏防刷分配，反沉迷。 |
-| `07_MILESTONE_ACHIEVEMENT_SPEC.md` | 里程碑与成就规格说明 | 真实成长映射，客观可核验，禁止刷屏级微任务勋章。 |
-| `08_AI_GM_OUTER_LOOP_CONTRACT.md` | AI GM 外环契约与提议信封 | 统一 `OuterLoopProposal` 信封，严禁 LLM 直接写库。 |
-| `09_DATABASE_SCHEMA_PLAN.md` | 数据库表结构设计计划 | 严密表定义、约束、索引、RLS 意图与级联规则（不建迁移）。 |
-| `10_API_AND_RPC_CONTRACT_PLAN.md` | API 与 RPC 契约设计计划 | 输入校验、幂等键、原子事务、审计日志与错误分类。 |
-| `11_TESTING_SECURITY_AND_HARNESS_PLAN.md` | 测试、安全与确定性 Harness 计划 | 覆盖 O001~O022 测试用例，单元/集成/E2E/对抗测试。 |
-| `12_INFORMATION_ARCHITECTURE_AND_PHASE_PLAN.md` | 信息架构、路由与逐阶段实施计划 | 页面骨架、导航集成策略与 Phase 8B~8G 实施准入条件。 |
-| `ADR/` | 架构决策记录目录 | 记录与上位规范存在真实冲突或权衡的决策（本轮无冲突）。 |
+| `00_PHASE8_MASTER_ROADMAP.md` | Phase 8 总体路线图与愿景 | 修正过时基线，建立 Phase 8B~8G 依赖链路，声明 Phase 7 证据边界与 v1.0-core 门禁。 |
+| `01_OUTER_LOOP_DOMAIN_MODEL.md` | 外部闭环领域模型全景 | 划分持久化领域对象、AI 提议、派生视图与禁止对象，严密对齐 Core 字段与 Wish/Season 状态机。 |
+| `02_OUTER_LOOP_AUTHORITY_RULES.md` | 权限矩阵与不可违背铁律 (O1~O12) | 明确用户、确定性 RPC、AI 的权限边界，确立审计法则与单账户只增账本纪律。 |
+| `03_SEASON_AND_REVIEW_SPEC.md` | Season 与 Review 规格说明 | 14~84天周期，单 Active 约束，N:N 任务关联，三级复盘，Proposal 预览与持久化版本化复盘。 |
+| `04_JOURNAL_AND_STATE_SPEC.md` | 日记与状态上下文规格说明 | 主观日记分类，7维状态标量，严禁日记隐式升级掌握度，端到端私有化 RLS。 |
+| `05_STRATEGY_PLAYBOOK_SPEC.md` | 策略与个人方法库规格说明 | 6状态生命周期，跨时间严苛验证，确定性置信度推导，来源标识去重。 |
+| `06_REWARD_ECONOMY_AND_WISHES_SPEC.md` | 奖励经济与心愿单规格说明 | 单账户只增事件账本，确定性 fold 规范，服务端铸币权威与底层防二重包装去重。 |
+| `07_MILESTONE_ACHIEVEMENT_SPEC.md` | 里程碑与成就规格说明 | 真实成长映射，客观可核验，自主认证与奖励资格解耦，锚定底层来源防止重复铸币。 |
+| `08_AI_GM_OUTER_LOOP_CONTRACT.md` | AI GM 外环契约与提议信封 | 统一 `OuterLoopProposal` 信封，严禁 LLM 直接写库，并发审核 CAS 幂等防重。 |
+| `09_DATABASE_SCHEMA_PLAN.md` | 数据库表结构设计计划 | 逐表16项严密表定义、约束、索引、RLS 意图、固定外键行为与迁移时序（不建迁移文件）。 |
+| `10_API_AND_RPC_CONTRACT_PLAN.md` | API 与 RPC 契约设计计划 | 逐一明确 15 个写路径的 13 维契约，含并发锁、幂等键、服务权威计算与审计日志。 |
+| `11_TESTING_SECURITY_AND_HARNESS_PLAN.md` | 测试、安全与确定性 Harness 计划 | 覆盖 O001~O022 规范断言矩阵，四层防御与对抗性攻击拦截。 |
+| `12_INFORMATION_ARCHITECTURE_AND_PHASE_PLAN.md` | 信息架构、路由与逐阶段实施计划 | 页面骨架、导航集成策略、v1.0-core 门禁替换说明与 Phase 8B~8G 实施准入条件。 |
+| `ADR/` | 架构决策记录目录 | 记录与上位控制文档零未决偏离声明，确立未来 ADR 提报规程。 |
 
 ---
 
@@ -143,6 +164,6 @@ Phase 8G: 可选扩展层 (Focus / Protocols / Past Self)
 Phase 8A 的完成标志不是代码提交，而是高质量、零死角、完全自洽的架构规范闭环：
 1. **纯文档范围 (Docs-Only Scope)**：`src/**`、`tests/**`、`supabase/**`、`scripts/**` 等生产与测试目录修改量为 **0**。
 2. **术语与状态机零冲突**：所有文档中的状态机、生命周期、外键关系与权限边界 100% 互洽。
-3. **非农场化与反刷分验证**：奖励系统必须具备严密的原语级防刷设计。
+3. **确定性账本与防刷分验证**：奖励系统采用严谨的 `foldRewardLedger` 数学折叠模型与服务端权威来源去重。
 4. **独立 Gatekeeper 终审签署**：提交独立 PR 并等待 Gatekeeper 审查，达成 `P0=0, P1=0, P2=0` 裁决。
 5. **严禁越跑**：在 Gatekeeper 明确下发 Phase 8B 控制文件之前，绝不启动任何生产代码实现。

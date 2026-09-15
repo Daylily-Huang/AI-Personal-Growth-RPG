@@ -23,11 +23,11 @@ classDiagram
     class Milestone {
         +UUID id
         +UUID user_id
+        +String milestone_key
         +String title
         +String description
-        +String category
-        +String recognition_class
-        +String status
+        +String recognition_class "CORE_VERIFIED | USER_CONFIRMED_REAL_WORLD"
+        +String status "ACTIVE | REVOKED | CORRECTED"
         +UUID source_id
         +String source_type
         +Boolean granted_reward_credit
@@ -35,8 +35,8 @@ classDiagram
     }
     class CoreVerified {
         <<RecognitionClass>>
-        Mastery Thresholds (L3, L4, L5)
-        Major/Epic/Boss Quest Clears
+        Mastery Thresholds (M6, M8, M10)
+        Epic/Boss Quest Clears
         Durable Artifact Production
         Completed Season Arcs
     }
@@ -53,9 +53,9 @@ classDiagram
 
 ### 2.1 `CORE_VERIFIED`
 Milestones whose prerequisites are completely and deterministically validated by existing Growth Core tables:
-- **Mastery Threshold**: Achieving Mastery Level 3 ("Proficient"), Level 4 ("Advanced"), or Level 5 ("Master") in a recognized Skill backed by verified Evidence.
-- **Epic Quest Victory**: Successful completion of a high-complexity Quest (`tier = 'EPIC'` or `'BOSS'`).
-- **Durable Artifact Tier**: Authoring a major verified Artifact (e.g., open-source library, published essay, comprehensive architecture blueprint).
+- **Mastery Threshold**: Achieving advanced Mastery levels (e.g. M6 Independent, M8 Systemize, M10 Create) in a recognized Skill backed by verified Evidence in the Core Growth Engine.
+- **Epic/Boss Quest Victory**: Successful completion of a high-order Quest (`quest.status = 'completed' AND (quest.quest_size IN ('epic', 'main') OR quest.is_boss = true)`).
+- **Durable Artifact Production**: Authoring a verified durable Artifact (e.g., open-source library, published essay, comprehensive architecture blueprint).
 - **Season Arc Completion**: Successfully completing an active Season with a user-confirmed Final Review.
 
 ### 2.2 `USER_CONFIRMED_REAL_WORLD`
@@ -64,6 +64,7 @@ Milestones recognizing external, offline accomplishments that exceed the typical
 - Securing a career promotion or launching an independent business.
 - Delivering a keynote speech or passing a professional accreditation exam.
 - **Validation Requirement**: User self-attestation with optional descriptive context or external links, confirmed via explicit modal review.
+- **Recognition vs. Reward Eligibility**: `USER_CONFIRMED_REAL_WORLD` serves as an honorable recognition record. However, **self-attestation alone does NOT automatically mint reward credits**. Only real-world milestones that satisfy explicit deterministic policy backed by verifiable independent external evidence (e.g., accredited certification, credential ID, public race timing link, published paper DOI) may mint credits. Unverified self-claims mint 0 credits.
 
 ---
 
@@ -82,13 +83,14 @@ The system will reject any milestone definition based on the following anti-patt
 
 Milestones serve as one of the four sparse, high-value source classes authorized to mint Reward Credits in Phase 8E.
 
-### 4.1 Idempotent Reward Minting
-When a Milestone is confirmed, it may trigger an atomic Reward Credit grant:
-$$\text{idempotency\_key} = \text{SHA256}(\text{user\_id} \mathbin{\Vert} \text{'MILESTONE'} \mathbin{\Vert} \text{milestone\_id} \mathbin{\Vert} \text{policy\_version} \mathbin{\Vert} \text{'EARN'})$$
+### 4.1 Anti-Double-Minting: Core Source Anchoring
+To prevent wrapper double-minting, when a `CORE_VERIFIED` Milestone wraps a Quest, Skill Mastery, or Artifact that already minted credits:
+$$\text{canonical\_source\_identity} = (\text{user\_id}, \text{underlying\_core\_source\_type}, \text{underlying\_core\_source\_id}, \text{policy\_version}, \text{'EARN'})$$
+- The canonical reward source identity anchors directly to the underlying Core source entity (`canonical_source_type = 'QUEST'`, `canonical_source_id = quest.id`), **NOT** the `milestone_id`.
+- If the user already earned reward credits for Boss Quest X, the Milestone wrapper cannot mint a second grant because the database unique index on canonical source identity will reject it.
 - The milestone record sets `granted_reward_credit = true` and references the resulting transaction.
-- If the grant RPC is retried, the unique idempotency key prevents duplicate credit minting.
 
-### 4.2 Revocation and Correction Model (O5, O20)
+### 4.2 Revocation and Correction Model (Rule: MILESTONE_REVOCATION_LEDGER_CORRECTION, Harness: O005, O020)
 If a prerequisite Activity or Quest is subsequently deleted or flagged as fraudulent:
 1. The Milestone status transitions to `REVOKED`.
 2. An audit record is created explaining the revocation reason.
@@ -102,7 +104,7 @@ If a prerequisite Activity or Quest is subsequently deleted or flagged as fraudu
 - **Milestone Candidacy Detection (`MILESTONE_CANDIDATE`)**:
   - The AI GM monitors completed Season Reviews and durable Artifact submissions.
   - When it detects that a user's recent achievements satisfy an unawarded milestone rubric, it formats an `OuterLoopProposal`.
-  - The proposal highlights the evidence: *"Based on your successful deployment of the production database migration in Quest #42 and your Mastery Level 4 verification, you are eligible for the 'Database Architect' Milestone."*
+  - The proposal highlights the evidence: *"Based on your successful deployment of the production database migration in Quest #42 and your M6 Independent verification, you are eligible for the 'Database Architect' Milestone."*
 - **No Direct Award Authority (O8)**:
   - The AI GM can never directly award a milestone.
   - The user reviews the candidate proposal and confirms the recognition.
@@ -113,4 +115,4 @@ If a prerequisite Activity or Quest is subsequently deleted or flagged as fraudu
 
 - **O012_MILESTONES_PRIORITIZE_REAL_GROWTH**: Automated test asserts that all seeded and candidate milestones evaluate against Mastery, Quests, Artifacts, or Real-World criteria; attempts to create a milestone with `source_type = 'LOGIN_STREAK'` fail schema validation.
 - **O021_MILESTONE_AI_PROPOSAL_CONFIRMATION**: AI candidacy proposal remains in `PROPOSED` state until an authenticated user RPC accepts it.
-- **MILESTONE_REVOCATION_REWARDS_CORRECTED**: Triggering milestone revocation appends an auditable negative ledger entry without hard-deleting the milestone record.
+- **O005_REWARD_REVERSAL_IS_CORRECTION**: Triggering milestone revocation appends an auditable negative ledger entry without hard-deleting the milestone record.

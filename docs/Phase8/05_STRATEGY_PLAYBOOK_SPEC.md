@@ -15,9 +15,9 @@ While the Growth Core records **Knowledge** ("What conceptual facts do I underst
 
 ---
 
-## 2. Strategy Lifecycle State Machine
+## 2. Strategy 6-Status Lifecycle State Machine
 
-A Strategy progresses through an evidence-backed empirical lifecycle. Progression is governed by deterministic threshold rules and user confirmation.
+A Strategy progresses through an evidence-backed empirical lifecycle with **six distinct statuses** (`HYPOTHESIS`, `TESTING`, `SUPPORTED`, `CONTEXTUAL`, `WEAKENED`, `RETIRED`). Progression is governed by deterministic threshold rules and user confirmation.
 
 ```mermaid
 stateDiagram-v2
@@ -78,7 +78,7 @@ To transition from `HYPOTHESIS` or `TESTING` to `SUPPORTED`, the deterministic e
 
 ---
 
-## 4. Deterministic Derived Confidence Rubric (O17)
+## 4. Deterministic Derived Confidence Rubric (Rule: DETERMINISTIC_DERIVED_CONFIDENCE, Harness: O017)
 
 Strategy confidence is **never a user-editable arbitrary percentage**. It is a **deterministic, derived assessment** computed by the system based on logged support provenance records, temporal span, and counter-evidence ratios.
 
@@ -101,7 +101,7 @@ LOW  ──►  MODERATE  ──►  HIGH  ──►  VERY_HIGH
 
 ---
 
-## 5. Support Provenance & Strength Classes
+## 5. Support Provenance & Source De-Duplication
 
 The `strategy_supports` table records every piece of supporting or contradictory empirical evidence. Crucially, referencing Growth Core events does not reclassify them as new Evidence truth; it establishes auditable provenance.
 
@@ -131,17 +131,23 @@ erDiagram
         text observation_type "SUPPORT | COUNTER_EVIDENCE"
         text source_class "SEASON_REVIEW | ACTIVITY | QUEST_OUTCOME | ARTIFACT | CORE_EVIDENCE_REFERENCE | JOURNAL_CONTEXT | MANUAL_OBSERVATION"
         uuid source_id "Nullable FK to source"
+        text evaluator_version "text NOT NULL"
         text note
         timestamptz observed_at
         timestamptz created_at
     }
 ```
 
-### 5.1 Source Class Weight Hierarchy
+### 5.1 Source Identity De-Duplication
+To prevent duplicate recording or replay attacks from inflating confidence, the database enforces:
+$$\text{UNIQUE} (\text{strategy\_id}, \text{source\_class}, \text{source\_id}, \text{observation\_type}, \text{evaluator\_version})$$
+Any re-evaluation of the same source event under the same evaluator version resolves to the existing record.
+
+### 5.2 Source Class Weight Hierarchy
 Observations carry differing evidential weight depending on their objective verifiability:
 
 1. **`CORE_EVIDENCE_REFERENCE` / `ARTIFACT` (Weight: High / 1.0)**: Strategy linked to a verified durable Artifact or Core Evidence submission.
-2. **`QUEST_OUTCOME` (Weight: High / 1.0)**: Strategy linked to the successful completion of a Major/Epic Quest.
+2. **`QUEST_OUTCOME` (Weight: High / 1.0)**: Strategy linked to the successful completion of an eligible quest (`quest.status = 'completed' AND (quest.quest_size IN ('major', 'epic', 'main') OR quest.is_boss = true)`).
 3. **`SEASON_REVIEW` (Weight: Moderate / 0.8)**: Strategy validated during a confirmed Season Final Review.
 4. **`ACTIVITY` (Weight: Moderate / 0.6)**: Strategy tagged during routine daily activity execution.
 5. **`JOURNAL_CONTEXT` / `MANUAL_OBSERVATION` (Weight: Low / 0.3)**: Subjective reflection noting that the strategy helped or hindered.
