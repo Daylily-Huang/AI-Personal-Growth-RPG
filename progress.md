@@ -15,7 +15,11 @@
 - Round 3 已实现 `/api/seasons`、Season lifecycle action routes、Season-Quest link、Review finalize/amend、全局 Review read 与 outer-loop proposal review HTTP 适配器，并新增统一 Phase 8B HTTP 错误映射。
 - 新增 Round 3 API 契约测试 10 项；本机全量结果 711 passed / 295 skipped，lint/build 全绿。
 - 顺带修复 Windows 下 governance delta helper 对 `HEAD^1` 的 shell 转义兼容性，定向治理回归 26/26 通过。
-- 下一步：提交/push Round 3 → exact-head GitHub CI（含真实 Supabase）复验；只有 Round 3 CI 绿色后再进入 Journey UI。
+- Round 3 已提交为 exact head `6e5ccdfc902dee3d9478742876aaefc0560f7e02`；GitHub Actions Run `35121618237` 的 `check` 与 `supabase-integration` 全绿，Round 4 进入门禁已满足。
+- Round 4 已实现 Journey UI：`/journey/seasons` 与 `/journey/reviews`，覆盖 Season lifecycle、Quest 关联、周期 Review、FINAL amendment 与只读版本历史；Journey 局部 AppShell 保持单实例且未触碰历史全局导航治理。
+- 修复 Next.js 16.3.1 production build 对 `/journey/reviews` 的 `useSearchParams()` Suspense 阻断：server page 解析 async `searchParams`，交互逻辑迁移到 `ReviewsClient`。
+- Round 4 本地门禁：Round 3+4 定向 18/18；全量 44 files passed / 21 skipped，719 passed / 295 skipped；全量 ESLint 与 production build 全绿。
+- 下一步：精确暂存 Round 4 文件与本轮证据文档，commit/push → exact-head GitHub CI（含真实 Supabase）复验；CI 绿色后进入 Round 5 exit verification / 独立 Gatekeeper。
 
 ## 关键里程碑归档记录
 

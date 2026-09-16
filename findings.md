@@ -43,3 +43,11 @@
 - 新增 `tests/phase8b-api-adapters.test.ts` 覆盖认证优先、输入校验、数据库错误到 HTTP 4xx 映射、O022 产品 DELETE fail-closed、FINAL Review 必须经 Season conclusion、proposal review 仅委托既有 authority。
 - 本机全量门禁：43 test files passed / 21 skipped，711 tests passed / 295 skipped；全量 ESLint 与 Next.js production build 通过。
 - 全量测试同时暴露 Windows shell 会把未引用的 `HEAD^1` 解释成 `HEAD1`；`tests/helpers/governance-delta.ts` 与对应回归测试已做最小跨平台引用修复，治理测试 26/26 通过，fail-closed 语义不变。
+
+## 2026-09-17 — Phase 8B Round 4 Journey UI 证据
+
+- Round 3 exact head `6e5ccdfc902dee3d9478742876aaefc0560f7e02` 已由 CI Run `35121618237` 复验：`check` 与 `supabase-integration` 均 success，因此满足 controlling document 的 Round 4 进入条件。
+- 新增 `/journey/seasons` 与 `/journey/reviews`。Journey 采用局部单实例 `AppShellProvider + AppShell`，未修改历史全局 route classifier；局部导航只暴露 Seasons / Reviews。
+- UI 仅调用既有 Phase 8B HTTP API，不直接导入 Supabase、不调用 `.from()` / `.rpc()`、不暴露 service-role，也未扩展 Phase 8C–8G surface。
+- `/journey/reviews` 的生产构建阻塞来自 Next.js 16.3.1 对 client `useSearchParams()` 的 Suspense 要求；已改为 server page 解析 async `searchParams`，再把 `initialSeasonId` 传给 `ReviewsClient`，保留筛选行为并消除 CSR bailout。
+- Round 4 + Round 3 定向测试 18/18；本机全量 44 files passed / 21 skipped，719 tests passed / 295 skipped；全量 ESLint 与 Next.js production build 通过。build route 表确认 `/journey/reviews` 为动态服务端路由、`/journey/seasons` 正常生成。

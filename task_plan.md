@@ -3,7 +3,7 @@
 > **权威状态主文档**：请统一参阅 [`docs/MASTER_PROJECT_HANDOFF.md`](docs/MASTER_PROJECT_HANDOFF.md)。  
 > **当前里程碑**: Phase 8B — Season & Review 权威实现（进行中）
 > **当前主分支基线 (main)**: `653fe018f6cee38b2263fbcca19dffbf624d4c18`  
-> **最新状态**: Phase 8B controlling document 已授权；Draft PR #33 已建立，当前先以真实 Supabase CI 验证数据库权威层，再继续 API / UI。
+> **最新状态**: Phase 8B controlling document 已授权；Draft PR #33 已建立。Round 1/2 DB+RPC 与 Round 3 API 已通过 exact-head CI；Round 4 Journey UI 本地全量门禁已绿，待提交后 exact-head CI 复验。
 
 ---
 
@@ -44,6 +44,6 @@
 - [complete] **Phase 8A: Outer Growth Loop 架构冻结与实现授权准备**
 - [in_progress] **Phase 8B: Season & Review 权威实现**
   - [complete] DB foundation + 9 RPC authority：真实 Supabase CI Run `35119470754` 全绿
-  - [complete] API routes / adapters：仅封装已冻结 DB 契约；本地全量 711 passed / 295 skipped，lint/build 通过，待 exact-head CI 复验
-  - [pending] UI：`/journey/seasons` 与 `/journey/reviews`
+  - [complete] API routes / adapters：exact head `6e5ccdfc902dee3d9478742876aaefc0560f7e02`，CI Run `35121618237` 的 `check` 与 `supabase-integration` 全绿
+  - [in_progress] UI：`/journey/seasons` 与 `/journey/reviews` 已实现；本地 719 passed / 295 skipped、lint/build 通过，待 Round 4 exact-head CI 复验
   - [pending] 全量回归、O006/O013/O014/O015/O016/O022、独立 Gatekeeper、exact-head CI
