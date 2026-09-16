@@ -26,6 +26,7 @@ describe.skipIf(!DATABASE_URL)("Phase 8B Round 2 — deterministic RPC authority
       "delete from public.outer_loop_proposals where user_id in ($1, $2)",
       "delete from public.seasons where user_id in ($1, $2)",
       "delete from public.xp_transactions where user_id in ($1, $2)",
+      "delete from public.ai_assessments where user_id in ($1, $2)",
       "delete from public.mastery_verifications where user_id in ($1, $2)",
       "delete from public.mastery_events where user_id in ($1, $2)",
       "delete from public.evidence_records where user_id in ($1, $2)",
@@ -148,6 +149,12 @@ describe.skipIf(!DATABASE_URL)("Phase 8B Round 2 — deterministic RPC authority
          (id, user_id, activity_id, skill_id, evidence_level, evidence_type, description, verified)
        values ($1, $2, $3, $4, 3, 'work_product', 'Phase8B frozen core evidence', true)`,
       [EVIDENCE_A, USER_A, ACTIVITY_A, SKILL_A],
+    );
+    await pg.query(
+      `insert into public.ai_assessments
+         (id, user_id, activity_id, rules_version, status, assessment_json)
+       values ($1, $2, $3, '1.0.0', 'confirmed', '{}'::jsonb)`,
+      [ASSESSMENT_A, USER_A, ACTIVITY_A],
     );
     await pg.query(
       `insert into public.xp_transactions
