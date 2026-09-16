@@ -5,6 +5,14 @@
 
 ---
 
+## 2026-09-17 — Phase 8B Season & Review 实施
+
+- 已有实现：0043 五表 foundation、0044 九个权威 RPC、Phase 8B DB/RPC 测试、outer-loop repository/service scaffold；Draft PR #33。
+- 首轮真实 CI Run `35118406738`：`check` 与 `supabase-integration` 均未通过。
+- 已确认并修复第一层阻断：Phase 8B DB tests 不再把多条参数化 SQL 作为单个 prepared statement 执行，fixture cleanup 改为逐条查询。
+- 已保留本地 CI 守卫修复：迁移白名单纳入 0043/0044；visual migration activation 不再仅由验证测试文件触发。
+- 下一步：本地静态/目标测试 → commit/push → 让 GitHub 真实 Supabase CI 暴露并验证剩余 DB/RPC 逻辑问题。
+
 ## 关键里程碑归档记录
 
 - **Stage 0~4 业务核心已冻结**：

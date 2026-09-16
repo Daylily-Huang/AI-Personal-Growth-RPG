@@ -28,3 +28,10 @@
    - **72 格无头浏览器全矩阵闭环**：9 路由 × 4 视口 (375/768/1024/1440) × 2 动效模式 (no-preference/reduce) 实现 100% 零水平溢出、零控制台严重错误。
    - **键盘与弹层焦点生命周期**：ReactFlow 拓扑图与原生表格替代视图双轨支持，Modal / Drawer Escape 捕获与焦点恢复规范化。
    - **CI 治理隔离**：post-merge push-to-main CI 失败（Run `34708617506`）经独立审查确认仅来源于 `tests/phase5-quests-ui.test.tsx` 与 `tests/phase5-skills-ui.test.tsx` 的 merge-base delta guard 兼容性（`KNOWN PUSH-TO-MAIN GOVERNANCE GUARD INCOMPATIBILITY`），不撤销 Phase 7 终局冻结效力。
+
+## 2026-09-17 — Phase 8B CI 证据
+
+- Draft PR #33 当前实现提交：`b94d12708fccd205ff716ccb67fd994b81bd9b0a`；GitHub Actions Run `35118406738`。
+- `supabase-integration` 已成功启动真实 Supabase、导出测试凭据并完成 production build；失败发生在 database-backed tests。
+- Phase 8B 两个 DB 测试的 setup/cleanup 使用带参数的多语句 `pg.query(...)`，PostgreSQL/pg 返回 `42601 cannot insert multiple commands into a prepared statement`。这意味着首轮 CI 尚未真正完成 Phase 8B DB/RPC 行为验证。
+- 同一 CI 还暴露两个静态守卫问题：`tests/supabase-schema.test.ts` 预期迁移链未包含 0043/0044；historical visual guard 将本次 backend migration delta 误判为 visual migration。两处已有手术式本地修复，需由下一次 Linux CI 验证 fail-closed 语义。

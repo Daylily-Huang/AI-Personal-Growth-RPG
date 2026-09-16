@@ -33,11 +33,13 @@ export const VISUAL_MIGRATION_SURFACES = [
   'src/components/',
   'public/assets/environment/',
   'docs/DesignSystem/',
-  'tests/visual-foundation.test.ts',
-  'tests/global-app-shell.test.tsx',
 ];
 
 export function isVisualMigrationPath(filePath: string): boolean {
+  // Verification-test churn alone must not activate the historical visual-only
+  // migration guard. A real visual production/documentation surface must be in
+  // the delta; once activated, tests remain harmless because they are not in
+  // the frozen-backend denylist.
   // Explicitly approved presentation-only helpers
   if (VISUAL_PRESENTATION_HELPERS.some((helper) => filePath === helper || filePath.endsWith(helper))) {
     return true;

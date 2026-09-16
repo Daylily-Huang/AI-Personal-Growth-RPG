@@ -16,6 +16,22 @@ const SEASON_B1 = "8bd00001-bbbb-4000-b000-000000000001";
 describe.skipIf(!DATABASE_URL)("Phase 8B Round 1 — DB foundation authority", () => {
   let pg: Client;
 
+  async function cleanupFixtures(): Promise<void> {
+    const cleanupStatements = [
+      "delete from public.season_reviews where user_id in ($1, $2)",
+      "delete from public.season_quests where user_id in ($1, $2)",
+      "delete from public.outer_loop_audit_events where user_id in ($1, $2)",
+      "delete from public.outer_loop_proposals where user_id in ($1, $2)",
+      "delete from public.seasons where user_id in ($1, $2)",
+      "delete from public.quests where user_id in ($1, $2)",
+      "delete from auth.users where id in ($1, $2)",
+    ];
+
+    for (const statement of cleanupStatements) {
+      await pg.query(statement, [USER_A, USER_B]);
+    }
+  }
+
   async function asUser<T>(userId: string, fn: () => Promise<T>): Promise<T> {
     await pg.query("set role authenticated");
     await pg.query("select set_config('request.jwt.claim.sub', $1, false)", [userId]);
@@ -30,15 +46,7 @@ describe.skipIf(!DATABASE_URL)("Phase 8B Round 1 — DB foundation authority", (
     pg = new Client({ connectionString: DATABASE_URL });
     await pg.connect();
 
-    await pg.query(`
-      delete from public.season_reviews where user_id in ($1, $2);
-      delete from public.season_quests where user_id in ($1, $2);
-      delete from public.outer_loop_audit_events where user_id in ($1, $2);
-      delete from public.outer_loop_proposals where user_id in ($1, $2);
-      delete from public.seasons where user_id in ($1, $2);
-      delete from public.quests where user_id in ($1, $2);
-      delete from auth.users where id in ($1, $2);
-    `, [USER_A, USER_B]);
+    await cleanupFixtures();
 
     await pg.query(
       `insert into auth.users (id, email) values
@@ -108,15 +116,7 @@ describe.skipIf(!DATABASE_URL)("Phase 8B Round 1 — DB foundation authority", (
 
   afterAll(async () => {
     if (!pg) return;
-    await pg.query(`
-      delete from public.season_reviews where user_id in ($1, $2);
-      delete from public.season_quests where user_id in ($1, $2);
-      delete from public.outer_loop_audit_events where user_id in ($1, $2);
-      delete from public.outer_loop_proposals where user_id in ($1, $2);
-      delete from public.seasons where user_id in ($1, $2);
-      delete from public.quests where user_id in ($1, $2);
-      delete from auth.users where id in ($1, $2);
-    `, [USER_A, USER_B]);
+    await cleanupFixtures();
     await pg.end();
   });
 
