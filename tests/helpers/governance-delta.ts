@@ -55,11 +55,17 @@ function git(args: string, cwd?: string): string {
 }
 
 function diffNameOnly(rangeExpr: string, cwd?: string): string[] {
-  const diff = git(`diff --name-only ${rangeExpr}`, cwd);
-  return diff
-    .split("\n")
-    .map((s) => s.trim())
-    .filter(Boolean);
+  // `-z` makes Git emit raw path bytes instead of C-style quoted pathnames,
+  // so non-ASCII paths remain matchable by scoped governance policies.
+  // `--no-renames` intentionally represents a rename as delete(old)+add(new),
+  // preserving BOTH path identities. Otherwise `--name-only` reports only the
+  // destination of a detected rename and a protected historical source path
+  // could disappear from scope applicability checks.
+  const diff = execSync(`git diff --no-renames --name-only -z ${rangeExpr}`, {
+    encoding: "utf8",
+    cwd,
+  });
+  return diff.split("\0").filter(Boolean);
 }
 
 export function resolveGovernanceChangedFiles(
@@ -121,14 +127,19 @@ export function findPolicyViolations(
   policy: DeltaGuardPolicy,
 ): string[] {
   const violations: string[] = [];
-  for (const file of files) {
-    if (policy.authorizedExceptions.includes(file)) continue;
-    for (const prefix of policy.forbiddenPrefixes) {
+  const authorizedExceptions = policy.authorizedExceptions.map(normalizeGovernancePath);
+  const forbiddenPrefixes = policy.forbiddenPrefixes.map(normalizeGovernancePath);
+  const forbiddenExactFiles = (policy.forbiddenExactFiles ?? []).map(normalizeGovernancePath);
+
+  for (const rawFile of files) {
+    const file = normalizeGovernancePath(rawFile);
+    if (authorizedExceptions.includes(file)) continue;
+    for (const prefix of forbiddenPrefixes) {
       if (file.startsWith(prefix)) {
         violations.push(`${file} matches forbidden prefix "${prefix}"`);
       }
     }
-    for (const exact of policy.forbiddenExactFiles ?? []) {
+    for (const exact of forbiddenExactFiles) {
       if (file === exact) {
         violations.push(`${file} is a forbidden file`);
       }
@@ -137,9 +148,13 @@ export function findPolicyViolations(
   return violations;
 }
 
+function normalizeGovernancePath(filePath: string): string {
+  return filePath.replace(/\\/g, "/");
+}
+
 export function matchesScopeTrigger(filePath: string, trigger: string): boolean {
-  const normalizedFile = filePath.replace(/\\/g, "/");
-  const normalizedTrigger = trigger.replace(/\\/g, "/");
+  const normalizedFile = normalizeGovernancePath(filePath);
+  const normalizedTrigger = normalizeGovernancePath(trigger);
 
   if (normalizedTrigger.endsWith("/**")) {
     const base = normalizedTrigger.slice(0, -2);

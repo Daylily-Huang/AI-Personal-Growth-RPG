@@ -219,7 +219,7 @@ describe("Governance delta guard — policy evaluation", () => {
   });
 });
 
-describe("Phase 8B Round 0 — Scoped governance guard regressions (G-R0-01 to G-R0-14)", () => {
+describe("Phase 8B Round 0 — Scoped governance guard regressions (G-R0-01 to G-R0-17)", () => {
   it("G-R0-01 backend-only future migration -> historical UI guards applicable=false, PASS", () => {
     const changed = ["supabase/migrations/0043_phase8b_outer_loop_foundation.sql"];
 
@@ -397,17 +397,20 @@ describe("Phase 8B Round 0 — Scoped governance guard regressions (G-R0-01 to G
       expect(delta.range).toBe(`${oldMainSha}..HEAD`);
       expect(delta.files).toContain("supabase/migrations/0043_phase8b_outer_loop_foundation.sql");
 
-      const questsResult = evaluateScopedPolicy(delta.files, PHASE5_QUESTS_POLICY);
-      expect(questsResult.applicable).toBe(false);
-      expect(questsResult.violations).toEqual([]);
-
-      const skillsResult = evaluateScopedPolicy(delta.files, PHASE5_SKILLS_POLICY);
-      expect(skillsResult.applicable).toBe(false);
-      expect(skillsResult.violations).toEqual([]);
-
-      const dashboardResult = evaluateScopedPolicy(delta.files, PHASE5_DASHBOARD_POLICY);
-      expect(dashboardResult.applicable).toBe(false);
-      expect(dashboardResult.violations).toEqual([]);
+      const policies = [
+        PHASE5_DASHBOARD_POLICY,
+        PHASE5_QUESTS_POLICY,
+        PHASE5_SKILLS_POLICY,
+        PHASE6_KNOWLEDGE_POLICY,
+        STAGE7C_ARTIFACT_POLICY,
+        SHARED_UI_POLICY,
+        GLOBAL_APPSHELL_POLICY,
+      ];
+      for (const policy of policies) {
+        const result = evaluateScopedPolicy(delta.files, policy);
+        expect(result.applicable).toBe(false);
+        expect(result.violations).toEqual([]);
+      }
     });
   });
 
@@ -462,5 +465,78 @@ describe("Phase 8B Round 0 — Scoped governance guard regressions (G-R0-01 to G
     expect(resultUnauthorized.applicable).toBe(true);
     expect(resultUnauthorized.violations.length).toBeGreaterThan(0);
     expect(resultUnauthorized.violations[0]).toContain("src/components/ui/BaseModal.tsx");
+  });
+
+  it("G-R0-15 rename out of historical UI scope preserves old path and mixed backend delta still FAILS", () => {
+    withRepo((dir) => {
+      commitFile(
+        dir,
+        "src/app/quests/page.tsx",
+        "export default function Quests() {}",
+        "base quests ui",
+      );
+      const baseSha = runGit(dir, "rev-parse HEAD");
+      runGit(dir, "checkout -q -b feature/rename-out-of-scope");
+      fs.mkdirSync(path.join(dir, "src/features/quests"), { recursive: true });
+      runGit(dir, "mv src/app/quests/page.tsx src/features/quests/page.tsx");
+      commitFile(
+        dir,
+        "supabase/migrations/0043_phase8b_outer_loop_foundation.sql",
+        "-- migration",
+        "rename ui and add backend",
+      );
+      setOriginMain(dir, baseSha);
+
+      const delta = resolveGovernanceChangedFiles({ cwd: dir });
+      expect(delta.mode).toBe("pr-branch");
+      expect(delta.files).toContain("src/app/quests/page.tsx");
+      expect(delta.files).toContain("src/features/quests/page.tsx");
+      expect(delta.files).toContain("supabase/migrations/0043_phase8b_outer_loop_foundation.sql");
+
+      const result = evaluateScopedPolicy(delta.files, PHASE5_QUESTS_POLICY);
+      expect(result.applicable).toBe(true);
+      expect(result.violations.some((v) => v.includes("supabase/"))).toBe(true);
+    });
+  });
+
+  it("G-R0-16 non-ASCII historical UI path remains raw/matchable and mixed backend delta FAILS", () => {
+    withRepo((dir) => {
+      commitFile(dir, "base.txt", "base", "base");
+      const baseSha = runGit(dir, "rev-parse HEAD");
+      runGit(dir, "checkout -q -b feature/non-ascii-ui");
+      commitFile(
+        dir,
+        "src/app/quests/说明.tsx",
+        "export const label = '说明';",
+        "add non ascii quests ui",
+      );
+      commitFile(
+        dir,
+        "supabase/migrations/0043_phase8b_outer_loop_foundation.sql",
+        "-- migration",
+        "add backend",
+      );
+      setOriginMain(dir, baseSha);
+
+      const delta = resolveGovernanceChangedFiles({ cwd: dir });
+      expect(delta.files).toContain("src/app/quests/说明.tsx");
+
+      const result = evaluateScopedPolicy(delta.files, PHASE5_QUESTS_POLICY);
+      expect(result.applicable).toBe(true);
+      expect(result.violations.some((v) => v.includes("supabase/"))).toBe(true);
+    });
+  });
+
+  it("G-R0-17 Windows-style separators normalize before scope and forbidden-path evaluation", () => {
+    const changed = [
+      "src\\app\\quests\\page.tsx",
+      "supabase\\migrations\\0043_phase8b_outer_loop_foundation.sql",
+    ];
+
+    const result = evaluateScopedPolicy(changed, PHASE5_QUESTS_POLICY);
+    expect(result.applicable).toBe(true);
+    expect(result.violations).toEqual([
+      'supabase/migrations/0043_phase8b_outer_loop_foundation.sql matches forbidden prefix "supabase/"',
+    ]);
   });
 });
