@@ -1,6 +1,6 @@
 # AI Personal Growth RPG — Phase 8 Outer Growth Loop Master Roadmap
 
-> **文档版本**: 2.3 (Phase 8A Architecture Freeze Edition - R3 Corrective)  
+> **文档版本**: 2.4 (Phase 8A Architecture Freeze Edition - R4 Corrective)  
 > **当前状态**: PHASE 8A ARCHITECTURE FREEZE — PURE SPEC / DOCS ONLY  
 > **生产代码授权**: NOT AUTHORIZED (生产实现严格禁止，直到 Phase 8A 独立审查签署 GO)  
 > **基线主分支 (main)**: `0a85de522503cf3f0a656f74f248c9a65e7b5da5`  

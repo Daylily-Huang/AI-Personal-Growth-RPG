@@ -53,7 +53,7 @@ stateDiagram-v2
 2. **`PLANNED`**: Fully specified season with start date and linked quests (0..1 MAIN quest, 0..N FOCUS quests), awaiting activation.
 3. **`ACTIVE`**: The currently running season. Clock is ticking. The user is actively executing against this context.
    - **Transition Gate**: Direct activation from `DRAFT -> ACTIVE` is strictly prohibited. Seasons must transition `DRAFT -> PLANNED -> ACTIVE`.
-   - **Cardinality Invariant (0..1 MAIN Quest)**: A Season may have 0 or 1 linked `MAIN` Quest. Linking a `MAIN` Quest is optional and **never** a mandatory prerequisite for activation.
+   - **Cardinality Invariant (0..1 MAIN Quest, 0..N FOCUS Quests)**: A Season may have 0 or 1 linked `MAIN` Quest, and 0 to N linked `FOCUS` Quests. Linking a quest is completely optional and **never** a mandatory prerequisite for activation (a season may be planned and activated with zero linked quests, and quests may be linked or unlinked throughout `DRAFT`, `PLANNED`, or `ACTIVE` states).
 4. **`COMPLETED`**: Terminal success state. Achieved via single atomic transaction in `rpc_conclude_season` which simultaneously persists the user-confirmed `FINAL` Review and transitions the Season to `COMPLETED`.
 5. **`ENDED_EARLY`**: Terminal state where the user concludes the season before the scheduled end date, executed via the same atomic transaction in `rpc_conclude_season` persisting the user-confirmed `FINAL` Review.
 6. **`ABANDONED`**: Terminal state where life circumstances or priority shifts led the user to stop the season. Executed via `rpc_conclude_season` with a mandatory `p_abandonment_reason` and audit record; does **not** require a `FINAL` Review.
@@ -141,13 +141,15 @@ A Review document contains structured sections validated against a strict schema
   - Recommended tactical adjustments for the next cycle.
 
 ### 5.3 Review Authority & Versioning Boundary (Rule: REVIEW_AUTHORITY_BOUNDARY, Harness: O016)
-- **Draft Reviews Live in AI Proposals**: Drafting, iteration, and previews are handled via `OuterLoopProposal` (`status = 'PROPOSED'`).
-- **Persistent Reviews are Finalized**: Once confirmed by the user, the review is inserted into `season_reviews`. Persistent review records do not maintain an internal `DRAFT` state; they are immutable upon creation.
+- **Review Immutability Boundary & Lifecycle**:
+  - Review content, qualitative reflections, criteria evaluations, and provenance metadata (`user_id`, `season_id`, `review_type`, `version`, `commit_key`, `created_at`, `amendment_reason`) are **strictly immutable** once inserted.
+  - The single system-managed linkage column `superseded_by_id UUID NULL` is initialized to `NULL` upon creation, and may only be updated exactly once from `NULL` to the new review row's ID by authoritative review RPCs (`rpc_finalize_season_review`, `rpc_amend_final_season_review`) when a superseding version is finalized under parent Season row lock.
 - **Durable Idempotency Key**: Each review commit carries a client `commit_key UUID NOT NULL` protected by `UNIQUE (user_id, commit_key)`. Retrying the same commit key idempotently returns the existing review without creating duplicate rows or bumping versions. In atomic season conclusion (`rpc_conclude_season`), this is passed as `p_final_review_commit_key UUID NOT NULL`, strictly separate from the request-level `p_request_idempotency_key text NOT NULL`.
 - **Serialization via Parent Season Row Lock**: Computing the sequential `version` acquires an exclusive row lock on the parent Season (`SELECT * FROM seasons WHERE id = p_season_id FOR UPDATE`), serializing concurrent finalizations and eliminating race conditions.
 - **Immutable Versioning & Concluded Season Amendment**:
   - Any subsequent corrections or amendments submitted under a new commit key generate a new superseding review row with an incremented `version` and update the prior review's `superseded_by_id` pointer.
-  - For concluded seasons (`COMPLETED` or `ENDED_EARLY`), amendments to the `FINAL` review are executed via `rpc_amend_final_season_review`. This RPC inserts `FINAL` version $N+1$, marks the prior review superseded, and updates amendment notes, while the parent Season **strictly remains in its terminal status and is never reopened**.
+  - For concluded seasons (`COMPLETED` or `ENDED_EARLY`), amendments to the `FINAL` review are executed via `rpc_amend_final_season_review`. This RPC acquires the parent Season row lock, identifies the current latest active `FINAL` review where `superseded_by_id IS NULL`, inserts `FINAL` version $N+1$, marks the prior review's `superseded_by_id = new_row.id`, and updates amendment notes, while the parent Season **strictly remains in its terminal status and is never reopened**.
+  - The schema uses strictly one forward pointer (`superseded_by_id UUID NULL FK season_reviews(id)`); no duplicate or inverse `supersedes_id` column exists.
 - **Phase 8B Decoupling from Phase 8E Reward Infrastructure (P1-03)**:
   - Season conclusion in Phase 8B strictly persists the terminal Season status, confirmed `FINAL` Review, and audit event.
   - `rpc_conclude_season` **does NOT** call `rpc_grant_reward_credit`.

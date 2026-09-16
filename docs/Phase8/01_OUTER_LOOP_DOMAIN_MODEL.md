@@ -181,7 +181,7 @@ classDiagram
         +UUID id
         +string milestone_key
         +string recognition_class "CORE_VERIFIED | USER_CONFIRMED_REAL_WORLD"
-        +string status "ACTIVE | REVOKED | CORRECTED"
+        +string status "ACTIVE | REVOKED"
     }
 
     Season "1" -- "0..*" SeasonQuestLink : links

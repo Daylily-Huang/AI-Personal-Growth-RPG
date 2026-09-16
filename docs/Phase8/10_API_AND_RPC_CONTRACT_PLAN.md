@@ -88,10 +88,10 @@ Every state-changing procedure below is specified against the required 13-point 
      "p_request_idempotency_key": "text"
    }
    ```
-4. **Current-state precondition**: Target season must exist with `status = 'PLANNED'`. Must have at least 1 linked quest (MAIN or FOCUS). May have 0 or 1 linked `MAIN` quest (0..1 MAIN Quest rule; linking a MAIN quest is optional).
+4. **Current-state precondition**: Target season must exist with `status = 'PLANNED'`. Cardinality of linked quests is `MAIN: 0..1`, `FOCUS: 0..N`. Linking a quest is completely optional and **never** a mandatory prerequisite for activation (a season may be activated with 0 linked quests; quests may be linked or unlinked throughout `DRAFT`, `PLANNED`, or `ACTIVE` states).
 5. **Allowed transition**: `PLANNED -> ACTIVE`. Direct activation from `DRAFT -> ACTIVE` is strictly prohibited.
 6. **Idempotency identity**: `p_request_idempotency_key`.
-7. **Deterministic validation**: Asserts no other active season exists for the user. Asserts season has $\ge 1$ linked quest and $\le 1$ linked MAIN quest.
+7. **Deterministic validation**: Asserts no other active season exists for the user. Asserts season has $\le 1$ linked MAIN quest (0..1 MAIN Quest rule). Zero quests required.
 8. **Locks / CAS / Concurrency**: Acquires exclusive lock on user's active seasons:
    `SELECT id FROM seasons WHERE user_id = auth.uid() AND status = 'ACTIVE' FOR UPDATE;`
    If an active season exists, aborts with 409 Conflict.
@@ -104,7 +104,6 @@ Every state-changing procedure below is specified against the required 13-point 
     - 404 `SEASON_NOT_FOUND`
     - 409 `ACTIVE_SEASON_EXISTS`
     - 409 `INVALID_STATE_TRANSITION` (if season is DRAFT or terminal)
-    - 422 `NO_LINKED_QUESTS` (must link at least 1 quest before activation)
 12. **Replay behavior**: If the season is already `ACTIVE` and `request_idempotency_key` matches, returns existing season record (HTTP 200).
 13. **Cross-tenant behavior**: Fails closed with 404 / 403.
 
@@ -239,8 +238,8 @@ Every state-changing procedure below is specified against the required 13-point 
      `SELECT * FROM season_reviews WHERE season_id = p_season_id AND review_type = 'FINAL' AND superseded_by_id IS NULL FOR UPDATE;`
    - Calculates `next_version = prior_review.version + 1`.
    - Inserts new row into `season_reviews`:
-     `season_id = p_season_id`, `user_id = auth.uid()`, `review_type = 'FINAL'`, `version = next_version`, `commit_key = p_commit_key`, `supersedes_id = prior_review.id`, content from `p_amended_review`, `amendment_reason = p_amendment_reason`.
-   - Updates `prior_review`: sets `superseded_by_id = new_row.id`.
+     `season_id = p_season_id`, `user_id = auth.uid()`, `review_type = 'FINAL'`, `version = next_version`, `commit_key = p_commit_key`, `superseded_by_id = NULL`, content from `p_amended_review`, `amendment_reason = p_amendment_reason`.
+   - Updates `prior_review`: sets `superseded_by_id = new_row.id`. Prior review payload/content/provenance remains strictly immutable; only the single one-time system linkage metadata `superseded_by_id` is updated from `NULL` to `new_row.id`.
    - Season status and timestamps (`started_at`, `ended_at`) remain completely untouched. Zero XP or reward mutations.
    - Writes audit event with `event_type = 'FINAL_REVIEW_AMENDED'`.
 10. **Audit write**: `outer_loop_audit_events` recording `season_id`, `prior_review_id`, `new_review_id`, `version`, and `amendment_reason`.
@@ -681,18 +680,18 @@ Every state-changing procedure below is specified against the required 13-point 
      "p_source_id": "text",
      "p_external_evidence_url": "text NULL",
      "p_external_credential_id": "text NULL",
-     "p_request_idempotency_key": "text"
+     "p_confirmation_request_idempotency_key": "text"
    }
    ```
 4. **Current-state precondition**: Milestone identity does not already exist for user: `UNIQUE (user_id, milestone_key, source_type, source_id)`.
 5. **Allowed transition**: Inserts recognition record in `milestones`.
-6. **Idempotency identity**: Composite natural key `UNIQUE (user_id, milestone_key, source_type, source_id)`.
+6. **Idempotency identity**: Composite natural key `UNIQUE (user_id, milestone_key, source_type, source_id)` and unique confirmation key `UNIQUE (user_id, confirmation_request_idempotency_key)`.
 7. **Deterministic validation**:
    - `p_source_id` must be non-empty text.
    - If `CORE_VERIFIED`: Asserts source record exists in Core and satisfies criteria.
    - If `USER_CONFIRMED_REAL_WORLD`: Records self-attestation with optional external proof URL/credential. Notes that self-attestation alone DOES NOT grant reward credits.
 8. **Locks / CAS / Concurrency**: Database unique index constraint check on `(user_id, milestone_key, source_type, source_id)`.
-9. **Atomic side effects**: Inserts row into `milestones` with `status = 'ACTIVE'`, `granted_reward_credit = false`. Writes audit event.
+9. **Atomic side effects**: Inserts row into `milestones` with `status = 'ACTIVE'`, `granted_reward_credit = false`, `confirmation_request_idempotency_key = p_confirmation_request_idempotency_key`, `revocation_request_idempotency_key = NULL`. Writes audit event.
 10. **Audit write**: `outer_loop_audit_events` (`MILESTONE_CONFIRMED`).
 11. **Error Taxonomy**:
     - 400 `MISSING_SOURCE_ID`
@@ -738,27 +737,27 @@ Every state-changing procedure below is specified against the required 13-point 
    {
      "p_milestone_id": "uuid",
      "p_revocation_reason": "text",
-     "p_request_idempotency_key": "text"
+     "p_revocation_request_idempotency_key": "text"
    }
    ```
 4. **Current-state precondition**: Milestone exists and `status = 'ACTIVE'`.
 5. **Allowed transition**: Milestone: `ACTIVE -> REVOKED`. Row is preserved for historical audit (append-/status-preserving, strictly never hard-deleted).
-6. **Idempotency identity**: `p_request_idempotency_key`.
+6. **Idempotency identity**: `revocation_request_idempotency_key` via partial unique index `uq_milestones_revocation_idempotency`.
 7. **Deterministic validation**: Asserts `p_revocation_reason` is non-empty string.
 8. **Locks / CAS / Concurrency**: Locks `milestones` row `FOR UPDATE`. If `granted_reward_credit = true`, also locks `reward_accounts` row `FOR UPDATE`.
 9. **Atomic side effects**:
-   - Updates `milestones`: `status = 'REVOKED'`, `revoked_at = clock_timestamp()`, `revocation_reason = p_revocation_reason`, `updated_at = clock_timestamp()`.
+   - Updates `milestones`: `status = 'REVOKED'`, `revoked_at = clock_timestamp()`, `revocation_reason = p_revocation_reason`, `revocation_request_idempotency_key = p_revocation_request_idempotency_key`.
    - If `milestones.granted_reward_credit = true` AND `milestones.reward_transaction_id IS NOT NULL`:
      - Locates original `EARN` transaction in `reward_transactions`.
      - Appends an offsetting `CORRECTION` transaction: `event_kind = 'CORRECTION'`, `amount = -original.amount`, `correction_for_id = milestones.reward_transaction_id`, `notes = 'Milestone revoked: ' || p_revocation_reason`.
-     - Re-folds ledger via `foldRewardLedger`: decrements `current_available` and `lifetime_earned`. If available drops below 0, records deficit and clamps available to 0.
+     - Re-folds ledger via `foldRewardLedger`: decrements `net_earned` and `current_available`. If available drops below 0, records `correction_deficit` and clamps available to 0. Gross cumulative positive earnings `lifetime_earned` remains strictly unchanged.
    - Writes audit event with `event_type = 'MILESTONE_REVOKED'`.
 10. **Audit write**: `outer_loop_audit_events` recording `milestone_id`, `revocation_reason`, and `correction_tx_id` (if credit was reversed).
 11. **Error Taxonomy**:
     - 400 `MISSING_REVOCATION_REASON`
     - 404 `MILESTONE_NOT_FOUND`
     - 409 `MILESTONE_ALREADY_REVOKED`
-12. **Replay behavior**: Replaying with same `request_idempotency_key` returns existing revoked milestone state (HTTP 200).
+12. **Replay behavior**: If milestone is already `REVOKED` and `revocation_request_idempotency_key = p_revocation_request_idempotency_key`, returns existing revoked milestone state (HTTP 200). A distinct key submitted for an already revoked milestone fails closed with HTTP 409 Conflict (`MILESTONE_ALREADY_REVOKED`).
 13. **Cross-tenant behavior**: Fails closed with 404.
 
 ---
@@ -790,15 +789,14 @@ Every state-changing procedure below is specified against the required 13-point 
        reviewed_at = clock_timestamp(),
        reviewed_by_id = auth.uid(),
        review_request_idempotency_key = p_review_request_idempotency_key,
-       rejection_reason = p_rejection_reason,
-       updated_at = clock_timestamp()
+       rejection_reason = p_rejection_reason
    WHERE id = p_proposal_id AND status = 'PROPOSED' AND user_id = auth.uid()
    RETURNING *;
    ```
    If zero rows updated:
    - Queries `outer_loop_proposals WHERE id = p_proposal_id AND user_id = auth.uid()`.
-   - **Exact Same-Key Replay**: If `review_request_idempotency_key = p_review_request_idempotency_key` AND `decision = p_decision`: returns HTTP 200 with previously committed domain entity / proposal state.
-   - **Distinct Key / Concurrent Loser**: If status is already terminal (`ACCEPTED`/`EDITED`/`REJECTED`) with a different key or different decision, aborts with HTTP 409 `PROPOSAL_ALREADY_REVIEWED`.
+   - **Exact Same-Key Replay**: If `review_request_idempotency_key = p_review_request_idempotency_key` AND `status = p_decision`: returns HTTP 200 with previously committed domain entity / proposal state.
+   - **Distinct Key / Concurrent Loser**: If status is already terminal (`ACCEPTED`/`EDITED`/`REJECTED`) with a different key or different decision, aborts with HTTP 409 Conflict (`PROPOSAL_ALREADY_REVIEWED`).
 9. **Atomic side effects**:
    - If `ACCEPTED` or `EDITED`: Inserts corresponding domain record (`seasons`, `strategies`, etc.) within same transaction.
    - Updates proposal: `resulting_entity_type`, `resulting_entity_id`.

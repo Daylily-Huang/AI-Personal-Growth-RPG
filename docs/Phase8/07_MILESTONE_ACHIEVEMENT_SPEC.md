@@ -10,7 +10,7 @@ A **Milestone** (or Achievement) in the AI Personal Growth RPG is a **formal rec
 2. **Real-World Growth Over App Vanity (O12)**:
    Traditional games reward "vanity engagement" (e.g., "Logged in 7 days in a row", "Clicked 100 buttons", "Shared on social media"). The RPG strictly prohibits vanity achievements. Milestones recognize only authentic competence thresholds and creative artifacts.
 3. **Immutability and Auditability (O9)**:
-   Milestones are permanent records of personal history. If an underlying prerequisite is subsequently invalidated, the Milestone is marked `REVOKED` or `CORRECTED` with an audit note; it is never silently deleted.
+   Milestones are permanent records of personal history. If an underlying prerequisite is subsequently invalidated, the Milestone is marked `REVOKED` with an audit note; it is never silently deleted.
 
 ---
 
@@ -27,7 +27,7 @@ classDiagram
         +String title
         +String description
         +String recognition_class "CORE_VERIFIED | USER_CONFIRMED_REAL_WORLD"
-        +String status "ACTIVE | REVOKED | CORRECTED"
+        +String status "ACTIVE | REVOKED"
         +String source_type "QUEST | MASTERY | ARTIFACT | SEASON | EXTERNAL_CREDENTIAL"
         +String source_id "UUID or composite identity (e.g. ${skill.id}:M6)"
         +String external_evidence_url
@@ -37,7 +37,8 @@ classDiagram
         +DateTime recognized_at
         +DateTime revoked_at
         +String revocation_reason
-        +String request_idempotency_key
+        +String confirmation_request_idempotency_key
+        +String revocation_request_idempotency_key
     }
     class CoreVerified {
         <<RecognitionClass>>
@@ -112,17 +113,22 @@ If an underlying prerequisite Activity or Quest is subsequently deleted, invalid
      ) VALUES (
        auth.uid(), 'CORRECTION', -orig_tx.amount, orig_tx.canonical_source_type,
        orig_tx.canonical_source_id, orig_tx.policy_version,
-       p_request_idempotency_key || ':correction', orig_tx.id
+       p_revocation_request_idempotency_key || ':correction', orig_tx.id
      );
      ```
    - Partial unique constraint `uq_reward_tx_correction_for` guarantees that at most ONE correction can ever be applied to the original transaction.
-   - Re-folds `reward_accounts` balance using `foldRewardLedger`. If available credits drop below 0, records an auditable `correction_deficit` without historical loss.
+   - Re-folds `reward_accounts` balance using `foldRewardLedger`: negative `CORRECTION` decrements `net_earned` and `current_available`. If available credits drop below 0, records an auditable `correction_deficit` and clamps available to 0. Gross `lifetime_earned` represents cumulative positive earnings and is strictly unchanged.
 3. **Immutable Audit Provenance**:
    - Appends audit event to `outer_loop_audit_events` with `action = 'MILESTONE_REVOKED'`.
 
 ### 4.3 Schema & Idempotency Governance Contract
 - **Unique Source Constraint**: `UNIQUE (user_id, milestone_key, source_type, source_id)` ensures that duplicate recognition cannot be created for the same source event.
-- **Durable Client Idempotency**: `UNIQUE (user_id, request_idempotency_key)` protects both confirmation and revocation RPCs from network replay duplicate side effects.
+- **Dual Durable Client Idempotency Keys**:
+  - `confirmation_request_idempotency_key text NOT NULL` (protected by unique index `uq_milestones_confirmation_idempotency: UNIQUE (user_id, confirmation_request_idempotency_key)`) permanently preserves the creation/confirmation request identity.
+  - `revocation_request_idempotency_key text NULL` (protected by partial unique index `uq_milestones_revocation_idempotency: UNIQUE (user_id, revocation_request_idempotency_key) WHERE revocation_request_idempotency_key IS NOT NULL`) permanently preserves the revocation request identity without overwriting the confirmation key.
+- **Replay Behavior**:
+  - `rpc_confirm_milestone`: Replay with identical confirmation key returns HTTP 200 with existing milestone record.
+  - `rpc_revoke_milestone`: Replay with identical revocation key on a revoked milestone returns HTTP 200 with prior revoked record. A second attempt with a different key on an already revoked milestone fails closed with HTTP 409 Conflict (`MILESTONE_ALREADY_REVOKED`).
 - **Write Authority**: Strictly RPC-only (`rpc_confirm_milestone`, `rpc_settle_milestone_reward`, `rpc_revoke_milestone`). Client direct writes are denied via RLS.
 
 ---
