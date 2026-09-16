@@ -73,7 +73,8 @@ flowchart TD
   - Single active season constraint enforcement (Rule: `SINGLE_ACTIVE_SEASON`, Harness O013).
   - $N:N$ Season-to-Quest relationship with `MAIN` and `FOCUS` roles (Rule: `SEASON_QUEST_N_TO_N`, Harness O014, O015).
   - Derived Season activity read model (zero schema changes to `activities`).
-  - Structured Review authoring and finalization pipeline (Rule: `REVIEW_AUTHORITY_BOUNDARY`, Harness O016).
+  - Structured Review authoring, finalization, and post-conclusion amendment pipeline (`rpc_finalize_season_review`, atomic `rpc_conclude_season`, `rpc_amend_final_season_review`; Rule: `REVIEW_AUTHORITY_BOUNDARY`, Harness O016).
+  - **Decoupled Reward Boundary (P1-03)**: Season conclusion in Phase 8B persists terminal state (`COMPLETED` / `ENDED_EARLY` / `ABANDONED`) and confirmed FINAL Review without minting reward credits (`rpc_conclude_season` does NOT invoke Phase 8E reward procedures). Reward settlement is deferred to Phase 8E, which reads historical completed season truth.
   - UI: `/journey/seasons` and `/journey/reviews`.
 - **Exit Gate**: Passing tests O006, O013, O014, O015, O016, O022.
 
@@ -82,7 +83,7 @@ flowchart TD
 - **Scope**:
   - Database schema: `journal_entries` with 7 subjective state scalars (O11).
   - Strict evidence separation: `Journal != Verified Evidence` (O7).
-  - Private-by-default RLS tenant policies.
+  - Private-by-default RLS tenant policies with fail-closed triggers asserting cross-entity ownership.
   - UI: `/journey/journal` (reflection editor, timeline view, state correlation charts).
 - **Exit Gate**: Passing tests O007, O011, O018.
 
@@ -91,7 +92,7 @@ flowchart TD
 - **Scope**:
   - Database schema: `strategies`, `strategy_versions`, `strategy_supports`.
   - 6-status lifecycle (`HYPOTHESIS`, `TESTING`, `SUPPORTED`, `CONTEXTUAL`, `WEAKENED`, `RETIRED`).
-  - Strict multi-observation threshold: $\ge 2$ distinct dates, $\ge 1$ completed season, $\ge 2$ core achievements (O6).
+  - Strict canonical promotion threshold: $\ge 4$ distinct dates, $\ge 1$ completed season, $\ge 2$ Core links, support ratio $\ge 75\%$, derived confidence $\ge$ `HIGH`, and explicit user confirmation (O6, O8).
   - Deterministic derived ordinal confidence rubric: `LOW`, `MODERATE`, `HIGH`, `VERY_HIGH` (Rule: `DETERMINISTIC_DERIVED_CONFIDENCE`, Harness O017).
   - Source identity de-duplication constraint on `strategy_supports`.
   - AI GM proposal and counter-evidence alerting pipeline (Rule: `PROPOSAL_COMMIT_PIPELINE`, Harness O008, O021).

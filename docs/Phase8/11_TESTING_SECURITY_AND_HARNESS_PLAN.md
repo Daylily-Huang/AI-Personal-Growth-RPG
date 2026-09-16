@@ -102,10 +102,12 @@ Every test in this catalogue must be implemented and pass in future phases.
 - **Assertion**: Entry exists only in `outer_loop_proposals` with `status = 'PROPOSED'`; zero records in `strategies`.
 
 ### O009 — `O009_STRATEGY_REQUIRES_CROSS_TIME_SUPPORT`
-- **Target Invariant**: O6 (Strategy requires cross-time support).
-- **Test Purpose**: Assert that a strategy cannot transition to `SUPPORTED` without meeting multi-day, multi-season criteria.
-- **Execution**: Attempt to invoke `rpc_evaluate_strategy_status` with 2 observations logged on the same calendar day and zero completed seasons.
-- **Assertion**: RPC returns HTTP 422 `UNMET_SUPPORT_REQUIREMENTS`; status remains `TESTING`.
+- **Target Invariant**: O6 (Strategy requires cross-time support; canonical promotion gate: $\ge 4$ distinct dates, $\ge 1$ completed Season, $\ge 2$ Core links, ratio $\ge 75\%$, confidence $\ge$ `HIGH`, explicit user confirmation).
+- **Test Purpose**: Assert that a strategy cannot transition to `SUPPORTED` without meeting all canonical criteria, and prove that 1, 2, or 3 distinct dates strictly fail promotion.
+- **Execution**:
+  1. Case A (Same-day clustering): Attempt promotion with 2 observations logged on the same calendar day and zero completed seasons.
+  2. Case B (3-date boundary case): Attempt promotion with observations logged across 3 distinct dates, 1 completed Season, 2 Core links, support ratio $\ge 75\%$, and `p_confirm_promotion = true`.
+- **Assertion**: In Case A, confidence is `LOW`. In Case B, confidence is derived as `MODERATE` (below `HIGH`). In both cases, `rpc_evaluate_strategy_status` rejects promotion with HTTP 422 `INSUFFICIENT_SUPPORT_FOR_PROMOTION`; status strictly remains `TESTING`. Only when the canonical threshold is met ($\ge 4$ distinct dates, $\ge 1$ completed Season, $\ge 2$ Core links, ratio $\ge 75\%$, confidence $\ge$ `HIGH`, and `p_confirm_promotion = true`) does the strategy transition to `SUPPORTED`.
 
 ### O010 — `O010_PAST_SELF_IS_DERIVED_NON_FARMABLE`
 - **Target Invariant**: O12 (Past Self is a derived comparison view).

@@ -31,6 +31,9 @@ erDiagram
         text status "PROPOSED | ACCEPTED | EDITED | REJECTED | EXPIRED"
         timestamptz created_at
         timestamptz reviewed_at
+        uuid reviewed_by_id "Nullable"
+        text review_request_idempotency_key "Nullable"
+        text rejection_reason "Nullable"
         text resulting_entity_type "Nullable"
         uuid resulting_entity_id "Nullable"
     }
@@ -48,6 +51,9 @@ erDiagram
   - `EDITED`: User modified fields in the preview modal prior to commit.
   - `REJECTED`: User explicitly dismissed the proposal.
   - `EXPIRED`: Proposal lapsed without action (default: 14 days) to prevent stale application.
+- **`review_request_idempotency_key`**: Durable client idempotency identity recorded upon user review, protected by `UNIQUE (user_id, review_request_idempotency_key)`.
+- **`reviewed_by_id`**: Tenant user confirming or rejecting the proposal.
+- **`rejection_reason`**: Qualitative note recorded when status is `REJECTED`.
 - **`resulting_entity_type` & `resulting_entity_id`**: Foreign pointer populated upon atomic domain commit.
 
 ---
@@ -71,16 +77,31 @@ flowchart TD
 2. **Stage 2 (Preview)**: The UI renders the proposal as an interactive card or modal showing clear diffs and rationale.
 3. **Stage 3 (User Sovereignty)**: The user makes an uncoerced decision: Accept, Edit payload fields, or Dismiss.
 4. **Stage 4 (Deterministic Validation)**: The target RPC validates that all proposed foreign keys belong to the user and that business invariants (e.g., single active season, valid state ranges) are upheld.
-5. **Stage 5 (Atomic Commit & Race Condition Guard)**:
-   - To prevent double-submit races from creating duplicate domain entities, the RPC executes an atomic CAS:
+5. **Stage 5 (Atomic Commit & Concurrency / Replay Resolution - P1-04)**:
+   - The review RPC (`rpc_review_outer_loop_proposal`) acquires an exclusive row lock:
+     ```sql
+     SELECT * FROM outer_loop_proposals
+     WHERE id = p_proposal_id AND user_id = auth.uid()
+     FOR UPDATE;
+     ```
+   - **Case A (Proposal is PROPOSED)**:
+     Executes atomic CAS state transition:
      ```sql
      UPDATE outer_loop_proposals
-     SET status = p_decision, reviewed_at = clock_timestamp()
+     SET status = p_decision,
+         reviewed_at = clock_timestamp(),
+         reviewed_by_id = auth.uid(),
+         review_request_idempotency_key = p_request_idempotency_key,
+         rejection_reason = p_rejection_reason
      WHERE id = p_proposal_id AND status = 'PROPOSED'
      RETURNING *;
      ```
-   - If zero rows are returned, the transaction rolls back immediately with HTTP 409 `PROPOSAL_ALREADY_REVIEWED`. Exactly ONE domain entity is created.
-   - The target domain record (`seasons`, `strategies`, etc.) is inserted and `resulting_entity_id` is written.
+     If accepted or edited, inserts the target domain record (`seasons`, `strategies`, etc.), updates `resulting_entity_type` and `resulting_entity_id`, and writes audit event. Returns HTTP 200 with the newly committed entity.
+   - **Case B (Proposal is Already Reviewed)**:
+     - **Exact Replay**: If `review_request_idempotency_key = p_request_idempotency_key` AND `status = p_decision`, this is an idempotent network retry. Returns HTTP 200 with the existing resulting entity and proposal.
+     - **Conflict**: If `review_request_idempotency_key != p_request_idempotency_key` OR `status != p_decision`, this is a second distinct review attempt on an already settled proposal. Fails closed with HTTP 409 Conflict (`PROPOSAL_ALREADY_REVIEWED`).
+   - **Case C (Concurrent CAS Loser)**:
+     A concurrent transaction attempting to review the same proposal while another transaction holds the lock will observe `status != 'PROPOSED'` upon acquiring the lock, failing closed with HTTP 409 Conflict (`PROPOSAL_ALREADY_REVIEWED`).
 6. **Stage 6 (Audit)**: An entry is written to `outer_loop_audit_events`.
 
 ---

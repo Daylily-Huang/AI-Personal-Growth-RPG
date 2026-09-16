@@ -28,10 +28,16 @@ classDiagram
         +String description
         +String recognition_class "CORE_VERIFIED | USER_CONFIRMED_REAL_WORLD"
         +String status "ACTIVE | REVOKED | CORRECTED"
-        +UUID source_id
-        +String source_type
+        +String source_type "QUEST | MASTERY | ARTIFACT | SEASON | EXTERNAL_CREDENTIAL"
+        +String source_id "UUID or composite identity (e.g. ${skill.id}:M6)"
+        +String external_evidence_url
+        +String external_credential_id
         +Boolean granted_reward_credit
+        +UUID reward_transaction_id
         +DateTime recognized_at
+        +DateTime revoked_at
+        +String revocation_reason
+        +String request_idempotency_key
     }
     class CoreVerified {
         <<RecognitionClass>>
@@ -92,11 +98,32 @@ $$\text{canonical\_source\_identity} = (\text{user\_id}, \text{underlying\_core\
 - The milestone record sets `granted_reward_credit = true` and references the resulting transaction.
 
 ### 4.2 Revocation and Correction Model (Rule: MILESTONE_REVOCATION_LEDGER_CORRECTION, Harness: O005, O020)
-If a prerequisite Activity or Quest is subsequently deleted or flagged as fraudulent:
-1. The Milestone status transitions to `REVOKED`.
-2. An audit record is created explaining the revocation reason.
-3. If reward credits were previously issued, an offsetting `CORRECTION` transaction is appended to `reward_transactions`.
-4. The Milestone record itself is retained in history to ensure full auditability.
+If an underlying prerequisite Activity or Quest is subsequently deleted, invalidated, or flagged as fraudulent:
+1. **Atomic Settlement via `rpc_revoke_milestone`**:
+   - Acquires exclusive row locks on `milestones` and `reward_accounts`.
+   - Transitions `milestones.status` to `REVOKED`, records `revoked_at = clock_timestamp()` and `revocation_reason = p_revocation_reason`.
+   - The Milestone record is **never hard-deleted**; personal achievement history is append-/status-preserved.
+2. **Ledger Offset via Schema-Backed `CORRECTION`**:
+   - If reward credits were previously issued (`granted_reward_credit = true` and `reward_transaction_id IS NOT NULL`), the RPC queries the original transaction and appends an offsetting `CORRECTION` transaction:
+     ```sql
+     INSERT INTO reward_transactions (
+       user_id, event_kind, amount, canonical_source_type, canonical_source_id,
+       policy_version, request_idempotency_key, correction_for_id
+     ) VALUES (
+       auth.uid(), 'CORRECTION', -orig_tx.amount, orig_tx.canonical_source_type,
+       orig_tx.canonical_source_id, orig_tx.policy_version,
+       p_request_idempotency_key || ':correction', orig_tx.id
+     );
+     ```
+   - Partial unique constraint `uq_reward_tx_correction_for` guarantees that at most ONE correction can ever be applied to the original transaction.
+   - Re-folds `reward_accounts` balance using `foldRewardLedger`. If available credits drop below 0, records an auditable `correction_deficit` without historical loss.
+3. **Immutable Audit Provenance**:
+   - Appends audit event to `outer_loop_audit_events` with `action = 'MILESTONE_REVOKED'`.
+
+### 4.3 Schema & Idempotency Governance Contract
+- **Unique Source Constraint**: `UNIQUE (user_id, milestone_key, source_type, source_id)` ensures that duplicate recognition cannot be created for the same source event.
+- **Durable Client Idempotency**: `UNIQUE (user_id, request_idempotency_key)` protects both confirmation and revocation RPCs from network replay duplicate side effects.
+- **Write Authority**: Strictly RPC-only (`rpc_confirm_milestone`, `rpc_settle_milestone_reward`, `rpc_revoke_milestone`). Client direct writes are denied via RLS.
 
 ---
 

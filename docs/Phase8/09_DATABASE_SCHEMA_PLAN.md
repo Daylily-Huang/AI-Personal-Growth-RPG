@@ -58,19 +58,21 @@ Every table below is specified against the required 16-point architectural contr
 #### 1. `outer_loop_proposals`
 1. **Purpose / Authority Class**: Non-authoritative envelope storing AI GM recommendations awaiting interactive client preview and explicit user confirmation.
 2. **Primary Key**: `id uuid PRIMARY KEY DEFAULT gen_random_uuid()`
-3. **Foreign Keys**: `user_id REFERENCES auth.users(id) ON DELETE CASCADE`
+3. **Foreign Keys**:
+   - `user_id REFERENCES auth.users(id) ON DELETE CASCADE`
+   - `reviewed_by_id REFERENCES auth.users(id) ON DELETE SET NULL`
 4. **`user_id` Ownership**: Explicit tenant column `user_id uuid NOT NULL`.
 5. **Unique Constraints**: None.
-6. **Partial Unique Constraints**: None.
-7. **Lifecycle Fields**: `status text NOT NULL DEFAULT 'PROPOSED'` (`PROPOSED`, `ACCEPTED`, `EDITED`, `REJECTED`, `EXPIRED`).
-8. **Immutable Fields**: `id`, `user_id`, `proposal_type`, `schema_version`, `source_refs`, `model_metadata`, `created_at`, `expires_at`.
+6. **Partial Unique Constraints**: `CREATE UNIQUE INDEX uq_proposals_review_idempotency ON outer_loop_proposals (user_id, review_request_idempotency_key) WHERE review_request_idempotency_key IS NOT NULL;` (Durable client review idempotency identity).
+7. **Lifecycle Fields**: `status text NOT NULL DEFAULT 'PROPOSED'` (`PROPOSED`, `ACCEPTED`, `EDITED`, `REJECTED`, `EXPIRED`), `decision text NULL` (`ACCEPTED`, `EDITED`, `REJECTED`).
+8. **Immutable Fields**: `id`, `user_id`, `proposal_type`, `schema_version`, `source_refs`, `model_metadata`, `created_at`, `expires_at`. Post-review fields populated upon user review: `reviewed_by_id uuid NULL`, `reviewed_at timestamptz NULL`, `review_request_idempotency_key text NULL`, `rejection_reason text NULL`, `resulting_entity_type text NULL`, `resulting_entity_id uuid NULL`.
 9. **Timestamps**: `created_at timestamptz NOT NULL DEFAULT clock_timestamp()`, `reviewed_at timestamptz NULL`, `expires_at timestamptz NOT NULL`.
 10. **Indexes**: `INDEX idx_outer_proposals_user_status ON outer_loop_proposals(user_id, status)`.
 11. **FK Delete Behavior**: `user_id`: `ON DELETE CASCADE`.
 12. **RLS Policy Intent**: `SELECT` allowed for `auth.uid() = user_id`. Direct client `INSERT`, `UPDATE`, and `DELETE` are strictly denied via `WITH CHECK (false)`.
 13. **Correction / Versioning Model**: Unreviewed proposals expire via `expires_at`. Reviewed proposals transition to terminal status (`ACCEPTED`, `EDITED`, `REJECTED`).
 14. **Write Authority**: Proposal generation via server AI gateway route; state transition strictly via `rpc_review_outer_loop_proposal`. Clients have zero direct write capability.
-15. **Idempotency / Dedup Rule**: Concurrent review requests handled via atomic CAS: `UPDATE ... WHERE id = p_proposal_id AND status = 'PROPOSED'`.
+15. **Idempotency / Dedup Rule**: Atomic CAS: `UPDATE outer_loop_proposals SET status = p_decision, reviewed_at = clock_timestamp(), reviewed_by_id = auth.uid(), review_request_idempotency_key = p_request_idempotency_key WHERE id = p_proposal_id AND status = 'PROPOSED'`. If zero rows updated, exact same-key retry returns HTTP 200 with prior result; new key or concurrent loser returns HTTP 409 Conflict (`PROPOSAL_ALREADY_REVIEWED`).
 16. **Migration Phase / Order**: Phase 8B (Order 1).
 
 #### 2. `outer_loop_audit_events`
@@ -107,14 +109,14 @@ Every table below is specified against the required 16-point architectural contr
 9. **Timestamps**: `started_at timestamptz NULL`, `ended_at timestamptz NULL`, `created_at timestamptz NOT NULL DEFAULT clock_timestamp()`, `updated_at timestamptz NOT NULL DEFAULT clock_timestamp()`.
 10. **Indexes**: `INDEX idx_seasons_user_status ON seasons(user_id, status)`.
 11. **FK Delete Behavior**: Dependent child tables (`season_quests`, `season_reviews`) specify fixed `ON DELETE RESTRICT`.
-12. **RLS Policy Intent**: `SELECT` and `INSERT` allowed for `auth.uid() = user_id`. Direct client `UPDATE` permitted only for metadata (`name`, `description`, `theme_color`, `icon_key`). Trigger `trg_enforce_season_field_authority` rejects direct updates to `status`, `activated_at`, `concluded_at`. Trigger `trg_prevent_active_season_delete` rejects direct `DELETE` if status has ever been `ACTIVE`.
+12. **RLS Policy Intent**: `SELECT` and `INSERT` allowed for `auth.uid() = user_id`. Direct client `UPDATE` permitted only for metadata (`name`, `description`, `theme_color`, `icon_key`). Trigger `trg_enforce_season_field_authority` rejects direct updates to `status`, `started_at`, `ended_at`, or `abandonment_reason`. Trigger `trg_prevent_active_season_delete` rejects direct `DELETE` if status has ever been `ACTIVE`.
 13. **Correction / Versioning Model**: Terminal seasons (`COMPLETED`, `ENDED_EARLY`, `ABANDONED`) cannot be reopened; post-mortems and recalibrations are handled via versioned `season_reviews`.
 14. **Write Authority**: Status transitions to `PLANNED`, `ACTIVE`, `COMPLETED`, `ENDED_EARLY`, `ABANDONED`, `CANCELLED` strictly via RPCs (`rpc_plan_season`, `rpc_activate_season`, `rpc_conclude_season`, `rpc_cancel_season`).
 15. **Idempotency / Dedup Rule**: Activation guarded by partial unique index and CAS. Atomic conclusion in `rpc_conclude_season` locks parent season row (`FOR UPDATE`) and commits FINAL review in the same transaction.
 16. **Migration Phase / Order**: Phase 8B (Order 3).
 
 #### 4. `season_quests`
-1. **Purpose / Authority Class**: $N:N$ link table mediating season focus over existing Quests.
+1. **Purpose / Authority Class**: $N:N$ link table mediating season focus over existing Quests. Strict RPC-managed join table.
 2. **Primary Key**: `id uuid PRIMARY KEY DEFAULT gen_random_uuid()`
 3. **Foreign Keys**:
    - `user_id REFERENCES auth.users(id) ON DELETE CASCADE`
@@ -128,9 +130,9 @@ Every table below is specified against the required 16-point architectural contr
 9. **Timestamps**: `created_at timestamptz NOT NULL DEFAULT clock_timestamp()`.
 10. **Indexes**: `INDEX idx_season_quests_season ON season_quests(season_id)`, `INDEX idx_season_quests_quest ON season_quests(quest_id)`.
 11. **FK Delete Behavior**: `season_id`: `ON DELETE RESTRICT`; `quest_id`: `ON DELETE RESTRICT`.
-12. **RLS Policy Intent**: `SELECT`, `INSERT`, `DELETE` allowed for `auth.uid() = user_id`.
+12. **RLS Policy Intent**: `SELECT` allowed for `auth.uid() = user_id`. Direct client `INSERT`, `UPDATE`, and `DELETE` are strictly **DENIED** via `WITH CHECK (false)` / `USING (false)`.
 13. **Correction / Versioning Model**: Quests may be linked or unlinked (`rpc_link_season_quest`, `rpc_unlink_season_quest`) during `PLANNED` or `ACTIVE` states.
-14. **Write Authority**: RPC-only (`rpc_link_season_quest`, `rpc_unlink_season_quest`) to assert cross-tenant ownership on both ends.
+14. **Write Authority**: Strictly RPC-only (`rpc_link_season_quest`, `rpc_unlink_season_quest`). The RPC asserts `season.user_id = auth.uid()` AND `quest.user_id = auth.uid()`. Furthermore, database trigger `trg_enforce_season_quest_tenant_isolation` enforces fail-closed that `NEW.user_id` matches both referenced `season.user_id` and `quest.user_id` (P0-01).
 15. **Idempotency / Dedup Rule**: Natural composite unique constraint `(season_id, quest_id)`.
 16. **Migration Phase / Order**: Phase 8B (Order 4).
 
@@ -152,9 +154,9 @@ Every table below is specified against the required 16-point architectural contr
 10. **Indexes**: `INDEX idx_season_reviews_season ON season_reviews(season_id, review_type)`.
 11. **FK Delete Behavior**: `season_id`: `ON DELETE RESTRICT`.
 12. **RLS Policy Intent**: `SELECT` allowed for `auth.uid() = user_id`. Client `INSERT`, `UPDATE`, and `DELETE` denied.
-13. **Correction / Versioning Model**: Versioned immutable records (`version`, `superseded_by_id`).
-14. **Write Authority**: RPC-only (`rpc_finalize_season_review` for periodic reviews, or atomic `rpc_conclude_season` for `FINAL` review).
-15. **Idempotency / Dedup Rule**: Idempotent replay via `commit_key`. Serialized version increment via parent Season row lock (`SELECT * FROM seasons WHERE id = p_season_id FOR UPDATE`).
+13. **Correction / Versioning Model**: Versioned immutable records (`version`, `superseded_by_id`). Amendments to `FINAL` reviews on concluded seasons are supported via `rpc_amend_final_season_review` without reopening the season.
+14. **Write Authority**: RPC-only (`rpc_finalize_season_review` for periodic reviews on ACTIVE seasons; atomic `rpc_conclude_season` for initial `FINAL` review; `rpc_amend_final_season_review` for superseding `FINAL` reviews on terminal seasons).
+15. **Idempotency / Dedup Rule**: Idempotent replay via durable `commit_key uuid NOT NULL`. Serialized version increment via parent Season row lock (`SELECT * FROM seasons WHERE id = p_season_id FOR UPDATE`).
 16. **Migration Phase / Order**: Phase 8B (Order 5).
 
 ---
@@ -177,9 +179,16 @@ Every table below is specified against the required 16-point architectural contr
 9. **Timestamps**: `logged_at timestamptz NOT NULL DEFAULT clock_timestamp()`, `created_at timestamptz NOT NULL DEFAULT clock_timestamp()`, `updated_at timestamptz NOT NULL DEFAULT clock_timestamp()`.
 10. **Indexes**: `INDEX idx_journal_user_logged ON journal_entries(user_id, logged_at DESC)`, `INDEX idx_journal_season ON journal_entries(season_id)`.
 11. **FK Delete Behavior**: Foreign entity links (`season_id`, `quest_id`, `activity_id`) specify `ON DELETE SET NULL`.
-12. **RLS Policy Intent**: `auth.uid() = user_id` for all operations. Strict private isolation.
+12. **RLS Policy Intent**: `SELECT`, `UPDATE`, `DELETE` allowed for `auth.uid() = user_id`. Client direct `INSERT` and `UPDATE` enforce cross-tenant reference protection via fail-closed RLS `WITH CHECK`:
+    ```sql
+    auth.uid() = user_id AND
+    (season_id IS NULL OR season_id IN (SELECT id FROM seasons WHERE user_id = auth.uid())) AND
+    (quest_id IS NULL OR quest_id IN (SELECT id FROM quests WHERE user_id = auth.uid())) AND
+    (activity_id IS NULL OR activity_id IN (SELECT id FROM activities WHERE user_id = auth.uid()))
+    ```
+    Additionally, database trigger `trg_enforce_journal_entry_tenant_isolation` verifies before INSERT/UPDATE that any non-null `season_id`, `quest_id`, or `activity_id` belongs to `NEW.user_id`, raising an exception if cross-tenant reference is detected (P0-01).
 13. **Correction / Versioning Model**: Direct user edits update `content_markdown` and `updated_at`. Archival via `is_archived = true`. Hard delete allowed only if unreferenced by finalized reviews.
-14. **Write Authority**: Direct repository operations under user RLS.
+14. **Write Authority**: Direct repository operations under tenant-validated RLS and trigger guards.
 15. **Idempotency / Dedup Rule**: Client-generated UUID PK for optimistic local creation.
 16. **Migration Phase / Order**: Phase 8C (Order 6).
 
@@ -219,9 +228,9 @@ Every table below is specified against the required 16-point architectural contr
 9. **Timestamps**: `created_at timestamptz NOT NULL DEFAULT clock_timestamp()`.
 10. **Indexes**: `INDEX idx_strategy_versions_strat ON strategy_versions(strategy_id)`.
 11. **FK Delete Behavior**: `strategy_id`: `ON DELETE CASCADE`.
-12. **RLS Policy Intent**: `SELECT`, `INSERT` for `auth.uid() = user_id`. `UPDATE` and `DELETE` denied.
+12. **RLS Policy Intent**: `SELECT` allowed for `auth.uid() = user_id`. Client `INSERT`, `UPDATE`, and `DELETE` strictly denied via RLS.
 13. **Correction / Versioning Model**: Append-only revision history.
-14. **Write Authority**: RPC / repository upon user protocol edit.
+14. **Write Authority**: Strictly RPC-only (`rpc_create_strategy_version`). In addition, database trigger `trg_enforce_strategy_version_tenant_isolation` asserts before insert that `NEW.user_id = (SELECT user_id FROM strategies WHERE id = NEW.strategy_id)` (P0-01).
 15. **Idempotency / Dedup Rule**: Unique constraint on `(strategy_id, version_number)`.
 16. **Migration Phase / Order**: Phase 8D (Order 8).
 
@@ -239,9 +248,9 @@ Every table below is specified against the required 16-point architectural contr
 9. **Timestamps**: `observed_at timestamptz NOT NULL`, `created_at timestamptz NOT NULL DEFAULT clock_timestamp()`.
 10. **Indexes**: `INDEX idx_strat_supp_strategy ON strategy_supports(strategy_id, observation_type)`.
 11. **FK Delete Behavior**: `strategy_id`: `ON DELETE CASCADE`.
-12. **RLS Policy Intent**: `SELECT` allowed for user. Client direct `INSERT`, `UPDATE`, and `DELETE` denied.
+12. **RLS Policy Intent**: `SELECT` allowed for user. Client direct `INSERT`, `UPDATE`, and `DELETE` strictly denied via RLS.
 13. **Correction / Versioning Model**: Append-only evidence. Erroneous observations are corrected by appending opposite counter-evidence or version increment.
-14. **Write Authority**: RPC-only (`rpc_insert_strategy_support`).
+14. **Write Authority**: RPC-only (`rpc_insert_strategy_support`). Database trigger `trg_enforce_strategy_support_tenant_isolation` verifies before insert that `NEW.user_id = (SELECT user_id FROM strategies WHERE id = NEW.strategy_id)` and if `source_class = 'JOURNAL_CONTEXT'`, `NEW.user_id = (SELECT user_id FROM journal_entries WHERE id = NEW.source_id)` (P0-01).
 15. **Idempotency / Dedup Rule**: `source_id` is strictly `NOT NULL` (system entities anchor to entity UUID, manual observations anchor to immutable `journal_entries.id` or dedicated observation UUID). Natural unique constraint guarantees fail-closed anti-replay.
 16. **Migration Phase / Order**: Phase 8D (Order 9).
 
@@ -324,7 +333,7 @@ Every table below is specified against the required 16-point architectural contr
 11. **FK Delete Behavior**: Dependent redemptions specify `ON DELETE RESTRICT`.
 12. **RLS Policy Intent**: `SELECT`, `INSERT` allowed for user. Direct client `UPDATE` allowed only for editable content (`title`, `description`, `cost_credits_estimate`). Trigger `trg_enforce_wish_field_authority` rejects direct updates to or from `PRIMARY`, `RESERVED`, and `REDEEMED`.
 13. **Correction / Versioning Model**: `REDEEMED` is strictly terminal! On refund via `rpc_refund_wish_redemption`, credit is restored via ledger `REFUND` event, while the Wish remains `REDEEMED` to preserve audit history.
-14. **Write Authority**: Status transitions to `PRIMARY`, `RESERVED`, `REDEEMED`, `UNRESERVED` strictly via transactional RPCs (`rpc_set_primary_wish`, `rpc_reserve_wish`, `rpc_unreserve_wish`, `rpc_redeem_wish`, `rpc_refund_wish_redemption`).
+14. **Write Authority**: Status transitions to `PRIMARY`, `RESERVED`, `REDEEMED`, `ARCHIVED`, `CANCELLED`, and credit unreservation (`RESERVED -> PRIMARY`) strictly via transactional RPCs (`rpc_set_primary_wish`, `rpc_reserve_wish_credits`, `rpc_unreserve_wish_credits`, `rpc_redeem_wish`, `rpc_refund_wish_redemption`, `rpc_archive_wish`, `rpc_cancel_wish`).
 15. **Idempotency / Dedup Rule**: Single `PRIMARY` wish enforced by partial unique index.
 16. **Migration Phase / Order**: Phase 8E (Order 12).
 
@@ -354,22 +363,25 @@ Every table below is specified against the required 16-point architectural contr
 ### 3.6 Milestone Subsystem (Phase 8F)
 
 #### 14. `milestones`
-1. **Purpose / Authority Class**: Formal recognition layer celebrating authentic leaps in competence and durable creations.
+1. **Purpose / Authority Class**: Formal recognition layer celebrating authentic leaps in competence and durable creations. Strictly separate from Growth Core truth.
 2. **Primary Key**: `id uuid PRIMARY KEY DEFAULT gen_random_uuid()`
 3. **Foreign Keys**:
    - `user_id REFERENCES auth.users(id) ON DELETE CASCADE`
    - `reward_transaction_id REFERENCES reward_transactions(id) ON DELETE SET NULL`
 4. **`user_id` Ownership**: Explicit tenant column `user_id uuid NOT NULL`.
-5. **Unique Constraints**: `UNIQUE (user_id, milestone_key)`.
+5. **Unique Constraints**:
+   - `UNIQUE (user_id, milestone_key, source_type, source_id)` (Dedup rule ensuring one active recognition per source event).
+   - `UNIQUE (user_id, request_idempotency_key)` (Durable client idempotency identity).
 6. **Partial Unique Constraints**: None.
 7. **Lifecycle Fields**: `status text NOT NULL DEFAULT 'ACTIVE'` (`ACTIVE`, `REVOKED`, `CORRECTED`).
-8. **Immutable Fields**: `id`, `user_id`, `milestone_key`, `recognition_class`, `created_at`.
-9. **Timestamps**: `created_at timestamptz NOT NULL DEFAULT clock_timestamp()`, `updated_at timestamptz NOT NULL DEFAULT clock_timestamp()`.
-10. **Indexes**: `INDEX idx_milestones_user_class ON milestones(user_id, recognition_class)`.
+8. **Immutable Fields**: `id`, `user_id`, `milestone_key`, `title`, `description`, `recognition_class`, `source_type`, `source_id`, `created_at`. Provenance & Settlement fields: `recognition_class text NOT NULL CHECK (recognition_class IN ('CORE_VERIFIED', 'USER_CONFIRMED_REAL_WORLD'))`, `source_type text NOT NULL CHECK (source_type IN ('QUEST', 'MASTERY', 'ARTIFACT', 'SEASON', 'EXTERNAL_CREDENTIAL'))`, `source_id text NOT NULL`, `external_evidence_url text NULL`, `external_credential_id text NULL`, `granted_reward_credit boolean NOT NULL DEFAULT false`, `reward_transaction_id uuid NULL`, `revoked_at timestamptz NULL`, `revocation_reason text NULL`, `request_idempotency_key text NOT NULL`.
+9. **Timestamps**: `recognized_at timestamptz NOT NULL DEFAULT clock_timestamp()`, `revoked_at timestamptz NULL`, `created_at timestamptz NOT NULL DEFAULT clock_timestamp()`, `updated_at timestamptz NOT NULL DEFAULT clock_timestamp()`.
+10. **Indexes**: `INDEX idx_milestones_user_class ON milestones(user_id, recognition_class)`, `INDEX idx_milestones_source ON milestones(user_id, source_type, source_id)`.
 11. **FK Delete Behavior**: `reward_transaction_id`: `ON DELETE SET NULL`.
-12. **RLS Policy Intent**: `SELECT` allowed for user. Direct client `INSERT`, `UPDATE`, `DELETE` denied.
-13. **Correction / Versioning Model**: Revocations update status to `REVOKED` and trigger reward reversal `CORRECTION`. Core-backed milestones anchor canonical reward source identity directly to underlying Core entities (`QUEST`, `MASTERY:M<level>`, `ARTIFACT`), preventing wrapper double-minting.
-14. **Write Authority**: RPC-only (`rpc_confirm_milestone`).
+12. **RLS Policy Intent**: `SELECT` allowed for `auth.uid() = user_id`. Direct client `INSERT`, `UPDATE`, `DELETE` denied via RLS.
+13. **Correction / Versioning Model**: Revocations update status to `REVOKED` via atomic `rpc_revoke_milestone`, recording `revocation_reason` and `revoked_at`. If `granted_reward_credit = true`, an offsetting `CORRECTION` transaction is appended to `reward_transactions`. Milestone history is strictly preserved (never hard-deleted). Core-backed milestones anchor canonical reward source identity directly to underlying Core entities (`QUEST`, `MASTERY:M<level>`, `ARTIFACT`), preventing wrapper double-minting.
+14. **Write Authority**: Strictly RPC-only (`rpc_confirm_milestone`, `rpc_settle_milestone_reward`, `rpc_revoke_milestone`).
+15. **Idempotency / Dedup Rule**: Natural composite unique constraint `UNIQUE (user_id, milestone_key, source_type, source_id)` prevents duplicate recognition for the same source. `request_idempotency_key` ensures replay safety.
 16. **Migration Phase / Order**: Phase 8F (Order 14).
 
 ---
@@ -391,9 +403,15 @@ Every table below is specified against the required 16-point architectural contr
 9. **Timestamps**: `started_at timestamptz NOT NULL`, `ended_at timestamptz NOT NULL`.
 10. **Indexes**: `INDEX idx_focus_user_started ON focus_sessions(user_id, started_at DESC)`.
 11. **FK Delete Behavior**: Foreign entity links specify `ON DELETE SET NULL`.
-12. **RLS Policy Intent**: `auth.uid() = user_id`.
+12. **RLS Policy Intent**: `SELECT`, `UPDATE`, `DELETE` allowed for `auth.uid() = user_id`. Client direct `INSERT` and `UPDATE` enforce cross-tenant reference protection via fail-closed RLS `WITH CHECK`:
+    ```sql
+    auth.uid() = user_id AND
+    (quest_id IS NULL OR quest_id IN (SELECT id FROM quests WHERE user_id = auth.uid())) AND
+    (activity_id IS NULL OR activity_id IN (SELECT id FROM activities WHERE user_id = auth.uid()))
+    ```
+    Additionally, database trigger `trg_enforce_focus_session_tenant_isolation` asserts before INSERT/UPDATE that any non-null `quest_id` or `activity_id` belongs to `NEW.user_id` (P0-01).
 13. **Correction / Versioning Model**: History log.
-14. **Write Authority**: Direct repository writes under user RLS.
+14. **Write Authority**: Direct repository writes under user RLS and tenant validation trigger.
 15. **Idempotency / Dedup Rule**: Client-generated UUID PK.
 16. **Migration Phase / Order**: Phase 8G (Order 15).
 
@@ -429,8 +447,8 @@ Every table below is specified against the required 16-point architectural contr
 9. **Timestamps**: `created_at timestamptz NOT NULL DEFAULT clock_timestamp()`.
 10. **Indexes**: `INDEX idx_protocol_versions_proto ON protocol_versions(protocol_id)`.
 11. **FK Delete Behavior**: `protocol_id`: `ON DELETE CASCADE`.
-12. **RLS Policy Intent**: `SELECT`, `INSERT` allowed for user. `UPDATE` and `DELETE` denied.
+12. **RLS Policy Intent**: `SELECT` allowed for `auth.uid() = user_id`. Direct client `INSERT`, `UPDATE`, and `DELETE` denied via RLS.
 13. **Correction / Versioning Model**: Append-only versions.
-14. **Write Authority**: Direct repository writes.
+14. **Write Authority**: Strictly RPC-only or repository write with database trigger `trg_enforce_protocol_version_tenant_isolation` asserting before insert that `NEW.user_id = (SELECT user_id FROM growth_protocols WHERE id = NEW.protocol_id)` (P0-01).
 15. **Idempotency / Dedup Rule**: Natural unique constraint `(protocol_id, version_number)`.
 16. **Migration Phase / Order**: Phase 8G (Order 17).

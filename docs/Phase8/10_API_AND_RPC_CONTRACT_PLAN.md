@@ -10,16 +10,16 @@ To preserve data integrity, write authority is divided strictly between direct r
 
 | Entity | Direct Repository Writes | RPC-Only Operations | Rationale |
 | :--- | :--- | :--- | :--- |
-| **`seasons`** | `DRAFT` metadata edits | `rpc_plan_season`, `rpc_activate_season`, `rpc_conclude_season`, `rpc_cancel_season` | Single `ACTIVE` invariant, 0..1 MAIN cardinality, atomic conclusion, and terminal state locking require transaction guards. |
-| **`season_quests`** | None (read-only direct) | `rpc_link_season_quest`, `rpc_unlink_season_quest` | Cross-tenant validation on both Season and Quest required. |
-| **`season_reviews`** | None (read-only direct) | `rpc_finalize_season_review` (periodic), atomic `rpc_conclude_season` (FINAL) | Finalized reviews are immutable and require durable commit-key retry identity and parent row locking. |
-| **`journal_entries`** | `INSERT`, `UPDATE`, soft-delete (`is_archived`) | None | Private user reflections; fail-closed RLS ensures tenant isolation. |
+| **`seasons`** | `DRAFT` metadata edits | `rpc_plan_season`, `rpc_activate_season`, `rpc_conclude_season`, `rpc_cancel_season`, `rpc_amend_final_season_review` | Single `ACTIVE` invariant, 0..1 MAIN cardinality, atomic conclusion, terminal state locking, and post-conclusion review amendments require transaction guards. |
+| **`season_quests`** | None (strictly read-only direct) | `rpc_link_season_quest`, `rpc_unlink_season_quest` | Direct client writes denied via RLS. Both Season and Quest ownership asserted by RPC and trigger (P0-01). |
+| **`season_reviews`** | None (read-only direct) | `rpc_finalize_season_review` (periodic), atomic `rpc_conclude_season` (initial FINAL), `rpc_amend_final_season_review` (amended FINAL) | Finalized reviews are immutable and require durable commit-key retry identity and parent row locking. |
+| **`journal_entries`** | `INSERT`, `UPDATE`, soft-delete (`is_archived`) | None | Private user reflections; fail-closed RLS WITH CHECK and database trigger assert cross-entity tenant ownership (P0-01). |
 | **`strategies`** | Create hypothesis, edit action protocol | `rpc_evaluate_strategy_status`, `rpc_transition_strategy_status`, `rpc_create_strategy_version` | Status changes and protocol versioning require deterministic evaluation, user confirmation, and audit. |
-| **`strategy_supports`**| None (read-only direct) | `rpc_insert_strategy_support` | Non-null source identity de-duplication and ownership assertion required. |
+| **`strategy_supports`**| None (read-only direct) | `rpc_insert_strategy_support` | Direct client writes denied via RLS. Non-null source identity de-duplication and ownership assertion required. |
 | **`reward_accounts`** | Read-only direct | Internal settlement procedures only | Balances must never be mutated directly by client. |
 | **`reward_transactions`**| Read-only direct | `rpc_grant_reward_credit`, `rpc_correct_reward_transaction`, `rpc_reserve_wish_credits`, `rpc_unreserve_wish_credits`, `rpc_redeem_wish`, `rpc_refund_wish_redemption` | Append-only ledger requires event-driven settlement, schema-backed correction/refund dedup, and canonical source dedup. |
 | **`wishes`** | Create `IDEA`/`ACTIVE`, edit title/cost | `rpc_set_primary_wish`, `rpc_reserve_wish_credits`, `rpc_unreserve_wish_credits`, `rpc_redeem_wish`, `rpc_refund_wish_redemption`, `rpc_archive_wish`, `rpc_cancel_wish` | Single `PRIMARY` invariant, terminal `REDEEMED` state, and credit reservation require locking. |
-| **`milestones`** | None (read-only direct) | `rpc_confirm_milestone`, `rpc_settle_milestone_reward` | Recognition proof verification and reward minting require atomic settlement. |
+| **`milestones`** | None (read-only direct) | `rpc_confirm_milestone`, `rpc_settle_milestone_reward`, `rpc_revoke_milestone` | Recognition proof verification, reward minting, and atomic revocation require transaction guards. Direct writes denied. |
 | **`outer_loop_proposals`**| `INSERT` (via AI gateway) | `rpc_review_outer_loop_proposal` | User accept/edit/reject and domain entity commit require atomic CAS. Client direct writes prohibited. |
 
 ---
@@ -117,31 +117,33 @@ Every state-changing procedure below is specified against the required 13-point 
      "p_season_id": "uuid",
      "p_target_status": "text ('COMPLETED' | 'ENDED_EARLY' | 'ABANDONED')",
      "p_final_review": "jsonb NULL (mandatory if COMPLETED or ENDED_EARLY)",
+     "p_final_review_commit_key": "uuid NULL (mandatory if COMPLETED or ENDED_EARLY)",
      "p_abandonment_reason": "text NULL (mandatory if ABANDONED)",
      "p_request_idempotency_key": "text"
    }
    ```
 4. **Current-state precondition**: Season `status = 'ACTIVE'`.
-   - If `p_target_status IN ('COMPLETED', 'ENDED_EARLY')`: `p_final_review` is mandatory and must contain valid review payload (`period_start`, `period_end`, `objective_summary`, `qualitative_reflection`, `criteria_evaluation`).
+   - If `p_target_status IN ('COMPLETED', 'ENDED_EARLY')`: `p_final_review` and `p_final_review_commit_key` are mandatory; review must contain valid payload (`period_start`, `period_end`, `objective_summary`, `qualitative_reflection`, `criteria_evaluation`).
    - If `p_target_status = 'ABANDONED'`: `p_abandonment_reason` must not be blank.
 5. **Allowed transition**: `ACTIVE -> COMPLETED`, `ACTIVE -> ENDED_EARLY`, `ACTIVE -> ABANDONED`.
-6. **Idempotency identity**: `p_request_idempotency_key`.
-7. **Deterministic validation**: Asserts target status is one of the three valid terminal statuses. If review is present, validates review date ranges.
+6. **Idempotency identity**: `p_request_idempotency_key` (for season conclusion request), `p_final_review_commit_key` (for review commit identity).
+7. **Deterministic validation**: Asserts target status is one of the three valid terminal statuses. If review is present, validates review date ranges and UUID format of `p_final_review_commit_key`.
 8. **Locks / CAS / Concurrency**: Row lock on parent season: `SELECT * FROM seasons WHERE id = p_season_id AND user_id = auth.uid() FOR UPDATE;`.
 9. **Atomic side effects**:
    - If `p_target_status IN ('COMPLETED', 'ENDED_EARLY')`:
      - Calculates `next_version = COALESCE(MAX(version), 0) + 1` for `review_type = 'FINAL'`.
-     - Inserts immutable row into `season_reviews` (`season_id = p_season_id`, `review_type = 'FINAL'`, `version = next_version`, `commit_key = p_request_idempotency_key`, content from `p_final_review`).
+     - Inserts immutable row into `season_reviews` (`season_id = p_season_id`, `user_id = auth.uid()`, `review_type = 'FINAL'`, `version = next_version`, `commit_key = p_final_review_commit_key`, content from `p_final_review`).
      - If prior review existed, sets `superseded_by_id`.
      - Updates season: `status = p_target_status`, `ended_at = clock_timestamp()`.
-     - If `COMPLETED`: calls server-authoritative `rpc_grant_reward_credit` for season completion (if policy eligible).
+     - **Decoupled Reward Boundary (P1-03)**: Zero reward credits are minted during Phase 8B season conclusion (`rpc_conclude_season` does NOT call `rpc_grant_reward_credit`). When Phase 8E is authorized, completed seasons become eligible for server-authoritative idempotent minting reading historical `COMPLETED` season truth.
    - If `p_target_status = 'ABANDONED'`:
-     - Updates season: `status = 'ABANDONED'`, `ended_at = clock_timestamp()`. Zero review rows inserted.
+     - Updates season: `status = 'ABANDONED'`, `ended_at = clock_timestamp()`, `abandonment_reason = p_abandonment_reason`. Zero review rows inserted.
    - Linked quests remain untouched in their current states (Rule: SEASON_DECOUPLED_LIFECYCLE, Harness: O015).
    - Writes audit event with reason and review details.
 10. **Audit write**: `outer_loop_audit_events` row recording conclusion status, review ID (if created), and abandonment reason.
 11. **Error Taxonomy**:
     - 400 `MISSING_FINAL_REVIEW` (if completing/early-ending without review)
+    - 400 `MISSING_FINAL_REVIEW_COMMIT_KEY` (if completing/early-ending without valid UUID commit key)
     - 400 `MISSING_ABANDONMENT_REASON` (if abandoning without reason)
     - 404 `SEASON_NOT_FOUND`
     - 409 `SEASON_NOT_ACTIVE`
@@ -211,7 +213,48 @@ Every state-changing procedure below is specified against the required 13-point 
 12. **Replay behavior**: Idempotent on `commit_key`; returns existing review record.
 13. **Cross-tenant behavior**: Fails closed with 404.
 
-#### 6. `rpc_link_season_quest` / `rpc_unlink_season_quest`
+#### 6. `rpc_amend_final_season_review`
+1. **Authentication**: Required (`auth.uid()`).
+2. **Ownership checks**: Asserts `season.user_id = auth.uid()`.
+3. **Input Schema**:
+   ```json
+   {
+     "p_season_id": "uuid",
+     "p_amended_review": "jsonb",
+     "p_amendment_reason": "text",
+     "p_commit_key": "uuid",
+     "p_request_idempotency_key": "text"
+   }
+   ```
+4. **Current-state precondition**: Target season must exist with terminal status: `status IN ('COMPLETED', 'ENDED_EARLY')`. (Draft, planned, active, or abandoned seasons cannot have final review amendments). At least one prior `FINAL` review must exist for this season.
+5. **Allowed transition**: Inserts a new immutable superseding `FINAL` review version for the terminal season. Season status remains unchanged (`COMPLETED` or `ENDED_EARLY`) and is NOT reopened.
+6. **Idempotency identity**: Durable client key: `UNIQUE (user_id, commit_key)`.
+7. **Deterministic validation**: Asserts `p_amendment_reason` is non-empty. Asserts `p_commit_key` is a valid UUID. Validates review schema against `SeasonReviewPayload` (`period_start`, `period_end`, `objective_summary`, `qualitative_reflection`, `criteria_evaluation`). Asserts `period_end >= period_start`.
+8. **Locks / CAS / Concurrency**: Row lock on parent season row:
+   `SELECT * FROM seasons WHERE id = p_season_id AND user_id = auth.uid() FOR UPDATE;`
+   Serializes version allocation and prevents concurrent review insertions.
+9. **Atomic side effects**:
+   - Checks if `p_commit_key` already exists for this user in `season_reviews`. If found, returns existing review (exact idempotent replay, HTTP 200).
+   - Locates current latest active `FINAL` review for this season:
+     `SELECT * FROM season_reviews WHERE season_id = p_season_id AND review_type = 'FINAL' AND superseded_by_id IS NULL FOR UPDATE;`
+   - Calculates `next_version = prior_review.version + 1`.
+   - Inserts new row into `season_reviews`:
+     `season_id = p_season_id`, `user_id = auth.uid()`, `review_type = 'FINAL'`, `version = next_version`, `commit_key = p_commit_key`, `supersedes_id = prior_review.id`, content from `p_amended_review`, `amendment_reason = p_amendment_reason`.
+   - Updates `prior_review`: sets `superseded_by_id = new_row.id`.
+   - Season status and timestamps (`started_at`, `ended_at`) remain completely untouched. Zero XP or reward mutations.
+   - Writes audit event with `event_type = 'FINAL_REVIEW_AMENDED'`.
+10. **Audit write**: `outer_loop_audit_events` recording `season_id`, `prior_review_id`, `new_review_id`, `version`, and `amendment_reason`.
+11. **Error Taxonomy**:
+    - 400 `MISSING_AMENDMENT_REASON`
+    - 400 `INVALID_COMMIT_KEY`
+    - 404 `SEASON_NOT_FOUND`
+    - 409 `SEASON_NOT_TERMINAL` (if season is not in COMPLETED or ENDED_EARLY)
+    - 409 `NO_PRIOR_FINAL_REVIEW` (if no prior final review exists to amend)
+    - 422 `SCHEMA_VALIDATION_FAILED`
+12. **Replay behavior**: Idempotent on `p_commit_key`. Returns existing amended review record (HTTP 200).
+13. **Cross-tenant behavior**: Fails closed with 404.
+
+#### 7. `rpc_link_season_quest` / `rpc_unlink_season_quest`
 1. **Authentication**: Required (`auth.uid()`).
 2. **Ownership checks**: Asserts BOTH `season.user_id = auth.uid()` AND `quest.user_id = auth.uid()`.
 3. **Input Schema**:
@@ -240,7 +283,7 @@ Every state-changing procedure below is specified against the required 13-point 
 
 ### 3.2 Strategy & Playbook RPCs
 
-#### 7. `rpc_insert_strategy_support`
+#### 8. `rpc_insert_strategy_support`
 1. **Authentication**: Required (`auth.uid()`).
 2. **Ownership checks**: Asserts strategy and referenced source belong to `auth.uid()`.
 3. **Input Schema**:
@@ -273,7 +316,7 @@ Every state-changing procedure below is specified against the required 13-point 
 12. **Replay behavior**: Replaying with identical source identity returns existing record without duplicate insertion (HTTP 200).
 13. **Cross-tenant behavior**: Foreign source reference fails closed with 403 Forbidden.
 
-#### 8. `rpc_evaluate_strategy_status`
+#### 9. `rpc_evaluate_strategy_status`
 1. **Authentication**: Required (`auth.uid()`).
 2. **Ownership checks**: Asserts `strategy.user_id = auth.uid()`.
 3. **Input Schema**:
@@ -307,7 +350,7 @@ Every state-changing procedure below is specified against the required 13-point 
 12. **Replay behavior**: Pure deterministic calculation; identical inputs produce identical derived values.
 13. **Cross-tenant behavior**: Fails closed with 404.
 
-#### 9. `rpc_transition_strategy_status`
+#### 10. `rpc_transition_strategy_status`
 1. **Authentication**: Required (`auth.uid()`).
 2. **Ownership checks**: Asserts `strategy.user_id = auth.uid()`.
 3. **Input Schema**:
@@ -345,7 +388,7 @@ Every state-changing procedure below is specified against the required 13-point 
 12. **Replay behavior**: Idempotent on `request_idempotency_key`; returns existing strategy status (HTTP 200).
 13. **Cross-tenant behavior**: Fails closed with 404.
 
-#### 10. `rpc_create_strategy_version`
+#### 11. `rpc_create_strategy_version`
 1. **Authentication**: Required (`auth.uid()`).
 2. **Ownership checks**: Asserts `strategy.user_id = auth.uid()`.
 3. **Input Schema**:
@@ -380,7 +423,7 @@ Every state-changing procedure below is specified against the required 13-point 
 
 ### 3.3 Reward Economy RPCs
 
-#### 11. `rpc_grant_reward_credit`
+#### 12. `rpc_grant_reward_credit`
 1. **Authentication**: Required (`auth.uid()`).
 2. **Ownership checks**: Asserts caller owns target `reward_accounts` and verified source record.
 3. **Input Schema**:
@@ -418,7 +461,7 @@ Every state-changing procedure below is specified against the required 13-point 
     - If a different request key is submitted for an already-minted canonical source identity, fails closed with HTTP 409 Conflict (`REWARD_ALREADY_MINTED`).
 13. **Cross-tenant behavior**: Fails closed with 403 / 404.
 
-#### 12. `rpc_correct_reward_transaction`
+#### 13. `rpc_correct_reward_transaction`
 1. **Authentication**: Required (`auth.uid()`).
 2. **Ownership checks**: Caller owns original transaction and account.
 3. **Input Schema**:
@@ -442,12 +485,13 @@ Every state-changing procedure below is specified against the required 13-point 
 11. **Error Taxonomy**:
     - 404 `TRANSACTION_NOT_FOUND`
     - 409 `TRANSACTION_ALREADY_CORRECTED`
+    - 422 `CORRECTION_FOR_ID_ALREADY_EXISTS`
 12. **Replay behavior**:
     - Replay with same `request_idempotency_key` returns existing correction record (HTTP 200).
     - Submitting a different request key for an already-corrected transaction fails closed with HTTP 409 Conflict (`TRANSACTION_ALREADY_CORRECTED`).
 13. **Cross-tenant behavior**: Fails closed with 404.
 
-#### 13. `rpc_set_primary_wish`
+#### 14. `rpc_set_primary_wish`
 1. **Authentication**: Required (`auth.uid()`).
 2. **Ownership checks**: Asserts wish belongs to `auth.uid()`.
 3. **Input Schema**:
@@ -474,7 +518,7 @@ Every state-changing procedure below is specified against the required 13-point 
 12. **Replay behavior**: Replay with same request key returns existing primary wish record (HTTP 200).
 13. **Cross-tenant behavior**: Fails closed with 404.
 
-#### 14. `rpc_reserve_wish_credits`
+#### 15. `rpc_reserve_wish_credits`
 1. **Authentication**: Required (`auth.uid()`).
 2. **Ownership checks**: Asserts wish and reward account belong to `auth.uid()`.
 3. **Input Schema**:
@@ -502,7 +546,7 @@ Every state-changing procedure below is specified against the required 13-point 
 12. **Replay behavior**: If wish is already `RESERVED` under same idempotency key, returns HTTP 200.
 13. **Cross-tenant behavior**: Fails closed with 404.
 
-#### 15. `rpc_unreserve_wish_credits`
+#### 16. `rpc_unreserve_wish_credits`
 1. **Authentication**: Required (`auth.uid()`).
 2. **Ownership checks**: Caller owns wish and account.
 3. **Input Schema**:
@@ -529,7 +573,7 @@ Every state-changing procedure below is specified against the required 13-point 
 12. **Replay behavior**: Idempotent; returns existing wish state (HTTP 200).
 13. **Cross-tenant behavior**: Fails closed with 404.
 
-#### 16. `rpc_redeem_wish`
+#### 17. `rpc_redeem_wish`
 1. **Authentication**: Required (`auth.uid()`).
 2. **Ownership checks**: Caller owns wish and account.
 3. **Input Schema**:
@@ -558,10 +602,10 @@ Every state-changing procedure below is specified against the required 13-point 
     - 409 `WISH_ALREADY_REDEEMED`
 12. **Replay behavior**:
     - Replay with same request key returns existing redemption receipt (HTTP 200).
-    - Concurrent second redemption attempt fails closed with HTTP 409 Conflict (`CONCURRENT_MODIFICATION` / `WISH_NOT_RESERVED`).
+    - Concurrent second redemption attempt fails closed with HTTP 409 Conflict (`WISH_ALREADY_REDEEMED`).
 13. **Cross-tenant behavior**: Fails closed with 404.
 
-#### 17. `rpc_refund_wish_redemption`
+#### 18. `rpc_refund_wish_redemption`
 1. **Authentication**: Required (`auth.uid()`).
 2. **Ownership checks**: Caller owns wish, redemption receipt, and account.
 3. **Input Schema**:
@@ -592,7 +636,7 @@ Every state-changing procedure below is specified against the required 13-point 
     - Submitting a different request key for an already-refunded redemption fails closed with HTTP 409 Conflict (`REDEMPTION_ALREADY_REFUNDED`).
 13. **Cross-tenant behavior**: Fails closed with 404.
 
-#### 18. `rpc_archive_wish` / `rpc_cancel_wish`
+#### 19. `rpc_archive_wish` / `rpc_cancel_wish`
 1. **Authentication**: Required (`auth.uid()`).
 2. **Ownership checks**: Caller owns target wish.
 3. **Input Schema**:
@@ -623,7 +667,7 @@ Every state-changing procedure below is specified against the required 13-point 
 
 ### 3.4 Milestone Subsystem RPCs
 
-#### 19. `rpc_confirm_milestone`
+#### 20. `rpc_confirm_milestone`
 1. **Authentication**: Required (`auth.uid()`).
 2. **Ownership checks**: Asserts underlying source belongs to `auth.uid()`.
 3. **Input Schema**:
@@ -634,27 +678,30 @@ Every state-changing procedure below is specified against the required 13-point 
      "p_description": "text",
      "p_recognition_class": "text ('CORE_VERIFIED' | 'USER_CONFIRMED_REAL_WORLD')",
      "p_source_type": "text",
-     "p_source_id": "uuid NULL",
-     "p_evidence_url": "text NULL",
+     "p_source_id": "text",
+     "p_external_evidence_url": "text NULL",
+     "p_external_credential_id": "text NULL",
      "p_request_idempotency_key": "text"
    }
    ```
-4. **Current-state precondition**: Milestone key does not already exist for user.
+4. **Current-state precondition**: Milestone identity does not already exist for user: `UNIQUE (user_id, milestone_key, source_type, source_id)`.
 5. **Allowed transition**: Inserts recognition record in `milestones`.
-6. **Idempotency identity**: `UNIQUE (user_id, milestone_key)`.
+6. **Idempotency identity**: Composite natural key `UNIQUE (user_id, milestone_key, source_type, source_id)`.
 7. **Deterministic validation**:
+   - `p_source_id` must be non-empty text.
    - If `CORE_VERIFIED`: Asserts source record exists in Core and satisfies criteria.
-   - If `USER_CONFIRMED_REAL_WORLD`: Records self-attestation. Notes that self-attestation alone DOES NOT grant reward credits.
-8. **Locks / CAS / Concurrency**: Database unique index constraint check.
-9. **Atomic side effects**: Inserts row into `milestones`. Writes audit event.
+   - If `USER_CONFIRMED_REAL_WORLD`: Records self-attestation with optional external proof URL/credential. Notes that self-attestation alone DOES NOT grant reward credits.
+8. **Locks / CAS / Concurrency**: Database unique index constraint check on `(user_id, milestone_key, source_type, source_id)`.
+9. **Atomic side effects**: Inserts row into `milestones` with `status = 'ACTIVE'`, `granted_reward_credit = false`. Writes audit event.
 10. **Audit write**: `outer_loop_audit_events` (`MILESTONE_CONFIRMED`).
 11. **Error Taxonomy**:
+    - 400 `MISSING_SOURCE_ID`
     - 409 `MILESTONE_ALREADY_EXISTS`
     - 422 `INVALID_RECOGNITION_CLASS`
 12. **Replay behavior**: Returns existing milestone record idempotently (HTTP 200).
 13. **Cross-tenant behavior**: Foreign source check fails closed with 403.
 
-#### 20. `rpc_settle_milestone_reward`
+#### 21. `rpc_settle_milestone_reward`
 1. **Authentication**: Required (`auth.uid()`).
 2. **Ownership checks**: Asserts milestone belongs to `auth.uid()`.
 3. **Input Schema**:
@@ -665,7 +712,7 @@ Every state-changing procedure below is specified against the required 13-point 
      "p_request_idempotency_key": "text"
    }
    ```
-4. **Current-state precondition**: Milestone exists, `status = 'ACTIVE'`, and `granted_reward_credit = false`. If `USER_CONFIRMED_REAL_WORLD`, must possess verified independent external evidence.
+4. **Current-state precondition**: Milestone exists, `status = 'ACTIVE'`, and `granted_reward_credit = false`. If `USER_CONFIRMED_REAL_WORLD`, must possess verified independent external evidence (`external_evidence_url` or `external_credential_id`).
 5. **Allowed transition**: Mints credits and links milestone to reward transaction.
 6. **Idempotency identity**: Canonical Core source identity:
    `UNIQUE (user_id, underlying_canonical_source_type, underlying_canonical_source_id, policy_version, 'EARN')`.
@@ -683,11 +730,42 @@ Every state-changing procedure below is specified against the required 13-point 
 12. **Replay behavior**: Returns existing settlement without duplicate crediting.
 13. **Cross-tenant behavior**: Fails closed with 404.
 
+#### 22. `rpc_revoke_milestone`
+1. **Authentication**: Required (`auth.uid()`).
+2. **Ownership checks**: Asserts `milestone.user_id = auth.uid()`.
+3. **Input Schema**:
+   ```json
+   {
+     "p_milestone_id": "uuid",
+     "p_revocation_reason": "text",
+     "p_request_idempotency_key": "text"
+   }
+   ```
+4. **Current-state precondition**: Milestone exists and `status = 'ACTIVE'`.
+5. **Allowed transition**: Milestone: `ACTIVE -> REVOKED`. Row is preserved for historical audit (append-/status-preserving, strictly never hard-deleted).
+6. **Idempotency identity**: `p_request_idempotency_key`.
+7. **Deterministic validation**: Asserts `p_revocation_reason` is non-empty string.
+8. **Locks / CAS / Concurrency**: Locks `milestones` row `FOR UPDATE`. If `granted_reward_credit = true`, also locks `reward_accounts` row `FOR UPDATE`.
+9. **Atomic side effects**:
+   - Updates `milestones`: `status = 'REVOKED'`, `revoked_at = clock_timestamp()`, `revocation_reason = p_revocation_reason`, `updated_at = clock_timestamp()`.
+   - If `milestones.granted_reward_credit = true` AND `milestones.reward_transaction_id IS NOT NULL`:
+     - Locates original `EARN` transaction in `reward_transactions`.
+     - Appends an offsetting `CORRECTION` transaction: `event_kind = 'CORRECTION'`, `amount = -original.amount`, `correction_for_id = milestones.reward_transaction_id`, `notes = 'Milestone revoked: ' || p_revocation_reason`.
+     - Re-folds ledger via `foldRewardLedger`: decrements `current_available` and `lifetime_earned`. If available drops below 0, records deficit and clamps available to 0.
+   - Writes audit event with `event_type = 'MILESTONE_REVOKED'`.
+10. **Audit write**: `outer_loop_audit_events` recording `milestone_id`, `revocation_reason`, and `correction_tx_id` (if credit was reversed).
+11. **Error Taxonomy**:
+    - 400 `MISSING_REVOCATION_REASON`
+    - 404 `MILESTONE_NOT_FOUND`
+    - 409 `MILESTONE_ALREADY_REVOKED`
+12. **Replay behavior**: Replaying with same `request_idempotency_key` returns existing revoked milestone state (HTTP 200).
+13. **Cross-tenant behavior**: Fails closed with 404.
+
 ---
 
 ### 3.5 AI Proposal Review RPC
 
-#### 21. `rpc_review_outer_loop_proposal`
+#### 23. `rpc_review_outer_loop_proposal`
 1. **Authentication**: Required (`auth.uid()`).
 2. **Ownership checks**: Asserts `proposal.user_id = auth.uid()`.
 3. **Input Schema**:
@@ -696,23 +774,31 @@ Every state-changing procedure below is specified against the required 13-point 
      "p_proposal_id": "uuid",
      "p_decision": "text ('ACCEPTED' | 'EDITED' | 'REJECTED')",
      "p_edited_payload": "jsonb NULL",
-     "p_request_idempotency_key": "text"
+     "p_rejection_reason": "text NULL",
+     "p_review_request_idempotency_key": "text"
    }
    ```
 4. **Current-state precondition**: Proposal exists with `status = 'PROPOSED'` and `expires_at > clock_timestamp()`.
 5. **Allowed transition**: `PROPOSED -> ACCEPTED | EDITED | REJECTED`.
-6. **Idempotency identity**: Atomic CAS on `status = 'PROPOSED'` + `p_request_idempotency_key`.
-7. **Deterministic validation**: If accepted/edited, validates payload against target domain schema.
+6. **Idempotency identity**: Durable persisted key: `UNIQUE (user_id, review_request_idempotency_key) WHERE review_request_idempotency_key IS NOT NULL` + CAS on `status = 'PROPOSED'`.
+7. **Deterministic validation**: If accepted/edited, validates payload against target domain schema. If rejected, optionally records rejection reason.
 8. **Locks / CAS / Concurrency**:
    ```sql
    UPDATE outer_loop_proposals
-   SET status = p_decision, reviewed_at = clock_timestamp()
-   WHERE id = p_proposal_id AND status = 'PROPOSED'
+   SET status = p_decision,
+       decision = p_decision,
+       reviewed_at = clock_timestamp(),
+       reviewed_by_id = auth.uid(),
+       review_request_idempotency_key = p_review_request_idempotency_key,
+       rejection_reason = p_rejection_reason,
+       updated_at = clock_timestamp()
+   WHERE id = p_proposal_id AND status = 'PROPOSED' AND user_id = auth.uid()
    RETURNING *;
    ```
    If zero rows updated:
-   - Queries `outer_loop_proposals WHERE id = p_proposal_id`. If status is already `p_decision` and `request_idempotency_key` matches, returns existing entity (idempotent replay).
-   - Otherwise, aborts with HTTP 409 `PROPOSAL_ALREADY_REVIEWED` (concurrent race loser receives 409).
+   - Queries `outer_loop_proposals WHERE id = p_proposal_id AND user_id = auth.uid()`.
+   - **Exact Same-Key Replay**: If `review_request_idempotency_key = p_review_request_idempotency_key` AND `decision = p_decision`: returns HTTP 200 with previously committed domain entity / proposal state.
+   - **Distinct Key / Concurrent Loser**: If status is already terminal (`ACCEPTED`/`EDITED`/`REJECTED`) with a different key or different decision, aborts with HTTP 409 `PROPOSAL_ALREADY_REVIEWED`.
 9. **Atomic side effects**:
    - If `ACCEPTED` or `EDITED`: Inserts corresponding domain record (`seasons`, `strategies`, etc.) within same transaction.
    - Updates proposal: `resulting_entity_type`, `resulting_entity_id`.
@@ -720,10 +806,10 @@ Every state-changing procedure below is specified against the required 13-point 
 10. **Audit write**: `outer_loop_audit_events` (`PROPOSAL_REVIEWED`).
 11. **Error Taxonomy**:
     - 404 `PROPOSAL_NOT_FOUND`
-    - 409 `PROPOSAL_ALREADY_REVIEWED` (race condition blocked)
+    - 409 `PROPOSAL_ALREADY_REVIEWED` (distinct retry or concurrent loser blocked)
     - 422 `PROPOSAL_EXPIRED`
     - 422 `PAYLOAD_VALIDATION_FAILED`
 12. **Replay behavior**:
     - Same request key replay under matching decision returns committed domain entity (HTTP 200).
-    - Concurrent race loser receives HTTP 409 Conflict.
+    - Concurrent race loser or second attempt with distinct key receives HTTP 409 Conflict (`PROPOSAL_ALREADY_REVIEWED`).
 13. **Cross-tenant behavior**: Fails closed with 404.

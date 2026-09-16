@@ -143,9 +143,15 @@ A Review document contains structured sections validated against a strict schema
 ### 5.3 Review Authority & Versioning Boundary (Rule: REVIEW_AUTHORITY_BOUNDARY, Harness: O016)
 - **Draft Reviews Live in AI Proposals**: Drafting, iteration, and previews are handled via `OuterLoopProposal` (`status = 'PROPOSED'`).
 - **Persistent Reviews are Finalized**: Once confirmed by the user, the review is inserted into `season_reviews`. Persistent review records do not maintain an internal `DRAFT` state; they are immutable upon creation.
-- **Durable Idempotency Key**: Each review commit carries a client `commit_key UUID NOT NULL` protected by `UNIQUE (user_id, commit_key)`. Retrying the same commit key idempotently returns the existing review without creating duplicate rows or bumping versions.
+- **Durable Idempotency Key**: Each review commit carries a client `commit_key UUID NOT NULL` protected by `UNIQUE (user_id, commit_key)`. Retrying the same commit key idempotently returns the existing review without creating duplicate rows or bumping versions. In atomic season conclusion (`rpc_conclude_season`), this is passed as `p_final_review_commit_key UUID NOT NULL`, strictly separate from the request-level `p_request_idempotency_key text NOT NULL`.
 - **Serialization via Parent Season Row Lock**: Computing the sequential `version` acquires an exclusive row lock on the parent Season (`SELECT * FROM seasons WHERE id = p_season_id FOR UPDATE`), serializing concurrent finalizations and eliminating race conditions.
-- **Immutable Versioning**: Any subsequent corrections or amendments submitted under a new commit key generate a new superseding review row with an incremented `version` and update the prior review's `superseded_by_id` pointer.
+- **Immutable Versioning & Concluded Season Amendment**:
+  - Any subsequent corrections or amendments submitted under a new commit key generate a new superseding review row with an incremented `version` and update the prior review's `superseded_by_id` pointer.
+  - For concluded seasons (`COMPLETED` or `ENDED_EARLY`), amendments to the `FINAL` review are executed via `rpc_amend_final_season_review`. This RPC inserts `FINAL` version $N+1$, marks the prior review superseded, and updates amendment notes, while the parent Season **strictly remains in its terminal status and is never reopened**.
+- **Phase 8B Decoupling from Phase 8E Reward Infrastructure (P1-03)**:
+  - Season conclusion in Phase 8B strictly persists the terminal Season status, confirmed `FINAL` Review, and audit event.
+  - `rpc_conclude_season` **does NOT** call `rpc_grant_reward_credit`.
+  - When Phase 8E is subsequently implemented, reward credits for completed seasons are claimed or settled under Phase 8E authority reading historical `COMPLETED` season records.
 - **Review Does NOT Create Growth Truth**: A Review cannot award XP, cannot directly promote Skills or Mastery, and cannot create verified evidence.
 - **Review is an Upstream Source for Strategy & Milestones**: A finalized review serves as an auditable source reference for proposing new Personal Playbook strategies or validating real-world milestone achievements.
 
