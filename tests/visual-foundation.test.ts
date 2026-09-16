@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
-import { execSync } from 'node:child_process';
 import { compile } from 'tailwindcss';
+import { resolveGovernanceChangedFiles } from './helpers/governance-delta';
 
 export const FROZEN_BACKEND_DENYLIST = [
   'src/app/api/',
@@ -282,47 +282,15 @@ describe('Visual Foundation & Design Tokens Runtime Verification', () => {
     expect(svgContent).not.toContain('@import');
   });
 
-  it('10. verifies live PR delta in pull_request CI: visual migration contains zero frozen backend violations', () => {
-    const isPullRequest =
-      process.env.GITHUB_EVENT_NAME === 'pull_request' ||
-      Boolean(process.env.GITHUB_BASE_REF);
+  it('10. verifies live PR delta: visual migration contains zero frozen backend violations', () => {
+    const delta = resolveGovernanceChangedFiles();
+    expect(delta.files.length).toBeGreaterThan(0);
 
-    if (!isPullRequest) {
-      expect(true).toBe(true);
-      return;
-    }
-
-    const baseRef = process.env.GITHUB_BASE_REF || 'main';
-    let changedFiles: string[] = [];
-
-    const diffCommands = [
-      `git diff --name-only origin/${baseRef}...HEAD`,
-      `git diff --name-only ${baseRef}...HEAD`,
-      `git diff --name-only origin/${baseRef} HEAD`,
-      `git diff --name-only ${baseRef} HEAD`,
-    ];
-
-    let diffSucceeded = false;
-    let lastError: Error | null = null;
-
-    for (const cmd of diffCommands) {
-      try {
-        const output = execSync(cmd, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
-        changedFiles = output.split('\n').map((s) => s.trim()).filter(Boolean);
-        diffSucceeded = true;
-        break;
-      } catch (err) {
-        lastError = err as Error;
-      }
-    }
-
-    if (!diffSucceeded) {
-      throw new Error(`[Fail-Closed] Failed to resolve PR changed files against base '${baseRef}': ${lastError?.message}`);
-    }
-
-    const result = validateVisualMigrationDelta(changedFiles);
+    const result = validateVisualMigrationDelta(delta.files);
     if (result.isVisualPR) {
       expect(result.violations).toEqual([]);
+    } else {
+      expect(result.isVisualPR).toBe(false);
     }
   });
 
