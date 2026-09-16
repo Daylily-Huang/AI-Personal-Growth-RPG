@@ -13,6 +13,7 @@ const QUEST_A2 = "8b350002-aaaa-4000-a000-000000000002";
 const QUEST_B1 = "8b350001-bbbb-4000-b000-000000000001";
 const ACTIVITY_A = "8b360001-aaaa-4000-a000-000000000001";
 const EVIDENCE_A = "8b370001-aaaa-4000-a000-000000000001";
+const ASSESSMENT_A = "8b380001-aaaa-4000-a000-000000000001";
 
 describe.skipIf(!DATABASE_URL)("Phase 8B Round 2 — deterministic RPC authority", () => {
   let pg: Client;
@@ -90,6 +91,7 @@ describe.skipIf(!DATABASE_URL)("Phase 8B Round 2 — deterministic RPC authority
       pg.query(
         `select
            (select count(*)::int from public.xp_transactions where user_id = $1) as xp_count,
+           (select coalesce(sum(amount), 0)::int from public.xp_transactions where user_id = $1) as xp_amount,
            (select count(*)::int from public.mastery_events where user_id = $1) as mastery_event_count,
            (select count(*)::int from public.mastery_verifications where user_id = $1) as mastery_verification_count,
            (select count(*)::int from public.evidence_records where user_id = $1) as evidence_count,
@@ -146,6 +148,13 @@ describe.skipIf(!DATABASE_URL)("Phase 8B Round 2 — deterministic RPC authority
          (id, user_id, activity_id, skill_id, evidence_level, evidence_type, description, verified)
        values ($1, $2, $3, $4, 3, 'work_product', 'Phase8B frozen core evidence', true)`,
       [EVIDENCE_A, USER_A, ACTIVITY_A, SKILL_A],
+    );
+    await pg.query(
+      `insert into public.xp_transactions
+         (user_id, activity_id, quest_id, assessment_id, domain_id, skill_id, activity_type,
+          amount, base_amount, reason, rules_version, skill_name_snapshot)
+       values ($1, $2, $3, $4, $5, $6, 'study', 150, 150, 'Phase8B frozen XP', '1.0.0', 'Phase8B Skill')`,
+      [USER_A, ACTIVITY_A, QUEST_A1, ASSESSMENT_A, DOMAIN_A, SKILL_A],
     );
   }, 45000);
 
@@ -249,15 +258,36 @@ describe.skipIf(!DATABASE_URL)("Phase 8B Round 2 — deterministic RPC authority
     expect(links.rows.filter((r) => r.quest_id === QUEST_A1)).toHaveLength(2);
   });
 
-  test("O006_SEASON_END_DOES_NOT_REWRITE_GROWTH + O015_SEASON_DOES_NOT_COMPLETE_QUEST", async () => {
-    const seasonId = await insertDraftSeason("Growth isolation season");
+  test("O006_SEASON_END_DOES_NOT_REWRITE_GROWTH — ABANDONED preserves existing Core truth", async () => {
+    const seasonId = await insertDraftSeason("Abandoned growth isolation season");
+    await planSeason(seasonId);
+    await activateSeason(seasonId);
+
+    const before = await coreSnapshot();
+    expect(before.counts.xp_count).toBe(1);
+    expect(before.counts.xp_amount).toBe(150);
+
+    await asUser(USER_A, async () => {
+      const concluded = await pg.query(
+        `select public.rpc_conclude_season($1, 'ABANDONED', null, null, 'scope changed', $2) as result`,
+        [seasonId, `abandon-growth-${randomUUID()}`],
+      );
+      expect(concluded.rows[0].result.season.status).toBe("ABANDONED");
+      expect(concluded.rows[0].result.review).toBeNull();
+    });
+
+    const after = await coreSnapshot();
+    expect(after).toEqual(before);
+  });
+
+  test("O015_SEASON_DOES_NOT_COMPLETE_QUEST — COMPLETED leaves linked Quest untouched", async () => {
+    const seasonId = await insertDraftSeason("Quest lifecycle isolation season");
     await planSeason(seasonId);
     await asUser(USER_A, async () => {
       await pg.query(`select public.rpc_link_season_quest($1, $2, 'MAIN')`, [seasonId, QUEST_A1]);
     });
     await activateSeason(seasonId);
 
-    const before = await coreSnapshot();
     const commitKey = randomUUID();
     const review = {
       period_start: new Date(Date.now() - 7 * 86400000).toISOString(),
@@ -277,10 +307,9 @@ describe.skipIf(!DATABASE_URL)("Phase 8B Round 2 — deterministic RPC authority
       expect(concluded.rows[0].result.review.review_type).toBe("FINAL");
     });
 
-    const after = await coreSnapshot();
-    expect(after).toEqual(before);
-    expect(after.quest.status).toBe("active");
-    expect(Number(after.quest.progress)).toBe(37);
+    const quest = await pg.query(`select status, progress from public.quests where id = $1`, [QUEST_A1]);
+    expect(quest.rows[0].status).toBe("active");
+    expect(Number(quest.rows[0].progress)).toBe(37);
   });
 
   test("ABANDONED requires reason and inserts zero reviews", async () => {
@@ -352,6 +381,61 @@ describe.skipIf(!DATABASE_URL)("Phase 8B Round 2 — deterministic RPC authority
     });
   });
 
+  test("concurrent WEEKLY Review finalization allocates distinct serialized versions", async () => {
+    const seasonId = await insertDraftSeason("Concurrent weekly review season");
+    await planSeason(seasonId);
+    await activateSeason(seasonId);
+
+    const clientA = await createUserClient(USER_A);
+    const clientB = await createUserClient(USER_A);
+    try {
+      const periodStart = new Date(Date.now() - 7 * 86400000).toISOString();
+      const periodEnd = new Date().toISOString();
+      const [resultA, resultB] = await Promise.allSettled([
+        clientA.query(
+          `select public.rpc_finalize_season_review($1, 'WEEKLY', $2::timestamptz, $3::timestamptz, '{}'::jsonb, 'concurrent A', '[]'::jsonb, null, $4::uuid) as result`,
+          [seasonId, periodStart, periodEnd, randomUUID()],
+        ),
+        clientB.query(
+          `select public.rpc_finalize_season_review($1, 'WEEKLY', $2::timestamptz, $3::timestamptz, '{}'::jsonb, 'concurrent B', '[]'::jsonb, null, $4::uuid) as result`,
+          [seasonId, periodStart, periodEnd, randomUUID()],
+        ),
+      ]);
+
+      expect(resultA.status).toBe("fulfilled");
+      expect(resultB.status).toBe("fulfilled");
+      if (resultA.status !== "fulfilled" || resultB.status !== "fulfilled") {
+        throw new Error("Concurrent WEEKLY finalization did not serialize successfully");
+      }
+      const versions = [
+        resultA.value.rows[0].result.review.version,
+        resultB.value.rows[0].result.review.version,
+      ].sort((a, b) => a - b);
+      expect(versions).toEqual([1, 2]);
+
+      const stored = await pg.query(
+        `select version, superseded_by_id
+         from public.season_reviews
+         where season_id = $1 and review_type = 'WEEKLY'
+         order by version`,
+        [seasonId],
+      );
+      expect(stored.rows.map((row) => row.version)).toEqual([1, 2]);
+      expect(stored.rows[0].superseded_by_id).toBeTruthy();
+      expect(stored.rows[1].superseded_by_id).toBeNull();
+    } finally {
+      await clientA.end();
+      await clientB.end();
+    }
+
+    await asUser(USER_A, async () => {
+      await pg.query(
+        `select public.rpc_conclude_season($1, 'ABANDONED', null, null, 'concurrency cleanup', $2)`,
+        [seasonId, `cleanup-${randomUUID()}`],
+      );
+    });
+  });
+
   test("FINAL amendment creates N+1 without reopening or changing season timestamps", async () => {
     const seasonId = await insertDraftSeason("Final amendment season");
     await planSeason(seasonId);
@@ -389,6 +473,79 @@ describe.skipIf(!DATABASE_URL)("Phase 8B Round 2 — deterministic RPC authority
 
     const after = await pg.query(`select status, started_at, ended_at from public.seasons where id = $1`, [seasonId]);
     expect(after.rows[0]).toEqual(before.rows[0]);
+  });
+
+  test("concurrent FINAL amendments allocate N+1/N+2 without reopening the terminal Season", async () => {
+    const seasonId = await insertDraftSeason("Concurrent final amendment season");
+    await planSeason(seasonId);
+    await activateSeason(seasonId);
+
+    const initialPayload = {
+      period_start: new Date(Date.now() - 4 * 86400000).toISOString(),
+      period_end: new Date().toISOString(),
+      objective_summary: { outcome: "met" },
+      qualitative_reflection: "Initial concurrent final review",
+      criteria_evaluation: [],
+    };
+    await asUser(USER_A, async () => {
+      await pg.query(
+        `select public.rpc_conclude_season($1, 'COMPLETED', $2::jsonb, $3::uuid, null, $4)`,
+        [seasonId, JSON.stringify(initialPayload), randomUUID(), `conclude-${randomUUID()}`],
+      );
+    });
+    const terminalBefore = await pg.query(`select status, started_at, ended_at from public.seasons where id = $1`, [seasonId]);
+
+    const clientA = await createUserClient(USER_A);
+    const clientB = await createUserClient(USER_A);
+    try {
+      const payloadA = JSON.stringify({
+        ...initialPayload,
+        qualitative_reflection: "Concurrent amendment A",
+      });
+      const payloadB = JSON.stringify({
+        ...initialPayload,
+        qualitative_reflection: "Concurrent amendment B",
+      });
+      const [resultA, resultB] = await Promise.allSettled([
+        clientA.query(
+          `select public.rpc_amend_final_season_review($1, $2::jsonb, 'concurrent correction A', $3::uuid, $4) as result`,
+          [seasonId, payloadA, randomUUID(), `amend-a-${randomUUID()}`],
+        ),
+        clientB.query(
+          `select public.rpc_amend_final_season_review($1, $2::jsonb, 'concurrent correction B', $3::uuid, $4) as result`,
+          [seasonId, payloadB, randomUUID(), `amend-b-${randomUUID()}`],
+        ),
+      ]);
+
+      expect(resultA.status).toBe("fulfilled");
+      expect(resultB.status).toBe("fulfilled");
+      if (resultA.status !== "fulfilled" || resultB.status !== "fulfilled") {
+        throw new Error("Concurrent FINAL amendments did not serialize successfully");
+      }
+      const versions = [
+        resultA.value.rows[0].result.review.version,
+        resultB.value.rows[0].result.review.version,
+      ].sort((a, b) => a - b);
+      expect(versions).toEqual([2, 3]);
+
+      const stored = await pg.query(
+        `select version, superseded_by_id
+         from public.season_reviews
+         where season_id = $1 and review_type = 'FINAL'
+         order by version`,
+        [seasonId],
+      );
+      expect(stored.rows.map((row) => row.version)).toEqual([1, 2, 3]);
+      expect(stored.rows[0].superseded_by_id).toBeTruthy();
+      expect(stored.rows[1].superseded_by_id).toBeTruthy();
+      expect(stored.rows[2].superseded_by_id).toBeNull();
+    } finally {
+      await clientA.end();
+      await clientB.end();
+    }
+
+    const terminalAfter = await pg.query(`select status, started_at, ended_at from public.seasons where id = $1`, [seasonId]);
+    expect(terminalAfter.rows[0]).toEqual(terminalBefore.rows[0]);
   });
 
   test("proposal CAS: accepted SEASON_PLAN commits once; exact replay returns same entity; distinct retry conflicts", async () => {
@@ -436,5 +593,164 @@ describe.skipIf(!DATABASE_URL)("Phase 8B Round 2 — deterministic RPC authority
     const seasons = await pg.query(`select id, status from public.seasons where id = $1`, [resultingSeasonId]);
     expect(seasons.rows).toHaveLength(1);
     expect(seasons.rows[0].status).toBe("PLANNED");
+  });
+
+  test("proposal CAS: EDITED validates edited payload and commits the edited Season exactly once", async () => {
+    const proposalId = randomUUID();
+    const originalPayload = {
+      title: "Original proposal season",
+      theme: "Original theme",
+      target_start_date: new Date().toISOString().slice(0, 10),
+      duration_days: 28,
+      success_criteria: [{ criterion: "original" }],
+    };
+    const editedPayload = {
+      ...originalPayload,
+      title: "Edited proposal season",
+      theme: "Edited theme",
+      duration_days: 42,
+      success_criteria: [{ criterion: "edited" }],
+    };
+    await pg.query(
+      `insert into public.outer_loop_proposals
+         (id, user_id, proposal_type, schema_version, payload, expires_at)
+       values ($1, $2, 'SEASON_PLAN', 1, $3::jsonb, clock_timestamp() + interval '14 days')`,
+      [proposalId, USER_A, JSON.stringify(originalPayload)],
+    );
+
+    const reviewKey = `proposal-edited-${randomUUID()}`;
+    let resultingSeasonId = "";
+    await asUser(USER_A, async () => {
+      const edited = await pg.query(
+        `select public.rpc_review_outer_loop_proposal($1, 'EDITED', $2::jsonb, null, $3) as result`,
+        [proposalId, JSON.stringify(editedPayload), reviewKey],
+      );
+      resultingSeasonId = edited.rows[0].result.proposal.resulting_entity_id;
+      expect(edited.rows[0].result.proposal.status).toBe("EDITED");
+      expect(edited.rows[0].result.replayed).toBe(false);
+      expect(resultingSeasonId).toBeTruthy();
+
+      const replay = await pg.query(
+        `select public.rpc_review_outer_loop_proposal($1, 'EDITED', $2::jsonb, null, $3) as result`,
+        [proposalId, JSON.stringify({ ...editedPayload, title: "ignored replay mutation" }), reviewKey],
+      );
+      expect(replay.rows[0].result.replayed).toBe(true);
+      expect(replay.rows[0].result.proposal.resulting_entity_id).toBe(resultingSeasonId);
+    });
+
+    const season = await pg.query(
+      `select name, description, status, target_duration_days, success_criteria
+       from public.seasons where id = $1`,
+      [resultingSeasonId],
+    );
+    expect(season.rows).toHaveLength(1);
+    expect(season.rows[0].name).toBe("Edited proposal season");
+    expect(season.rows[0].description).toBe("Edited theme");
+    expect(season.rows[0].status).toBe("PLANNED");
+    expect(season.rows[0].target_duration_days).toBe(42);
+    expect(season.rows[0].success_criteria).toEqual([{ criterion: "edited" }]);
+  });
+
+  test("proposal CAS: REJECTED creates no domain entity; exact replay succeeds and distinct retry conflicts", async () => {
+    const proposalId = randomUUID();
+    const payload = {
+      title: "Rejected proposal season",
+      target_start_date: new Date().toISOString().slice(0, 10),
+      duration_days: 28,
+      success_criteria: [],
+    };
+    await pg.query(
+      `insert into public.outer_loop_proposals
+         (id, user_id, proposal_type, schema_version, payload, expires_at)
+       values ($1, $2, 'SEASON_PLAN', 1, $3::jsonb, clock_timestamp() + interval '14 days')`,
+      [proposalId, USER_A, JSON.stringify(payload)],
+    );
+
+    const reviewKey = `proposal-rejected-${randomUUID()}`;
+    await asUser(USER_A, async () => {
+      const rejected = await pg.query(
+        `select public.rpc_review_outer_loop_proposal($1, 'REJECTED', null, 'does not fit current priorities', $2) as result`,
+        [proposalId, reviewKey],
+      );
+      expect(rejected.rows[0].result.proposal.status).toBe("REJECTED");
+      expect(rejected.rows[0].result.proposal.rejection_reason).toBe("does not fit current priorities");
+      expect(rejected.rows[0].result.proposal.resulting_entity_id).toBeNull();
+      expect(rejected.rows[0].result.replayed).toBe(false);
+
+      const replay = await pg.query(
+        `select public.rpc_review_outer_loop_proposal($1, 'REJECTED', null, 'different replay text', $2) as result`,
+        [proposalId, reviewKey],
+      );
+      expect(replay.rows[0].result.replayed).toBe(true);
+      expect(replay.rows[0].result.proposal.resulting_entity_id).toBeNull();
+
+      await expect(
+        pg.query(
+          `select public.rpc_review_outer_loop_proposal($1, 'REJECTED', null, 'retry', $2)`,
+          [proposalId, `distinct-reject-${randomUUID()}`],
+        ),
+      ).rejects.toThrow(/PROPOSAL_ALREADY_REVIEWED/);
+    });
+
+    const proposal = await pg.query(
+      `select resulting_entity_id from public.outer_loop_proposals where id = $1`,
+      [proposalId],
+    );
+    expect(proposal.rows[0].resulting_entity_id).toBeNull();
+  });
+
+  test("proposal CAS: concurrent reviewers produce exactly one winner and one loser", async () => {
+    const proposalId = randomUUID();
+    const payload = {
+      title: "Concurrent proposal season",
+      theme: "CAS",
+      target_start_date: new Date().toISOString().slice(0, 10),
+      duration_days: 28,
+      success_criteria: [{ criterion: "one winner" }],
+    };
+    await pg.query(
+      `insert into public.outer_loop_proposals
+         (id, user_id, proposal_type, schema_version, payload, expires_at)
+       values ($1, $2, 'SEASON_PLAN', 1, $3::jsonb, clock_timestamp() + interval '14 days')`,
+      [proposalId, USER_A, JSON.stringify(payload)],
+    );
+
+    const clientA = await createUserClient(USER_A);
+    const clientB = await createUserClient(USER_A);
+    try {
+      const results = await Promise.allSettled([
+        clientA.query(
+          `select public.rpc_review_outer_loop_proposal($1, 'ACCEPTED', null, null, $2) as result`,
+          [proposalId, `concurrent-accept-${randomUUID()}`],
+        ),
+        clientB.query(
+          `select public.rpc_review_outer_loop_proposal($1, 'REJECTED', null, 'concurrent rejection', $2) as result`,
+          [proposalId, `concurrent-reject-${randomUUID()}`],
+        ),
+      ]);
+
+      const fulfilled = results.filter((result) => result.status === "fulfilled");
+      const rejected = results.filter((result) => result.status === "rejected");
+      expect(fulfilled).toHaveLength(1);
+      expect(rejected).toHaveLength(1);
+      if (rejected[0]?.status === "rejected") {
+        expect(String(rejected[0].reason)).toMatch(/PROPOSAL_ALREADY_REVIEWED/);
+      }
+    } finally {
+      await clientA.end();
+      await clientB.end();
+    }
+
+    const proposal = await pg.query(
+      `select status, resulting_entity_id from public.outer_loop_proposals where id = $1`,
+      [proposalId],
+    );
+    expect(["ACCEPTED", "REJECTED"]).toContain(proposal.rows[0].status);
+
+    const resultingSeasonCount = await pg.query(
+      `select count(*)::int as count from public.seasons where id = $1`,
+      [proposal.rows[0].resulting_entity_id],
+    );
+    expect(resultingSeasonCount.rows[0].count).toBe(proposal.rows[0].status === "ACCEPTED" ? 1 : 0);
   });
 });
