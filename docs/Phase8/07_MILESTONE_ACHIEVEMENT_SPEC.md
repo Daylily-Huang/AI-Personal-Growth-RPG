@@ -87,6 +87,7 @@ Milestones serve as one of the four sparse, high-value source classes authorized
 To prevent wrapper double-minting, when a `CORE_VERIFIED` Milestone wraps a Quest, Skill Mastery, or Artifact that already minted credits:
 $$\text{canonical\_source\_identity} = (\text{user\_id}, \text{underlying\_core\_source\_type}, \text{underlying\_core\_source\_id}, \text{policy\_version}, \text{'EARN'})$$
 - The canonical reward source identity anchors directly to the underlying Core source entity (`canonical_source_type = 'QUEST'`, `canonical_source_id = quest.id`), **NOT** the `milestone_id`.
+- For Skill Mastery milestones, the canonical source identity incorporates the threshold level (`canonical_source_type = 'MASTERY'`, `canonical_source_id = '${skill.id}:M${threshold_level}'`), ensuring M6, M8, and M10 each mint independently once per skill while preventing duplicate minting for the same threshold.
 - If the user already earned reward credits for Boss Quest X, the Milestone wrapper cannot mint a second grant because the database unique index on canonical source identity will reject it.
 - The milestone record sets `granted_reward_credit = true` and references the resulting transaction.
 

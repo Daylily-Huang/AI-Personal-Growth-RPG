@@ -24,19 +24,16 @@ stateDiagram-v2
     [*] --> HYPOTHESIS: User created or AI proposed (confirmed)
     HYPOTHESIS --> TESTING: Active testing initiated in a Season
     
-    TESTING --> SUPPORTED: Cross-time support threshold met
-    TESTING --> CONTEXTUAL: Reproducible only in bounded context
-    TESTING --> RETIRED: Disproved or ineffective
+    TESTING --> SUPPORTED: High-confidence support threshold met & user confirmed
+    TESTING --> RETIRED: Disproved, invalid, or abandoned
+    
+    SUPPORTED --> CONTEXTUAL: Boundary conditions discovered
+    CONTEXTUAL --> SUPPORTED: Broadened applicability validated
     
     SUPPORTED --> WEAKENED: Significant counter-evidence observed
-    SUPPORTED --> CONTEXTUAL: Boundary conditions discovered
-    SUPPORTED --> RETIRED: Outdated or abandoned
-    
-    CONTEXTUAL --> SUPPORTED: Broadened applicability validated
     CONTEXTUAL --> WEAKENED: Failed in primary context
-    CONTEXTUAL --> RETIRED: Outdated or abandoned
     
-    WEAKENED --> TESTING: Re-calibrated & re-tested
+    WEAKENED --> TESTING: Re-calibrated protocol & re-testing
     WEAKENED --> RETIRED: Permanently ineffective
     
     RETIRED --> [*]
@@ -66,15 +63,15 @@ stateDiagram-v2
 
 A foundational rule of the Growth RPG is: **"One observation is an anecdote; two is a pattern; cross-time replication is empirical evidence."**
 
-### 3.1 Minimum Invariants for Promotion to `SUPPORTED`
-To transition from `HYPOTHESIS` or `TESTING` to `SUPPORTED`, the deterministic engine strictly requires all of the following:
+### 3.1 Invariants for Promotion to `SUPPORTED`
+To transition from `TESTING` to `SUPPORTED`, the deterministic engine strictly requires all of the following:
 
-1. **Explicit User Acceptance**: The user must explicitly confirm the strategy formulation and intent.
-2. **Temporal Separation (Cross-Time)**: At least **two temporally distinct** positive support observations logged across different days or weeks (cannot be earned in a single day).
+1. **Confidence Level >= `HIGH`**: Derived confidence must reach at least `HIGH` (meaning $\ge 4$ distinct dates across $\ge 1$ completed season, $\ge 2$ core links, net support ratio $\ge 75\%$).
+2. **Temporal Separation (Cross-Time)**: At least **four temporally distinct** positive support observations logged across different days or weeks.
 3. **Completed Season Context**: At least **one completed Season** (`status = 'COMPLETED'`) in which the strategy was actively deployed.
 4. **Growth Core Event Linkage**: At least **two underlying Growth Core achievements** (verified Activities, completed Quests, or durable Artifacts) directly linked as supporting evidence.
-5. **Deterministic Counter-Evidence Evaluation**: The ratio of supporting observations to counter-evidence observations must satisfy the deterministic confidence threshold (no unresolved blocking failures).
-6. **Prohibition of AI Auto-Promotion (O8)**: The AI GM can never autonomously mark a strategy as `SUPPORTED`. The promotion must be computed deterministically and confirmed by the user.
+5. **Deterministic Counter-Evidence Evaluation**: The ratio of supporting observations to total observations ($\frac{\text{Supports}}{\text{Supports} + \text{Counters}}$) must be $\ge 75\%$.
+6. **Mandatory User Confirmation (O8)**: The deterministic evaluator (`rpc_evaluate_strategy_status`) computes status eligibility and confidence level; the actual promotion to `SUPPORTED` **requires explicit user confirmation** via `rpc_transition_strategy_status` (or passing `p_confirm_promotion = true`). The AI GM and background workers can never autonomously promote status.
 
 ---
 
@@ -88,16 +85,16 @@ Strategy confidence is **never a user-editable arbitrary percentage**. It is a *
 LOW  ──►  MODERATE  ──►  HIGH  ──►  VERY_HIGH
 ```
 
-| Confidence Level | Minimum Supporting Observations | Minimum Completed Seasons | Growth Core Evidence Links | Net Success Ratio ($\frac{\text{Supports}}{\text{Supports} + \text{Counters}}$) |
-| :---: | :---: | :---: | :---: | :---: |
-| **`LOW`** | 1 observation | 0 seasons | Optional | $< 60\%$ or single observation |
-| **`MODERATE`** | $\ge 2$ distinct dates | 0 seasons | $\ge 1$ Core Activity/Quest | $\ge 65\%$ |
-| **`HIGH`** | $\ge 4$ distinct dates | $\ge 1$ Completed Season | $\ge 2$ Core Activities/Quests | $\ge 75\%$ |
-| **`VERY_HIGH`** | $\ge 6$ distinct dates | $\ge 2$ Completed Seasons | $\ge 4$ Core Events + Artifacts | $\ge 85\%$ |
+| Confidence Level | Minimum Supporting Observations | Minimum Completed Seasons | Growth Core Evidence Links | Net Success Ratio ($\frac{\text{Supports}}{\text{Supports} + \text{Counters}}$) | Lifecycle Status Eligibility |
+| :---: | :---: | :---: | :---: | :---: | :---: |
+| **`LOW`** | 1 observation | 0 seasons | Optional | $< 65\%$ or single observation | `HYPOTHESIS` or `TESTING` |
+| **`MODERATE`** | $\ge 2$ distinct dates | 0 seasons | $\ge 1$ Core Activity/Quest | $\ge 65\%$ | `TESTING` |
+| **`HIGH`** | $\ge 4$ distinct dates | $\ge 1$ Completed Season | $\ge 2$ Core Activities/Quests | $\ge 75\%$ | Eligible for `SUPPORTED` or `CONTEXTUAL` (pending user confirmation) |
+| **`VERY_HIGH`** | $\ge 8$ distinct dates | $\ge 2$ Completed Seasons | $\ge 4$ Core Events + Artifacts | $\ge 85\%$ | `SUPPORTED` or `CONTEXTUAL` |
 
 ### 4.2 Handling of Counter-Evidence
 - Every time a user logs a `FAILURE_POSTMORTEM` or notes in a `Review` that a strategy failed in a given scenario, a counter-support record is inserted.
-- When counter-evidence drives the net success ratio below $60\%$, the deterministic engine automatically downgrades the status from `SUPPORTED` to `WEAKENED`.
+- When counter-evidence drives the net success ratio below $60\%$, the deterministic engine automatically downgrades the status from `SUPPORTED` or `CONTEXTUAL` to `WEAKENED`.
 
 ---
 
@@ -130,7 +127,7 @@ erDiagram
         uuid user_id FK
         text observation_type "SUPPORT | COUNTER_EVIDENCE"
         text source_class "SEASON_REVIEW | ACTIVITY | QUEST_OUTCOME | ARTIFACT | CORE_EVIDENCE_REFERENCE | JOURNAL_CONTEXT | MANUAL_OBSERVATION"
-        uuid source_id "Nullable FK to source"
+        uuid source_id "UUID NOT NULL (never null; manual observations anchor to immutable journal/observation ID)"
         text evaluator_version "text NOT NULL"
         text note
         timestamptz observed_at
@@ -141,7 +138,10 @@ erDiagram
 ### 5.1 Source Identity De-Duplication
 To prevent duplicate recording or replay attacks from inflating confidence, the database enforces:
 $$\text{UNIQUE} (\text{strategy\_id}, \text{source\_class}, \text{source\_id}, \text{observation\_type}, \text{evaluator\_version})$$
-Any re-evaluation of the same source event under the same evaluator version resolves to the existing record.
+- **Non-Null Invariant**: `source_id` is strictly `NOT NULL`.
+- For system-verified sources, `source_id` references the corresponding entity (`quest_id`, `season_review_id`, `activity_id`, `artifact_id`).
+- For `JOURNAL_CONTEXT` or `MANUAL_OBSERVATION`, `source_id` anchors to the immutable `journal_entries.id` or a dedicated tenant-scoped observation UUID.
+- Because `source_id` is never NULL, PostgreSQL's `UNIQUE` constraint guarantees fail-closed de-duplication with zero duplicate support inflations.
 
 ### 5.2 Source Class Weight Hierarchy
 Observations carry differing evidential weight depending on their objective verifiability:
@@ -179,5 +179,5 @@ Observations carry differing evidential weight depending on their objective veri
 ## 8. Verification & Deterministic Test Scenarios
 
 - **O008_AI_CANNOT_COMMIT_STRATEGY**: AI-generated strategy payloads sent directly to domain tables are rejected; only proposals in `outer_loop_proposals` are permitted.
-- **O009_STRATEGY_REQUIRES_CROSS_TIME_SUPPORT**: Invoking the promotion RPC `promote_strategy_to_supported` with fewer than two distinct observation dates or zero completed seasons raises HTTP 422 Unprocessable Entity.
+- **O009_STRATEGY_REQUIRES_CROSS_TIME_SUPPORT**: Invoking evaluation RPC `rpc_evaluate_strategy_status` or promotion RPC `rpc_transition_strategy_status` with fewer than four distinct observation dates or zero completed seasons raises HTTP 422 Unprocessable Entity and rejects promotion to `SUPPORTED`.
 - **O017_STRATEGY_CONFIDENCE_IS_DETERMINISTIC_DERIVED**: Manually passing a payload attempting to write `confidence_level = 'VERY_HIGH'` to the database is rejected or overwritten by the deterministic derivation trigger/RPC.

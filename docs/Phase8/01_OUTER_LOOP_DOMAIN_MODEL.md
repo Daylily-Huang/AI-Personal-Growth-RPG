@@ -141,12 +141,13 @@ classDiagram
         +UUID strategy_id
         +string observation_type "SUPPORT | COUNTER_EVIDENCE"
         +string source_class
-        +UUID source_id
+        +UUID source_id "UUID NOT NULL"
         +string evaluator_version
     }
     class RewardAccount {
         +UUID user_id
         +integer lifetime_earned
+        +integer net_earned
         +integer lifetime_redeemed
         +integer current_reserved
         +integer current_available
@@ -158,9 +159,11 @@ classDiagram
         +string event_kind "EARN | CORRECTION | RESERVE | UNRESERVE | REDEEM | REFUND"
         +integer amount
         +string canonical_source_type
-        +UUID canonical_source_id
+        +string canonical_source_id "UUID or deterministic composite identity"
         +string policy_version
-        +string idempotency_key
+        +string request_idempotency_key
+        +UUID correction_for_id "Nullable FK to prior transaction (at most one per EARN)"
+        +UUID refund_for_redemption_id "Nullable FK to prior redemption (at most one per REDEEM)"
     }
     class Wish {
         +UUID id
@@ -207,8 +210,8 @@ stateDiagram-v2
     DRAFT --> CANCELLED : 放弃草稿
     PLANNED --> ACTIVE : 激活开始 (rpc_activate_season, 仅限PLANNED进入, 单ACTIVE约束)
     PLANNED --> CANCELLED : 取消计划
-    ACTIVE --> COMPLETED : 周期结束 + 确认 Final Review
-    ACTIVE --> ENDED_EARLY : 提前达成 + 确认 Final Review
+    ACTIVE --> COMPLETED : 原子终结: 写入 Final Review + 赛季结算
+    ACTIVE --> ENDED_EARLY : 原子提前终结: 写入 Final Review + 结算
     ACTIVE --> ABANDONED : 中途放弃 + 必须提供终止审计原因
     COMPLETED --> [*]
     ENDED_EARLY --> [*]
@@ -217,6 +220,9 @@ stateDiagram-v2
 ```
 - **硬性约束**：
   - `rpc_activate_season` 严禁允许 `DRAFT -> ACTIVE`，必须先流转为 `PLANNED` 并设定明确成功标准。
+  - **0..1 MAIN 关系**：Season 允许关联 0 或 1 个 MAIN Quest，关联 MAIN Quest 不是激活的前置必选条件。
+  - **原子终结事务**：`ACTIVE -> COMPLETED` / `ENDED_EARLY` 在 `rpc_conclude_season` 事务内原子写入不可变 `FINAL` `SeasonReview` 并更新状态，杜绝先终结后复盘或先复盘后终结的循环竞态。
+  - `ACTIVE -> ABANDONED` 必须提供不可为空的 `p_abandonment_reason` 写入审计日志，不要求 `FINAL` 复盘。
   - 一旦进入 `ACTIVE`，严禁通过常规产品 API 硬删除，必须流转至终止态并留痕。
   - 同一用户任意时刻至多只能拥有 1 个 `ACTIVE` 状态的 Season。
 
@@ -225,18 +231,19 @@ stateDiagram-v2
 stateDiagram-v2
     [*] --> HYPOTHESIS : 提出工作法假设 (用户创建或接受AI提议)
     HYPOTHESIS --> TESTING : 纳入活跃赛季或任务进行实践检验
-    TESTING --> SUPPORTED : 满足严格跨期门禁 (>=2不同日期观察 + >=1完成赛季 + >=2Core成就 + 净支持率>=75%)
-    TESTING --> CONTEXTUAL : 验证有效但仅在特定边界情境有效
+    TESTING --> SUPPORTED : 满足严格跨期门禁 (>=4不同日期观察 + >=1完成赛季 + >=2Core成就 + 净支持率>=75% + 用户确认)
+    TESTING --> RETIRED : 证伪废弃
+    SUPPORTED --> CONTEXTUAL : 发现情境边界
+    CONTEXTUAL --> SUPPORTED : 验证广泛适用性
     SUPPORTED --> WEAKENED : 反面证据累积导致净支持率跌破阈值
     CONTEXTUAL --> WEAKENED : 情境适用性失效或反例累积
-    WEAKENED --> TESTING : 重新校准并投入新周期验证
-    HYPOTHESIS --> RETIRED : 放弃假设
-    TESTING --> RETIRED : 证伪废弃
-    SUPPORTED --> RETIRED : 永久沉淀/不再适用
-    CONTEXTUAL --> RETIRED : 永久沉淀/不再适用
+    WEAKENED --> TESTING : 重新校准行动方案并投入新周期验证
     WEAKENED --> RETIRED : 彻底废弃
+    RETIRED --> [*]
 ```
-- **硬性约束**：AI 绝无权限将 Strategy 直接置为 `SUPPORTED`；置信度为纯确定性推导值 (`LOW`, `MODERATE`, `HIGH`, `VERY_HIGH`)。
+- **硬性约束**：
+  - AI 绝无权限将 Strategy 直接置为 `SUPPORTED`；置信度为纯确定性推导值 (`LOW`, `MODERATE`, `HIGH`, `VERY_HIGH`)。
+  - 晋升为 `SUPPORTED` 要求置信度至少达到 `HIGH`，由 `rpc_evaluate_strategy_status` 确定性算定后，必须经由用户显式确认操作完成状态变更。
 
 ### 4.3 Wish 唯一规范生命周期
 ```mermaid
@@ -255,9 +262,12 @@ stateDiagram-v2
     PRIMARY --> CANCELLED : 显式取消
     REDEEMED --> [*]
 ```
-- **硬性约束**：彻底废止 `BACKLOG` 与 `REDEEMABLE` 词汇；Cooldown 不是生命周期状态，仅作为元数据字段 `cooldown_until`。
+- **硬性约束**：
+  - 彻底废止 `BACKLOG` 与 `REDEEMABLE` 词汇；Cooldown 不是生命周期状态，仅作为元数据字段 `cooldown_until`。
+  - **`REDEEMED` 严格为终态**：退款 (`rpc_refund_wish_redemption`) 仅在 `reward_transactions` 账本追加只增 `REFUND` 事件还原可用额度，`reward_redemptions` 物理凭据保持不可变，**Wish 实体严格保持 `REDEEMED` 终态**，绝不回退至 `ACTIVE`，维护历史审计真实性。
 
 ### 4.4 SeasonReview 提议与不可变版本化模型
 - **提议信封分流**：AI GM 生成的复盘草稿存放在 `OuterLoopProposal` (`status = 'PROPOSED'`)，在客户端提供交互式 Diff 与编辑预览。
 - **持久化记录即终态**：用户确认后，原子写入 `SeasonReview` 实体。持久化复盘记录自写入起即为不可变 (`immutable`)，不设内部 DRAFT 状态。
+- **幂等与并发控制**：持久化提交携带客户端 `commit_key UUID NOT NULL` (`UNIQUE (user_id, commit_key)`)。版本递增在父级 Season 行锁 (`FOR UPDATE`) 保护下串行安全计算。
 - **版本更迭溯源**：若后续对已终审复盘做事实补正，不就地修改历史，而是创建新版 `SeasonReview`，通过 `version` 与 `superseded_by_id` 形成单向版本溯源链。

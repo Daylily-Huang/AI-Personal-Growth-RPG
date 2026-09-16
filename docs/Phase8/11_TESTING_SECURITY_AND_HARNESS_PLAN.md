@@ -74,8 +74,8 @@ Every test in this catalogue must be implemented and pass in future phases.
 ### O004 — `O004_DUPLICATE_REWARD_BLOCKED`
 - **Target Invariant**: O10 (Strict idempotency and source uniqueness).
 - **Test Purpose**: Ensure network replays or altered request tokens cannot duplicate credit minting for the same source event.
-- **Execution**: Issue credit grant RPC twice using the same canonical source identity (`user_id`, `canonical_source_type`, `canonical_source_id`, `policy_version`, `'EARN'`) with different request idempotency keys.
-- **Assertion**: Second call fails closed with HTTP 409 `REWARD_ALREADY_MINTED` via the database canonical source unique index; available balance increases exactly once.
+- **Execution**: Issue credit grant RPC twice using the same canonical source identity (`user_id`, `canonical_source_type`, `canonical_source_id`, `policy_version`, `'EARN'`) with different request idempotency keys. Separately, issue with the identical request idempotency key.
+- **Assertion**: With a different request idempotency key, the second call fails closed with HTTP 409 `REWARD_ALREADY_MINTED` via the database canonical source unique index. With the identical request idempotency key, the replay returns HTTP 200 with the existing transaction record. In all cases, available balance increases exactly once.
 
 ### O005 — `O005_REWARD_REVERSAL_IS_CORRECTION`
 - **Target Invariant**: O9 (Auditability), Rule: `LEDGER_CORRECTION_APPEND_ONLY`.
@@ -139,9 +139,9 @@ Every test in this catalogue must be implemented and pass in future phases.
 
 ### O015 — `O015_SEASON_DOES_NOT_COMPLETE_QUEST`
 - **Target Invariant**: O1, O5 (Decoupled lifecycle), Rule: `SEASON_DECOUPLED_LIFECYCLE`.
-- **Test Purpose**: Concluding a Season must not automatically alter status of linked in-progress Quests.
-- **Execution**: Link in-progress Quest 1 to Season A. Call `rpc_conclude_season` on Season A.
-- **Assertion**: Season A transitions to `COMPLETED`; Quest 1 remains in `in_progress` / `active` state.
+- **Test Purpose**: Concluding a Season must not automatically alter status of linked active Quests.
+- **Execution**: Link active Quest 1 to Season A. Call `rpc_conclude_season` on Season A.
+- **Assertion**: Season A transitions to `COMPLETED`; Quest 1 remains in `active` state.
 
 ### O016 — `O016_REVIEW_DOES_NOT_CREATE_GROWTH_TRUTH`
 - **Target Invariant**: O1, O7 (Review does not create Growth Truth), Rule: `REVIEW_AUTHORITY_BOUNDARY`.
@@ -164,8 +164,8 @@ Every test in this catalogue must be implemented and pass in future phases.
 ### O019 — `O019_WISH_REDEEM_IS_IDEMPOTENT_ATOMIC`
 - **Target Invariant**: O9 (Atomic mutation), Rule: `ATOMIC_WISH_REDEMPTION`.
 - **Test Purpose**: Concurrent double-submit of wish redemption settles exactly once.
-- **Execution**: Dispatch two concurrent HTTP POST requests to redeem the same reserved wish.
-- **Assertion**: One request succeeds (HTTP 200); the other fails with HTTP 409 `WISH_ALREADY_REDEEMED`. Account balance decrements exactly once.
+- **Execution**: Dispatch two concurrent HTTP POST requests to redeem the same reserved wish with different request idempotency keys. Separately, test exact network replay with the same request idempotency key.
+- **Assertion**: With different request idempotency keys, one request succeeds (HTTP 200) and the other fails with HTTP 409 `WISH_ALREADY_REDEEMED`. With the identical request idempotency key, the replay returns HTTP 200 with the existing redemption receipt. In all cases, account balance decrements exactly once.
 
 ### O020 — `O020_REWARD_CORRECTION_PRESERVES_LEDGER_HISTORY`
 - **Target Invariant**: O9 (Auditability), Rule: `CORRECTION_DEFICIT_PRESERVATION`.

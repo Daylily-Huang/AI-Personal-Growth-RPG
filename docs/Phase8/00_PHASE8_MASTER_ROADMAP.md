@@ -1,6 +1,6 @@
 # AI Personal Growth RPG — Phase 8 Outer Growth Loop Master Roadmap
 
-> **文档版本**: 2.1 (Phase 8A Architecture Freeze Edition - R1 Corrective)  
+> **文档版本**: 2.2 (Phase 8A Architecture Freeze Edition - R2 Corrective)  
 > **当前状态**: PHASE 8A ARCHITECTURE FREEZE — PURE SPEC / DOCS ONLY  
 > **生产代码授权**: NOT AUTHORIZED (生产实现严格禁止，直到 Phase 8A 独立审查签署 GO)  
 > **基线主分支 (main)**: `0a85de522503cf3f0a656f74f248c9a65e7b5da5`  
@@ -152,7 +152,7 @@ Phase 8G: 可选扩展层 (Focus / Protocols / Past Self)
 | `07_MILESTONE_ACHIEVEMENT_SPEC.md` | 里程碑与成就规格说明 | 真实成长映射，客观可核验，自主认证与奖励资格解耦，锚定底层来源防止重复铸币。 |
 | `08_AI_GM_OUTER_LOOP_CONTRACT.md` | AI GM 外环契约与提议信封 | 统一 `OuterLoopProposal` 信封，严禁 LLM 直接写库，并发审核 CAS 幂等防重。 |
 | `09_DATABASE_SCHEMA_PLAN.md` | 数据库表结构设计计划 | 逐表16项严密表定义、约束、索引、RLS 意图、固定外键行为与迁移时序（不建迁移文件）。 |
-| `10_API_AND_RPC_CONTRACT_PLAN.md` | API 与 RPC 契约设计计划 | 逐一明确 15 个写路径的 13 维契约，含并发锁、幂等键、服务权威计算与审计日志。 |
+| `10_API_AND_RPC_CONTRACT_PLAN.md` | API 与 RPC 契约设计计划 | 逐一明确 21 个写路径的 13 维契约，含并发锁、幂等键、服务权威计算与审计日志。 |
 | `11_TESTING_SECURITY_AND_HARNESS_PLAN.md` | 测试、安全与确定性 Harness 计划 | 覆盖 O001~O022 规范断言矩阵，四层防御与对抗性攻击拦截。 |
 | `12_INFORMATION_ARCHITECTURE_AND_PHASE_PLAN.md` | 信息架构、路由与逐阶段实施计划 | 页面骨架、导航集成策略、v1.0-core 门禁替换说明与 Phase 8B~8G 实施准入条件。 |
 | `ADR/` | 架构决策记录目录 | 记录与上位控制文档零未决偏离声明，确立未来 ADR 提报规程。 |

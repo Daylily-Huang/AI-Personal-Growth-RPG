@@ -50,17 +50,18 @@ stateDiagram-v2
 
 #### Lifecycle State Definitions:
 1. **`DRAFT`**: Work-in-progress season planning. Editable without constraint. May be pruned if never activated.
-2. **`PLANNED`**: Fully specified season with start date and linked quests, awaiting activation.
+2. **`PLANNED`**: Fully specified season with start date and linked quests (0..1 MAIN quest, 0..N FOCUS quests), awaiting activation.
 3. **`ACTIVE`**: The currently running season. Clock is ticking. The user is actively executing against this context.
    - **Transition Gate**: Direct activation from `DRAFT -> ACTIVE` is strictly prohibited. Seasons must transition `DRAFT -> PLANNED -> ACTIVE`.
-4. **`COMPLETED`**: Terminal success state. Achieved when the duration concludes and the user confirms the final structured review evaluating success criteria.
-5. **`ENDED_EARLY`**: Terminal state where the user concludes the season before the scheduled end date, preserving all achievements and conducting a final review.
-6. **`ABANDONED`**: Terminal state where life circumstances, major priority shifts, or goal irrelevance led the user to stop the season. Requires post-mortem reflection and mandatory `abandonment_reason` in the audit event.
+   - **Cardinality Invariant (0..1 MAIN Quest)**: A Season may have 0 or 1 linked `MAIN` Quest. Linking a `MAIN` Quest is optional and **never** a mandatory prerequisite for activation.
+4. **`COMPLETED`**: Terminal success state. Achieved via single atomic transaction in `rpc_conclude_season` which simultaneously persists the user-confirmed `FINAL` Review and transitions the Season to `COMPLETED`.
+5. **`ENDED_EARLY`**: Terminal state where the user concludes the season before the scheduled end date, executed via the same atomic transaction in `rpc_conclude_season` persisting the user-confirmed `FINAL` Review.
+6. **`ABANDONED`**: Terminal state where life circumstances or priority shifts led the user to stop the season. Executed via `rpc_conclude_season` with a mandatory `p_abandonment_reason` and audit record; does **not** require a `FINAL` Review.
 7. **`CANCELLED`**: Planned or draft season was discarded before ever becoming active.
 
 #### Deletion & Archival Rules (Rule: TERMINAL_SEASON_HISTORY_PRESERVED, Harness: O022):
-- **Fixed FK Delete Behavior**: Dependent child tables (`season_quests`, `season_reviews`, etc.) specify `ON DELETE RESTRICT` to protect historical relational integrity.
-- **Product Deletion Invariant**: Any Season that has ever reached `ACTIVE` status **can never be hard-deleted** through product APIs. Its historical existence, reviews, and linked contexts are permanently preserved for longitudinal growth analysis.
+- **Fixed FK Delete Behavior**: Dependent child tables (`season_quests`, `season_reviews`, etc.) specify fixed `ON DELETE RESTRICT` to protect historical relational integrity.
+- **Product Deletion Invariant**: Any Season that has ever reached `ACTIVE` status **can never be hard-deleted** through product APIs. Its historical existence, reviews, and linked contexts are permanently preserved for longitudinal growth analysis. Direct client `DELETE` is blocked by database trigger.
 - Only unactivated `DRAFT` or `PLANNED` seasons that have zero dependent child records may be pruned.
 
 ---
@@ -142,7 +143,9 @@ A Review document contains structured sections validated against a strict schema
 ### 5.3 Review Authority & Versioning Boundary (Rule: REVIEW_AUTHORITY_BOUNDARY, Harness: O016)
 - **Draft Reviews Live in AI Proposals**: Drafting, iteration, and previews are handled via `OuterLoopProposal` (`status = 'PROPOSED'`).
 - **Persistent Reviews are Finalized**: Once confirmed by the user, the review is inserted into `season_reviews`. Persistent review records do not maintain an internal `DRAFT` state; they are immutable upon creation.
-- **Immutable Versioning**: Any subsequent corrections or amendments generate a new superseding review row with an incremented `version` and `superseded_by_id` pointer.
+- **Durable Idempotency Key**: Each review commit carries a client `commit_key UUID NOT NULL` protected by `UNIQUE (user_id, commit_key)`. Retrying the same commit key idempotently returns the existing review without creating duplicate rows or bumping versions.
+- **Serialization via Parent Season Row Lock**: Computing the sequential `version` acquires an exclusive row lock on the parent Season (`SELECT * FROM seasons WHERE id = p_season_id FOR UPDATE`), serializing concurrent finalizations and eliminating race conditions.
+- **Immutable Versioning**: Any subsequent corrections or amendments submitted under a new commit key generate a new superseding review row with an incremented `version` and update the prior review's `superseded_by_id` pointer.
 - **Review Does NOT Create Growth Truth**: A Review cannot award XP, cannot directly promote Skills or Mastery, and cannot create verified evidence.
 - **Review is an Upstream Source for Strategy & Milestones**: A finalized review serves as an auditable source reference for proposing new Personal Playbook strategies or validating real-world milestone achievements.
 
@@ -173,6 +176,6 @@ The Season and Review architecture must pass the following test specifications:
 - **O006_SEASON_END_DOES_NOT_REWRITE_GROWTH**: Concluding or abandoning a Season leaves all historical XP, skill mastery, and activity logs completely unmodified.
 - **O013_ONLY_ONE_ACTIVE_SEASON_PER_USER**: Attempting to insert or activate a second Season while one is `ACTIVE` fails closed with a constraint violation error.
 - **O014_SEASON_QUEST_IS_N_TO_N**: Multiple Quests link to one Season; a single Quest links across multiple sequential Seasons. At most one `MAIN` Quest allowed per Season.
-- **O015_SEASON_DOES_NOT_COMPLETE_QUEST**: Transitioning a Season to `COMPLETED` does not alter the status of any linked in-progress Quests.
+- **O015_SEASON_DOES_NOT_COMPLETE_QUEST**: Transitioning a Season to `COMPLETED` does not alter the status of any linked `active` Quests.
 - **O016_REVIEW_DOES_NOT_CREATE_GROWTH_TRUTH**: Finalizing a Review record produces zero changes in `xp_transactions`, `user_skills`, or `evidence`.
 - **O022_TERMINAL_SEASON_HISTORY_NOT_HARD_DELETED**: API calls attempting `DELETE /api/seasons/:id` on an `ACTIVE` or `COMPLETED` Season return HTTP 403 / 409 and fail closed.
