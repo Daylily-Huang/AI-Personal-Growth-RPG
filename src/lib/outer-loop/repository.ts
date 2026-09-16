@@ -16,6 +16,20 @@ import type {
 
 type JsonRecord = Record<string, unknown>;
 
+export class Phase8BRepositoryError extends Error {
+  readonly code: string | null;
+  readonly details: string | null;
+  readonly hint: string | null;
+
+  constructor(error: { message: string; code?: string | null; details?: string | null; hint?: string | null }) {
+    super(error.message);
+    this.name = "Phase8BRepositoryError";
+    this.code = error.code ?? null;
+    this.details = error.details ?? null;
+    this.hint = error.hint ?? null;
+  }
+}
+
 function asRecord(value: unknown, label: string): JsonRecord {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new Error(`Invalid ${label} payload`);
@@ -99,8 +113,15 @@ function mapActivity(row: unknown): SeasonActivity {
   };
 }
 
-function throwIfError(error: { message: string } | null, fallback: string): void {
-  if (error) throw new Error(error.message || fallback);
+function throwIfError(
+  error: { message: string; code?: string | null; details?: string | null; hint?: string | null } | null,
+  fallback: string,
+): void {
+  if (!error) return;
+  throw new Phase8BRepositoryError({
+    ...error,
+    message: error.message || fallback,
+  });
 }
 
 export class Phase8BRepository {

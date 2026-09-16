@@ -113,7 +113,7 @@ describe("Governance delta guard — range resolver on real git fixtures", () =>
       const delta = resolveGovernanceChangedFiles({ cwd: dir });
 
       expect(delta.mode).toBe("current-main-push");
-      const firstParent = runGit(dir, "rev-parse HEAD^1");
+      const firstParent = runGit(dir, 'rev-parse "HEAD^1"');
       expect(firstParent).toBe(oldMainSha); // M^1 is the previous main tip
       expect(delta.range).toBe(`${firstParent}..HEAD`);
       expect(delta.files).toContain("feature.txt");

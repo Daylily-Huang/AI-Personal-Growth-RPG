@@ -11,7 +11,11 @@
 - 首轮真实 CI Run `35118406738`：`check` 与 `supabase-integration` 均未通过。
 - 已确认并修复第一层阻断：Phase 8B DB tests 不再把多条参数化 SQL 作为单个 prepared statement 执行，fixture cleanup 改为逐条查询。
 - 已保留本地 CI 守卫修复：迁移白名单纳入 0043/0044；visual migration activation 不再仅由验证测试文件触发。
-- 下一步：本地静态/目标测试 → commit/push → 让 GitHub 真实 Supabase CI 暴露并验证剩余 DB/RPC 逻辑问题。
+- Run `35119470754` 已证明真实 Supabase DB/RPC 权威层、deterministic harness 与 E2E 全绿。
+- Round 3 已实现 `/api/seasons`、Season lifecycle action routes、Season-Quest link、Review finalize/amend、全局 Review read 与 outer-loop proposal review HTTP 适配器，并新增统一 Phase 8B HTTP 错误映射。
+- 新增 Round 3 API 契约测试 10 项；本机全量结果 711 passed / 295 skipped，lint/build 全绿。
+- 顺带修复 Windows 下 governance delta helper 对 `HEAD^1` 的 shell 转义兼容性，定向治理回归 26/26 通过。
+- 下一步：提交/push Round 3 → exact-head GitHub CI（含真实 Supabase）复验；只有 Round 3 CI 绿色后再进入 Journey UI。
 
 ## 关键里程碑归档记录
 

@@ -43,7 +43,7 @@
 - [ ] **后续治理缺陷修复**: 修复 `tests/phase5-quests-ui.test.tsx` 与 `tests/phase5-skills-ui.test.tsx` 的 push-to-main merge-base delta guard 兼容性 (待独立建 task 修复)
 - [complete] **Phase 8A: Outer Growth Loop 架构冻结与实现授权准备**
 - [in_progress] **Phase 8B: Season & Review 权威实现**
-  - [in_progress] DB foundation + 9 RPC authority：修复真实 Supabase CI 暴露的问题并跑绿
-  - [pending] API routes / adapters：仅封装已冻结 DB 契约
+  - [complete] DB foundation + 9 RPC authority：真实 Supabase CI Run `35119470754` 全绿
+  - [complete] API routes / adapters：仅封装已冻结 DB 契约；本地全量 711 passed / 295 skipped，lint/build 通过，待 exact-head CI 复验
   - [pending] UI：`/journey/seasons` 与 `/journey/reviews`
   - [pending] 全量回归、O006/O013/O014/O015/O016/O022、独立 Gatekeeper、exact-head CI

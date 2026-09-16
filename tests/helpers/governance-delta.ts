@@ -101,7 +101,9 @@ export function resolveGovernanceChangedFiles(
   // current-main push context: origin/main == HEAD.
   let parent: string;
   try {
-    parent = git("rev-parse HEAD^1", cwd);
+    // Quote the revision so Windows cmd.exe does not consume `^` as its
+    // escape character before Git receives the first-parent expression.
+    parent = git('rev-parse "HEAD^1"', cwd);
   } catch (err) {
     throw new Error(
       `FAIL-CLOSED: current-main push mode could not resolve HEAD^1 (no resolvable ancestry): ${err}`,
