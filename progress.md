@@ -19,7 +19,13 @@
 - Round 4 已实现 Journey UI：`/journey/seasons` 与 `/journey/reviews`，覆盖 Season lifecycle、Quest 关联、周期 Review、FINAL amendment 与只读版本历史；Journey 局部 AppShell 保持单实例且未触碰历史全局导航治理。
 - 修复 Next.js 16.3.1 production build 对 `/journey/reviews` 的 `useSearchParams()` Suspense 阻断：server page 解析 async `searchParams`，交互逻辑迁移到 `ReviewsClient`。
 - Round 4 本地门禁：Round 3+4 定向 18/18；全量 44 files passed / 21 skipped，719 passed / 295 skipped；全量 ESLint 与 production build 全绿。
-- 下一步：精确暂存 Round 4 文件与本轮证据文档，commit/push → exact-head GitHub CI（含真实 Supabase）复验；CI 绿色后进入 Round 5 exit verification / 独立 Gatekeeper。
+- Round 4 exact head `6f94f3a06ea30cfb77faa870053aedcbf03f6b8b` 已由 CI Run `35124441177` 复验，`check` 与 `supabase-integration` 均全绿。
+- Round 5 新增 canonical exit / 并发覆盖：O006 ABANDONED Growth Core snapshot（含真实 XP ledger row）、O015 Quest 状态不随 Season conclusion 改写、并发 WEEKLY Review version allocation、并发 FINAL amendment version allocation，以及 Proposal CAS 的 EDITED / REJECTED / concurrent winner-loser 数据库运行时覆盖。
+- Round 5 首个测试提交 `631451edc6c585f6c327e3fd38a8accb7ae6696d` 的 CI Run `35127960690` 在 `Run database-backed tests` 失败；根因是新增 O006 基线 XP transaction 使用 `ASSESSMENT_A`，但 fixture 未先插入对应 `public.ai_assessments` 父记录，触发 `fk_xp_transactions_assessment`，并非 Phase 8B RPC/CAS 逻辑失败。
+- 已手术式修复 fixture：在 XP row 前 seed `ai_assessments`，cleanup 顺序改为先删 `xp_transactions`、再删 `ai_assessments`、后删 activity；commit `80abfa3878a76e1f74279c86d0c5413786fad9e9`。
+- 修复后本机门禁：44 files passed / 21 skipped，725 tests passed / 301 skipped；ESLint、Next.js production build、deterministic harness 11/11 全绿。数据库相关 14 tests 本地因未配置 `XP_RPG_TEST_DB_URL` 正常 skip，不作为 DB 运行时证据。
+- Exact-head CI Run `35128996512` 已全绿：`check` success；`supabase-integration` success，其中 production build、database-backed tests、deterministic Growth Engine harness、E2E 均 success。
+- 下一步：对 exact implementation head 做独立只读 Gatekeeper 终审；若 `P0=0 / P1=0 / P2=0` 且明确 `GO`，则 Phase 8B implementation 满足 DoD 1–8，DoD 9 仍要求在 Phase 8C 前合入。
 
 ## 关键里程碑归档记录
 
