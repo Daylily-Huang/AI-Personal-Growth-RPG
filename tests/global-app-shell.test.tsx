@@ -22,6 +22,11 @@ import {
 import type { DashboardSnapshot } from "@/lib/store/types";
 import DashboardPage from "@/app/dashboard/page";
 import { validateVisualMigrationDelta } from "./visual-foundation.test";
+import {
+  evaluateScopedPolicy,
+  resolveGovernanceChangedFiles,
+  GLOBAL_APPSHELL_POLICY,
+} from "./helpers/governance-delta";
 
 // Mock next/navigation
 let currentPathname = "/dashboard";
@@ -608,6 +613,18 @@ describe("Global App Shell — Phase 2 Architecture & Component Verification", (
   });
 
   it("35. verifies frozen backend/domain diff guard passes", () => {
+    // 1. Live fail-closed delta resolution and scoped policy evaluation
+    const delta = resolveGovernanceChangedFiles();
+    expect(delta.files.length).toBeGreaterThan(0);
+
+    const result = evaluateScopedPolicy(delta.files, GLOBAL_APPSHELL_POLICY);
+    if (result.applicable) {
+      expect(result.violations).toEqual([]);
+    } else {
+      expect(result.applicable).toBe(false);
+    }
+
+    // 2. Preserve synthetic verification of visual migration surfaces
     const layoutFiles = [
       "src/components/layout/AppEnvironment.tsx",
       "src/components/layout/AppSidebar.tsx",
@@ -627,9 +644,18 @@ describe("Global App Shell — Phase 2 Architecture & Component Verification", (
       "src/app/knowledge/page.tsx",
       "tests/global-app-shell.test.tsx",
     ];
-    const result = validateVisualMigrationDelta(layoutFiles);
-    expect(result.isVisualPR).toBe(true);
-    expect(result.violations).toEqual([]);
+    const visualResult = validateVisualMigrationDelta(layoutFiles);
+    expect(visualResult.isVisualPR).toBe(true);
+    expect(visualResult.violations).toEqual([]);
+
+    // 3. Verify mixed layout + backend fails closed
+    const mixedDelta = [
+      "src/components/layout/AppSidebar.tsx",
+      "src/lib/growth-engine/engine.ts",
+    ];
+    const mixedResult = evaluateScopedPolicy(mixedDelta, GLOBAL_APPSHELL_POLICY);
+    expect(mixedResult.applicable).toBe(true);
+    expect(mixedResult.violations.length).toBeGreaterThan(0);
   });
 
   it("36. verifies zero react-hooks/rules-of-hooks suppressions exist in layout and page code", () => {

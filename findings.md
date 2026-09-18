@@ -28,3 +28,36 @@
    - **72 格无头浏览器全矩阵闭环**：9 路由 × 4 视口 (375/768/1024/1440) × 2 动效模式 (no-preference/reduce) 实现 100% 零水平溢出、零控制台严重错误。
    - **键盘与弹层焦点生命周期**：ReactFlow 拓扑图与原生表格替代视图双轨支持，Modal / Drawer Escape 捕获与焦点恢复规范化。
    - **CI 治理隔离**：post-merge push-to-main CI 失败（Run `34708617506`）经独立审查确认仅来源于 `tests/phase5-quests-ui.test.tsx` 与 `tests/phase5-skills-ui.test.tsx` 的 merge-base delta guard 兼容性（`KNOWN PUSH-TO-MAIN GOVERNANCE GUARD INCOMPATIBILITY`），不撤销 Phase 7 终局冻结效力。
+
+## 2026-09-17 — Phase 8B CI 证据
+
+- Draft PR #33 当前实现提交：`b94d12708fccd205ff716ccb67fd994b81bd9b0a`；GitHub Actions Run `35118406738`。
+- `supabase-integration` 已成功启动真实 Supabase、导出测试凭据并完成 production build；失败发生在 database-backed tests。
+- Phase 8B 两个 DB 测试的 setup/cleanup 使用带参数的多语句 `pg.query(...)`，PostgreSQL/pg 返回 `42601 cannot insert multiple commands into a prepared statement`。这意味着首轮 CI 尚未真正完成 Phase 8B DB/RPC 行为验证。
+- 同一 CI 还暴露两个静态守卫问题：`tests/supabase-schema.test.ts` 预期迁移链未包含 0043/0044；historical visual guard 将本次 backend migration delta 误判为 visual migration。两处已有手术式本地修复，需由下一次 Linux CI 验证 fail-closed 语义。
+
+## 2026-09-17 — Phase 8B Round 3 API / Adapter 证据
+
+- Run `35119470754` 已确认 Round 1/2 权威层：`check` 与 `supabase-integration` 全绿，真实 database-backed tests、deterministic harness、E2E 均 success。
+- Round 3 新增 HTTP 适配层只包裹既有 Phase 8B repository/service 与 9 个数据库 RPC；未新增表、RPC，也未修改 XP / Mastery / Evidence / Quest 状态权威逻辑。
+- 新增 `tests/phase8b-api-adapters.test.ts` 覆盖认证优先、输入校验、数据库错误到 HTTP 4xx 映射、O022 产品 DELETE fail-closed、FINAL Review 必须经 Season conclusion、proposal review 仅委托既有 authority。
+- 本机全量门禁：43 test files passed / 21 skipped，711 tests passed / 295 skipped；全量 ESLint 与 Next.js production build 通过。
+- 全量测试同时暴露 Windows shell 会把未引用的 `HEAD^1` 解释成 `HEAD1`；`tests/helpers/governance-delta.ts` 与对应回归测试已做最小跨平台引用修复，治理测试 26/26 通过，fail-closed 语义不变。
+
+## 2026-09-17 — Phase 8B Round 4 Journey UI 证据
+
+- Round 3 exact head `6e5ccdfc902dee3d9478742876aaefc0560f7e02` 已由 CI Run `35121618237` 复验：`check` 与 `supabase-integration` 均 success，因此满足 controlling document 的 Round 4 进入条件。
+- 新增 `/journey/seasons` 与 `/journey/reviews`。Journey 采用局部单实例 `AppShellProvider + AppShell`，未修改历史全局 route classifier；局部导航只暴露 Seasons / Reviews。
+- UI 仅调用既有 Phase 8B HTTP API，不直接导入 Supabase、不调用 `.from()` / `.rpc()`、不暴露 service-role，也未扩展 Phase 8C–8G surface。
+- `/journey/reviews` 的生产构建阻塞来自 Next.js 16.3.1 对 client `useSearchParams()` 的 Suspense 要求；已改为 server page 解析 async `searchParams`，再把 `initialSeasonId` 传给 `ReviewsClient`，保留筛选行为并消除 CSR bailout。
+- Round 4 + Round 3 定向测试 18/18；本机全量 44 files passed / 21 skipped，719 tests passed / 295 skipped；全量 ESLint 与 Next.js production build 通过。build route 表确认 `/journey/reviews` 为动态服务端路由、`/journey/seasons` 正常生成。
+
+## 2026-09-17 — Phase 8B Round 5 Exit Verification 证据
+
+- Round 4 exact head `6f94f3a06ea30cfb77faa870053aedcbf03f6b8b` 的 CI Run `35124441177` 已确认 `check` 与 `supabase-integration` 双绿，因此 Round 5 入口成立。
+- canonical exit set 已包含 O006/O013/O014/O015/O016/O022；新增运行时覆盖还包括 concurrent WEEKLY Review version allocation、concurrent FINAL amendment version allocation，以及 Proposal CAS 的 EDITED、REJECTED 与 concurrent winner/loser。
+- Round 5 测试提交 `631451edc6c585f6c327e3fd38a8accb7ae6696d` 的 CI Run `35127960690` 暴露的是测试夹具完整性问题：O006 为 Growth Core snapshot 新增真实 `xp_transactions` row 时引用了 `ASSESSMENT_A`，但未 seed `public.ai_assessments`，因此触发 `fk_xp_transactions_assessment`。该失败不构成 RPC/CAS 语义失败证据。
+- Fixture 在 commit `80abfa3878a76e1f74279c86d0c5413786fad9e9` 修复：先插入与 Activity 同 user/rules_version 的 confirmed assessment，再插入 XP row；cleanup 按 FK 顺序先删 XP、再删 assessment、后删 Activity。
+- 本机修复后：725 passed / 301 skipped；ESLint、production build、deterministic harness 11/11 全绿。数据库测试本地因无 `XP_RPG_TEST_DB_URL` 跳过，因此 DB authority 的最终运行时证据来自 GitHub CI。
+- Exact-head CI Run `35128996512` 对 `80abfa3878a76e1f74279c86d0c5413786fad9e9` 全绿：`check` 的 Lint/Test/Build 全 success；`supabase-integration` 的真实 Supabase startup、production build、database-backed tests、deterministic harness、E2E 全 success。
+- 截至该 exact head，Phase 8B controlling document DoD 1–7 已有实现与 CI 证据支持；DoD 8 仍需独立 Gatekeeper 对最终实现头给出 `P0=0 / P1=0 / P2=0` + `GO`，DoD 9 仍要求 accepted implementation 在 Phase 8C 开始前 merge。

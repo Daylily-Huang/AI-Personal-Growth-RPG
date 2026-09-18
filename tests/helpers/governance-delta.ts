@@ -30,7 +30,19 @@ export interface GovernanceDelta {
 export interface DeltaGuardPolicy {
   forbiddenPrefixes: readonly string[];
   authorizedExceptions: readonly string[];
-  forbiddenExactFiles: readonly string[];
+  forbiddenExactFiles?: readonly string[];
+}
+
+export interface ScopedPolicy {
+  scopeTriggers: readonly string[];
+  forbiddenPrefixes: readonly string[];
+  forbiddenExactFiles?: readonly string[];
+  authorizedExceptions?: readonly string[];
+}
+
+export interface ScopedPolicyResult {
+  applicable: boolean;
+  violations: string[];
 }
 
 export interface ResolveGovernanceChangedFilesOptions {
@@ -43,11 +55,17 @@ function git(args: string, cwd?: string): string {
 }
 
 function diffNameOnly(rangeExpr: string, cwd?: string): string[] {
-  const diff = git(`diff --name-only ${rangeExpr}`, cwd);
-  return diff
-    .split("\n")
-    .map((s) => s.trim())
-    .filter(Boolean);
+  // `-z` makes Git emit raw path bytes instead of C-style quoted pathnames,
+  // so non-ASCII paths remain matchable by scoped governance policies.
+  // `--no-renames` intentionally represents a rename as delete(old)+add(new),
+  // preserving BOTH path identities. Otherwise `--name-only` reports only the
+  // destination of a detected rename and a protected historical source path
+  // could disappear from scope applicability checks.
+  const diff = execSync(`git diff --no-renames --name-only -z ${rangeExpr}`, {
+    encoding: "utf8",
+    cwd,
+  });
+  return diff.split("\0").filter(Boolean);
 }
 
 export function resolveGovernanceChangedFiles(
@@ -83,7 +101,9 @@ export function resolveGovernanceChangedFiles(
   // current-main push context: origin/main == HEAD.
   let parent: string;
   try {
-    parent = git("rev-parse HEAD^1", cwd);
+    // Quote the revision so Windows cmd.exe does not consume `^` as its
+    // escape character before Git receives the first-parent expression.
+    parent = git('rev-parse "HEAD^1"', cwd);
   } catch (err) {
     throw new Error(
       `FAIL-CLOSED: current-main push mode could not resolve HEAD^1 (no resolvable ancestry): ${err}`,
@@ -109,14 +129,19 @@ export function findPolicyViolations(
   policy: DeltaGuardPolicy,
 ): string[] {
   const violations: string[] = [];
-  for (const file of files) {
-    if (policy.authorizedExceptions.includes(file)) continue;
-    for (const prefix of policy.forbiddenPrefixes) {
+  const authorizedExceptions = policy.authorizedExceptions.map(normalizeGovernancePath);
+  const forbiddenPrefixes = policy.forbiddenPrefixes.map(normalizeGovernancePath);
+  const forbiddenExactFiles = (policy.forbiddenExactFiles ?? []).map(normalizeGovernancePath);
+
+  for (const rawFile of files) {
+    const file = normalizeGovernancePath(rawFile);
+    if (authorizedExceptions.includes(file)) continue;
+    for (const prefix of forbiddenPrefixes) {
       if (file.startsWith(prefix)) {
         violations.push(`${file} matches forbidden prefix "${prefix}"`);
       }
     }
-    for (const exact of policy.forbiddenExactFiles) {
+    for (const exact of forbiddenExactFiles) {
       if (file === exact) {
         violations.push(`${file} is a forbidden file`);
       }
@@ -124,3 +149,228 @@ export function findPolicyViolations(
   }
   return violations;
 }
+
+function normalizeGovernancePath(filePath: string): string {
+  return filePath.replace(/\\/g, "/");
+}
+
+export function matchesScopeTrigger(filePath: string, trigger: string): boolean {
+  const normalizedFile = normalizeGovernancePath(filePath);
+  const normalizedTrigger = normalizeGovernancePath(trigger);
+
+  if (normalizedTrigger.endsWith("/**")) {
+    const base = normalizedTrigger.slice(0, -2);
+    return normalizedFile.startsWith(base);
+  }
+  if (normalizedTrigger.endsWith("/*")) {
+    const base = normalizedTrigger.slice(0, -1);
+    return normalizedFile.startsWith(base);
+  }
+  if (normalizedTrigger.endsWith("/")) {
+    return normalizedFile.startsWith(normalizedTrigger);
+  }
+  return (
+    normalizedFile === normalizedTrigger ||
+    normalizedFile.startsWith(`${normalizedTrigger}/`)
+  );
+}
+
+/**
+ * Evaluates a scoped governance policy against a list of changed files.
+ *
+ * Contract:
+ * 1. Checks if ANY file in `files` matches `policy.scopeTriggers`.
+ * 2. If no file matches, returns `{ applicable: false, violations: [] }`.
+ * 3. If applicable, evaluates the FULL `files` array against the forbidden policy.
+ *    (Files are NEVER filtered down to UI-only before evaluation, ensuring mixed
+ *    UI + backend modifications fail closed).
+ */
+export function evaluateScopedPolicy(
+  files: readonly string[],
+  policy: ScopedPolicy,
+): ScopedPolicyResult {
+  const isApplicable = files.some((file) =>
+    policy.scopeTriggers.some((trigger) => matchesScopeTrigger(file, trigger)),
+  );
+
+  if (!isApplicable) {
+    return { applicable: false, violations: [] };
+  }
+
+  const violations = findPolicyViolations(files, {
+    forbiddenPrefixes: policy.forbiddenPrefixes,
+    authorizedExceptions: policy.authorizedExceptions ?? [],
+    forbiddenExactFiles: policy.forbiddenExactFiles ?? [],
+  });
+
+  return { applicable: true, violations };
+}
+
+// =============================================================================
+// Standardized Historical Phase Policy Specifications
+// =============================================================================
+
+export const COMMON_AUTHORIZED_CORE_BUGFIXES: readonly string[] = [
+  "src/app/api/activities/[id]/assess/route.ts",
+  "src/lib/ai/assess.ts",
+  "src/lib/store/demo-repository.ts",
+  "src/lib/store/repository.ts",
+  "src/lib/store/settlement.service.ts",
+  "src/lib/store/supabase-repository.ts",
+];
+
+export const PHASE5_DASHBOARD_POLICY: ScopedPolicy = {
+  scopeTriggers: [
+    "src/app/dashboard/",
+    "src/components/dashboard/",
+  ],
+  forbiddenPrefixes: [
+    "src/app/api/",
+    "supabase/",
+    "src/lib/store/",
+    "src/lib/ai/",
+    "src/lib/growth-engine/",
+    "src/lib/supabase/",
+    "src/lib/auth/",
+    "src/lib/http/",
+    "src/proxy.ts",
+  ],
+  authorizedExceptions: COMMON_AUTHORIZED_CORE_BUGFIXES,
+};
+
+export const PHASE5_QUESTS_POLICY: ScopedPolicy = {
+  scopeTriggers: [
+    "src/app/quests/",
+    "src/components/quests/",
+  ],
+  forbiddenPrefixes: [
+    "src/app/api/",
+    "supabase/",
+    "src/lib/store/",
+    "src/lib/growth-engine/",
+    "src/lib/ai/",
+    "src/lib/supabase/",
+    "src/lib/auth/",
+    "src/lib/http/",
+    "src/proxy.ts",
+    "src/components/ui/",
+  ],
+  authorizedExceptions: [
+    ...COMMON_AUTHORIZED_CORE_BUGFIXES,
+    "src/components/ui/PrimaryButton.tsx",
+    "src/components/ui/LevelBadge.tsx",
+  ],
+  forbiddenExactFiles: ["package.json", "pnpm-lock.yaml"],
+};
+
+export const PHASE5_SKILLS_POLICY: ScopedPolicy = {
+  scopeTriggers: [
+    "src/app/skills/",
+    "src/components/skills/",
+  ],
+  forbiddenPrefixes: [
+    "src/app/api/",
+    "supabase/",
+    "src/lib/store/",
+    "src/lib/growth-engine/",
+    "src/lib/ai/",
+    "src/lib/supabase/",
+    "src/lib/auth/",
+    "src/lib/http/",
+    "src/proxy.ts",
+    "src/components/ui/",
+  ],
+  authorizedExceptions: [
+    ...COMMON_AUTHORIZED_CORE_BUGFIXES,
+    "src/components/ui/PrimaryButton.tsx",
+    "src/components/ui/LevelBadge.tsx",
+  ],
+  forbiddenExactFiles: ["package.json", "pnpm-lock.yaml"],
+};
+
+export const PHASE6_KNOWLEDGE_POLICY: ScopedPolicy = {
+  scopeTriggers: [
+    "src/app/knowledge/",
+    "src/components/knowledge/",
+  ],
+  forbiddenPrefixes: [
+    "src/lib/",
+    "src/app/api/",
+    "supabase/",
+    "src/components/",
+    "src/proxy.ts",
+    "src/styles/design-tokens.css",
+  ],
+  authorizedExceptions: [
+    "src/components/ui/PrimaryButton.tsx",
+    "src/components/ui/LevelBadge.tsx",
+  ],
+  forbiddenExactFiles: ["package.json", "pnpm-lock.yaml"],
+};
+
+export const STAGE7C_ARTIFACT_POLICY: ScopedPolicy = {
+  scopeTriggers: [
+    "src/app/artifacts/",
+    "src/components/artifacts/",
+  ],
+  forbiddenPrefixes: [
+    "src/app/api/",
+    "supabase/",
+    "src/lib/store/",
+    "src/lib/ai/",
+    "src/lib/growth-engine/",
+    "src/lib/supabase/",
+    "src/lib/http/",
+    "src/lib/auth/",
+    "src/proxy.ts",
+    "src/types/artifact.ts",
+  ],
+  authorizedExceptions: COMMON_AUTHORIZED_CORE_BUGFIXES,
+};
+
+export const SHARED_UI_POLICY: ScopedPolicy = {
+  scopeTriggers: [
+    "src/components/ui/",
+    "src/styles/design-tokens.css",
+    "src/app/globals.css",
+  ],
+  forbiddenPrefixes: [
+    "src/app/api/",
+    "supabase/",
+    "src/lib/store/",
+    "src/lib/ai/",
+    "src/lib/growth-engine/",
+    "src/lib/supabase/",
+    "src/lib/http/",
+    "src/lib/auth/",
+    "src/proxy.ts",
+    "src/types/artifact.ts",
+    "src/lib/knowledge/authority-service.ts",
+    "src/lib/knowledge/types.ts",
+    "src/lib/skills/derived-state.ts",
+  ],
+  authorizedExceptions: COMMON_AUTHORIZED_CORE_BUGFIXES,
+};
+
+export const GLOBAL_APPSHELL_POLICY: ScopedPolicy = {
+  scopeTriggers: [
+    "src/components/layout/",
+  ],
+  forbiddenPrefixes: [
+    "src/app/api/",
+    "supabase/",
+    "src/lib/store/",
+    "src/lib/ai/",
+    "src/lib/growth-engine/",
+    "src/lib/supabase/",
+    "src/lib/http/",
+    "src/lib/auth/",
+    "src/proxy.ts",
+    "src/types/artifact.ts",
+    "src/lib/knowledge/authority-service.ts",
+    "src/lib/knowledge/types.ts",
+    "src/lib/skills/derived-state.ts",
+  ],
+  authorizedExceptions: COMMON_AUTHORIZED_CORE_BUGFIXES,
+};
+

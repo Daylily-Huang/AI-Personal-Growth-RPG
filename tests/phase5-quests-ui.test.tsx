@@ -34,7 +34,11 @@ import {
   QuestsEmptyState,
   QuestsErrorState,
 } from "@/components/quests";
-import { findPolicyViolations, resolveGovernanceChangedFiles } from "./helpers/governance-delta";
+import {
+  evaluateScopedPolicy,
+  resolveGovernanceChangedFiles,
+  PHASE5_QUESTS_POLICY,
+} from "./helpers/governance-delta";
 
 // Mock next/navigation
 const { mockPush, mockRefresh } = vi.hoisted(() => ({
@@ -249,43 +253,27 @@ describe("Stage 5B-UI Quests Modernization — Governance Audits", () => {
     //   first-parent delta `HEAD^1..HEAD`.
     // Unresolvable ancestry or an empty changed-file range throws FAIL-CLOSED.
     const delta = resolveGovernanceChangedFiles();
-
     expect(delta.files.length).toBeGreaterThan(0);
 
-    const forbiddenPrefixes = [
-      "src/app/api/",
-      "supabase/",
-      "src/lib/store/",
-      "src/lib/growth-engine/",
-      "src/lib/ai/",
-      "src/lib/supabase/",
-      "src/lib/auth/",
-      "src/lib/http/",
-      "src/proxy.ts",
-      "src/components/ui/",
-    ];
-
-    const authorizedBugfixes = [
-      "src/app/api/activities/[id]/assess/route.ts",
-      "src/lib/ai/assess.ts",
-      "src/lib/store/demo-repository.ts",
-      "src/lib/store/repository.ts",
-      "src/lib/store/settlement.service.ts",
-      "src/lib/store/supabase-repository.ts",
-      "src/components/ui/PrimaryButton.tsx",
-      "src/components/ui/LevelBadge.tsx",
-    ];
-
-    const violations = findPolicyViolations(delta.files, {
-      forbiddenPrefixes,
-      authorizedExceptions: authorizedBugfixes,
-      forbiddenExactFiles: ["package.json", "pnpm-lock.yaml"],
-    });
-    if (violations.length > 0) {
-      throw new Error(
-        `FAIL-CLOSED: forbidden governance delta detected in ${delta.mode} range ${delta.range}:\n  ${violations.join("\n  ")}`,
-      );
+    const result = evaluateScopedPolicy(delta.files, PHASE5_QUESTS_POLICY);
+    if (result.applicable) {
+      if (result.violations.length > 0) {
+        throw new Error(
+          `FAIL-CLOSED: forbidden governance delta detected in ${delta.mode} range ${delta.range}:\n  ${result.violations.join("\n  ")}`,
+        );
+      }
+    } else {
+      expect(result.applicable).toBe(false);
     }
+
+    // Verify guard behavior on synthetic forbidden input
+    const syntheticMixedDelta = [
+      "src/app/quests/page.tsx",
+      "src/lib/growth-engine/engine.ts",
+    ];
+    const syntheticResult = evaluateScopedPolicy(syntheticMixedDelta, PHASE5_QUESTS_POLICY);
+    expect(syntheticResult.applicable).toBe(true);
+    expect(syntheticResult.violations.length).toBeGreaterThan(0);
   });
 });
 

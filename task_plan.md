@@ -1,9 +1,9 @@
 # AI Personal Growth RPG — 项目总体计划与当前状态 (Task Plan)
 
 > **权威状态主文档**：请统一参阅 [`docs/MASTER_PROJECT_HANDOFF.md`](docs/MASTER_PROJECT_HANDOFF.md)。  
-> **当前里程碑**: Phase 7 — 全站端到端无障碍、响应式与动效收敛 (FINAL FROZEN)  
+> **当前里程碑**: Phase 8B — Season & Review 权威实现（进行中）
 > **当前主分支基线 (main)**: `653fe018f6cee38b2263fbcca19dffbf624d4c18`  
-> **最新状态**: Phase 7 Round 4 已通过 PR #28 合入 main，全站视觉现代化与核心业务页面全部宣告 **FINAL FROZEN**
+> **最新状态**: Phase 8B controlling document 已授权；Draft PR #33 已建立。Round 1–4 已完成并通过 exact-head CI；Round 5 canonical exit set、并发/CAS 覆盖与真实 Supabase CI 已绿。当前待独立 Gatekeeper 终审与后续合入决策。
 
 ---
 
@@ -41,4 +41,10 @@
   - [complete] Round 3: 动效降级与全站动效收敛 (PR #25, PR #27) ✅
   - [complete] Round 4: 全页交叉验收、活跃文本对比度合规 (P1-05)、72 格全矩阵运行时证据归档与终局冻结 (PR #28, Merge: `653fe018f6cee38b2263fbcca19dffbf624d4c18`, Exact Head CI `34707377871` success, post-merge push CI `34708617506` failure — KNOWN PUSH-TO-MAIN GOVERNANCE GUARD INCOMPATIBILITY) ✅ FINAL FROZEN
 - [ ] **后续治理缺陷修复**: 修复 `tests/phase5-quests-ui.test.tsx` 与 `tests/phase5-skills-ui.test.tsx` 的 push-to-main merge-base delta guard 兼容性 (待独立建 task 修复)
-- [pending] **Phase 8: 外部长期成长闭环 (Outer Growth Loop)** (待正式授权)
+- [complete] **Phase 8A: Outer Growth Loop 架构冻结与实现授权准备**
+- [in_progress] **Phase 8B: Season & Review 权威实现**
+  - [complete] DB foundation + 9 RPC authority：真实 Supabase CI Run `35119470754` 全绿
+  - [complete] API routes / adapters：exact head `6e5ccdfc902dee3d9478742876aaefc0560f7e02`，CI Run `35121618237` 的 `check` 与 `supabase-integration` 全绿
+  - [complete] Journey UI：`/journey/seasons` 与 `/journey/reviews` 已实现；Round 4 exact head `6f94f3a06ea30cfb77faa870053aedcbf03f6b8b`，CI Run `35124441177` 双绿
+  - [complete] Round 5 exit verification：O006/O013/O014/O015/O016/O022、并发 Review version allocation、Proposal accept/edit/reject CAS 与 concurrent winner/loser 均已纳入；fixture 修复 exact head `80abfa3878a76e1f74279c86d0c5413786fad9e9`，CI Run `35128996512` 的 `check` 与 `supabase-integration` 全绿，真实 database-backed tests、deterministic harness、E2E 均 success
+  - [pending] 独立 Gatekeeper 终审（目标 `P0=0 / P1=0 / P2=0` + `GO`）；通过后仅剩用户授权的 merge，Phase 8C 在 merge 前不得开始

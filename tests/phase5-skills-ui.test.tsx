@@ -42,7 +42,11 @@ import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/re
 import fs from "node:fs";
 import path from "node:path";
 import { MarkerType } from "@xyflow/react";
-import { findPolicyViolations, resolveGovernanceChangedFiles } from "./helpers/governance-delta";
+import {
+  evaluateScopedPolicy,
+  resolveGovernanceChangedFiles,
+  PHASE5_SKILLS_POLICY,
+} from "./helpers/governance-delta";
 
 import SkillsPage from "@/app/skills/page";
 import SkillNodeView, { type SkillNodeViewData } from "@/app/skills/components/SkillNode";
@@ -472,43 +476,27 @@ describe("Stage 5C-UI Skills Modernization — Governance Audits", () => {
     //   first-parent delta `HEAD^1..HEAD`.
     // Unresolvable ancestry or an empty changed-file range throws FAIL-CLOSED.
     const delta = resolveGovernanceChangedFiles();
-
     expect(delta.files.length).toBeGreaterThan(0);
 
-    const forbiddenPrefixes = [
-      "src/app/api/",
-      "supabase/",
-      "src/lib/store/",
-      "src/lib/growth-engine/",
-      "src/lib/ai/",
-      "src/lib/supabase/",
-      "src/lib/auth/",
-      "src/lib/http/",
-      "src/proxy.ts",
-      "src/components/ui/",
-    ];
-
-    const authorizedBugfixes = [
-      "src/app/api/activities/[id]/assess/route.ts",
-      "src/lib/ai/assess.ts",
-      "src/lib/store/demo-repository.ts",
-      "src/lib/store/repository.ts",
-      "src/lib/store/settlement.service.ts",
-      "src/lib/store/supabase-repository.ts",
-      "src/components/ui/PrimaryButton.tsx",
-      "src/components/ui/LevelBadge.tsx",
-    ];
-
-    const violations = findPolicyViolations(delta.files, {
-      forbiddenPrefixes,
-      authorizedExceptions: authorizedBugfixes,
-      forbiddenExactFiles: ["package.json", "pnpm-lock.yaml"],
-    });
-    if (violations.length > 0) {
-      throw new Error(
-        `FAIL-CLOSED: forbidden governance delta detected in ${delta.mode} range ${delta.range}:\n  ${violations.join("\n  ")}`,
-      );
+    const result = evaluateScopedPolicy(delta.files, PHASE5_SKILLS_POLICY);
+    if (result.applicable) {
+      if (result.violations.length > 0) {
+        throw new Error(
+          `FAIL-CLOSED: forbidden governance delta detected in ${delta.mode} range ${delta.range}:\n  ${result.violations.join("\n  ")}`,
+        );
+      }
+    } else {
+      expect(result.applicable).toBe(false);
     }
+
+    // Verify guard behavior on synthetic forbidden input
+    const syntheticMixedDelta = [
+      "src/app/skills/page.tsx",
+      "src/lib/growth-engine/engine.ts",
+    ];
+    const syntheticResult = evaluateScopedPolicy(syntheticMixedDelta, PHASE5_SKILLS_POLICY);
+    expect(syntheticResult.applicable).toBe(true);
+    expect(syntheticResult.violations.length).toBeGreaterThan(0);
   });
 });
 

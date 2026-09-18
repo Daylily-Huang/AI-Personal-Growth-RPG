@@ -10,7 +10,11 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import fs from "fs";
 import path from "path";
-import { execSync } from "child_process";
+import {
+  evaluateScopedPolicy,
+  resolveGovernanceChangedFiles,
+  SHARED_UI_POLICY,
+} from "./helpers/governance-delta";
 
 import {
   GlassPanel,
@@ -1288,70 +1292,30 @@ describe("Shared UI Primitives — Component Library Verification", () => {
   });
 
   it("67. real frozen backend/domain PR-delta guard rejects changes to frozen paths without permissive catch or HEAD~1 fallback", () => {
-    const forbiddenPathPrefixes = [
-      "src/app/api/",
-      "supabase/",
-      "src/lib/store/",
-      "src/lib/ai/",
-      "src/lib/growth-engine/",
-      "src/lib/supabase/",
-      "src/lib/http/",
-      "src/lib/auth/",
-      "src/proxy.ts",
-      "src/types/artifact.ts",
-      "src/lib/knowledge/authority-service.ts",
-      "src/lib/knowledge/types.ts",
-      "src/lib/skills/derived-state.ts",
-    ];
+    const delta = resolveGovernanceChangedFiles();
+    expect(delta.files.length).toBeGreaterThan(0);
 
-    // Authoritative PR base resolution: No HEAD~1 fallback allowed
-    function resolveBaseRef(): string {
-      const candidates = [
-        process.env.GITHUB_BASE_REF ? `origin/${process.env.GITHUB_BASE_REF}` : null,
-        "origin/main",
-        "main",
-      ].filter(Boolean) as string[];
-
-      for (const candidate of candidates) {
-        try {
-          execSync(`git rev-parse --verify ${candidate}`, { stdio: "ignore" });
-          return candidate;
-        } catch {}
-      }
-      throw new Error("Unable to resolve a valid git base ref for PR delta verification");
-    }
-
-    const baseRef = resolveBaseRef();
-    const gitDiff = execSync(`git diff --name-only ${baseRef}...HEAD`, {
-      encoding: "utf-8",
-    });
-    const changedFiles = gitDiff.split("\n").map((f) => f.trim()).filter(Boolean);
-
-    const authorizedBugfixes = [
-      "src/app/api/activities/[id]/assess/route.ts",
-      "src/lib/ai/assess.ts",
-      "src/lib/store/demo-repository.ts",
-      "src/lib/store/repository.ts",
-      "src/lib/store/settlement.service.ts",
-      "src/lib/store/supabase-repository.ts",
-    ];
-
-    for (const file of changedFiles) {
-      if (authorizedBugfixes.includes(file)) continue;
-      for (const prefix of forbiddenPathPrefixes) {
-        expect(
-          file.startsWith(prefix),
-          `PR contains prohibited change to frozen path: ${file}`
-        ).toBe(false);
-      }
+    const result = evaluateScopedPolicy(delta.files, SHARED_UI_POLICY);
+    if (result.applicable) {
+      expect(result.violations).toEqual([]);
+    } else {
+      expect(result.applicable).toBe(false);
     }
 
     // Verify guard behavior on synthetic forbidden input
     const syntheticForbidden = "src/lib/growth-engine/engine.ts";
-    const isForbidden = forbiddenPathPrefixes.some((prefix) =>
+    const isForbidden = SHARED_UI_POLICY.forbiddenPrefixes.some((prefix) =>
       syntheticForbidden.startsWith(prefix)
     );
     expect(isForbidden).toBe(true);
+
+    const syntheticMixedDelta = [
+      "src/components/ui/PrimaryButton.tsx",
+      "src/lib/growth-engine/engine.ts",
+    ];
+    const syntheticResult = evaluateScopedPolicy(syntheticMixedDelta, SHARED_UI_POLICY);
+    expect(syntheticResult.applicable).toBe(true);
+    expect(syntheticResult.violations.length).toBeGreaterThan(0);
   });
 
   it("68. InspectorDrawer remains single existing implementation in src/components/layout", () => {

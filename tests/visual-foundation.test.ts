@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
-import { execSync } from 'node:child_process';
 import { compile } from 'tailwindcss';
+import { resolveGovernanceChangedFiles } from './helpers/governance-delta';
 
 export const FROZEN_BACKEND_DENYLIST = [
   'src/app/api/',
@@ -33,11 +33,13 @@ export const VISUAL_MIGRATION_SURFACES = [
   'src/components/',
   'public/assets/environment/',
   'docs/DesignSystem/',
-  'tests/visual-foundation.test.ts',
-  'tests/global-app-shell.test.tsx',
 ];
 
 export function isVisualMigrationPath(filePath: string): boolean {
+  // Verification-test churn alone must not activate the historical visual-only
+  // migration guard. A real visual production/documentation surface must be in
+  // the delta; once activated, tests remain harmless because they are not in
+  // the frozen-backend denylist.
   // Explicitly approved presentation-only helpers
   if (VISUAL_PRESENTATION_HELPERS.some((helper) => filePath === helper || filePath.endsWith(helper))) {
     return true;
@@ -60,6 +62,25 @@ export const AUTHORIZED_CORE_BUGFIX_ALLOWLIST = [
   'src/lib/store/supabase-repository.ts',
 ];
 
+export const PHASE8B_SEASON_REVIEW_CONTROL_DOCUMENT =
+  'docs/Phase8/13_PHASE8B_SEASON_REVIEW_IMPLEMENTATION_CONTROLLING.md';
+
+export const PHASE8B_SEASON_REVIEW_AUTHORIZED_BACKEND = [
+  'src/app/api/outer-loop/proposals/[id]/review/route.ts',
+  'src/app/api/reviews/route.ts',
+  'src/app/api/seasons/[id]/activate/route.ts',
+  'src/app/api/seasons/[id]/cancel/route.ts',
+  'src/app/api/seasons/[id]/conclude/route.ts',
+  'src/app/api/seasons/[id]/plan/route.ts',
+  'src/app/api/seasons/[id]/quests/route.ts',
+  'src/app/api/seasons/[id]/reviews/final/route.ts',
+  'src/app/api/seasons/[id]/reviews/route.ts',
+  'src/app/api/seasons/[id]/route.ts',
+  'src/app/api/seasons/route.ts',
+  'supabase/migrations/0043_phase8b_outer_loop_foundation.sql',
+  'supabase/migrations/0044_phase8b_rpc_authority.sql',
+];
+
 export function isFrozenBackendViolation(filePath: string): boolean {
   if (AUTHORIZED_CORE_BUGFIX_ALLOWLIST.includes(filePath)) {
     return false;
@@ -79,7 +100,17 @@ export function validateVisualMigrationDelta(changedFiles: string[]): VisualMigr
   if (!isVisualPR) {
     return { isVisualPR: false, violations: [] };
   }
-  const violations = changedFiles.filter((f) => isFrozenBackendViolation(f));
+
+  const authorizedBackend = new Set(AUTHORIZED_CORE_BUGFIX_ALLOWLIST);
+  if (changedFiles.includes(PHASE8B_SEASON_REVIEW_CONTROL_DOCUMENT)) {
+    for (const file of PHASE8B_SEASON_REVIEW_AUTHORIZED_BACKEND) {
+      authorizedBackend.add(file);
+    }
+  }
+
+  const violations = changedFiles.filter(
+    (f) => !authorizedBackend.has(f) && isFrozenBackendViolation(f),
+  );
   return { isVisualPR: true, violations };
 }
 
@@ -282,47 +313,15 @@ describe('Visual Foundation & Design Tokens Runtime Verification', () => {
     expect(svgContent).not.toContain('@import');
   });
 
-  it('10. verifies live PR delta in pull_request CI: visual migration contains zero frozen backend violations', () => {
-    const isPullRequest =
-      process.env.GITHUB_EVENT_NAME === 'pull_request' ||
-      Boolean(process.env.GITHUB_BASE_REF);
+  it('10. verifies live PR delta: visual migration contains zero frozen backend violations', () => {
+    const delta = resolveGovernanceChangedFiles();
+    expect(delta.files.length).toBeGreaterThan(0);
 
-    if (!isPullRequest) {
-      expect(true).toBe(true);
-      return;
-    }
-
-    const baseRef = process.env.GITHUB_BASE_REF || 'main';
-    let changedFiles: string[] = [];
-
-    const diffCommands = [
-      `git diff --name-only origin/${baseRef}...HEAD`,
-      `git diff --name-only ${baseRef}...HEAD`,
-      `git diff --name-only origin/${baseRef} HEAD`,
-      `git diff --name-only ${baseRef} HEAD`,
-    ];
-
-    let diffSucceeded = false;
-    let lastError: Error | null = null;
-
-    for (const cmd of diffCommands) {
-      try {
-        const output = execSync(cmd, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
-        changedFiles = output.split('\n').map((s) => s.trim()).filter(Boolean);
-        diffSucceeded = true;
-        break;
-      } catch (err) {
-        lastError = err as Error;
-      }
-    }
-
-    if (!diffSucceeded) {
-      throw new Error(`[Fail-Closed] Failed to resolve PR changed files against base '${baseRef}': ${lastError?.message}`);
-    }
-
-    const result = validateVisualMigrationDelta(changedFiles);
+    const result = validateVisualMigrationDelta(delta.files);
     if (result.isVisualPR) {
       expect(result.violations).toEqual([]);
+    } else {
+      expect(result.isVisualPR).toBe(false);
     }
   });
 
@@ -439,5 +438,46 @@ describe('Visual Foundation & Design Tokens Runtime Verification', () => {
     const result = validateVisualMigrationDelta(emptyDelta);
     expect(result.isVisualPR).toBe(false);
     expect(result.violations).toEqual([]);
+  });
+
+  it('20. permits only the Phase 8B Season/Review backend paths explicitly bound to its controlling document', () => {
+    const phase8bAuthorizedDelta = [
+      PHASE8B_SEASON_REVIEW_CONTROL_DOCUMENT,
+      'src/app/journey/seasons/page.tsx',
+      ...PHASE8B_SEASON_REVIEW_AUTHORIZED_BACKEND,
+    ];
+    const result = validateVisualMigrationDelta(phase8bAuthorizedDelta);
+    expect(result.isVisualPR).toBe(true);
+    expect(result.violations).toEqual([]);
+  });
+
+  it('21. keeps unknown backend files fail-closed even when the Phase 8B controlling document is present', () => {
+    const phase8bPlusUnknownBackendDelta = [
+      PHASE8B_SEASON_REVIEW_CONTROL_DOCUMENT,
+      'src/app/journey/reviews/page.tsx',
+      'src/app/api/seasons/route.ts',
+      'src/app/api/activities/route.ts',
+      'supabase/migrations/0099_unapproved.sql',
+    ];
+    const result = validateVisualMigrationDelta(phase8bPlusUnknownBackendDelta);
+    expect(result.isVisualPR).toBe(true);
+    expect(result.violations).toEqual([
+      'src/app/api/activities/route.ts',
+      'supabase/migrations/0099_unapproved.sql',
+    ]);
+  });
+
+  it('22. does not authorize Phase 8B backend paths when the controlling document is absent from the delta', () => {
+    const unboundPhase8bDelta = [
+      'src/app/journey/seasons/page.tsx',
+      'src/app/api/seasons/route.ts',
+      'supabase/migrations/0043_phase8b_outer_loop_foundation.sql',
+    ];
+    const result = validateVisualMigrationDelta(unboundPhase8bDelta);
+    expect(result.isVisualPR).toBe(true);
+    expect(result.violations).toEqual([
+      'src/app/api/seasons/route.ts',
+      'supabase/migrations/0043_phase8b_outer_loop_foundation.sql',
+    ]);
   });
 });
