@@ -56,7 +56,8 @@
 - [in_progress] 独立复核冻结的 Phase 8 架构包与当前 Phase 8B FINAL FROZEN 基线。
 - [complete] 起草 `docs/Phase8/16_PHASE8C_JOURNAL_STATE_IMPLEMENTATION_CONTROLLING.md`。
 - [complete] 文档一致性、编码、diff 与生产目录零改动校验通过。
-- [in_progress] 提交并推送 `codex/phase8c-controlling-review`，供独立 Gatekeeper 审查。
+- [complete] 已提交并推送 `codex/phase8c-controlling-review`，Draft PR #35 已建立。
+- [pending] 独立 Gatekeeper 对 PR #35 的 exact head 审查；未取得 `P0=0 / P1=0 / P2=0 + GO` 前，Phase 8C production implementation 保持 BLOCKED。
 - [pending] 对 controlling document 做独立 Gatekeeper 审查；只有 `P0=0 / P1=0 / P2=0 + GO` 后才允许 Phase 8C 生产实现。
 - 当前实现入口基线：`main` / `origin/main` = `7df500b1c764efd247938dcf3da4e83b6e2e8e45`。
 - 本轮只允许文档/治理变更；不创建 migration、API、repository、UI 或 AI 生产实现。

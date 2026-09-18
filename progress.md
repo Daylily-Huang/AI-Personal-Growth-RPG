@@ -48,6 +48,8 @@
 - 草案已封口三处架构歧义：O011 编号冲突、hard-delete 未闭合契约、WEEKLY_REFLECTION 描述中的 Review link 与冻结 schema 不一致。
 - 首轮文档校验发现并修复尾随空格：`git diff --check` 命中 `task_plan.md` 1 处；同时清理新 controlling draft 头部用于 Markdown 强制换行的尾随空格，避免提交门禁噪声。
 - 最终文档门禁通过：`git diff --cached --check` 无错误；四个修改文件均为有效 UTF-8 且无 NUL；无 `src/`、`supabase/`、`tests/` 或冻结 Phase 8 00–12 变更；现有用户未跟踪文件保持未触碰。
+- controlling draft 首次提交：`0925b3a27043021d5c73e0a5c241c712d34c78ee`，分支 `codex/phase8c-controlling-review` 已推送。
+- 已创建 Draft PR #35：`docs: draft Phase 8C Journal + State controlling document`；下一治理步骤是由独立 Gatekeeper 对 PR exact head 做只读审查，当前不授权生产实现。
 
 ## 关键里程碑归档记录
 
