@@ -7,6 +7,7 @@ const USER_A = "8c111111-aaaa-4000-a000-000000000001";
 const USER_B = "8c222222-bbbb-4000-b000-000000000002";
 const QUEST_A = "8ca00001-aaaa-4000-a000-000000000001";
 const QUEST_A_DELETE = "8ca00002-aaaa-4000-a000-000000000002";
+const QUEST_A_FAILURE_DELETE = "8ca00003-aaaa-4000-a000-000000000003";
 const QUEST_B = "8cb00001-bbbb-4000-b000-000000000001";
 const SEASON_A = "8cc00001-aaaa-4000-a000-000000000001";
 const SEASON_A_DELETE = "8cc00002-aaaa-4000-a000-000000000002";
@@ -71,8 +72,9 @@ describe.skipIf(!DATABASE_URL)("Phase 8C Round 1 — Journal DB foundation autho
       `insert into public.quests (id, user_id, title, quest_type) values
          ($1, $4, 'A quest', 'reflection'),
          ($2, $4, 'A deletable quest', 'reflection'),
-         ($3, $5, 'B quest', 'reflection')`,
-      [QUEST_A, QUEST_A_DELETE, QUEST_B, USER_A, USER_B],
+         ($3, $4, 'A failure parent quest', 'reflection'),
+         ($5, $6, 'B quest', 'reflection')`,
+      [QUEST_A, QUEST_A_DELETE, QUEST_A_FAILURE_DELETE, USER_A, QUEST_B, USER_B],
     );
 
     await pg.query(
@@ -188,7 +190,7 @@ describe.skipIf(!DATABASE_URL)("Phase 8C Round 1 — Journal DB foundation autho
     });
   });
 
-  test("rejects forged cross-tenant season, quest, and activity links on insert and update", async () => {
+  test("O018_CROSS_TENANT_OUTER_LINKS_FAIL_CLOSED rejects forged season, quest, and activity links", async () => {
     await asUser(USER_A, async () => {
       for (const [column, foreignId] of [
         ["season_id", SEASON_B],
@@ -287,19 +289,21 @@ describe.skipIf(!DATABASE_URL)("Phase 8C Round 1 — Journal DB foundation autho
     });
   });
 
-  test("ON DELETE SET NULL keeps historical Journal rows valid without context CHECK blockage", async () => {
+  test("ON DELETE SET NULL preserves required-context history and allows ordinary edits/archive", async () => {
     const rows = await pg.query<{ id: string; title: string }>(
       `insert into public.journal_entries
          (user_id, entry_type, title, content_markdown, season_id, quest_id)
        values
          ($1, 'QUEST_REFLECTION', 'quest parent deletion', 'quest history', null, $2),
-         ($1, 'SEASON_REFLECTION', 'season parent deletion', 'season history', $3, null)
+         ($1, 'SEASON_REFLECTION', 'season parent deletion', 'season history', $3, null),
+         ($1, 'FAILURE_POSTMORTEM', 'failure parent deletion', 'failure history', null, $4)
        returning id, title`,
-      [USER_A, QUEST_A_DELETE, SEASON_A_DELETE],
+      [USER_A, QUEST_A_DELETE, SEASON_A_DELETE, QUEST_A_FAILURE_DELETE],
     );
 
     await asUser(USER_A, async () => {
       await pg.query("delete from public.quests where id = $1", [QUEST_A_DELETE]);
+      await pg.query("delete from public.quests where id = $1", [QUEST_A_FAILURE_DELETE]);
       await pg.query("delete from public.seasons where id = $1", [SEASON_A_DELETE]);
 
       const remaining = await pg.query<{
@@ -315,6 +319,7 @@ describe.skipIf(!DATABASE_URL)("Phase 8C Round 1 — Journal DB foundation autho
       );
 
       expect(remaining.rows).toEqual([
+        { title: "failure parent deletion", quest_id: null, season_id: null },
         { title: "quest parent deletion", quest_id: null, season_id: null },
         { title: "season parent deletion", quest_id: null, season_id: null },
       ]);
@@ -325,11 +330,11 @@ describe.skipIf(!DATABASE_URL)("Phase 8C Round 1 — Journal DB foundation autho
          where id = any($1::uuid[])`,
         [rows.rows.map((row) => row.id)],
       );
-      expect(edited.rowCount).toBe(2);
+      expect(edited.rowCount).toBe(3);
     });
   });
 
-  test("Journal writes and archive operations do not mutate Growth Core tables", async () => {
+  test("O007_JOURNAL_NOT_EVIDENCE_BY_DEFAULT and C011_JOURNAL_STATE_NOT_CAPABILITY", async () => {
     const snapshot = async () => {
       const result = await pg.query<{ xp: string; evidence: string; mastery: string }>(
         `select

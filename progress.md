@@ -60,6 +60,10 @@
 - Round 1 已落地 `0045_phase8c_journal_state_foundation.sql`：单表 `journal_entries`、9 值 taxonomy CHECK、7 个 state scalar CHECK、Season/Quest/Activity `ON DELETE SET NULL`、required indexes、RLS owner policies、`trg_enforce_journal_entry_tenant_isolation`、immutable-field/update timestamp guard 与最小列权限。
 - 新增 `tests/phase8c-db-foundation.test.ts`，覆盖 taxonomy、scalar 边界、tenant SELECT、跨租户 context、immutable/system timestamps、archive/unarchive、client UUID、parent deletion SET NULL 与 Growth Core 无副作用；`tests/supabase-schema.test.ts` 已纳入 0045 chain 和离线 authority guards。
 - 本机 targeted tests：`35 passed / 8 skipped`；8 个 DB tests 因 `XP_RPG_TEST_DB_URL` 未配置而 skip，不作为 DB runtime 证据。两测试文件 ESLint 全绿，`git diff --check` 无错误。Round 2 必须等待 CI 的真实 Supabase DB tests 成功后再进入。
+- Round 1 implementation 已提交为 `c9d0d2765a043a4dc874a6c0a1f16da9f29807f8` 并推送至 PR #35；GitHub Actions Run `35339072556` 已全绿，真实 database-backed tests、deterministic harness、E2E 均 success，Round 2 阻塞解除。
+- Round 2 已新增 `src/lib/journal/{types,repository,request,http}.ts` 与 `/api/journal`、`/api/journal/[id]` Route Handlers；范围仅 authenticated create/read/list/update/archive，没有 hard-delete route、Journal RPC 或 `JOURNAL_INSIGHT` production authority。
+- Round 2 domain validation 已落实：三类 authoring context 必填；显式 `entryType`/Quest/Season context PATCH 才触发 resulting-entry 重检；父删除造成的历史 `SET NULL` 行仍允许普通正文、state 与 archive/unarchive PATCH。
+- 新增 `tests/phase8c-api-domain.test.ts`，并增强 `tests/phase8c-db-foundation.test.ts` 的 O007/O018/C011 命名与 `FAILURE_POSTMORTEM` parent-deletion compatibility；随后修正 resulting-entry relevant-context PATCH 校验，并补充历史行无关 contextual FK 更新与非法 timestamp→HTTP 400 回归。最终定向门禁 `49 passed / 8 skipped`；全量 `45 files passed / 22 skipped`、`747 passed / 313 skipped`；ESLint 与 production build 全绿。首次全量测试的一次 Windows `EPERM` 经 `quest-system.test.ts` 隔离 13/13 与全量复跑全绿确认未复现。8 个 skipped 仅因本机未配置 `XP_RPG_TEST_DB_URL`。
 
 ## 关键里程碑归档记录
 

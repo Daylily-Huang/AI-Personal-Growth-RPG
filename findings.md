@@ -47,6 +47,11 @@
 - 当前 migration 链截至 `0044_phase8b_rpc_authority.sql`，因此 Phase 8C Round 1 的下一顺序 migration 为 `0045`。Round 1 只允许新增 `journal_entries` 一表，并落实 taxonomy/scalar constraints、三类 `ON DELETE SET NULL` context FK、RLS、tenant-isolation trigger、immutable/update timestamp guards 与数据库测试。
 - Round 1 已按上述边界实现 `0045_phase8c_journal_state_foundation.sql`：只新增 `journal_entries`；authoring-time context requirements 未做 DB CHECK，避免阻断父实体 `ON DELETE SET NULL`，其 CREATE/显式 context-update 校验仍保留给 Round 2 domain/repository 层。
 - 本地离线验证：`tests/supabase-schema.test.ts` + `tests/phase8c-db-foundation.test.ts` 得到 `35 passed / 8 skipped`；跳过项均为需要 `XP_RPG_TEST_DB_URL` 的真实 DB tests。两份测试文件 ESLint 通过，`git diff --check` 通过；因此当前只有静态/类型级本地证据，DB runtime authority 仍需 CI。
+- Round 1 implementation exact head `c9d0d2765a043a4dc874a6c0a1f16da9f29807f8` 已由 GitHub Actions Run `35339072556` 复验：`check` 与 `supabase-integration` 均 success；后者包含真实 Supabase startup、production build、database-backed tests、deterministic harness 与 E2E，因此 Round 2 入口门禁已满足。
+- Round 2 采用独立 `src/lib/journal/*` direct-repository surface，不新增 Journal RPC。HTTP 层先取得 authenticated repository，因此 tenant identity 只来自 session；请求体中的 `userId` 不进入 repository input。
+- Context requirements 在 repository domain 层执行：CREATE 始终校验；PATCH 先计算 resulting entry type，仅当 `entryType` 改变，或该 resulting type 实际依赖的 contextual FK 被显式改变时重检。由此，父实体合法删除并 `ON DELETE SET NULL` 后形成的历史缺失 context 不会因修改无关 FK、正文、state 或 archive/unarchive 被重新阻断；主动移除/改变仍被 resulting type 要求的 context 继续 fail-closed。
+- Round 2 API 不暴露 DELETE handler；normal product deletion 仅通过 `isArchived` PATCH。新 Journal surface 静态守卫确认没有 `.rpc(...)` 与 `JOURNAL_INSIGHT` production authority。
+- Round 2 最终本地定向门禁为 `49 passed / 8 skipped`，新增覆盖历史行修改无关 contextual FK 不触发缺失 required context 重检，以及非法 `loggedAt` 的 DB timestamp 错误映射 HTTP 400；全量复跑为 `45 files passed / 22 skipped`、`747 passed / 313 skipped`，ESLint 与 Next.js production build 均通过。首次全量测试出现一次 Windows 文件锁 `EPERM`（`.data/demo.json.tmp -> demo.json`）；对应 `quest-system.test.ts` 隔离复跑 13/13 通过，之后全量测试再次运行全绿，因此当前证据将其归为环境抖动而非 Journal 回归。8 个 skipped 仍仅因本机未配置 `XP_RPG_TEST_DB_URL`，真实 DB 权威仍待 exact-head CI。
 
 ## 2026-09-17 — Phase 8B CI 证据
 
