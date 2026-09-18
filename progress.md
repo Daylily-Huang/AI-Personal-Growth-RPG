@@ -70,6 +70,9 @@
 - 对 `8867613...` 的独立 Round 2 复审返回 `P0=0 / P1=1 / P2=0 — NO-GO`。先前三项 P1 均被确认关闭；新增 P1 指向 DB authority：authenticated 角色可直接 INSERT/UPDATE，现有 RLS + field-authority trigger 未强制 required authoring context，可绕过 repository validation。
 - 已完成该 P1 的手术式 corrective：migration trigger 对 authenticated CREATE 强制三类 required context；authenticated UPDATE 仅在 `entry_type` 或 resulting type 的 relevant contextual FK 显式变化时重检，因此父实体删除造成的自动 `SET NULL` 不会阻断历史行普通编辑/归档。DB tests 已覆盖无 context direct INSERT、主动移除 context 与无 context entry-type 转换。
 - 当前本地门禁：targeted `14 passed / 9 skipped`，全量 `45 files passed / 22 skipped`、`747 passed / 314 skipped`，lint、production build、deterministic harness 11/11、`git diff --check` 全绿；冻结 Phase8 00–12 仍零改动。本机 Docker daemon 不可用，因此 DB runtime 证据仍待新 exact-head CI。
+- Round 2 最终 exact head `8c156032c95caae7b1832ad7dc0d2603d5bb8981` 的 GitHub Actions Run `35367209443` 已确认 `check` 与 `supabase-integration` 双绿；两次独立复审均为 `P0=0 / P1=0 / P2=0 + GO`，Round 2 正式接受。
+- Round 3 Journey Journal UI 已实现：新增 `/journey/journal` 与 Journey “日志”导航，覆盖反思 create/edit、类型/归档筛选、Quest/Season context、archive/unarchive、7 个主观状态控件、当前筛选集描述性均值，以及 loading/empty/error、Ctrl/⌘+Enter、响应式与长文本处理；UI 仅调用既有 HTTP API。
+- Round 3 本地门禁：定向 `27/27`；全量 `46 files passed / 22 skipped`、`752 passed / 314 skipped`；lint、production build、deterministic harness `11/11`、`git diff --check` 全绿；冻结 Phase 8 00–12 与 Round 2 authority 区域相对 `8c156032...` 均零新增差异。下一步为提交推送 Round 3，绑定新 exact head 跑 CI 并做独立复审。
 
 ## 关键里程碑归档记录
 

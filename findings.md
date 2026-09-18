@@ -58,6 +58,9 @@
 - 当前 corrective 在 `trg_enforce_journal_entry_field_authority()` 内补 authenticated authority：CREATE 对 `QUEST_REFLECTION` / `SEASON_REFLECTION` / `FAILURE_POSTMORTEM` 强制 required context；UPDATE 仅在 `entry_type` 或 resulting type 的 relevant contextual FK 显式变化时重检。该设计不使用会阻断 FK `ON DELETE SET NULL` 的表级 CHECK，因此父删除后的历史 Journal 仍可普通编辑与 archive/unarchive。
 - `tests/phase8c-db-foundation.test.ts` 已增加 direct authenticated DB 回归：三类缺失 context INSERT 必须拒绝；合法行主动移除 required context 必须拒绝；`FREE_REFLECTION -> QUEST_REFLECTION` 无 quest context 必须拒绝。taxonomy fixture 同步补合法 Quest/Season context。
 - 当前 corrective 本地证据：targeted tests `14 passed / 9 skipped`（DB suite 因缺 `XP_RPG_TEST_DB_URL` skip）、全量 `45 files passed / 22 skipped`、`747 passed / 314 skipped`，lint、production build、deterministic harness 11/11 与 `git diff --check` 全绿。本机 Docker Desktop daemon 未运行，因此真实 DB runtime 不能在本地宣称通过，必须由新 exact-head `supabase-integration` CI 给出。
+- Round 2 最终 exact head `8c156032c95caae7b1832ad7dc0d2603d5bb8981` 已由 GitHub Actions Run `35367209443` 复验，`check` 与 `supabase-integration` 均 success；两次独立 Round 2 复审均返回 `P0=0 / P1=0 / P2=0 + GO`，因此 Round 2 已接受。
+- Round 3 新增 `/journey/journal`，仅消费既有 HTTP API；支持反思 create/edit、entry type 与 archive 筛选、Quest/Season context、archive/unarchive、7 个主观状态标量与当前筛选集的描述性均值。为兼容父实体删除后的历史 `ON DELETE SET NULL` 行，编辑请求仅在用户实际改变 `seasonId` / `questId` 时发送对应 context 字段。
+- Round 3 本地证据：定向 `27/27`；全量 `46 files passed / 22 skipped`、`752 passed / 314 skipped`；lint、production build、deterministic harness `11/11` 与 `git diff --check` 全绿。冻结 Phase 8 00–12 及 Round 2 authority 区域（`supabase`、`src/lib/journal`、`src/app/api/journal`）相对 accepted head 均无新增差异。
 
 ## 2026-09-17 — Phase 8B CI 证据
 

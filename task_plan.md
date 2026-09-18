@@ -1,9 +1,9 @@
 # AI Personal Growth RPG — 项目总体计划与当前状态 (Task Plan)
 
 > **权威状态主文档**：请统一参阅 [`docs/MASTER_PROJECT_HANDOFF.md`](docs/MASTER_PROJECT_HANDOFF.md)。  
-> **当前里程碑**: Phase 8B — Season & Review 权威实现（FINAL FROZEN）；Phase 8C Round 2 corrective 进行中，等待新 exact-head CI 与独立复审
+> **当前里程碑**: Phase 8B — Season & Review 权威实现（FINAL FROZEN）；Phase 8C Round 2 已接受，Round 3 Journey Journal UI 进行中
 > **当前主分支基线 (main)**: `7df500b1c764efd247938dcf3da4e83b6e2e8e45`
-> **最新状态**: 当前 main 基线为 `7df500b1c764efd247938dcf3da4e83b6e2e8e45`。Phase 8C Round 2 corrective exact head `886761353a0b053e89f1836e26e287a612b0f2fa` 的 CI Run `35363920987` 已双 job 全绿，但后续独立复审为 `P0=0 / P1=1 / P2=0 — NO-GO`：authenticated DB authority 可绕过 repository 的 authoring-context 校验。当前 corrective 已在 migration trigger 层补 CREATE / relevant explicit UPDATE 的 required-context fail-closed，并增加真实 DB 回归；本地 lint/test/build/deterministic/diff 门禁已通过，真实 DB runtime 仍须由新 exact-head `supabase-integration` CI 证明。
+> **最新状态**: 当前 main 基线为 `7df500b1c764efd247938dcf3da4e83b6e2e8e45`。Phase 8C Round 2 最终 exact head `8c156032c95caae7b1832ad7dc0d2603d5bb8981` 的 CI Run `35367209443` 已双 job 全绿，两次独立复审均为 `P0=0 / P1=0 / P2=0 + GO`，Round 2 已接受。Round 3 Journey Journal UI 已完成本地实现；targeted 27/27、全量 752 passed / 314 skipped、lint/build/deterministic 11/11/diff 均全绿，待提交推送后运行 exact-head CI 与独立复审。
 
 ---
 
@@ -49,7 +49,7 @@
   - [complete] Round 5 exit verification：O006/O013/O014/O015/O016/O022、并发 Review version allocation、Proposal accept/edit/reject CAS 与 concurrent winner/loser 均已纳入；fixture 修复 exact head `80abfa3878a76e1f74279c86d0c5413786fad9e9`，CI Run `35128996512` 的 `check` 与 `supabase-integration` 全绿，真实 database-backed tests、deterministic harness、E2E 均 success
   - [complete] Corrective exact head `ae35a63ab15abab6c6e7fafd06fd51281ab6e634` 已关闭旧 Gatekeeper 的 P1-01/P1-02/P2-01/P2-02；独立复审结果 `P0=0 / P1=0 / P2=0 + GO`，Exact-Head CI Run `35310121814` 全绿
   - [complete] PR #33 已合入 main：merge `0e4bec5f26411669f7031af4523b6d4fca747f96`；post-merge main CI Run `35315613393` 全绿，DoD 最终 merge gate 已满足
-- [in_progress] **Phase 8C**: controlling document 与 Round 1 已通过门禁；Round 2 corrective 正在关闭 authenticated DB authority 的 required-context 绕过，Round 3 继续 BLOCKED
+- [in_progress] **Phase 8C**: controlling document、Round 1 与 Round 2 已通过 exact-head CI + 独立复审；Round 3 Journey Journal UI 已完成本地实现与门禁，待新 exact-head CI + 独立复审
 
 ## 2026-09-18 — Phase 8C Journal + State Controlling Document
 
@@ -63,8 +63,9 @@
 - [complete] 第二轮修正 P1-01R：CREATE 必检；UPDATE 仅在显式变更 `entry_type` / relevant contextual FK 时重检；父删除后普通 content/state/edit/archive 操作继续允许。
 - [complete] corrective exact head `a702985041c3fb616ea3b64b5998ffd6de0d087b` 已完成独立 exact-head 复审：`P0=0 / P1=0 / P2=0 + GO`；P1-01R 与 P1-02 均关闭。
 - [complete] Round 1：implementation exact head `c9d0d2765a043a4dc874a6c0a1f16da9f29807f8`；GitHub Actions Run `35339072556` 的 `check` 与 `supabase-integration` 均 success，其中真实 Supabase startup、database-backed tests、deterministic Growth Engine harness、E2E 全绿。
-- [in_progress] Round 2：新增 Journal repository/request/http/types 与 `/api/journal`、`/api/journal/[id]`，实现 authenticated create/read/list/update/archive、session tenant 绑定、client UUID、authoring context validation 与 parent-SET-NULL 兼容；修正 UPDATE 仅在 resulting entry type 的 relevant contextual FK 显式变化时重检，并将 PostgreSQL timestamp 输入错误 `22007/22008/22009` 映射为 HTTP 400。定向本地门禁 `49 passed / 8 skipped`；全量 `45 files passed / 22 skipped`、`747 passed / 313 skipped`，ESLint 与 production build 均通过。全量首次运行曾遇到一次 `.data/demo.json.tmp -> demo.json` 的 Windows EPERM；对应 `quest-system.test.ts` 隔离复跑 13/13 通过，随后全量复跑全绿。8 个 skipped 仍仅因本机未配置 `XP_RPG_TEST_DB_URL`，真实 DB 证据需由本轮 exact-head CI 给出。
+- [complete] Round 2：Journal repository/API/domain 与 parent-SET-NULL 兼容边界已实现并通过最终 exact-head 验证；accepted head 为 `8c156032c95caae7b1832ad7dc0d2603d5bb8981`，CI Run `35367209443` 双绿，两次独立复审均为 `P0=0 / P1=0 / P2=0 + GO`。
 - [complete] Round 2 首轮 corrective 已关闭 `c74a583...` 的三项 P1；exact head `886761353a0b053e89f1836e26e287a612b0f2fa` 的 CI Run `35363920987` 双绿，后续独立复审确认上述三项均关闭。
-- [in_progress] Round 2 第二轮 corrective：`8867613...` 独立复审新增 `P1=1`，指出 authenticated 角色拥有 direct INSERT/UPDATE 权限，而 DB trigger/RLS 未执行三类 authoring-time required context，因此可绕过 repository。当前 migration trigger 已对 authenticated CREATE 强制校验 `QUEST_REFLECTION.quest_id`、`SEASON_REFLECTION.season_id`、`FAILURE_POSTMORTEM.quest_id|season_id`，UPDATE 仅在 `entry_type` 或 resulting type 的 relevant context 显式变化时重检；父删除自动 `SET NULL` 后的普通 content/state/archive/unarchive 仍保持允许。新增 DB authority 回归覆盖缺失 context INSERT、主动移除 required context 与 entry-type 转换。完整本地 `pnpm test` 为 `45 files passed / 22 skipped`、`747 passed / 314 skipped`；lint、build、deterministic 11/11、`git diff --check` 均通过。本机 Docker daemon 不可用，真实 DB runtime 待新 exact-head CI。
+- [complete] Round 2 第二轮 corrective：最终 head `8c156032c95caae7b1832ad7dc0d2603d5bb8981` 已关闭该轮唯一 P1，并由 exact-head CI 与两次独立复审确认接受。
+- [in_progress] Round 3：新增 `/journey/journal` 与 Journey “日志”导航；实现反思 create/edit、类型/归档筛选、Quest/Season context、archive/unarchive、7 个主观状态控件、当前筛选集描述性均值，以及 loading/empty/error、Ctrl/⌘+Enter、responsive 与长文本处理。定向测试 27/27；全量 `46 files passed / 22 skipped`、`752 passed / 314 skipped`；lint、production build、deterministic 11/11、`git diff --check` 全绿；冻结 Phase8 00–12 与 Round 2 authority 区域零新增差异。
 - 当前实现入口基线：`main` / `origin/main` = `7df500b1c764efd247938dcf3da4e83b6e2e8e45`。
 - Gatekeeper GO 已解除“只允许文档/治理变更”限制；生产实现必须按 controlling document 的 Round 1 → Round 2 → Round 3 → Round 4 顺序推进。

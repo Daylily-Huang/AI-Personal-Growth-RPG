@@ -67,15 +67,17 @@ describe("Phase 8B Round 4 — Journey UI", () => {
     expect(layout).toContain("<JourneyNav />");
   });
 
-  test("Journey local navigation exposes only the authorized Seasons and Reviews surfaces", () => {
+  test("Journey local navigation keeps the accepted Phase 8B surfaces while later authorized surfaces remain additive", () => {
     render(<JourneyNav />);
 
     const seasons = screen.getByRole("link", { name: "赛季" });
     const reviews = screen.getByRole("link", { name: "复盘" });
+    const journal = screen.getByRole("link", { name: "日志" });
     expect(seasons.getAttribute("href")).toBe("/journey/seasons");
     expect(seasons.getAttribute("aria-current")).toBe("page");
     expect(reviews.getAttribute("href")).toBe("/journey/reviews");
-    expect(screen.getAllByRole("link")).toHaveLength(2);
+    expect(journal.getAttribute("href")).toBe("/journey/journal");
+    expect(screen.getAllByRole("link")).toHaveLength(3);
   });
 
   test("Seasons page renders the bounded empty state and opens an accessible create modal", async () => {
@@ -119,16 +121,14 @@ describe("Phase 8B Round 4 — Journey UI", () => {
     expect(combined).not.toMatch(/service[_-]?role/i);
   });
 
-  test("Round 4 stays inside Phase 8B and does not expose Phase 8C–8G API surfaces", () => {
+  test("Round 4 Phase 8B pages stay inside their accepted API authority", () => {
     const combined = [
       source("src/app/journey/seasons/page.tsx"),
       source("src/app/journey/reviews/page.tsx"),
       source("src/components/journey/ReviewsClient.tsx"),
-      source("src/components/journey/JourneyNav.tsx"),
     ].join("\n");
 
     expect(combined).not.toMatch(/\/api\/(journal|strateg|rewards?|wishes|milestones|focus-sessions|protocols)/i);
-    expect(combined).not.toMatch(/href=["'`]\/journey\/(journal|strateg|rewards?|wishes|milestones|focus|protocols)/i);
   });
 
   test("Journey pages retain responsive grid breakpoints and focus-visible treatment", () => {
