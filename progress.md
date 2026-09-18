@@ -114,3 +114,11 @@
     * R3 已关闭：`docs/MASTER_PROJECT_HANDOFF.md` 修正 Mastery 等级为 M0~M10，验证门槛为目标 >= M5 或单次跨级 >= 2。
     * GitHub Actions CI 双绿通过（`check` ✅, `supabase-integration` ✅）。
     * **PR #20 已通过 Squash and merge 合入 main（Commit `6e238a4`），Stage 5C-UI Skills Modernization 正式宣告 FINAL FROZEN！**
+
+## 2026-09-19 — Phase 8C Round 3 corrective head preparation
+
+- Reproduced CI Run `35374173512` locally and confirmed the failure is confined to the historical visual migration governance guard.
+- Added exact Phase 8C controlling-document binding in `tests/visual-foundation.test.ts` for the two Journal API routes and migration `0045`; added three fail-closed regression tests.
+- Verification complete: `111/111` governance tests; `138/138` Round 3 targeted tests; full `758 passed / 314 skipped`; `pnpm lint`, `pnpm build`, `pnpm harness:deterministic` (`11/11`), and `git diff --check` pass.
+- Scope verification complete: frozen `docs/Phase8/00–12` has zero diff; `supabase`, `src/lib/journal`, and `src/app/api/journal` have zero new diff from accepted Round 2 head `8c156032c95caae7b1832ad7dc0d2603d5bb8981`.
+- Pending: commit/push new exact head, confirm both GitHub CI jobs success, then fresh independent Round 3 review.

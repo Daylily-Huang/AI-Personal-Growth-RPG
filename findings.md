@@ -104,3 +104,10 @@
 - PR #33 已合入 `main`，merge commit `0e4bec5f26411669f7031af4523b6d4fca747f96`。对应 post-merge push CI Run `35315613393` 同样双 job 全绿。
 - 因当前 main push 已验证成功，Phase 7 历史 Run `34708617506` 所记录的 push-to-main governance incompatibility 在当前基线已闭环；历史失败记录不删除。
 - Phase 8B 已满足 controlling document 的独立复审与 merge gate，正式 **FINAL FROZEN**。Phase 8C 仅具备进入其独立规划/准入流程的前置条件，尚未启动。
+
+## 2026-09-19 — Round 3 exact-head CI false-positive diagnosis
+
+- Exact head `5617b5c8383f675cde4c041ba8c4b0f0362810da` failed `check` in CI Run `35374173512` only because `validateVisualMigrationDelta()` activated on the new Journal page while its historical authorization bridge knew Phase 8B but not Phase 8C. The reported violations were exactly `src/app/api/journal/[id]/route.ts`, `src/app/api/journal/route.ts`, and `supabase/migrations/0045_phase8c_journal_state_foundation.sql`; the Round 3 UI test itself passed.
+- The corrective change is test-governance only: when `docs/Phase8/16_PHASE8C_JOURNAL_STATE_IMPLEMENTATION_CONTROLLING.md` is present in the delta, only those three exact accepted backend paths are authorized. No prefix allowlist was added.
+- New regression coverage proves three properties: explicit Phase 8C binding passes; unrelated API/migration files still fail closed; the same Journal backend remains a violation without the controlling document.
+- Local verification after the fix: governance `111/111`, Round 3 targeted `138/138`, full suite `758 passed / 314 skipped`, lint/build/deterministic `11/11`/diff-check all green; frozen Phase8 00–12 and Round 2 production authority areas remain unchanged.

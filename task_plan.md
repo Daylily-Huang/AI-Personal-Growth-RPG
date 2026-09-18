@@ -69,3 +69,10 @@
 - [in_progress] Round 3：新增 `/journey/journal` 与 Journey “日志”导航；实现反思 create/edit、类型/归档筛选、Quest/Season context、archive/unarchive、7 个主观状态控件、当前筛选集描述性均值，以及 loading/empty/error、Ctrl/⌘+Enter、responsive 与长文本处理。定向测试 27/27；全量 `46 files passed / 22 skipped`、`752 passed / 314 skipped`；lint、production build、deterministic 11/11、`git diff --check` 全绿；冻结 Phase8 00–12 与 Round 2 authority 区域零新增差异。
 - 当前实现入口基线：`main` / `origin/main` = `7df500b1c764efd247938dcf3da4e83b6e2e8e45`。
 - Gatekeeper GO 已解除“只允许文档/治理变更”限制；生产实现必须按 controlling document 的 Round 1 → Round 2 → Round 3 → Round 4 顺序推进。
+
+### 2026-09-19 — Phase 8C Round 3 corrective CI governance
+
+- [complete] Round 3 first submitted head `5617b5c8383f675cde4c041ba8c4b0f0362810da` exposed a historical visual-governance false positive in CI Run `35374173512`: the mixed Phase 8C PR was classified as a visual migration and the already-authorized Journal API/migration files were rejected by the stale guard.
+- [complete] `tests/visual-foundation.test.ts` now binds the Phase 8C controlling document to exactly three accepted Round 2 backend paths; unknown backend remains fail-closed, and the same backend remains unauthorized when the controlling document is absent.
+- [complete] Local corrective gates: governance regression `111/111`; Round 3 targeted regression `138/138`; full test `758 passed / 314 skipped`; lint, production build, deterministic harness `11/11`, and `git diff --check` all pass. Frozen Phase8 00–12 and Round 2 production authority areas have zero new diff.
+- [in_progress] Next gate: commit/push the corrective head, require both exact-head CI jobs green, then run a fresh independent Round 3 review before Round 4.

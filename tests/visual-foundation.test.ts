@@ -81,6 +81,15 @@ export const PHASE8B_SEASON_REVIEW_AUTHORIZED_BACKEND = [
   'supabase/migrations/0044_phase8b_rpc_authority.sql',
 ];
 
+export const PHASE8C_JOURNAL_STATE_CONTROL_DOCUMENT =
+  'docs/Phase8/16_PHASE8C_JOURNAL_STATE_IMPLEMENTATION_CONTROLLING.md';
+
+export const PHASE8C_JOURNAL_STATE_AUTHORIZED_BACKEND = [
+  'src/app/api/journal/[id]/route.ts',
+  'src/app/api/journal/route.ts',
+  'supabase/migrations/0045_phase8c_journal_state_foundation.sql',
+];
+
 export function isFrozenBackendViolation(filePath: string): boolean {
   if (AUTHORIZED_CORE_BUGFIX_ALLOWLIST.includes(filePath)) {
     return false;
@@ -104,6 +113,11 @@ export function validateVisualMigrationDelta(changedFiles: string[]): VisualMigr
   const authorizedBackend = new Set(AUTHORIZED_CORE_BUGFIX_ALLOWLIST);
   if (changedFiles.includes(PHASE8B_SEASON_REVIEW_CONTROL_DOCUMENT)) {
     for (const file of PHASE8B_SEASON_REVIEW_AUTHORIZED_BACKEND) {
+      authorizedBackend.add(file);
+    }
+  }
+  if (changedFiles.includes(PHASE8C_JOURNAL_STATE_CONTROL_DOCUMENT)) {
+    for (const file of PHASE8C_JOURNAL_STATE_AUTHORIZED_BACKEND) {
       authorizedBackend.add(file);
     }
   }
@@ -478,6 +492,47 @@ describe('Visual Foundation & Design Tokens Runtime Verification', () => {
     expect(result.violations).toEqual([
       'src/app/api/seasons/route.ts',
       'supabase/migrations/0043_phase8b_outer_loop_foundation.sql',
+    ]);
+  });
+
+  it('23. permits only the Phase 8C Journal backend paths explicitly bound to its controlling document', () => {
+    const phase8cAuthorizedDelta = [
+      PHASE8C_JOURNAL_STATE_CONTROL_DOCUMENT,
+      'src/app/journey/journal/page.tsx',
+      ...PHASE8C_JOURNAL_STATE_AUTHORIZED_BACKEND,
+    ];
+    const result = validateVisualMigrationDelta(phase8cAuthorizedDelta);
+    expect(result.isVisualPR).toBe(true);
+    expect(result.violations).toEqual([]);
+  });
+
+  it('24. keeps unknown backend files fail-closed even when the Phase 8C controlling document is present', () => {
+    const phase8cPlusUnknownBackendDelta = [
+      PHASE8C_JOURNAL_STATE_CONTROL_DOCUMENT,
+      'src/app/journey/journal/page.tsx',
+      'src/app/api/journal/route.ts',
+      'src/app/api/activities/route.ts',
+      'supabase/migrations/0099_unapproved.sql',
+    ];
+    const result = validateVisualMigrationDelta(phase8cPlusUnknownBackendDelta);
+    expect(result.isVisualPR).toBe(true);
+    expect(result.violations).toEqual([
+      'src/app/api/activities/route.ts',
+      'supabase/migrations/0099_unapproved.sql',
+    ]);
+  });
+
+  it('25. does not authorize Phase 8C backend paths when the controlling document is absent from the delta', () => {
+    const unboundPhase8cDelta = [
+      'src/app/journey/journal/page.tsx',
+      'src/app/api/journal/route.ts',
+      'supabase/migrations/0045_phase8c_journal_state_foundation.sql',
+    ];
+    const result = validateVisualMigrationDelta(unboundPhase8cDelta);
+    expect(result.isVisualPR).toBe(true);
+    expect(result.violations).toEqual([
+      'src/app/api/journal/route.ts',
+      'supabase/migrations/0045_phase8c_journal_state_foundation.sql',
     ]);
   });
 });
