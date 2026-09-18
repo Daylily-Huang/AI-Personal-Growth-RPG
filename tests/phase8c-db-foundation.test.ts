@@ -15,6 +15,7 @@ const SEASON_B = "8cd00001-bbbb-4000-b000-000000000001";
 const ACTIVITY_A = "8ce00001-aaaa-4000-a000-000000000001";
 const ACTIVITY_B = "8cf00001-bbbb-4000-b000-000000000001";
 const JOURNAL_FIXED = "8c900001-aaaa-4000-a000-000000000001";
+const SKILL_A = "8c700001-aaaa-4000-a000-000000000001";
 
 const ENTRY_TYPES = [
   "FREE_REFLECTION",
@@ -48,12 +49,56 @@ describe.skipIf(!DATABASE_URL)("Phase 8C Round 1 — Journal DB foundation autho
       "delete from public.season_quests where user_id in ($1, $2)",
       "delete from public.seasons where user_id in ($1, $2)",
       "delete from public.quests where user_id in ($1, $2)",
+      "delete from public.skills where user_id in ($1, $2)",
+      "delete from public.player_states where user_id in ($1, $2)",
       "delete from auth.users where id in ($1, $2)",
     ];
 
     for (const statement of statements) {
       await pg.query(statement, [USER_A, USER_B]);
     }
+  }
+
+  async function snapshotPermanentGrowthState() {
+    const player = await pg.query<{ total_xp: string; player_level: number }>(
+      `select total_xp::text as total_xp, player_level
+       from public.player_states
+       where user_id = $1`,
+      [USER_A],
+    );
+    const skills = await pg.query<{
+      id: string;
+      xp: string;
+      level: number;
+      mastery_level: number;
+      mastery_confidence: string;
+    }>(
+      `select id, xp::text as xp, level, mastery_level, mastery_confidence::text as mastery_confidence
+       from public.skills
+       where user_id = $1
+       order by id`,
+      [USER_A],
+    );
+    const quests = await pg.query<{ id: string; status: string }>(
+      `select id, status
+       from public.quests
+       where user_id = $1 and id = $2`,
+      [USER_A, QUEST_A],
+    );
+    const events = await pg.query<{ xp: string; evidence: string; mastery: string }>(
+      `select
+         (select count(*)::text from public.xp_transactions where user_id = $1) as xp,
+         (select count(*)::text from public.evidence_records where user_id = $1) as evidence,
+         (select count(*)::text from public.mastery_events where user_id = $1) as mastery`,
+      [USER_A],
+    );
+
+    return {
+      player: player.rows,
+      skills: skills.rows,
+      quests: quests.rows,
+      events: events.rows[0]!,
+    };
   }
 
   beforeAll(async () => {
@@ -66,6 +111,19 @@ describe.skipIf(!DATABASE_URL)("Phase 8C Round 1 — Journal DB foundation autho
          ($1, 'phase8c-a@example.test'),
          ($2, 'phase8c-b@example.test')`,
       [USER_A, USER_B],
+    );
+
+    await pg.query(
+      `insert into public.player_states (user_id, total_xp, player_level)
+       values ($1, 321, public.player_level_from_xp(321))`,
+      [USER_A],
+    );
+
+    await pg.query(
+      `insert into public.skills
+         (id, user_id, name, xp, level, mastery_level, mastery_confidence)
+       values ($1, $2, 'Phase 8C invariant skill', 222, public.player_level_from_xp(222), 4, 0.73)`,
+      [SKILL_A, USER_A],
     );
 
     await pg.query(
@@ -187,7 +245,16 @@ describe.skipIf(!DATABASE_URL)("Phase 8C Round 1 — Journal DB foundation autho
         "update public.journal_entries set is_archived = true where title = 'B private'",
       );
       expect(foreignUpdate.rowCount).toBe(0);
+
+      const foreignDelete = await pg.query("delete from public.journal_entries where title = 'B private'");
+      expect(foreignDelete.rowCount).toBe(0);
     });
+
+    const preservedForeignRow = await pg.query<{ id: string }>(
+      "select id from public.journal_entries where user_id = $1 and title = 'B private'",
+      [USER_B],
+    );
+    expect(preservedForeignRow.rowCount).toBe(1);
   });
 
   test("O018_CROSS_TENANT_OUTER_LINKS_FAIL_CLOSED rejects forged season, quest, and activity links", async () => {
@@ -292,14 +359,25 @@ describe.skipIf(!DATABASE_URL)("Phase 8C Round 1 — Journal DB foundation autho
   test("ON DELETE SET NULL preserves required-context history and allows ordinary edits/archive", async () => {
     const rows = await pg.query<{ id: string; title: string }>(
       `insert into public.journal_entries
-         (user_id, entry_type, title, content_markdown, season_id, quest_id)
+         (user_id, entry_type, title, content_markdown, season_id, quest_id,
+          energy, focus, stress, resistance, recovery, mood_valence, self_confidence)
        values
-         ($1, 'QUEST_REFLECTION', 'quest parent deletion', 'quest history', null, $2),
-         ($1, 'SEASON_REFLECTION', 'season parent deletion', 'season history', $3, null),
-         ($1, 'FAILURE_POSTMORTEM', 'failure parent deletion', 'failure history', null, $4)
+         ($1, 'QUEST_REFLECTION', 'quest parent deletion', 'quest history', null, $2, 1, 2, 3, 4, 5, -2, 1),
+         ($1, 'SEASON_REFLECTION', 'season parent deletion', 'season history', $3, null, 5, 4, 3, 2, 1, 2, 5),
+         ($1, 'FAILURE_POSTMORTEM', 'failure parent deletion', 'failure history', null, $4, 3, 3, 5, 1, 2, 0, 4)
        returning id, title`,
       [USER_A, QUEST_A_DELETE, SEASON_A_DELETE, QUEST_A_FAILURE_DELETE],
     );
+
+    const ids = rows.rows.map((row) => row.id);
+    const journalStateBefore = await pg.query(
+      `select id, energy, focus, stress, resistance, recovery, mood_valence, self_confidence
+       from public.journal_entries
+       where id = any($1::uuid[])
+       order by id`,
+      [ids],
+    );
+    const growthBefore = await snapshotPermanentGrowthState();
 
     await asUser(USER_A, async () => {
       await pg.query("delete from public.quests where id = $1", [QUEST_A_DELETE]);
@@ -315,7 +393,7 @@ describe.skipIf(!DATABASE_URL)("Phase 8C Round 1 — Journal DB foundation autho
          from public.journal_entries
          where id = any($1::uuid[])
          order by title`,
-        [rows.rows.map((row) => row.id)],
+        [ids],
       );
 
       expect(remaining.rows).toEqual([
@@ -328,37 +406,62 @@ describe.skipIf(!DATABASE_URL)("Phase 8C Round 1 — Journal DB foundation autho
         `update public.journal_entries
          set content_markdown = content_markdown || ' edited', is_archived = true
          where id = any($1::uuid[])`,
-        [rows.rows.map((row) => row.id)],
+        [ids],
       );
       expect(edited.rowCount).toBe(3);
+
+      const unarchived = await pg.query(
+        `update public.journal_entries
+         set is_archived = false
+         where id = any($1::uuid[])`,
+        [ids],
+      );
+      expect(unarchived.rowCount).toBe(3);
     });
+
+    const journalStateAfter = await pg.query(
+      `select id, energy, focus, stress, resistance, recovery, mood_valence, self_confidence
+       from public.journal_entries
+       where id = any($1::uuid[])
+       order by id`,
+      [ids],
+    );
+    expect(journalStateAfter.rows).toEqual(journalStateBefore.rows);
+
+    const archiveState = await pg.query<{ is_archived: boolean }>(
+      `select is_archived
+       from public.journal_entries
+       where id = any($1::uuid[])
+       order by id`,
+      [ids],
+    );
+    expect(archiveState.rows).toEqual([
+      { is_archived: false },
+      { is_archived: false },
+      { is_archived: false },
+    ]);
+    expect(await snapshotPermanentGrowthState()).toEqual(growthBefore);
   });
 
   test("O007_JOURNAL_NOT_EVIDENCE_BY_DEFAULT and C011_JOURNAL_STATE_NOT_CAPABILITY", async () => {
-    const snapshot = async () => {
-      const result = await pg.query<{ xp: string; evidence: string; mastery: string }>(
-        `select
-           (select count(*)::text from public.xp_transactions where user_id = $1) as xp,
-           (select count(*)::text from public.evidence_records where user_id = $1) as evidence,
-           (select count(*)::text from public.mastery_events where user_id = $1) as mastery`,
-        [USER_A],
-      );
-      return result.rows[0]!;
-    };
-
-    const before = await snapshot();
+    const before = await snapshotPermanentGrowthState();
 
     await asUser(USER_A, async () => {
       const inserted = await pg.query<{ id: string }>(
         `insert into public.journal_entries
-           (user_id, entry_type, title, content_markdown)
-         values ($1, 'STATE_LOG', 'no growth side effects', 'state')
+           (user_id, entry_type, title, content_markdown,
+            energy, focus, stress, resistance, recovery, mood_valence, self_confidence)
+         values
+           ($1, 'STATE_LOG', 'lower boundary state', 'state', 1, 1, 1, 1, 1, -2, 1),
+           ($1, 'STATE_LOG', 'upper boundary state', 'state', 5, 5, 5, 5, 5, 2, 5)
          returning id`,
         [USER_A],
       );
-      await pg.query("update public.journal_entries set is_archived = true where id = $1", [inserted.rows[0]!.id]);
+      const ids = inserted.rows.map((row) => row.id);
+      await pg.query("update public.journal_entries set is_archived = true where id = any($1::uuid[])", [ids]);
+      await pg.query("update public.journal_entries set is_archived = false where id = any($1::uuid[])", [ids]);
     });
 
-    expect(await snapshot()).toEqual(before);
+    expect(await snapshotPermanentGrowthState()).toEqual(before);
   });
 });
