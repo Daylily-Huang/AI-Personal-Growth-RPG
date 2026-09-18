@@ -54,6 +54,12 @@
 - 已按两项 finding 做最小 controlling-document 修正：authoring-time context 与 FK `ON DELETE SET NULL` 解耦并增加 parent-deletion regression；`JOURNAL_INSIGHT` 全面延期出 Phase 8C production scope。
 - corrective head `e40cd4cf248c82f77a980ff841d6f20c6b6834e2` 的独立复审结果为 `P0=0 / P1=1 / P2=0 — NO-GO`：P1-02 已关闭；P1-01R 发现 parent deletion 后 context FK 合法变 NULL 的历史 Journal 会被“每次 deliberate edit 重检 context”规则阻断普通编辑。
 - 第二轮最小修正已收窄 UPDATE 校验：仅显式变更 `entry_type` 或 relevant contextual FK 时重检；父删除后的普通 content/state edit 与 archive/unarchive 保持允许，并新增对应 acceptance coverage。
+- 第二轮 corrective commit `a702985041c3fb616ea3b64b5998ffd6de0d087b` 已推送，远端分支与本地 exact head 一致；独立复审结果为 `P0=0 / P1=0 / P2=0 + GO`。P1-01R、P1-02 均关闭，Phase 8C production implementation 准入解除。
+- 已进入 Phase 8C Round 1：范围限定为 `journal_entries` migration、数据库约束、RLS/tenant trigger 与真实 database-backed tests；冻结 Phase 8 00–12 保持不改。
+- Round 1 实现前检查确认现有迁移编号止于 0044；Phase 8C schema 契约仅授权一张 `journal_entries` 表，下一 migration 采用 0045，不提前创建 API/UI/AI 代码。
+- Round 1 已落地 `0045_phase8c_journal_state_foundation.sql`：单表 `journal_entries`、9 值 taxonomy CHECK、7 个 state scalar CHECK、Season/Quest/Activity `ON DELETE SET NULL`、required indexes、RLS owner policies、`trg_enforce_journal_entry_tenant_isolation`、immutable-field/update timestamp guard 与最小列权限。
+- 新增 `tests/phase8c-db-foundation.test.ts`，覆盖 taxonomy、scalar 边界、tenant SELECT、跨租户 context、immutable/system timestamps、archive/unarchive、client UUID、parent deletion SET NULL 与 Growth Core 无副作用；`tests/supabase-schema.test.ts` 已纳入 0045 chain 和离线 authority guards。
+- 本机 targeted tests：`35 passed / 8 skipped`；8 个 DB tests 因 `XP_RPG_TEST_DB_URL` 未配置而 skip，不作为 DB runtime 证据。两测试文件 ESLint 全绿，`git diff --check` 无错误。Round 2 必须等待 CI 的真实 Supabase DB tests 成功后再进入。
 
 ## 关键里程碑归档记录
 

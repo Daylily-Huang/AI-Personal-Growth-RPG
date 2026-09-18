@@ -43,6 +43,10 @@
 - 首轮 corrective head `e40cd4cf...` 独立复审为 `P0=0 / P1=1 / P2=0 — NO-GO`。P1-02 已关闭；P1-01R 指出“所有 deliberate edit 均重检 context 必填”会导致父实体合法删除并 `SET NULL` 后的历史 Journal 无法继续编辑，与冻结规范的 direct user edits / archive 生命周期冲突。
 - P1-01R 的闭合规则：CREATE 校验 resulting entry；UPDATE 仅在用户显式修改 `entry_type` 或相关 contextual FK 时重检。因父删除自动 `SET NULL` 形成的历史行仍允许普通 content/state 编辑和 archive/unarchive；用户主动移除或改变必需 context 时继续 fail-closed。
 - `JOURNAL_INSIGHT` 生产 generation/review/settlement 继续完全延期，不扩展现有 proposal RPC。
+- 第二轮 corrective exact head `a702985041c3fb616ea3b64b5998ffd6de0d087b` 已由独立 Gatekeeper 复审为 `P0=0 / P1=0 / P2=0 + GO`。因此 Phase 8C 生产实现准入已满足；后续实现头必须重新独立审查，不能把该 GO 错绑定到未来实现 SHA。
+- 当前 migration 链截至 `0044_phase8b_rpc_authority.sql`，因此 Phase 8C Round 1 的下一顺序 migration 为 `0045`。Round 1 只允许新增 `journal_entries` 一表，并落实 taxonomy/scalar constraints、三类 `ON DELETE SET NULL` context FK、RLS、tenant-isolation trigger、immutable/update timestamp guards 与数据库测试。
+- Round 1 已按上述边界实现 `0045_phase8c_journal_state_foundation.sql`：只新增 `journal_entries`；authoring-time context requirements 未做 DB CHECK，避免阻断父实体 `ON DELETE SET NULL`，其 CREATE/显式 context-update 校验仍保留给 Round 2 domain/repository 层。
+- 本地离线验证：`tests/supabase-schema.test.ts` + `tests/phase8c-db-foundation.test.ts` 得到 `35 passed / 8 skipped`；跳过项均为需要 `XP_RPG_TEST_DB_URL` 的真实 DB tests。两份测试文件 ESLint 通过，`git diff --check` 通过；因此当前只有静态/类型级本地证据，DB runtime authority 仍需 CI。
 
 ## 2026-09-17 — Phase 8B CI 证据
 

@@ -67,6 +67,7 @@ const EXPECTED_ORDER = [
   "0042_artifact_settlement_integration",
   "0043_phase8b_outer_loop_foundation",
   "0044_phase8b_rpc_authority",
+  "0045_phase8c_journal_state_foundation",
 ];
 
 
@@ -300,5 +301,72 @@ describe("M3 Stage1.1 — Evidence range consistency (Spec → Code → DB)", ()
     expect(aiMax, "AI schema evidence.level upper bound").toBe(6);
     expect(dbMax).toBe(aiMax);
     expect(xpTs).toContain("E0..E6");
+  });
+});
+
+describe("Phase 8C Round 1 — Journal schema authority", () => {
+  const migrations = readMigrations();
+  const journal = migrations.get("0045_phase8c_journal_state_foundation") ?? "";
+
+  test("0045 adds exactly one Journal table with frozen FK delete behavior and indexes", () => {
+    expect(journal.match(/CREATE TABLE public\./g) ?? []).toHaveLength(1);
+    expect(journal).toContain("CREATE TABLE public.journal_entries");
+    expect(journal).toContain("REFERENCES auth.users(id) ON DELETE CASCADE");
+    expect(journal).toContain("REFERENCES public.seasons(id) ON DELETE SET NULL");
+    expect(journal).toContain("REFERENCES public.quests(id) ON DELETE SET NULL");
+    expect(journal).toContain("REFERENCES public.activities(id) ON DELETE SET NULL");
+    expect(journal).toContain("CREATE INDEX idx_journal_user_logged");
+    expect(journal).toContain("ON public.journal_entries (user_id, logged_at DESC)");
+    expect(journal).toContain("CREATE INDEX idx_journal_season");
+  });
+
+  test("0045 freezes the nine-value taxonomy and scalar database bounds", () => {
+    for (const entryType of [
+      "FREE_REFLECTION",
+      "QUEST_REFLECTION",
+      "DAILY_SUMMARY",
+      "WEEKLY_REFLECTION",
+      "SEASON_REFLECTION",
+      "STATE_LOG",
+      "DECISION_NOTE",
+      "FAILURE_POSTMORTEM",
+      "INSIGHT",
+    ]) {
+      expect(journal).toContain(`'${entryType}'`);
+    }
+
+    for (const field of ["energy", "focus", "stress", "resistance", "recovery", "self_confidence"]) {
+      expect(journal).toContain(`${field} BETWEEN 1 AND 5`);
+    }
+    expect(journal).toContain("mood_valence BETWEEN -2 AND 2");
+  });
+
+  test("0045 enables owner RLS plus contextual tenant checks and the required trigger", () => {
+    expect(journal).toContain("ALTER TABLE public.journal_entries ENABLE ROW LEVEL SECURITY");
+    expect(journal).toContain("CREATE POLICY journal_entries_select");
+    expect(journal).toContain("CREATE POLICY journal_entries_insert");
+    expect(journal).toContain("CREATE POLICY journal_entries_update");
+    expect(journal).toContain("CREATE POLICY journal_entries_delete");
+    expect(journal).toContain("auth.uid() = user_id");
+    expect(journal).toContain("CREATE TRIGGER trg_enforce_journal_entry_tenant_isolation");
+    expect(journal).toContain("Journal/Season tenant mismatch");
+    expect(journal).toContain("Journal/Quest tenant mismatch");
+    expect(journal).toContain("Journal/Activity tenant mismatch");
+  });
+
+  test("0045 keeps immutable/system columns outside authenticated direct column grants", () => {
+    const insertGrant = journal.match(/GRANT INSERT \([\s\S]*?\) ON public\.journal_entries TO authenticated;/)?.[0] ?? "";
+    const updateGrant = journal.match(/GRANT UPDATE \([\s\S]*?\) ON public\.journal_entries TO authenticated;/)?.[0] ?? "";
+
+    expect(insertGrant).toContain("id");
+    expect(insertGrant).toContain("user_id");
+    expect(insertGrant).not.toContain("created_at");
+    expect(insertGrant).not.toContain("updated_at");
+
+    expect(updateGrant).not.toMatch(/^\s*id\s*,?\s*$/m);
+    expect(updateGrant).not.toMatch(/^\s*user_id\s*,?\s*$/m);
+    expect(updateGrant).not.toMatch(/^\s*created_at\s*,?\s*$/m);
+    expect(updateGrant).not.toMatch(/^\s*updated_at\s*,?\s*$/m);
+    expect(journal).toContain("NEW.updated_at := clock_timestamp()");
   });
 });
