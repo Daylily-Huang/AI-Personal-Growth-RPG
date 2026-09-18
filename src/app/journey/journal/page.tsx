@@ -267,6 +267,18 @@ export default function JournalPage() {
   const needsQuest = editor?.entryType === "QUEST_REFLECTION";
   const needsSeason = editor?.entryType === "SEASON_REFLECTION";
   const needsFailureContext = editor?.entryType === "FAILURE_POSTMORTEM";
+  const currentEditorEntry = editor?.id ? entries.find((entry) => entry.id === editor.id) ?? null : null;
+  const shouldRevalidateContext = Boolean(editor && (
+    !editor.id
+    || !currentEditorEntry
+    || editor.entryType !== currentEditorEntry.entryType
+    || (needsQuest && editor.questId !== (currentEditorEntry.questId ?? ""))
+    || (needsSeason && editor.seasonId !== (currentEditorEntry.seasonId ?? ""))
+    || (needsFailureContext && (
+      editor.questId !== (currentEditorEntry.questId ?? "")
+      || editor.seasonId !== (currentEditorEntry.seasonId ?? "")
+    ))
+  ));
 
   return (
     <div className="flex w-full flex-col gap-6" data-testid="journey-journal-page">
@@ -330,12 +342,14 @@ export default function JournalPage() {
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 {(needsSeason || needsFailureContext) ? (
                   <label className={journeyLabelClass}>
-                    赛季上下文{needsSeason ? "（必填）" : "（任务或赛季至少一个）"}
+                    赛季上下文{shouldRevalidateContext
+                      ? (needsSeason ? "（必填）" : "（任务或赛季至少一个）")
+                      : "（可保留历史未关联）"}
                     <select
                       className={journeyInputClass}
                       value={editor.seasonId}
                       onChange={(event) => setEditor({ ...editor, seasonId: event.target.value })}
-                      required={needsSeason}
+                      required={needsSeason && shouldRevalidateContext}
                     >
                       <option value="">{editor.id && !editor.seasonId ? "未关联或原赛季已删除" : "选择赛季"}</option>
                       {seasons.map((season) => <option key={season.id} value={season.id}>{season.name}</option>)}
@@ -344,12 +358,14 @@ export default function JournalPage() {
                 ) : null}
                 {(needsQuest || needsFailureContext) ? (
                   <label className={journeyLabelClass}>
-                    任务上下文{needsQuest ? "（必填）" : "（任务或赛季至少一个）"}
+                    任务上下文{shouldRevalidateContext
+                      ? (needsQuest ? "（必填）" : "（任务或赛季至少一个）")
+                      : "（可保留历史未关联）"}
                     <select
                       className={journeyInputClass}
                       value={editor.questId}
                       onChange={(event) => setEditor({ ...editor, questId: event.target.value })}
-                      required={needsQuest}
+                      required={needsQuest && shouldRevalidateContext}
                     >
                       <option value="">{editor.id && !editor.questId ? "未关联或原任务已删除" : "选择任务"}</option>
                       {quests.map((quest) => <option key={quest.id} value={quest.id}>{quest.title}</option>)}
@@ -396,7 +412,7 @@ export default function JournalPage() {
               </div>
             </fieldset>
 
-            {needsFailureContext && !editor.questId && !editor.seasonId ? (
+            {shouldRevalidateContext && needsFailureContext && !editor.questId && !editor.seasonId ? (
               <p role="status" className="text-xs text-[var(--state-warning-text)]">失败复盘需要至少选择一个任务或赛季上下文。</p>
             ) : null}
 
@@ -405,7 +421,7 @@ export default function JournalPage() {
               <PrimaryButton
                 type="submit"
                 loading={saving}
-                disabled={needsFailureContext && !editor.questId && !editor.seasonId}
+                disabled={shouldRevalidateContext && needsFailureContext && !editor.questId && !editor.seasonId}
               >
                 {editor.id ? "保存修改" : "保存反思"}
               </PrimaryButton>

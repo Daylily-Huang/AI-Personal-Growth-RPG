@@ -122,3 +122,11 @@
 - Verification complete: `111/111` governance tests; `138/138` Round 3 targeted tests; full `758 passed / 314 skipped`; `pnpm lint`, `pnpm build`, `pnpm harness:deterministic` (`11/11`), and `git diff --check` pass.
 - Scope verification complete: frozen `docs/Phase8/00–12` has zero diff; `supabase`, `src/lib/journal`, and `src/app/api/journal` have zero new diff from accepted Round 2 head `8c156032c95caae7b1832ad7dc0d2603d5bb8981`.
 - Pending: commit/push new exact head, confirm both GitHub CI jobs success, then fresh independent Round 3 review.
+
+## 2026-09-19 — Phase 8C Round 3 independent-review P1 corrective
+
+- Exact head `d217366d4e2e401566446b2bfda0ea5faf46a18d` passed GitHub CI Run `35375469477` with both `check` and `supabase-integration` successful.
+- Fresh independent review returned `P0=0 / P1=1 / P2=0 + NO-GO`: historical Journal rows whose required Quest/Season parent was deleted could not be edited because the Round 3 form re-applied context-required UI rules on every edit.
+- Patched only `src/app/journey/journal/page.tsx` and `tests/phase8c-journey-ui.test.tsx` for the product correction. CREATE and deliberate type/context changes remain fail-closed; ordinary edits to historical `NULL` context rows no longer require replacement context, and unchanged NULL FKs are omitted from PATCH.
+- Verification: targeted `28/28`; full `759 passed / 314 skipped`; lint, production build, deterministic `11/11`, and `git diff --check` all pass. Frozen Phase8 00–12 and Round 2 production-authority paths still have zero new diff.
+- Pending: commit/push the new corrective exact head, wait for both exact-head CI jobs, then run a fresh independent Round 3 re-review. Round 4 remains blocked.

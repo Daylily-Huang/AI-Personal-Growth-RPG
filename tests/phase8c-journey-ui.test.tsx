@@ -127,6 +127,46 @@ describe("Phase 8C Round 3 — Journey Journal UI", () => {
     });
   });
 
+  test("Historical reflection stays editable after its deleted quest context becomes null", async () => {
+    const entry = sampleEntry({
+      entryType: "QUEST_REFLECTION",
+      title: "任务复盘",
+      contentMarkdown: "原任务已经删除，但这条历史反思仍应可编辑。",
+      questId: null,
+    });
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes(`/api/journal/${entry.id}`) && init?.method === "PATCH") {
+        return jsonResponse({ entry: { ...entry, contentMarkdown: "补充历史反思。" } });
+      }
+      if (url.includes("/api/journal")) return jsonResponse({ entries: [entry] });
+      if (url.endsWith("/api/seasons")) return jsonResponse({ seasons: [] });
+      if (url.endsWith("/api/quests")) return jsonResponse({ quests: [] });
+      return jsonResponse({}, 404);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<JournalPage />);
+
+    expect(document.body.contains(await screen.findByText("任务复盘"))).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "编辑" }));
+
+    const questSelect = screen.getByLabelText(/任务上下文/);
+    expect(questSelect.hasAttribute("required")).toBe(false);
+    expect(screen.getByText("未关联或原任务已删除")).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText("反思正文"), { target: { value: "补充历史反思。" } });
+    fireEvent.click(screen.getByRole("button", { name: "保存修改" }));
+
+    await waitFor(() => {
+      const patchCall = fetchMock.mock.calls.find(([input, init]) => String(input).includes(entry.id) && init?.method === "PATCH");
+      expect(patchCall).toBeTruthy();
+      const body = JSON.parse(String(patchCall?.[1]?.body));
+      expect(body.contentMarkdown).toBe("补充历史反思。");
+      expect(body).not.toHaveProperty("questId");
+      expect(body).not.toHaveProperty("seasonId");
+    });
+  });
+
   test("Journal redirects unauthenticated reads to login", async () => {
     vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);

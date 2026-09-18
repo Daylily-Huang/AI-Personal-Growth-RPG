@@ -111,3 +111,10 @@
 - The corrective change is test-governance only: when `docs/Phase8/16_PHASE8C_JOURNAL_STATE_IMPLEMENTATION_CONTROLLING.md` is present in the delta, only those three exact accepted backend paths are authorized. No prefix allowlist was added.
 - New regression coverage proves three properties: explicit Phase 8C binding passes; unrelated API/migration files still fail closed; the same Journal backend remains a violation without the controlling document.
 - Local verification after the fix: governance `111/111`, Round 3 targeted `138/138`, full suite `758 passed / 314 skipped`, lint/build/deterministic `11/11`/diff-check all green; frozen Phase8 00–12 and Round 2 production authority areas remain unchanged.
+
+## 2026-09-19 — Round 3 independent review P1 closure
+
+- Independent review of exact head `d217366d4e2e401566446b2bfda0ea5faf46a18d` returned `P0=0 / P1=1 / P2=0 + NO-GO`. The only finding was a UI/domain mismatch after a required parent is legally deleted and its Journal FK becomes `NULL`: the backend permits ordinary content/state edit and archive/unarchive, but the UI still marked Quest/Season context as required and disabled `FAILURE_POSTMORTEM` submit.
+- The UI now mirrors the accepted Round 2 revalidation rule. Context is strict on CREATE, on `entryType` change, or when a contextual FK relevant to the resulting type is explicitly changed. Historical parent-deletion `NULL` is preserved for unrelated edits.
+- Added a runtime regression for a historical `QUEST_REFLECTION` with `questId=null`: the context select is not required, content edit submits successfully, and PATCH omits both `questId` and `seasonId` rather than inventing a replacement link.
+- Closure gates: targeted `28/28`; full suite `759 passed / 314 skipped`; `pnpm lint`, production build, deterministic harness `11/11`, and `git diff --check` pass. Frozen `docs/Phase8/00–12` and accepted Round 2 production-authority paths remain unchanged.
