@@ -111,18 +111,57 @@ SET search_path = public, pg_temp
 AS $$
 BEGIN
   IF TG_OP = 'INSERT' THEN
+    IF current_user = 'authenticated' THEN
+      IF NEW.entry_type = 'QUEST_REFLECTION' AND NEW.quest_id IS NULL THEN
+        RAISE EXCEPTION 'MISSING_QUEST_CONTEXT'
+          USING ERRCODE = '22023';
+      ELSIF NEW.entry_type = 'SEASON_REFLECTION' AND NEW.season_id IS NULL THEN
+        RAISE EXCEPTION 'MISSING_SEASON_CONTEXT'
+          USING ERRCODE = '22023';
+      ELSIF NEW.entry_type = 'FAILURE_POSTMORTEM'
+            AND NEW.quest_id IS NULL
+            AND NEW.season_id IS NULL THEN
+        RAISE EXCEPTION 'MISSING_FAILURE_CONTEXT'
+          USING ERRCODE = '22023';
+      END IF;
+    END IF;
+
     NEW.created_at := clock_timestamp();
     NEW.updated_at := NEW.created_at;
     RETURN NEW;
   END IF;
 
-  IF current_user = 'authenticated' AND (
-       NEW.id IS DISTINCT FROM OLD.id
+  IF current_user = 'authenticated' THEN
+    IF NEW.id IS DISTINCT FROM OLD.id
        OR NEW.user_id IS DISTINCT FROM OLD.user_id
-       OR NEW.created_at IS DISTINCT FROM OLD.created_at
-     ) THEN
-    RAISE EXCEPTION 'Journal immutable field mutation prohibited'
-      USING ERRCODE = '42501';
+       OR NEW.created_at IS DISTINCT FROM OLD.created_at THEN
+      RAISE EXCEPTION 'Journal immutable field mutation prohibited'
+        USING ERRCODE = '42501';
+    END IF;
+
+    IF NEW.entry_type IS DISTINCT FROM OLD.entry_type
+       OR (NEW.entry_type = 'QUEST_REFLECTION' AND NEW.quest_id IS DISTINCT FROM OLD.quest_id)
+       OR (NEW.entry_type = 'SEASON_REFLECTION' AND NEW.season_id IS DISTINCT FROM OLD.season_id)
+       OR (
+         NEW.entry_type = 'FAILURE_POSTMORTEM'
+         AND (
+           NEW.quest_id IS DISTINCT FROM OLD.quest_id
+           OR NEW.season_id IS DISTINCT FROM OLD.season_id
+         )
+       ) THEN
+      IF NEW.entry_type = 'QUEST_REFLECTION' AND NEW.quest_id IS NULL THEN
+        RAISE EXCEPTION 'MISSING_QUEST_CONTEXT'
+          USING ERRCODE = '22023';
+      ELSIF NEW.entry_type = 'SEASON_REFLECTION' AND NEW.season_id IS NULL THEN
+        RAISE EXCEPTION 'MISSING_SEASON_CONTEXT'
+          USING ERRCODE = '22023';
+      ELSIF NEW.entry_type = 'FAILURE_POSTMORTEM'
+            AND NEW.quest_id IS NULL
+            AND NEW.season_id IS NULL THEN
+        RAISE EXCEPTION 'MISSING_FAILURE_CONTEXT'
+          USING ERRCODE = '22023';
+      END IF;
+    END IF;
   END IF;
 
   NEW.updated_at := clock_timestamp();

@@ -165,12 +165,14 @@ describe.skipIf(!DATABASE_URL)("Phase 8C Round 1 — Journal DB foundation autho
   test("accepts all nine canonical entry types and rejects unknown taxonomy", async () => {
     await asUser(USER_A, async () => {
       for (const entryType of ENTRY_TYPES) {
+        const seasonId = entryType === "SEASON_REFLECTION" ? SEASON_A : null;
+        const questId = entryType === "QUEST_REFLECTION" || entryType === "FAILURE_POSTMORTEM" ? QUEST_A : null;
         const inserted = await pg.query<{ entry_type: string }>(
           `insert into public.journal_entries
-             (user_id, entry_type, title, content_markdown)
-           values ($1, $2, $3, 'taxonomy test')
+             (user_id, entry_type, title, content_markdown, season_id, quest_id)
+           values ($1, $2, $3, 'taxonomy test', $4, $5)
            returning entry_type`,
-          [USER_A, entryType, entryType],
+          [USER_A, entryType, entryType, seasonId, questId],
         );
         expect(inserted.rows[0]?.entry_type).toBe(entryType);
       }
@@ -182,6 +184,65 @@ describe.skipIf(!DATABASE_URL)("Phase 8C Round 1 — Journal DB foundation autho
            values ($1, 'NOT_A_REAL_TYPE', 'bad type', 'bad type')`,
           [USER_A],
         ),
+      ).rejects.toThrow();
+    });
+  });
+
+  test("enforces required authoring context at the authenticated database boundary", async () => {
+    await asUser(USER_A, async () => {
+      for (const entryType of ["QUEST_REFLECTION", "SEASON_REFLECTION", "FAILURE_POSTMORTEM"] as const) {
+        await expect(
+          pg.query(
+            `insert into public.journal_entries
+               (user_id, entry_type, title, content_markdown)
+             values ($1, $2, $3, 'missing context')`,
+            [USER_A, entryType, `missing ${entryType}`],
+          ),
+        ).rejects.toThrow();
+      }
+
+      const questReflection = await pg.query<{ id: string }>(
+        `insert into public.journal_entries
+           (user_id, entry_type, title, content_markdown, quest_id)
+         values ($1, 'QUEST_REFLECTION', 'db quest context', 'valid', $2)
+         returning id`,
+        [USER_A, QUEST_A],
+      );
+      const seasonReflection = await pg.query<{ id: string }>(
+        `insert into public.journal_entries
+           (user_id, entry_type, title, content_markdown, season_id)
+         values ($1, 'SEASON_REFLECTION', 'db season context', 'valid', $2)
+         returning id`,
+        [USER_A, SEASON_A],
+      );
+      const failurePostmortem = await pg.query<{ id: string }>(
+        `insert into public.journal_entries
+           (user_id, entry_type, title, content_markdown, quest_id)
+         values ($1, 'FAILURE_POSTMORTEM', 'db failure context', 'valid', $2)
+         returning id`,
+        [USER_A, QUEST_A],
+      );
+      const freeReflection = await pg.query<{ id: string }>(
+        `insert into public.journal_entries
+           (user_id, entry_type, title, content_markdown)
+         values ($1, 'FREE_REFLECTION', 'db type change', 'valid')
+         returning id`,
+        [USER_A],
+      );
+
+      await expect(
+        pg.query("update public.journal_entries set quest_id = null where id = $1", [questReflection.rows[0]!.id]),
+      ).rejects.toThrow();
+      await expect(
+        pg.query("update public.journal_entries set season_id = null where id = $1", [seasonReflection.rows[0]!.id]),
+      ).rejects.toThrow();
+      await expect(
+        pg.query("update public.journal_entries set quest_id = null where id = $1", [failurePostmortem.rows[0]!.id]),
+      ).rejects.toThrow();
+      await expect(
+        pg.query("update public.journal_entries set entry_type = 'QUEST_REFLECTION' where id = $1", [
+          freeReflection.rows[0]!.id,
+        ]),
       ).rejects.toThrow();
     });
   });
