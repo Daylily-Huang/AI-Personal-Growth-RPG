@@ -50,6 +50,8 @@
 - 最终文档门禁通过：`git diff --cached --check` 无错误；四个修改文件均为有效 UTF-8 且无 NUL；无 `src/`、`supabase/`、`tests/` 或冻结 Phase 8 00–12 变更；现有用户未跟踪文件保持未触碰。
 - controlling draft 首次提交：`0925b3a27043021d5c73e0a5c241c712d34c78ee`，分支 `codex/phase8c-controlling-review` 已推送。
 - 已创建 Draft PR #35：`docs: draft Phase 8C Journal + State controlling document`；下一治理步骤是由独立 Gatekeeper 对 PR exact head 做只读审查，当前不授权生产实现。
+- 独立只读 Gatekeeper 使用单独 Codex 会话审查 exact head `d83c324b4666816359f8b86df87bafca4bf4aa22`，结果 `P0=0 / P1=2 / P2=0 — NO-GO`；tracked worktree/index 未被 reviewer 修改。
+- 已按两项 finding 做最小 controlling-document 修正：authoring-time context 与 FK `ON DELETE SET NULL` 解耦并增加 parent-deletion regression；`JOURNAL_INSIGHT` 全面延期出 Phase 8C production scope。
 
 ## 关键里程碑归档记录
 

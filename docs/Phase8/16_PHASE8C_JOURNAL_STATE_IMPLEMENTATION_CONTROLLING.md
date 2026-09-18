@@ -143,15 +143,16 @@ There is no `season_review_id` / `review_id` field.
 - A weekly reflection may use `season_id` as available context.
 - Adding a direct Review FK is a schema-contract change and requires explicit change control.
 
-### 3.5 AI insight is advisory; Strategy remains Phase 8D
+### 3.5 `JOURNAL_INSIGHT` production integration is deferred
 
-The frozen architecture permits `JOURNAL_INSIGHT` proposals and pattern analysis, but Strategy entities and StrategySupport belong to Phase 8D.
+The frozen architecture defines `JOURNAL_INSIGHT` as a canonical proposal type, but the accepted Phase 8B proposal-settlement authority currently validates and commits only the Phase 8B proposal types it owns. It does not yet provide a bounded settlement path for `JOURNAL_INSIGHT`.
 
 **Controlling resolution**:
 
-- Phase 8C may expose read-only/advisory Journal insight behavior.
+- Phase 8C does **not** authorize production generation, persistence, review, acceptance, editing, dismissal, or settlement of `JOURNAL_INSIGHT`.
+- Phase 8C must not extend `rpc_review_outer_loop_proposal` or any proposal authority to support `JOURNAL_INSIGHT`.
 - Phase 8C must not create, transition, version, or support Strategy records.
-- AI integration is optional for Phase 8C completion and is not a prerequisite for the core Journal/State exit gate.
+- A future `JOURNAL_INSIGHT` implementation requires its own bounded proposal persistence/review/audit/replay contract and independent change-control acceptance.
 
 ---
 
@@ -237,11 +238,15 @@ INSIGHT
 
 The database must reject values outside this taxonomy.
 
-Explicit context requirements from the frozen Journal specification must be deterministically enforced:
+The frozen Journal taxonomy defines the following **authoring-time context requirements**:
 
 - `QUEST_REFLECTION` requires non-null `quest_id`.
 - `SEASON_REFLECTION` requires non-null `season_id`.
 - `FAILURE_POSTMORTEM` requires at least one of `quest_id` or `season_id`.
+
+These requirements must be enforced when the user creates or deliberately edits the Journal entry. They must **not** be encoded as database CHECK constraints that would make the frozen `ON DELETE SET NULL` FK behavior impossible.
+
+If a linked parent entity is later legitimately hard-deleted under its own frozen authority, the FK may become `NULL` and the existing Journal row remains valid historical reflection. Parent deletion must not rewrite `entry_type`, content, state scalars, or timestamps other than any system-managed update behavior explicitly accepted by the implementation contract.
 
 The implementation must not add a Review FK to satisfy descriptive text in the taxonomy.
 
@@ -307,26 +312,20 @@ Required product capabilities:
 
 The UI must not present a correlation as verified causation or permanent capability truth.
 
-### 5.6 Optional Journal Insight advisory surface
+### 5.6 AI Journal analysis is not authorized in Phase 8C production
 
-If Phase 8C includes AI-assisted longitudinal Journal analysis, it is limited to advisory `JOURNAL_INSIGHT` behavior.
+Phase 8C production scope ends at user-authored Journal/State storage, retrieval, archive behavior, and deterministic descriptive analytics.
 
-Allowed:
+Do not add:
 
-- summarize recurring themes;
-- identify correlations or hypotheses;
-- generate Socratic prompts;
-- produce an `OuterLoopProposal` / read-only preview.
+- `JOURNAL_INSIGHT` generation endpoints;
+- proposal persistence for Journal insights;
+- proposal Accept/Edit/Dismiss flows for Journal insights;
+- proposal settlement or audit extensions for Journal insights;
+- automatic Journal rewriting;
+- Strategy creation or support extraction from Journal content.
 
-Prohibited:
-
-- editing or rewriting Journal content automatically;
-- creating Evidence;
-- changing XP, Skill, Mastery, Quest status, or character stats;
-- directly creating Strategy / StrategyVersion / StrategySupport rows;
-- interpreting Journal text as executable SQL, authorization, tool commands, or database instructions.
-
-The core Phase 8C DoD does not depend on shipping this optional AI surface.
+Future AI Journal analysis must preserve the frozen proposal-only authority model, but its concrete production contract is deferred until separately accepted.
 
 ---
 
@@ -381,7 +380,7 @@ Required implementation behavior:
 - treat all Journal text as untrusted content for prompt-injection and tool-authority purposes;
 - do not expose Supabase service-role or other privileged credentials to browsers or AI/model processes.
 
-The frozen architecture requires ephemeral/stateless inference handling for Journal excerpts. Deployment/provider retention or training guarantees must be verified from actual provider configuration before they are represented as proven operational facts.
+Because Phase 8C does not authorize production AI Journal analysis, Journal excerpts must not be sent to an AI provider by Phase 8C code. If a later phase authorizes such analysis, the frozen ephemeral/stateless handling requirement and provider-specific retention/training verification apply before production use.
 
 ---
 
@@ -529,16 +528,18 @@ At minimum, Phase 8C acceptance must also cover:
 - client-generated UUID creation behaves deterministically and duplicate PK insertion does not duplicate rows;
 - Journal write/archive operations leave Growth Core snapshots unchanged.
 
-### 10.4 Optional AI path tests
+### 10.4 Parent-deletion compatibility tests
 
-Only if `JOURNAL_INSIGHT` production integration is included in Phase 8C:
+Phase 8C must prove that authoring-time context requirements do not break the frozen FK deletion contract:
 
-- AI output cannot directly modify a Journal row;
-- AI output cannot create Evidence;
-- AI output cannot create Strategy records;
-- model-produced SQL/tool-like instructions are treated as untrusted text;
-- raw Journal content is not emitted to normal application logs;
-- proposal preview/review behavior preserves user control.
+- create a valid `QUEST_REFLECTION` linked to an owned Quest, then legitimately delete that Quest through its existing authority; the Journal row remains and `quest_id` becomes `NULL`;
+- create a valid `SEASON_REFLECTION` linked to a Season that is legally hard-deletable under the frozen Season rules, then delete the Season; the Journal row remains and `season_id` becomes `NULL`;
+- create a valid `FAILURE_POSTMORTEM` with eligible Quest/Season context, then exercise a legal parent deletion that removes its last surviving contextual FK; the Journal row remains historical rather than blocking the parent deletion;
+- none of these parent deletions may mutate Journal content, state scalars, Evidence, XP, Mastery, or Quest/Season history beyond the parent operation itself.
+
+### 10.5 AI non-scope guard
+
+Phase 8C acceptance must assert that no new production route, repository method, RPC branch, or model handler adds `JOURNAL_INSIGHT` generation/review/settlement authority.
 
 ---
 
@@ -550,7 +551,6 @@ Implementation must proceed in bounded rounds after Gatekeeper GO.
 
 - add only `journal_entries`;
 - add taxonomy and scalar CHECK constraints;
-- add required context-link constraints;
 - add FK delete behavior and indexes;
 - add immutable-field/update timestamp guards;
 - enable RLS and fail-closed ownership policies;
@@ -564,9 +564,10 @@ Round 1 must pass before application write adapters begin.
 - implement authenticated create/read/list/update/archive operations;
 - derive tenant identity from auth;
 - preserve client-generated UUID support;
+- enforce entry-type context requirements at authoring/update boundaries without defeating FK `ON DELETE SET NULL`;
 - expose no Journal lifecycle RPC;
 - map validation/ownership failures consistently;
-- add O007, O018, C011 and domain-contract tests.
+- add O007, O018, C011, parent-deletion compatibility, and domain-contract tests.
 
 ### Round 3 — Journey Journal UI
 
@@ -575,21 +576,12 @@ Round 1 must pass before application write adapters begin.
 - add Journey navigation only for the Journal surface authorized here;
 - verify loading/empty/error states, keyboard behavior, responsive layouts, and long private text handling.
 
-### Round 4 — Optional Journal Insight
-
-This round may be omitted.
-
-If included:
-
-- implement advisory `JOURNAL_INSIGHT` only;
-- preserve the unified proposal boundary;
-- do not create Strategy state;
-- add prompt-injection/privacy/no-write tests.
-
-### Round 5 — Exit verification and freeze candidate
+### Round 4 — Exit verification and freeze candidate
 
 - run O007, O018, and C011;
 - run all Phase 8C database/RLS/trigger/domain tests;
+- run the parent-deletion compatibility tests;
+- verify no `JOURNAL_INSIGHT` production authority was added;
 - run existing Growth Core regression suite;
 - run deterministic Growth Engine harness;
 - run lint, production build, and relevant E2E;
@@ -607,6 +599,7 @@ The following require an ADR/change-control review and independent approval befo
 - adding a Review FK to `journal_entries`;
 - introducing an authoritative Journal RPC;
 - adding hard-delete product behavior beyond the bounded archive contract;
+- adding `JOURNAL_INSIGHT` production generation, persistence, review, settlement, or audit authority;
 - coupling any Journal/state value to XP, Mastery, Evidence, Quest state, rewards, or permanent character stats;
 - allowing AI to write Journal or Strategy domain state directly;
 - implementing Phase 8D–8G capability early;
@@ -622,13 +615,13 @@ L3 implementation details that preserve the frozen contract may be decided by th
 Phase 8C may be declared **FINAL FROZEN** only when all of the following are true:
 
 1. Exactly one Phase 8C domain table, `journal_entries`, is added; no prohibited scope leaks in.
-2. Canonical taxonomy, context requirements, scalar ranges, immutable fields, indexes, and FK behavior are enforced.
+2. Canonical taxonomy, authoring-time context requirements, scalar ranges, immutable fields, indexes, and FK behavior are enforced without blocking accepted parent `ON DELETE SET NULL` behavior.
 3. RLS and `trg_enforce_journal_entry_tenant_isolation` pass real cross-tenant negative tests.
 4. O007 and O018 pass.
 5. Supplemental C011 passes and proves temporary Journal state cannot mutate permanent capability.
 6. Normal deletion UX uses archive semantics; no unsupported hard-delete product contract is introduced.
 7. `/journey/journal` is functional, private, accessible, responsive, and has loading/empty/error handling.
-8. Optional AI behavior, if shipped, remains advisory/proposal-only and creates no Strategy/Growth Core truth.
+8. No `JOURNAL_INSIGHT` production generation/review/settlement authority is added in Phase 8C.
 9. Existing Growth Core tests and deterministic harness remain green.
 10. Lint, production build, relevant E2E, and database-backed Phase 8C tests are green.
 11. Exact implementation Head SHA and CI run IDs are recorded.
@@ -653,7 +646,24 @@ Once accepted, the authorization remains deliberately narrow: Journal + State Co
 
 ## 15. Independent Gatekeeper Review Record
 
-Pending.
+### Initial independent review — NO-GO
+
+- Reviewed exact head: `d83c324b4666816359f8b86df87bafca4bf4aa22`
+- Base: `7df500b1c764efd247938dcf3da4e83b6e2e8e45`
+- Verdict: **NO-GO**
+- Findings: `P0 = 0 / P1 = 2 / P2 = 0`
+- P1-01: authoring-time mandatory context requirements conflicted with frozen FK `ON DELETE SET NULL` behavior and existing parent hard-delete paths.
+- P1-02: optional `JOURNAL_INSIGHT` production integration lacked a bounded settlement path because the accepted Phase 8B proposal RPC rejects that proposal type.
+
+### Corrective changes
+
+- Context requirements are now explicitly authoring/update-time domain validation, while legal parent deletion may null contextual FKs and preserve the Journal row.
+- Parent-deletion compatibility tests are mandatory.
+- `JOURNAL_INSIGHT` production integration is fully deferred from Phase 8C; no proposal/RPC authority extension is authorized.
+
+### Re-review
+
+Pending independent exact-head re-review.
 
 The future reviewer must bind the verdict to:
 

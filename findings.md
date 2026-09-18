@@ -39,6 +39,8 @@
 - AI 在 8C 最多产生 `JOURNAL_INSIGHT` advisory proposal/preview；不得自动改写 Journal，不得创建/提交 Strategy，Strategy authority 属于 8D。
 - 发现冻结文档编号冲突：`12_INFORMATION_ARCHITECTURE_AND_PHASE_PLAN.md` 把 Phase 8C exit gate 写成 O007/O011/O018，但 `11_TESTING_SECURITY_AND_HARNESS_PLAN.md` 的 canonical O011 实际是 Focus Time 不能直接产生 XP/Reward。不得静默重编号冻结 O011；Phase 8C 应补充独立断言 `C011_JOURNAL_STATE_NOT_CAPABILITY`，并保留 canonical O007/O018。
 - `04_JOURNAL_AND_STATE_SPEC.md` 描述 `WEEKLY_REFLECTION` 可带 Review link，但冻结 `journal_entries` schema 没有 `review_id` / `season_review_id`。Phase 8C 不应自行加字段；本轮 controlling draft 明确只保留现有 Season/Quest/Activity context links。
+- 独立 Gatekeeper 初审 PR #35 exact head `d83c324b...` 得出 `P0=0 / P1=2 / P2=0 — NO-GO`：其一，entry-type 必填 context 若做数据库 CHECK 会与 FK `ON DELETE SET NULL` 及既有 Quest hard-delete 路径冲突；其二，当前 Phase 8B `rpc_review_outer_loop_proposal` 不接受 `JOURNAL_INSIGHT`，所以 Phase 8C 不能仅以“optional”措辞授权生产 AI 接入。
+- 修正方向：context 必填仅作为用户 create/edit 的 authoring-time domain validation，合法父实体删除后允许 context FK 变 NULL 并保留 Journal 历史；Phase 8C 完全延期 `JOURNAL_INSIGHT` 生产 generation/review/settlement，不扩展现有 proposal RPC。
 
 ## 2026-09-17 — Phase 8B CI 证据
 
