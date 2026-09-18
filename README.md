@@ -2,7 +2,7 @@
 
 把现实中的学习、工作、技能训练与人生目标，转化为可验证的成长 RPG。
 
-当前实现状态：**Phase 7 全站视觉体系现代化与核心业务页面已全面终局冻结（FINAL FROZEN）**。  
+当前实现状态：**Phase 8B Season + Structured Review 已终局冻结（FINAL FROZEN）；Phase 1~8B 的既有冻结边界保持有效，Phase 8C 尚未启动**。  
 👉 **项目全景架构与治理主文档**：请参阅 [`docs/MASTER_PROJECT_HANDOFF.md`](docs/MASTER_PROJECT_HANDOFF.md)。
 
 ## 当前系统里程碑进度
@@ -12,12 +12,14 @@
 - ✅ **Activity 记录与双阶段确认流**（Activity Log -> AI Proposal -> Confirm）
 - ✅ **AI Assessment 提议引擎**（支持 OpenAI-compatible 本地 bridge / 生产模型，严格失败隔离）
 - ✅ **不可篡改 XP 账本**（PostgreSQL `xp_transactions`，RPC 权威结算）
-- ✅ **Supabase 真实后端生产栈**（PostgreSQL 15+, Row Level Security, RPC 事务, 迁移链 0001~0042）
+- ✅ **Supabase 真实后端生产栈**（PostgreSQL 15+, Row Level Security, RPC 事务, 迁移链 0001~0044）
 - ✅ **Quest 任务系统**（/quests，主支线层级，QuestSize 权威快照）
 - ✅ **Skills 技能树**（/skills，ReactFlow 水墨画布，单实例 InspectorDrawer 集成）
 - ✅ **Knowledge 知识图谱**（/knowledge，知识节点/连边，推断/验证状态机）
 - ✅ **Artifact 成果库**（/artifacts，Durable Work Product，关系图谱与链接）
 - ✅ **全局水墨浅色优先视觉现代化与全站端到端无障碍**（Phase 1~7 已全面宣告 **FINAL FROZEN**）
+- ✅ **Phase 8B Season + Structured Review**（五表 / 九 RPC 权威层、RLS、并发/幂等、Journey `/journey/seasons` 与 `/journey/reviews`）— **FINAL FROZEN**
+- ✅ **Phase 8B 最终验收**：PR #33，merge `0e4bec5f26411669f7031af4523b6d4fca747f96`；Exact-Head CI `35310121814` 与 post-merge main CI `35315613393` 全绿
 
 ## 技术栈
 

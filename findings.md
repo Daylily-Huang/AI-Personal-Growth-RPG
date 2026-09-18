@@ -1,7 +1,7 @@
 # 调查发现与核心架构决策 (Findings)
 
 > **权威状态主文档**：请统一参阅 [`docs/MASTER_PROJECT_HANDOFF.md`](docs/MASTER_PROJECT_HANDOFF.md)。  
-> **更新时间**: 2026-09-13
+> **更新时间**: 2026-09-18
 
 ---
 
@@ -61,3 +61,13 @@
 - 本机修复后：725 passed / 301 skipped；ESLint、production build、deterministic harness 11/11 全绿。数据库测试本地因无 `XP_RPG_TEST_DB_URL` 跳过，因此 DB authority 的最终运行时证据来自 GitHub CI。
 - Exact-head CI Run `35128996512` 对 `80abfa3878a76e1f74279c86d0c5413786fad9e9` 全绿：`check` 的 Lint/Test/Build 全 success；`supabase-integration` 的真实 Supabase startup、production build、database-backed tests、deterministic harness、E2E 全 success。
 - 截至该 exact head，Phase 8B controlling document DoD 1–7 已有实现与 CI 证据支持；DoD 8 仍需独立 Gatekeeper 对最终实现头给出 `P0=0 / P1=0 / P2=0` + `GO`，DoD 9 仍要求 accepted implementation 在 Phase 8C 开始前 merge。
+
+
+## 2026-09-18 — Phase 8B Final Freeze
+
+- 历史 Gatekeeper 文件 `docs/Phase8/14_PHASE8B_GATEKEEPER_FINAL_REVIEW.md` 只针对旧 head `c4b4f2c...`，其 `NO-GO / P1=2 / P2=2` 继续保留为历史证据；corrective head `ae35a63ab15abab6c6e7fafd06fd51281ab6e634` 已逐项关闭 P1-01/P1-02/P2-01/P2-02。
+- 修复边界经独立复核：Review 同 commit-key 并发 replay 在 parent Season 锁后收敛；Season hard delete 仅允许 DRAFT/PLANNED；契约定义的 proposal/schema validation 映射 HTTP 422；过期 proposal 持久化为 EXPIRED、保持 decision/resulting entity 为空并写审计事件。
+- Exact-head GitHub Actions Run `35310121814` 对 `ae35a63...` 全绿：`check` 的 lint/test/build success；`supabase-integration` 的真实 Supabase、production build、database-backed tests、deterministic harness、E2E 全 success。
+- PR #33 已合入 `main`，merge commit `0e4bec5f26411669f7031af4523b6d4fca747f96`。对应 post-merge push CI Run `35315613393` 同样双 job 全绿。
+- 因当前 main push 已验证成功，Phase 7 历史 Run `34708617506` 所记录的 push-to-main governance incompatibility 在当前基线已闭环；历史失败记录不删除。
+- Phase 8B 已满足 controlling document 的独立复审与 merge gate，正式 **FINAL FROZEN**。Phase 8C 仅具备进入其独立规划/准入流程的前置条件，尚未启动。

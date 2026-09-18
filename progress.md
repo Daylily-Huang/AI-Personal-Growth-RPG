@@ -1,7 +1,7 @@
 # 项目历史工作进度 (Progress Log)
 
 > **权威状态主文档**：请统一参阅 [`docs/MASTER_PROJECT_HANDOFF.md`](docs/MASTER_PROJECT_HANDOFF.md)。  
-> **更新时间**: 2026-09-05
+> **更新时间**: 2026-09-18
 
 ---
 
@@ -26,6 +26,17 @@
 - 修复后本机门禁：44 files passed / 21 skipped，725 tests passed / 301 skipped；ESLint、Next.js production build、deterministic harness 11/11 全绿。数据库相关 14 tests 本地因未配置 `XP_RPG_TEST_DB_URL` 正常 skip，不作为 DB 运行时证据。
 - Exact-head CI Run `35128996512` 已全绿：`check` success；`supabase-integration` success，其中 production build、database-backed tests、deterministic Growth Engine harness、E2E 均 success。
 - 下一步：对 exact implementation head 做独立只读 Gatekeeper 终审；若 `P0=0 / P1=0 / P2=0` 且明确 `GO`，则 Phase 8B implementation 满足 DoD 1–8，DoD 9 仍要求在 Phase 8C 前合入。
+
+
+## 2026-09-18 — Phase 8B 项目收尾与终局冻结
+
+- Gatekeeper 历史 NO-GO 头 `c4b4f2c...` 的四项 finding 已由 corrective head `ae35a63ab15abab6c6e7fafd06fd51281ab6e634` 手术式关闭，并补齐同 commit-key 并发 replay、CANCELLED 删除、HTTP 422 taxonomy、proposal EXPIRED 生命周期/审计回归。
+- Independent exact-head re-review 已记录为 `P0=0 / P1=0 / P2=0 + GO`。
+- GitHub Actions Run `35310121814` 对 corrective exact head 全绿：`check` 与 `supabase-integration` 均 success，后者包含真实 database-backed tests、deterministic Growth Engine harness 与 E2E。
+- PR #33 已于 2026-09-18 合入 `main`，merge commit `0e4bec5f26411669f7031af4523b6d4fca747f96`。
+- Post-merge main push CI Run `35315613393` 全绿，证明当前 main 的 push-to-main governance path 已恢复正常。
+- Phase 8B DoD 独立审查与最终 merge gate 均满足，状态更新为 **FINAL FROZEN**；Phase 8C 尚未启动。
+- 新增归档：`docs/Phase8/15_PHASE8B_GATEKEEPER_REREVIEW_AND_FINAL_FREEZE.md`。
 
 ## 关键里程碑归档记录
 

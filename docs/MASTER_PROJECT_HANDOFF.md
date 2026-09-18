@@ -1,10 +1,11 @@
 # AI Personal Growth RPG — 项目全景交接与治理主文档 (Master Project Handoff)
 
-> **文档版本**: 1.3 (Master Comprehensive Handoff — Phase 7 Final Freeze)
-> **更新时间**: 2026-09-13
+> **文档版本**: 1.4 (Master Comprehensive Handoff — Phase 8B Final Freeze)
+> **更新时间**: 2026-09-18
 > **适用对象**: 后续所有接手的 AI 工程师、独立审查 AI、项目协作者  
-> **Phase 7 终局冻结合并基线 (main)**: `653fe018f6cee38b2263fbcca19dffbf624d4c18`
-> **当前所处里程碑**: Phase 7 — 全站端到端无障碍、响应式与动效收敛 (**FINAL FROZEN**)；全站视觉现代化基石与核心业务全线冻结
+> **Phase 7 终局冻结合并基线 (historical)**: `653fe018f6cee38b2263fbcca19dffbf624d4c18`
+> **Phase 8B 终局冻结合并基线 (main)**: `0e4bec5f26411669f7031af4523b6d4fca747f96`
+> **当前所处里程碑**: Phase 8B — Season + Structured Review (**FINAL FROZEN**)；Phase 8C 尚未启动
 > **代码仓库**: `Daylily-Huang/AI-Personal-Growth-RPG`  
 > **核心工作区路径**: `d:\AI_Personal_Growth_RPG`（WSL 挂载路径：`/mnt/d/AI_Personal_Growth_RPG`）
 
@@ -138,6 +139,8 @@ AI_Personal_Growth_RPG/
 | **全站抛光** | **Phase 7 — Round 2** | **全视口响应式压力硬化、溢出/裁切、Drawer/Table/Graph workspace 与触控目标治理** | **MERGED / COMPLETE** | **PR #23；merge commit `9d394d11e3c858fe02abf52a18351482975a372c`；Exact Head `d17dbd8f884b763d23cc7070078cece1e386eec8`；CI `34379381800`** |
 | **全站抛光** | **Phase 7 — Round 3** | **动效降级与全站动效收敛 (Reduced Motion)、语义证据补齐** | **MERGED / COMPLETE** | **PR #25 (merge `a8256051319db4ce5eadc7bdf585f197ad1f99f6`), PR #27 (merge `0e7591607507b3ac59519ab0dc656a3eed2512c4`；Exact Head `bbb09ec4ae2121599f277a1aa41565ede79dbee7`；CI `34622336564`)** |
 | **终局冻结** | **Phase 7 — Round 4** | **全页交叉验收、活跃文本对比度合规 (P1-05)、72 格全矩阵运行时证据归档与终局冻结** | **FINAL FROZEN** | **PR #28；merge commit `653fe018f6cee38b2263fbcca19dffbf624d4c18`；Reviewed Exact Head `f1e426ce6f64135066a652882d27c03b9cf6dca0`；Exact-Head CI `34707377871` (success)；post-merge push CI `34708617506` (failure — KNOWN PUSH-TO-MAIN GOVERNANCE GUARD INCOMPATIBILITY)** |
+| **Outer Growth Loop 架构** | **Phase 8A** | **Phase 8 总体架构、依赖链、信息架构与控制边界冻结** | **FINAL FROZEN** | **PR #31；merge baseline `0dffb9d706c3c941c46078c89bf3ae6e70d65d5f`；Phase 8B controlling document 以该 SHA 为不可变架构基线** |
+| **Outer Growth Loop** | **Phase 8B** | **Season + Structured Review：五表、九 RPC、RLS、API/Repository、Journey UI、并发/幂等与 Proposal CAS** | **FINAL FROZEN** | **PR #33；Reviewed Exact Head `ae35a63ab15abab6c6e7fafd06fd51281ab6e634`；Exact-Head CI `35310121814` success；merge `0e4bec5f26411669f7031af4523b6d4fca747f96`；post-merge main CI `35315613393` success** |
 
 ---
 
@@ -259,11 +262,11 @@ wsl -d Ubuntu -- bash -lc "cd /mnt/d/AI_Personal_Growth_RPG && pnpm build"
 
 ## 8. 接手 AI 极速上手与后续路线图推进指引 (Next Actions)
 
-当前状态：Phase 5 核心业务页面（Dashboard、Quests、Skills）已全线 **FINAL FROZEN**。**Phase 6: Advanced Canvas Modernization (Knowledge Graph Canvas)** 已完成独立复核并通过 PR #21 合并，为 **FINAL FROZEN**。**Phase 7: Global Polish & Final Cross-Page Acceptance (Round 1~4)** 已完成全部独立复核并通过 PR #28 合并，全站视觉现代化现正式宣告 **FINAL FROZEN**。
+当前状态：Phase 1~7 的既有冻结边界保持有效；Phase 8A 架构冻结已完成；**Phase 8B: Season + Structured Review 已完成 corrective Gatekeeper 复审、exact-head CI、PR #33 合并与 post-merge main CI，正式 FINAL FROZEN**。Phase 8C 尚未启动。
 
 当前权威主分支基线：
 ```text
-653fe018f6cee38b2263fbcca19dffbf624d4c18
+0e4bec5f26411669f7031af4523b6d4fca747f96
 ```
 
 ### Phase 6 — Knowledge Graph Canvas Modernization（FINAL FROZEN）
@@ -313,14 +316,22 @@ wsl -d Ubuntu -- bash -lc "cd /mnt/d/AI_Personal_Growth_RPG && pnpm build"
    - **Post-Merge Main Push CI 记录与定性**：
      - Run ID：`34708617506`，Conclusion：`failure`（**不得**标为 green）。
      - 独立审查已确认该失败仅来源于 `tests/phase5-quests-ui.test.tsx:259` 与 `tests/phase5-skills-ui.test.tsx:482` 中的 merge-base delta guard（因在 main push 事件中 `git diff <HEAD>...HEAD` 为空导致 `modifiedFiles.length > 0` 断言失败）。
-     - 分类定性：`KNOWN PUSH-TO-MAIN GOVERNANCE GUARD INCOMPATIBILITY`。此问题属于 CI 治理/门禁上下文缺陷，不撤销 Phase 7 终局冻结，但后续需通过独立治理任务修复。
+     - 分类定性：`KNOWN PUSH-TO-MAIN GOVERNANCE GUARD INCOMPATIBILITY`。此问题属于历史 CI 治理/门禁上下文缺陷，不撤销 Phase 7 终局冻结。后续 Phase 8 治理加固已闭环该路径；当前 main 的 post-merge Run `35315613393` 已验证 `check` 与 `supabase-integration` 双绿。
+
+### Phase 8B — Season + Structured Review（FINAL FROZEN）
+
+1. **权威基线与控制文件**：Phase 8A merge baseline `0dffb9d706c3c941c46078c89bf3ae6e70d65d5f`；Phase 8B controlling document 为 `docs/Phase8/13_PHASE8B_SEASON_REVIEW_IMPLEMENTATION_CONTROLLING.md`。
+2. **实现范围**：五张 Phase 8B 表、九个权威 RPC、RLS/tenant guard、Season/Review API 与 repository/service、Journey `/journey/seasons` 与 `/journey/reviews`，以及 canonical exit / 并发 / 幂等 / Proposal CAS 回归覆盖。
+3. **历史 Gatekeeper NO-GO**：`docs/Phase8/14_PHASE8B_GATEKEEPER_FINAL_REVIEW.md` 针对旧 head `c4b4f2c...`，记录 P1-01/P1-02/P2-01/P2-02；该历史记录保留，不覆盖。
+4. **Corrective closure**：corrective exact head `ae35a63ab15abab6c6e7fafd06fd51281ab6e634` 已关闭四项 finding。独立复审结果记录为 `P0=0 / P1=0 / P2=0 + GO`；最终归档见 `docs/Phase8/15_PHASE8B_GATEKEEPER_REREVIEW_AND_FINAL_FREEZE.md`。
+5. **Exact-head CI**：Run `35310121814` success；`check` 的 lint/test/build 全绿，`supabase-integration` 的真实 Supabase、production build、database-backed tests、deterministic Growth Engine harness、E2E 全绿。
+6. **Merge 与 post-merge**：PR #33 已合入 `main`，merge commit `0e4bec5f26411669f7031af4523b6d4fca747f96`；对应 main push CI Run `35315613393` 双 job 全绿。
+7. **冻结结论**：Phase 8B controlling document 的独立复审与最终 merge gate 均已满足，**Phase 8B = FINAL FROZEN**。Phase 8C 尚未启动，也不会因本冻结记录自动获得生产实现授权。
 
 ### 下一阶段推进指引 (Next Actions)
 
-Phase 7 全站视觉现代化现已全面闭环并永久冻结。所有后续工作必须从当前基线 `653fe018f6cee38b2263fbcca19dffbf624d4c18` 切出独立分支，禁止再擅自修改 Phase 1~7 已冻结的 UI 基元、设计令牌与页面结构。
+Phase 8B 已全面闭环并永久冻结。所有后续工作必须从当前 main 基线 `0e4bec5f26411669f7031af4523b6d4fca747f96` 或其后续纯治理/文档提交切出独立分支，保持 Phase 1~8B 已冻结的领域、数据库、RPC、UI 与治理边界。
 
 后续建议执行顺序：
-1. **CI 治理缺陷修复任务 (Governance Guard Fix)**：
-   - 独立分支修复 `tests/phase5-quests-ui.test.tsx` 与 `tests/phase5-skills-ui.test.tsx`，使其在 `push-to-main` 事件下兼容正确的 commit range 比较，恢复 main push CI 绿灯。
-2. **Phase 8: Outer Growth Loop (待正式授权与独立规划)**：
-   - 外部长期成长闭环（Season 赛季/章节、Strategy 个人策略库/Playbook、State 状态感知与精力管理、Reward 现实激励兑现）待后续正式授权后单独建档规划，本阶段不引用未跟踪文档。
+1. **Phase 8C 独立准入**：先建立 Phase 8C phase-specific controlling document，明确 In Scope / Out of Scope / Acceptance Criteria，并完成独立 Gatekeeper 准入；在此之前不写 Phase 8C 生产代码。
+2. **继续保持可审计性**：后续 PR 继续绑定 exact head、CI run、独立审查结论与 merge SHA；不得把历史失败改写为成功，也不得把 skipped/local-only 结果替代真实 database-backed CI 证据。
