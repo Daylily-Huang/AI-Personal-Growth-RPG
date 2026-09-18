@@ -130,3 +130,10 @@
 - Patched only `src/app/journey/journal/page.tsx` and `tests/phase8c-journey-ui.test.tsx` for the product correction. CREATE and deliberate type/context changes remain fail-closed; ordinary edits to historical `NULL` context rows no longer require replacement context, and unchanged NULL FKs are omitted from PATCH.
 - Verification: targeted `28/28`; full `759 passed / 314 skipped`; lint, production build, deterministic `11/11`, and `git diff --check` all pass. Frozen Phase8 00–12 and Round 2 production-authority paths still have zero new diff.
 - Pending: commit/push the new corrective exact head, wait for both exact-head CI jobs, then run a fresh independent Round 3 re-review. Round 4 remains blocked.
+
+## 2026-09-19 — Phase 8C Round 4 context-filter corrective
+
+- Final Gatekeeper for dc4042fc3846d133d23cbe03fd5e24342c3c067 returned P0=0 / P1=0 / P2=1 + NO-GO; only remaining finding was missing Journal context-filter UI.
+- Updated only src/app/journey/journal/page.tsx and 	ests/phase8c-journey-ui.test.tsx: added Season/Quest filters that reuse the existing /api/journal?seasonId=...&questId=... contract and added runtime query assertions.
+- Local verification complete: targeted 28/28; full suite 759 passed / 314 skipped; lint/build/deterministic 11/11; diff-check pass. Frozen Phase8 docs and Round 2 authority areas have zero new diff.
+- Pending: commit/push new exact head, confirm both GitHub CI jobs at that SHA, then fresh independent final Round 4 Gatekeeper. Phase 8D remains blocked.

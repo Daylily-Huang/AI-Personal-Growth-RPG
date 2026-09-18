@@ -104,12 +104,14 @@ describe("Phase 8C Round 3 — Journey Journal UI", () => {
 
   test("Journal filters through the HTTP API and archives through PATCH", async () => {
     const entry = sampleEntry();
+    const seasonId = "33333333-3333-4333-8333-333333333333";
+    const questId = "44444444-4444-4444-8444-444444444444";
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       if (url.includes("/api/journal/") && init?.method === "PATCH") return jsonResponse({ entry: { ...entry, isArchived: true } });
       if (url.includes("/api/journal")) return jsonResponse({ entries: [entry] });
-      if (url.endsWith("/api/seasons")) return jsonResponse({ seasons: [] });
-      if (url.endsWith("/api/quests")) return jsonResponse({ quests: [] });
+      if (url.endsWith("/api/seasons")) return jsonResponse({ seasons: [{ id: seasonId, name: "2026 秋季" }] });
+      if (url.endsWith("/api/quests")) return jsonResponse({ quests: [{ id: questId, title: "完成论文方法章" }] });
       return jsonResponse({}, 404);
     });
     vi.stubGlobal("fetch", fetchMock);
@@ -118,6 +120,17 @@ describe("Phase 8C Round 3 — Journey Journal UI", () => {
     expect(document.body.contains(await screen.findByText("今天的状态"))).toBe(true);
     fireEvent.change(screen.getByLabelText("类型筛选"), { target: { value: "STATE_LOG" } });
     await waitFor(() => expect(fetchMock.mock.calls.some(([input]) => String(input).includes("entryType=STATE_LOG"))).toBe(true));
+    expect(await screen.findByRole("option", { name: "2026 秋季" })).toBeTruthy();
+    expect(screen.getByRole("option", { name: "完成论文方法章" })).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText("赛季筛选"), { target: { value: seasonId } });
+    await waitFor(() => expect(fetchMock.mock.calls.some(([input]) => String(input).includes(`seasonId=${seasonId}`))).toBe(true));
+
+    fireEvent.change(screen.getByLabelText("任务筛选"), { target: { value: questId } });
+    await waitFor(() => expect(fetchMock.mock.calls.some(([input]) => {
+      const url = String(input);
+      return url.includes(`seasonId=${seasonId}`) && url.includes(`questId=${questId}`);
+    })).toBe(true));
 
     fireEvent.click(screen.getByRole("button", { name: "归档" }));
     await waitFor(() => {

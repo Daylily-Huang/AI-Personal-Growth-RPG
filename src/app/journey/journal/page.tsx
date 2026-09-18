@@ -132,6 +132,8 @@ export default function JournalPage() {
   const [seasons, setSeasons] = useState<SeasonSummary[]>([]);
   const [quests, setQuests] = useState<Quest[]>([]);
   const [entryTypeFilter, setEntryTypeFilter] = useState<JournalEntryType | "all">("all");
+  const [seasonContextFilter, setSeasonContextFilter] = useState<string | "all">("all");
+  const [questContextFilter, setQuestContextFilter] = useState<string | "all">("all");
   const [archiveFilter, setArchiveFilter] = useState<ArchiveFilter>("active");
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -145,6 +147,8 @@ export default function JournalPage() {
     try {
       const params = new URLSearchParams();
       if (entryTypeFilter !== "all") params.set("entryType", entryTypeFilter);
+      if (seasonContextFilter !== "all") params.set("seasonId", seasonContextFilter);
+      if (questContextFilter !== "all") params.set("questId", questContextFilter);
       if (archiveFilter !== "all") params.set("archived", archiveFilter === "archived" ? "true" : "false");
       const response = await fetch(`/api/journal?${params.toString()}`);
       if (response.status === 401) {
@@ -159,7 +163,7 @@ export default function JournalPage() {
     } finally {
       setLoading(false);
     }
-  }, [archiveFilter, entryTypeFilter, router]);
+  }, [archiveFilter, entryTypeFilter, questContextFilter, router, seasonContextFilter]);
 
   const loadContexts = useCallback(async () => {
     try {
@@ -437,12 +441,26 @@ export default function JournalPage() {
           icon={<BookOpenText className="h-4 w-4" aria-hidden="true" />}
           className="min-w-0"
         >
-          <div className="mb-5 grid grid-cols-1 gap-3 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-ground)] p-3 md:grid-cols-2">
+          <div className="mb-5 grid grid-cols-1 gap-3 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-ground)] p-3 md:grid-cols-2 xl:grid-cols-4">
             <label className={journeyLabelClass}>
               <span className="inline-flex items-center gap-1"><SlidersHorizontal className="h-3.5 w-3.5" aria-hidden="true" />类型筛选</span>
               <select className={journeyInputClass} value={entryTypeFilter} onChange={(event) => setEntryTypeFilter(event.target.value as JournalEntryType | "all")}>
                 <option value="all">全部类型</option>
                 {JOURNAL_ENTRY_TYPES.map((type) => <option key={type} value={type}>{ENTRY_TYPE_LABELS[type]}</option>)}
+              </select>
+            </label>
+            <label className={journeyLabelClass}>
+              赛季筛选
+              <select className={journeyInputClass} value={seasonContextFilter} onChange={(event) => setSeasonContextFilter(event.target.value)}>
+                <option value="all">全部赛季</option>
+                {seasons.map((season) => <option key={season.id} value={season.id}>{season.name}</option>)}
+              </select>
+            </label>
+            <label className={journeyLabelClass}>
+              任务筛选
+              <select className={journeyInputClass} value={questContextFilter} onChange={(event) => setQuestContextFilter(event.target.value)}>
+                <option value="all">全部任务</option>
+                {quests.map((quest) => <option key={quest.id} value={quest.id}>{quest.title}</option>)}
               </select>
             </label>
             <label className={journeyLabelClass}>

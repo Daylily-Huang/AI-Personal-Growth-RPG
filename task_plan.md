@@ -78,3 +78,11 @@
 - [complete] Corrective exact head `d217366d4e2e401566446b2bfda0ea5faf46a18d` 的 GitHub CI Run `35375469477` 已双 job 全绿；随后独立复审返回 `P0=0 / P1=1 / P2=0 + NO-GO`，唯一 finding 是历史 required-context Journal 在父删除 `SET NULL` 后被前端表单门禁阻断普通编辑。
 - [complete] 该 P1 已本地关闭：表单仅在 CREATE、`entryType` 改变或 resulting type 的 relevant contextual FK 被显式改变时恢复严格 context 校验；历史 NULL 上下文普通正文/状态编辑可提交，PATCH 不补造 `questId/seasonId`。新增运行时回归验证此行为；targeted `28/28`、full `759 passed / 314 skipped`、lint/build/deterministic `11/11`、diff-check 全绿。
 - [in_progress] Next gate: commit/push this P1 corrective head, require both exact-head CI jobs green, then run a fresh independent Round 3 re-review. Round 4 remains blocked until `P0=0 / P1=0 / P2=0 + GO`.
+
+### 2026-09-19 — Phase 8C Round 4 exit verification
+
+- [complete] Final Gatekeeper reviewed full baseline 7df500b1c764efd247938dcf3da4e83b6e2e8e45...adc4042fc3846d133d23cbe03fd5e24342c3c067 and returned P0=0 / P1=0 / P2=1 + NO-GO; the only finding was missing Journal context-filter UI required by §5.5.
+- [complete] Minimal corrective implementation adds Season and Quest context filters to /journey/journal, using the existing HTTP API seasonId / questId query contract only; no backend/domain authority changed.
+- [complete] Regression test now verifies Season and Quest filter selections are sent through /api/journal, while prior parent-deletion NULL-context edit coverage remains intact.
+- [complete] Local corrective gates: targeted 28/28; full 46 files passed / 22 skipped, 759 passed / 314 skipped; lint, production build, deterministic harness 11/11, and git diff --check pass. Frozen Phase8 docs and accepted Round 2 authority areas have zero new diff.
+- [in_progress] Next gate: commit/push the context-filter corrective head, require both exact-head CI jobs green, then run a fresh independent final Round 4 Gatekeeper over the full baseline diff.

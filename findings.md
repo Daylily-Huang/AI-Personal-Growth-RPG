@@ -118,3 +118,11 @@
 - The UI now mirrors the accepted Round 2 revalidation rule. Context is strict on CREATE, on `entryType` change, or when a contextual FK relevant to the resulting type is explicitly changed. Historical parent-deletion `NULL` is preserved for unrelated edits.
 - Added a runtime regression for a historical `QUEST_REFLECTION` with `questId=null`: the context select is not required, content edit submits successfully, and PATCH omits both `questId` and `seasonId` rather than inventing a replacement link.
 - Closure gates: targeted `28/28`; full suite `759 passed / 314 skipped`; `pnpm lint`, production build, deterministic harness `11/11`, and `git diff --check` pass. Frozen `docs/Phase8/00–12` and accepted Round 2 production-authority paths remain unchanged.
+
+## 2026-09-19 — Phase 8C Round 4 Gatekeeper P2 corrective
+
+- Final Round 4 Gatekeeper on exact head dc4042fc3846d133d23cbe03fd5e24342c3c067 found no P0/P1 and one P2: /journey/journal exposed type/archive filters but no user-visible context filters even though controlling document §5.5 requires filters appropriate to entry type/context/archive state.
+- Backend inspection confirms GET /api/journal already accepts seasonId and questId; ctivityId is not a list filter. The correction therefore stays entirely in the Journey Journal UI and its regression test.
+- Added accessible 赛季筛选 and 任务筛选 selects using the already-loaded Season/Quest context lists. Selected UUIDs are appended to URLSearchParams and participate in loadEntries dependencies.
+- Regression verifies seasonId and combined seasonId + questId requests through the HTTP API. No direct Supabase/RPC path, no Journal authority expansion, and no XP/Mastery/Evidence coupling were introduced.
+- Closure gates: targeted 28/28; full 759 passed / 314 skipped; ESLint and production build pass; deterministic harness 11/11; git diff --check pass. Frozen Phase8 docs and accepted Round 2 production-authority paths remain unchanged.
