@@ -443,6 +443,54 @@ describe.skipIf(!DATABASE_URL)("Phase 8B Round 2 — deterministic RPC authority
     });
   });
 
+  test("concurrent WEEKLY exact replay with the same commit key returns one Review", async () => {
+    const seasonId = await insertDraftSeason("Concurrent weekly exact replay season");
+    await planSeason(seasonId);
+    await activateSeason(seasonId);
+
+    const clientA = await createUserClient(USER_A);
+    const clientB = await createUserClient(USER_A);
+    const commitKey = randomUUID();
+    try {
+      const periodStart = new Date(Date.now() - 7 * 86400000).toISOString();
+      const periodEnd = new Date().toISOString();
+      const results = await Promise.allSettled([
+        clientA.query(
+          `select public.rpc_finalize_season_review($1, 'WEEKLY', $2::timestamptz, $3::timestamptz, '{}'::jsonb, 'same-key retry', '[]'::jsonb, null, $4::uuid) as result`,
+          [seasonId, periodStart, periodEnd, commitKey],
+        ),
+        clientB.query(
+          `select public.rpc_finalize_season_review($1, 'WEEKLY', $2::timestamptz, $3::timestamptz, '{}'::jsonb, 'same-key retry', '[]'::jsonb, null, $4::uuid) as result`,
+          [seasonId, periodStart, periodEnd, commitKey],
+        ),
+      ]);
+
+      expect(results.every((result) => result.status === "fulfilled")).toBe(true);
+      const fulfilled = results.filter((result) => result.status === "fulfilled");
+      const ids = fulfilled.map((result) => result.value.rows[0].result.review.id);
+      expect(new Set(ids).size).toBe(1);
+      expect(fulfilled.filter((result) => result.value.rows[0].result.replayed === true)).toHaveLength(1);
+
+      const stored = await pg.query(
+        `select id, version from public.season_reviews
+         where season_id = $1 and review_type = 'WEEKLY' and commit_key = $2`,
+        [seasonId, commitKey],
+      );
+      expect(stored.rows).toHaveLength(1);
+      expect(stored.rows[0].version).toBe(1);
+    } finally {
+      await clientA.end();
+      await clientB.end();
+    }
+
+    await asUser(USER_A, async () => {
+      await pg.query(
+        `select public.rpc_conclude_season($1, 'ABANDONED', null, null, 'same-key replay cleanup', $2)`,
+        [seasonId, `cleanup-${randomUUID()}`],
+      );
+    });
+  });
+
   test("FINAL amendment creates N+1 without reopening or changing season timestamps", async () => {
     const seasonId = await insertDraftSeason("Final amendment season");
     await planSeason(seasonId);
@@ -553,6 +601,63 @@ describe.skipIf(!DATABASE_URL)("Phase 8B Round 2 — deterministic RPC authority
 
     const terminalAfter = await pg.query(`select status, started_at, ended_at from public.seasons where id = $1`, [seasonId]);
     expect(terminalAfter.rows[0]).toEqual(terminalBefore.rows[0]);
+  });
+
+  test("concurrent FINAL amendment exact replay with the same commit key inserts one version", async () => {
+    const seasonId = await insertDraftSeason("Concurrent final exact replay season");
+    await planSeason(seasonId);
+    await activateSeason(seasonId);
+
+    const initialPayload = {
+      period_start: new Date(Date.now() - 4 * 86400000).toISOString(),
+      period_end: new Date().toISOString(),
+      objective_summary: { outcome: "met" },
+      qualitative_reflection: "Initial exact replay final review",
+      criteria_evaluation: [],
+    };
+    await asUser(USER_A, async () => {
+      await pg.query(
+        `select public.rpc_conclude_season($1, 'COMPLETED', $2::jsonb, $3::uuid, null, $4)`,
+        [seasonId, JSON.stringify(initialPayload), randomUUID(), `conclude-${randomUUID()}`],
+      );
+    });
+
+    const amendedPayload = JSON.stringify({
+      ...initialPayload,
+      qualitative_reflection: "Same exact amendment",
+    });
+    const commitKey = randomUUID();
+    const clientA = await createUserClient(USER_A);
+    const clientB = await createUserClient(USER_A);
+    try {
+      const results = await Promise.allSettled([
+        clientA.query(
+          `select public.rpc_amend_final_season_review($1, $2::jsonb, 'same correction', $3::uuid, $4) as result`,
+          [seasonId, amendedPayload, commitKey, `amend-a-${randomUUID()}`],
+        ),
+        clientB.query(
+          `select public.rpc_amend_final_season_review($1, $2::jsonb, 'same correction', $3::uuid, $4) as result`,
+          [seasonId, amendedPayload, commitKey, `amend-b-${randomUUID()}`],
+        ),
+      ]);
+
+      expect(results.every((result) => result.status === "fulfilled")).toBe(true);
+      const fulfilled = results.filter((result) => result.status === "fulfilled");
+      const ids = fulfilled.map((result) => result.value.rows[0].result.review.id);
+      expect(new Set(ids).size).toBe(1);
+      expect(fulfilled.filter((result) => result.value.rows[0].result.replayed === true)).toHaveLength(1);
+
+      const stored = await pg.query(
+        `select version from public.season_reviews
+         where season_id = $1 and review_type = 'FINAL'
+         order by version`,
+        [seasonId],
+      );
+      expect(stored.rows.map((row) => row.version)).toEqual([1, 2]);
+    } finally {
+      await clientA.end();
+      await clientB.end();
+    }
   });
 
   test("proposal CAS: accepted SEASON_PLAN commits once; exact replay returns same entity; distinct retry conflicts", async () => {
@@ -704,6 +809,53 @@ describe.skipIf(!DATABASE_URL)("Phase 8B Round 2 — deterministic RPC authority
       [proposalId],
     );
     expect(proposal.rows[0].resulting_entity_id).toBeNull();
+  });
+
+  test("expired proposal materializes EXPIRED without creating domain state", async () => {
+    const proposalId = randomUUID();
+    const payload = {
+      title: "Expired proposal season",
+      target_start_date: new Date().toISOString().slice(0, 10),
+      duration_days: 28,
+      success_criteria: [],
+    };
+    await pg.query(
+      `insert into public.outer_loop_proposals
+         (id, user_id, proposal_type, schema_version, payload, created_at, expires_at)
+       values ($1, $2, 'SEASON_PLAN', 1, $3::jsonb,
+               clock_timestamp() - interval '15 days', clock_timestamp() - interval '1 day')`,
+      [proposalId, USER_A, JSON.stringify(payload)],
+    );
+
+    await asUser(USER_A, async () => {
+      const expired = await pg.query(
+        `select public.rpc_review_outer_loop_proposal($1, 'ACCEPTED', null, null, $2) as result`,
+        [proposalId, `expired-${randomUUID()}`],
+      );
+      expect(expired.rows[0].result.error_code).toBe("PROPOSAL_EXPIRED");
+      expect(expired.rows[0].result.proposal.status).toBe("EXPIRED");
+      expect(expired.rows[0].result.proposal.decision).toBeNull();
+
+      const replay = await pg.query(
+        `select public.rpc_review_outer_loop_proposal($1, 'ACCEPTED', null, null, $2) as result`,
+        [proposalId, `expired-retry-${randomUUID()}`],
+      );
+      expect(replay.rows[0].result.error_code).toBe("PROPOSAL_EXPIRED");
+      expect(replay.rows[0].result.replayed).toBe(true);
+    });
+
+    const proposal = await pg.query(
+      `select status, decision, resulting_entity_id from public.outer_loop_proposals where id = $1`,
+      [proposalId],
+    );
+    expect(proposal.rows[0]).toMatchObject({ status: "EXPIRED", decision: null, resulting_entity_id: null });
+
+    const audit = await pg.query(
+      `select count(*)::int as count from public.outer_loop_audit_events
+       where user_id = $1 and entity_id = $2 and event_type = 'PROPOSAL_EXPIRED'`,
+      [USER_A, proposalId],
+    );
+    expect(audit.rows[0].count).toBe(1);
   });
 
   test("proposal CAS: concurrent reviewers produce exactly one winner and one loser", async () => {

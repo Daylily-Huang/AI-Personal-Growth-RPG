@@ -550,6 +550,18 @@ BEGIN
     RAISE EXCEPTION 'SCHEMA_VALIDATION_FAILED' USING ERRCODE = '22023';
   END IF;
 
+  SELECT * INTO v_season
+  FROM public.seasons
+  WHERE id = p_season_id AND user_id = v_user_id
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'SEASON_NOT_FOUND' USING ERRCODE = 'P0002';
+  END IF;
+
+  -- Serialize exact commit-key replay behind the parent Season lock. Without
+  -- this recheck, two concurrent requests can both miss the key and the loser
+  -- surfaces a unique violation instead of replaying the committed Review.
   SELECT * INTO v_existing
   FROM public.season_reviews
   WHERE user_id = v_user_id AND commit_key = p_commit_key;
@@ -561,14 +573,6 @@ BEGIN
     RAISE EXCEPTION 'COMMIT_KEY_REUSED' USING ERRCODE = '23505';
   END IF;
 
-  SELECT * INTO v_season
-  FROM public.seasons
-  WHERE id = p_season_id AND user_id = v_user_id
-  FOR UPDATE;
-
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'SEASON_NOT_FOUND' USING ERRCODE = 'P0002';
-  END IF;
   IF v_season.status <> 'ACTIVE' THEN
     RAISE EXCEPTION 'SEASON_NOT_ACTIVE' USING ERRCODE = '23514';
   END IF;
@@ -685,6 +689,17 @@ BEGIN
     RAISE EXCEPTION 'SCHEMA_VALIDATION_FAILED' USING ERRCODE = '22023';
   END IF;
 
+  SELECT * INTO v_season
+  FROM public.seasons
+  WHERE id = p_season_id AND user_id = v_user_id
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'SEASON_NOT_FOUND' USING ERRCODE = 'P0002';
+  END IF;
+
+  -- As with periodic Reviews, the parent lock must be acquired before the
+  -- durable commit-key replay check so concurrent exact retries converge.
   SELECT * INTO v_existing
   FROM public.season_reviews
   WHERE user_id = v_user_id AND commit_key = p_commit_key;
@@ -710,14 +725,6 @@ BEGIN
     RAISE EXCEPTION 'SCHEMA_VALIDATION_FAILED' USING ERRCODE = '22023';
   END IF;
 
-  SELECT * INTO v_season
-  FROM public.seasons
-  WHERE id = p_season_id AND user_id = v_user_id
-  FOR UPDATE;
-
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'SEASON_NOT_FOUND' USING ERRCODE = 'P0002';
-  END IF;
   IF v_season.status NOT IN ('COMPLETED', 'ENDED_EARLY') THEN
     RAISE EXCEPTION 'SEASON_NOT_TERMINAL' USING ERRCODE = '23514';
   END IF;
@@ -989,6 +996,16 @@ BEGIN
     RAISE EXCEPTION 'PROPOSAL_NOT_FOUND' USING ERRCODE = 'P0002';
   END IF;
 
+  IF v_current.status = 'EXPIRED' THEN
+    RETURN jsonb_build_object(
+      'proposal', to_jsonb(v_current),
+      'resulting_entity_type', NULL,
+      'resulting_entity_id', NULL,
+      'error_code', 'PROPOSAL_EXPIRED',
+      'replayed', true
+    );
+  END IF;
+
   IF v_current.status <> 'PROPOSED' THEN
     IF v_current.review_request_idempotency_key = p_review_request_idempotency_key
        AND v_current.status = p_decision THEN
@@ -1003,7 +1020,56 @@ BEGIN
   END IF;
 
   IF v_current.expires_at <= clock_timestamp() THEN
-    RAISE EXCEPTION 'PROPOSAL_EXPIRED' USING ERRCODE = '22023';
+    UPDATE public.outer_loop_proposals
+    SET status = 'EXPIRED'
+    WHERE id = p_proposal_id
+      AND user_id = v_user_id
+      AND status = 'PROPOSED'
+    RETURNING * INTO v_proposal;
+
+    IF NOT FOUND THEN
+      SELECT * INTO v_current
+      FROM public.outer_loop_proposals
+      WHERE id = p_proposal_id AND user_id = v_user_id;
+
+      IF v_current.status = 'EXPIRED' THEN
+        RETURN jsonb_build_object(
+          'proposal', to_jsonb(v_current),
+          'resulting_entity_type', NULL,
+          'resulting_entity_id', NULL,
+          'error_code', 'PROPOSAL_EXPIRED',
+          'replayed', true
+        );
+      END IF;
+
+      IF v_current.review_request_idempotency_key = p_review_request_idempotency_key
+         AND v_current.status = p_decision THEN
+        RETURN jsonb_build_object(
+          'proposal', to_jsonb(v_current),
+          'resulting_entity_type', v_current.resulting_entity_type,
+          'resulting_entity_id', v_current.resulting_entity_id,
+          'replayed', true
+        );
+      END IF;
+      RAISE EXCEPTION 'PROPOSAL_ALREADY_REVIEWED' USING ERRCODE = '23514';
+    END IF;
+
+    PERFORM public.phase8b_write_audit(
+      v_user_id,
+      'PROPOSAL_EXPIRED',
+      'outer_loop_proposals',
+      p_proposal_id,
+      'phase8b:proposal-expired:' || p_proposal_id::text,
+      jsonb_build_object('expires_at', v_proposal.expires_at)
+    );
+
+    RETURN jsonb_build_object(
+      'proposal', to_jsonb(v_proposal),
+      'resulting_entity_type', NULL,
+      'resulting_entity_id', NULL,
+      'error_code', 'PROPOSAL_EXPIRED',
+      'replayed', false
+    );
   END IF;
 
   IF p_decision = 'EDITED' THEN

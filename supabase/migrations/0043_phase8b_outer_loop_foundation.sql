@@ -208,8 +208,8 @@ SET search_path = public, pg_temp
 AS $$
 BEGIN
   IF current_user = 'authenticated'
-     AND OLD.status IN ('ACTIVE', 'COMPLETED', 'ENDED_EARLY', 'ABANDONED') THEN
-    RAISE EXCEPTION 'A Season that reached ACTIVE cannot be hard-deleted'
+     AND OLD.status NOT IN ('DRAFT', 'PLANNED') THEN
+    RAISE EXCEPTION 'Only DRAFT or PLANNED Seasons can be hard-deleted'
       USING ERRCODE = '42501';
   END IF;
   RETURN OLD;

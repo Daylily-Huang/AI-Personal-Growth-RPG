@@ -167,7 +167,22 @@ describe.skipIf(!DATABASE_URL)("Phase 8B Round 1 — DB foundation authority", (
     await asUser(USER_A, async () => {
       await expect(
         pg.query(`delete from public.seasons where id = $1`, [SEASON_A_TERMINAL]),
-      ).rejects.toThrow(/reached ACTIVE/i);
+      ).rejects.toThrow(/Only DRAFT or PLANNED/i);
+    });
+  });
+
+  test("CANCELLED Season is terminal history and cannot be hard-deleted", async () => {
+    const cancelled = await pg.query(
+      `insert into public.seasons (user_id, name, status)
+       values ($1, 'Cancelled before activation', 'CANCELLED')
+       returning id`,
+      [USER_A],
+    );
+
+    await asUser(USER_A, async () => {
+      await expect(
+        pg.query(`delete from public.seasons where id = $1`, [cancelled.rows[0].id]),
+      ).rejects.toThrow(/Only DRAFT or PLANNED/i);
     });
   });
 

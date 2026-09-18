@@ -343,13 +343,18 @@ export class Phase8BRepository {
     editedPayload?: JsonRecord | null,
     rejectionReason?: string | null,
   ): Promise<unknown> {
-    return this.rpc("rpc_review_outer_loop_proposal", {
+    const result = await this.rpc("rpc_review_outer_loop_proposal", {
       p_proposal_id: proposalId,
       p_decision: decision,
       p_edited_payload: editedPayload ?? null,
       p_rejection_reason: rejectionReason ?? null,
       p_review_request_idempotency_key: reviewRequestIdempotencyKey,
     });
+    const payload = asRecord(result, "review proposal result");
+    if (payload.error_code === "PROPOSAL_EXPIRED") {
+      throw new Phase8BRepositoryError({ message: "PROPOSAL_EXPIRED", code: "22023" });
+    }
+    return result;
   }
 
   private async rpc(name: string, args: JsonRecord): Promise<unknown> {

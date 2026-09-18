@@ -21,7 +21,7 @@ import { POST as finalizeSeasonReview } from "@/app/api/seasons/[id]/reviews/rou
 import { POST as reviewProposal } from "@/app/api/outer-loop/proposals/[id]/review/route";
 import { getPhase8BRepository } from "@/lib/outer-loop/request";
 import { getPhase8BService } from "@/lib/outer-loop/service";
-import { Phase8BRepositoryError } from "@/lib/outer-loop/repository";
+import { Phase8BRepository, Phase8BRepositoryError } from "@/lib/outer-loop/repository";
 import { AuthRequiredError } from "@/lib/store/request-repository";
 
 function jsonRequest(url: string, method: string, body: unknown): Request {
@@ -134,6 +134,24 @@ describe("Phase 8B Round 3 — HTTP adapters", () => {
     expect(deleteUnactivated).toHaveBeenCalledWith(id);
   });
 
+  test("product DELETE fails closed for a CANCELLED Season", async () => {
+    const id = randomUUID();
+    const deleteUnactivated = vi.fn().mockRejectedValue(
+      new Phase8BRepositoryError({
+        message: "Only DRAFT or PLANNED Seasons can be hard-deleted",
+        code: "42501",
+      }),
+    );
+    vi.mocked(getPhase8BRepository).mockResolvedValue({ deleteUnactivated } as never);
+
+    const response = await deleteSeason(new Request(`http://localhost/api/seasons/${id}`, { method: "DELETE" }), {
+      params: Promise.resolve({ id }),
+    });
+
+    expect(response.status).toBe(403);
+    expect(deleteUnactivated).toHaveBeenCalledWith(id);
+  });
+
   test("plan route rejects duration outside 14..84 before RPC invocation", async () => {
     const id = randomUUID();
     const plan = vi.fn();
@@ -229,5 +247,60 @@ describe("Phase 8B Round 3 — HTTP adapters", () => {
       { name: "Edited season" },
       null,
     );
+  });
+
+  test("proposal review maps PROPOSAL_EXPIRED to HTTP 422", async () => {
+    const proposalId = randomUUID();
+    const reviewProposalError = new Phase8BRepositoryError({ message: "PROPOSAL_EXPIRED", code: "22023" });
+    vi.mocked(getPhase8BRepository).mockResolvedValue({
+      reviewProposal: vi.fn().mockRejectedValue(reviewProposalError),
+    } as never);
+
+    const response = await reviewProposal(jsonRequest(`http://localhost/api/outer-loop/proposals/${proposalId}/review`, "POST", {
+      decision: "ACCEPTED",
+      reviewRequestIdempotencyKey: "expired-proposal-review",
+    }), { params: Promise.resolve({ id: proposalId }) });
+
+    expect(response.status).toBe(422);
+    await expect(response.json()).resolves.toMatchObject({ code: "PROPOSAL_EXPIRED" });
+  });
+
+  test("review schema failures map to HTTP 422", async () => {
+    const seasonId = randomUUID();
+    vi.mocked(getPhase8BRepository).mockResolvedValue({
+      finalizeReview: vi.fn().mockRejectedValue(
+        new Phase8BRepositoryError({ message: "SCHEMA_VALIDATION_FAILED", code: "22023" }),
+      ),
+    } as never);
+
+    const response = await finalizeSeasonReview(jsonRequest(`http://localhost/api/seasons/${seasonId}/reviews`, "POST", {
+      reviewType: "WEEKLY",
+      periodStart: "2026-09-01T00:00:00Z",
+      periodEnd: "2026-09-07T00:00:00Z",
+      objectiveSummary: {},
+      qualitativeReflection: "review",
+      criteriaEvaluation: [],
+      commitKey: randomUUID(),
+    }), { params: Promise.resolve({ id: seasonId }) });
+
+    expect(response.status).toBe(422);
+    await expect(response.json()).resolves.toMatchObject({ code: "SCHEMA_VALIDATION_FAILED" });
+  });
+
+  test("repository converts persisted proposal expiry outcome into a domain error", async () => {
+    const proposalId = randomUUID();
+    const rpc = vi.fn().mockResolvedValue({
+      data: {
+        proposal: { id: proposalId, status: "EXPIRED" },
+        error_code: "PROPOSAL_EXPIRED",
+        replayed: false,
+      },
+      error: null,
+    });
+    const repo = new Phase8BRepository({ rpc } as never, randomUUID());
+
+    await expect(
+      repo.reviewProposal(proposalId, "ACCEPTED", "expired-repository-review"),
+    ).rejects.toMatchObject({ message: "PROPOSAL_EXPIRED", code: "22023" });
   });
 });

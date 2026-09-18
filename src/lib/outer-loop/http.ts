@@ -91,7 +91,14 @@ export function phase8BErrorResponse(error: unknown, fallback: string): NextResp
   ) {
     return NextResponse.json({ error: message || fallback, code: domainCode ?? "CONFLICT" }, { status: 409 });
   }
-  if (dbCode === "22023" || signal.includes("INVALID_") || signal.includes("MISSING_") || signal.includes("PROPOSAL_EXPIRED")) {
+  if (
+    signal.includes("PROPOSAL_EXPIRED") ||
+    signal.includes("PAYLOAD_VALIDATION_FAILED") ||
+    signal.includes("SCHEMA_VALIDATION_FAILED")
+  ) {
+    return NextResponse.json({ error: message || fallback, code: domainCode ?? "UNPROCESSABLE_ENTITY" }, { status: 422 });
+  }
+  if (dbCode === "22023" || signal.includes("INVALID_") || signal.includes("MISSING_")) {
     return NextResponse.json({ error: message || fallback, code: domainCode ?? "INVALID_INPUT" }, { status: 400 });
   }
 
