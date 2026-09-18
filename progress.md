@@ -38,6 +38,17 @@
 - Phase 8B DoD 独立审查与最终 merge gate 均满足，状态更新为 **FINAL FROZEN**；Phase 8C 尚未启动。
 - 新增归档：`docs/Phase8/15_PHASE8B_GATEKEEPER_REREVIEW_AND_FINAL_FREEZE.md`。
 
+## 2026-09-18 — Phase 8C controlling document 审查与草拟
+
+- 已从 `main` 基线 `7df500b1c764efd247938dcf3da4e83b6e2e8e45` 创建文档分支 `codex/phase8c-controlling-review`。
+- 已完成 AGENTS.md 要求的 Design ChatGPT 01–09 前置规则阅读（本轮补完 04–09），并复核 Phase 8 冻结架构的 Journal/State、DB、API/RPC、测试、安全与 phase ordering 边界。
+- 已确认关键 O011 编号冲突：Phase 8C 控制文档将采用 supplemental `C011_JOURNAL_STATE_NOT_CAPABILITY`，不篡改 frozen canonical O011。
+- 当前只进入 controlling-document planning/drafting；Phase 8C production implementation 仍为 BLOCKED，等待后续独立 Gatekeeper GO。
+- 已新增 `docs/Phase8/16_PHASE8C_JOURNAL_STATE_IMPLEMENTATION_CONTROLLING.md` 草案；状态明确为 `DRAFT — PENDING INDEPENDENT GATEKEEPER; PRODUCTION IMPLEMENTATION BLOCKED`。
+- 草案已封口三处架构歧义：O011 编号冲突、hard-delete 未闭合契约、WEEKLY_REFLECTION 描述中的 Review link 与冻结 schema 不一致。
+- 首轮文档校验发现并修复尾随空格：`git diff --check` 命中 `task_plan.md` 1 处；同时清理新 controlling draft 头部用于 Markdown 强制换行的尾随空格，避免提交门禁噪声。
+- 最终文档门禁通过：`git diff --cached --check` 无错误；四个修改文件均为有效 UTF-8 且无 NUL；无 `src/`、`supabase/`、`tests/` 或冻结 Phase 8 00–12 变更；现有用户未跟踪文件保持未触碰。
+
 ## 关键里程碑归档记录
 
 - **Stage 0~4 业务核心已冻结**：

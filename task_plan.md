@@ -1,9 +1,9 @@
 # AI Personal Growth RPG — 项目总体计划与当前状态 (Task Plan)
 
 > **权威状态主文档**：请统一参阅 [`docs/MASTER_PROJECT_HANDOFF.md`](docs/MASTER_PROJECT_HANDOFF.md)。  
-> **当前里程碑**: Phase 8B — Season & Review 权威实现（FINAL FROZEN）；Phase 8C 尚未启动
-> **当前主分支基线 (main)**: `0e4bec5f26411669f7031af4523b6d4fca747f96`  
-> **最新状态**: Phase 8B corrective exact head `ae35a63ab15abab6c6e7fafd06fd51281ab6e634` 已通过独立 Gatekeeper 复审（`P0=0 / P1=0 / P2=0 + GO`）与 Exact-Head CI Run `35310121814`；PR #33 已合入 main（merge `0e4bec5f26411669f7031af4523b6d4fca747f96`），post-merge main CI Run `35315613393` 全绿。Phase 8B 正式 FINAL FROZEN；Phase 8C 尚未启动。
+> **当前里程碑**: Phase 8B — Season & Review 权威实现（FINAL FROZEN）；Phase 8C controlling-document 审查/草拟中，生产实现尚未启动
+> **当前主分支基线 (main)**: `7df500b1c764efd247938dcf3da4e83b6e2e8e45`
+> **最新状态**: Phase 8B corrective exact head `ae35a63ab15abab6c6e7fafd06fd51281ab6e634` 已通过独立 Gatekeeper 复审（`P0=0 / P1=0 / P2=0 + GO`）；PR #33 已合入 main（merge `0e4bec5f26411669f7031af4523b6d4fca747f96`），Phase 8B 正式 FINAL FROZEN。当前 main 已推进至 PR #34 merge `7df500b1c764efd247938dcf3da4e83b6e2e8e45`；Phase 8C 仅进入 controlling-document 流程，production implementation 仍为 BLOCKED。
 
 ---
 
@@ -50,3 +50,13 @@
   - [complete] Corrective exact head `ae35a63ab15abab6c6e7fafd06fd51281ab6e634` 已关闭旧 Gatekeeper 的 P1-01/P1-02/P2-01/P2-02；独立复审结果 `P0=0 / P1=0 / P2=0 + GO`，Exact-Head CI Run `35310121814` 全绿
   - [complete] PR #33 已合入 main：merge `0e4bec5f26411669f7031af4523b6d4fca747f96`；post-merge main CI Run `35315613393` 全绿，DoD 最终 merge gate 已满足
 - [pending] **Phase 8C**: 尚未启动；开始生产实现前必须建立阶段 controlling document 并完成独立 Gatekeeper 准入
+
+## 2026-09-18 — Phase 8C Journal + State Controlling Document
+
+- [in_progress] 独立复核冻结的 Phase 8 架构包与当前 Phase 8B FINAL FROZEN 基线。
+- [complete] 起草 `docs/Phase8/16_PHASE8C_JOURNAL_STATE_IMPLEMENTATION_CONTROLLING.md`。
+- [complete] 文档一致性、编码、diff 与生产目录零改动校验通过。
+- [in_progress] 提交并推送 `codex/phase8c-controlling-review`，供独立 Gatekeeper 审查。
+- [pending] 对 controlling document 做独立 Gatekeeper 审查；只有 `P0=0 / P1=0 / P2=0 + GO` 后才允许 Phase 8C 生产实现。
+- 当前实现入口基线：`main` / `origin/main` = `7df500b1c764efd247938dcf3da4e83b6e2e8e45`。
+- 本轮只允许文档/治理变更；不创建 migration、API、repository、UI 或 AI 生产实现。

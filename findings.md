@@ -29,6 +29,17 @@
    - **键盘与弹层焦点生命周期**：ReactFlow 拓扑图与原生表格替代视图双轨支持，Modal / Drawer Escape 捕获与焦点恢复规范化。
    - **CI 治理隔离**：post-merge push-to-main CI 失败（Run `34708617506`）经独立审查确认仅来源于 `tests/phase5-quests-ui.test.tsx` 与 `tests/phase5-skills-ui.test.tsx` 的 merge-base delta guard 兼容性（`KNOWN PUSH-TO-MAIN GOVERNANCE GUARD INCOMPATIBILITY`），不撤销 Phase 7 终局冻结效力。
 
+## 2026-09-18 — Phase 8C 架构复核结论
+
+- Phase 8B 已 FINAL FROZEN，当前 `main` / `origin/main` 精确基线为 `7df500b1c764efd247938dcf3da4e83b6e2e8e45`；Phase 8C 生产实现尚未开始。
+- Phase 8C 冻结范围是单表 `journal_entries` + 7 个主观状态标量；不建立独立 State 表，不建立 `journal_evidence`。
+- Journal/State 仅是主观上下文：不得产生或扣除 XP，不得改变 Mastery，不得满足 Evidence，也不得修改永久 Character/Growth Core 状态。
+- Journal 正常写路径应采用 authenticated direct repository write + RLS/tenant trigger；Phase 8A 未授权 journal authoritative RPC，若后续需要新增 RPC 应走 ADR/change control。
+- Phase 8C 正常删除 UX 以 `is_archived` 为准；冻结文档中的 hard-delete 文字与当前 finalized-reference schema 尚未形成完整可执行契约，因此 hard delete 不作为 Phase 8C DoD。
+- AI 在 8C 最多产生 `JOURNAL_INSIGHT` advisory proposal/preview；不得自动改写 Journal，不得创建/提交 Strategy，Strategy authority 属于 8D。
+- 发现冻结文档编号冲突：`12_INFORMATION_ARCHITECTURE_AND_PHASE_PLAN.md` 把 Phase 8C exit gate 写成 O007/O011/O018，但 `11_TESTING_SECURITY_AND_HARNESS_PLAN.md` 的 canonical O011 实际是 Focus Time 不能直接产生 XP/Reward。不得静默重编号冻结 O011；Phase 8C 应补充独立断言 `C011_JOURNAL_STATE_NOT_CAPABILITY`，并保留 canonical O007/O018。
+- `04_JOURNAL_AND_STATE_SPEC.md` 描述 `WEEKLY_REFLECTION` 可带 Review link，但冻结 `journal_entries` schema 没有 `review_id` / `season_review_id`。Phase 8C 不应自行加字段；本轮 controlling draft 明确只保留现有 Season/Quest/Activity context links。
+
 ## 2026-09-17 — Phase 8B CI 证据
 
 - Draft PR #33 当前实现提交：`b94d12708fccd205ff716ccb67fd994b81bd9b0a`；GitHub Actions Run `35118406738`。
