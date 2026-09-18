@@ -58,7 +58,9 @@
 - [complete] 文档一致性、编码、diff 与生产目录零改动校验通过。
 - [complete] 已提交并推送 `codex/phase8c-controlling-review`，Draft PR #35 已建立。
 - [complete] 独立 Gatekeeper 初审 exact head `d83c324b...`：`P0=0 / P1=2 / P2=0 — NO-GO`。
-- [in_progress] 修正 P1-01（authoring context vs FK SET NULL）与 P1-02（JOURNAL_INSIGHT proposal settlement 未授权），随后提交并发起独立 exact-head 复审。
+- [complete] 首轮修正 P1-01（authoring context vs FK SET NULL）与 P1-02（JOURNAL_INSIGHT proposal settlement 未授权），corrective head `e40cd4cf...` 已完成独立 exact-head 复审。
+- [complete] 该复审结果为 `P0=0 / P1=1 / P2=0 — NO-GO`：P1-02 已关闭；新增 P1-01R 指出父删除后历史 Journal 若在所有 edit 上重跑 context 必填校验，将违反冻结的可编辑/可归档生命周期。
+- [in_progress] 第二轮修正 P1-01R：CREATE 必检；UPDATE 仅在显式变更 `entry_type` / relevant contextual FK 时重检；父删除后普通 content/state/edit/archive 操作继续允许。完成后提交并重新 exact-head 复审。
 - [pending] 未取得复审 `P0=0 / P1=0 / P2=0 + GO` 前，Phase 8C production implementation 保持 BLOCKED。
 - [pending] 对 controlling document 做独立 Gatekeeper 审查；只有 `P0=0 / P1=0 / P2=0 + GO` 后才允许 Phase 8C 生产实现。
 - 当前实现入口基线：`main` / `origin/main` = `7df500b1c764efd247938dcf3da4e83b6e2e8e45`。

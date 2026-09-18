@@ -52,6 +52,8 @@
 - 已创建 Draft PR #35：`docs: draft Phase 8C Journal + State controlling document`；下一治理步骤是由独立 Gatekeeper 对 PR exact head 做只读审查，当前不授权生产实现。
 - 独立只读 Gatekeeper 使用单独 Codex 会话审查 exact head `d83c324b4666816359f8b86df87bafca4bf4aa22`，结果 `P0=0 / P1=2 / P2=0 — NO-GO`；tracked worktree/index 未被 reviewer 修改。
 - 已按两项 finding 做最小 controlling-document 修正：authoring-time context 与 FK `ON DELETE SET NULL` 解耦并增加 parent-deletion regression；`JOURNAL_INSIGHT` 全面延期出 Phase 8C production scope。
+- corrective head `e40cd4cf248c82f77a980ff841d6f20c6b6834e2` 的独立复审结果为 `P0=0 / P1=1 / P2=0 — NO-GO`：P1-02 已关闭；P1-01R 发现 parent deletion 后 context FK 合法变 NULL 的历史 Journal 会被“每次 deliberate edit 重检 context”规则阻断普通编辑。
+- 第二轮最小修正已收窄 UPDATE 校验：仅显式变更 `entry_type` 或 relevant contextual FK 时重检；父删除后的普通 content/state edit 与 archive/unarchive 保持允许，并新增对应 acceptance coverage。
 
 ## 关键里程碑归档记录
 

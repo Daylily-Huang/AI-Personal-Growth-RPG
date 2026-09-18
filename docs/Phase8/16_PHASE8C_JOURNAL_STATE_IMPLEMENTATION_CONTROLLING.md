@@ -244,7 +244,9 @@ The frozen Journal taxonomy defines the following **authoring-time context requi
 - `SEASON_REFLECTION` requires non-null `season_id`.
 - `FAILURE_POSTMORTEM` requires at least one of `quest_id` or `season_id`.
 
-These requirements must be enforced when the user creates or deliberately edits the Journal entry. They must **not** be encoded as database CHECK constraints that would make the frozen `ON DELETE SET NULL` FK behavior impossible.
+These requirements must be enforced on **CREATE** against the resulting Journal entry. On **UPDATE**, the contextual requirement is revalidated only when the user explicitly changes `entry_type` or one of the contextual FKs relevant to that entry type. An explicit user update that removes a still-required contextual FK must be rejected.
+
+Ordinary edits to content, subjective state, other non-context user-editable fields, and archive/unarchive must remain allowed for a historical Journal row whose required contextual FK became `NULL` only because an accepted parent deletion executed the frozen `ON DELETE SET NULL` behavior. These requirements must **not** be encoded as database CHECK constraints that would make that frozen FK behavior impossible.
 
 If a linked parent entity is later legitimately hard-deleted under its own frozen authority, the FK may become `NULL` and the existing Journal row remains valid historical reflection. Parent deletion must not rewrite `entry_type`, content, state scalars, or timestamps other than any system-managed update behavior explicitly accepted by the implementation contract.
 
@@ -535,6 +537,8 @@ Phase 8C must prove that authoring-time context requirements do not break the fr
 - create a valid `QUEST_REFLECTION` linked to an owned Quest, then legitimately delete that Quest through its existing authority; the Journal row remains and `quest_id` becomes `NULL`;
 - create a valid `SEASON_REFLECTION` linked to a Season that is legally hard-deletable under the frozen Season rules, then delete the Season; the Journal row remains and `season_id` becomes `NULL`;
 - create a valid `FAILURE_POSTMORTEM` with eligible Quest/Season context, then exercise a legal parent deletion that removes its last surviving contextual FK; the Journal row remains historical rather than blocking the parent deletion;
+- after each legal parent-deletion case above, an ordinary `content_markdown` edit and archive/unarchive operation succeeds without inventing a replacement parent link;
+- an explicit user update that changes `entry_type` or removes/changes a contextual FK must still satisfy the resulting entry type's contextual requirement;
 - none of these parent deletions may mutate Journal content, state scalars, Evidence, XP, Mastery, or Quest/Season history beyond the parent operation itself.
 
 ### 10.5 AI non-scope guard
@@ -564,7 +568,7 @@ Round 1 must pass before application write adapters begin.
 - implement authenticated create/read/list/update/archive operations;
 - derive tenant identity from auth;
 - preserve client-generated UUID support;
-- enforce entry-type context requirements at authoring/update boundaries without defeating FK `ON DELETE SET NULL`;
+- enforce entry-type context requirements on create and on explicit `entry_type` / relevant contextual-FK updates, while preserving ordinary edits and archive/unarchive for historical rows whose parent FK was nulled by accepted `ON DELETE SET NULL` behavior;
 - expose no Journal lifecycle RPC;
 - map validation/ownership failures consistently;
 - add O007, O018, C011, parent-deletion compatibility, and domain-contract tests.
@@ -660,6 +664,21 @@ Once accepted, the authorization remains deliberately narrow: Journal + State Co
 - Context requirements are now explicitly authoring/update-time domain validation, while legal parent deletion may null contextual FKs and preserve the Journal row.
 - Parent-deletion compatibility tests are mandatory.
 - `JOURNAL_INSIGHT` production integration is fully deferred from Phase 8C; no proposal/RPC authority extension is authorized.
+
+### First exact-head re-review — NO-GO
+
+- Reviewed exact head: `e40cd4cf248c82f77a980ff841d6f20c6b6834e2`
+- Base: `7df500b1c764efd247938dcf3da4e83b6e2e8e45`
+- Verdict: **NO-GO**
+- Findings: `P0 = 0 / P1 = 1 / P2 = 0`
+- P1-01R: the parent-delete path itself was repaired, but revalidating mandatory context on every deliberate edit would make a surviving historical row uneditable after its required FK became `NULL` through accepted `ON DELETE SET NULL` behavior.
+- P1-02: **CLOSED**; `JOURNAL_INSIGHT` production integration is fully deferred from Phase 8C.
+
+### Second corrective changes
+
+- Mandatory context is validated on create and when the user explicitly changes `entry_type` or a relevant contextual FK.
+- Ordinary content/state edits and archive/unarchive remain valid after an accepted parent deletion nulls the contextual FK.
+- Parent-deletion compatibility tests now require post-delete content editing and archive/unarchive coverage, while explicit user removal/change of required context remains fail-closed.
 
 ### Re-review
 
