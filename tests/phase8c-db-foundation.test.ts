@@ -115,7 +115,10 @@ describe.skipIf(!DATABASE_URL)("Phase 8C Round 1 — Journal DB foundation autho
 
     await pg.query(
       `insert into public.player_states (user_id, total_xp, player_level)
-       values ($1, 321, public.player_level_from_xp(321))`,
+       values ($1, 321, public.player_level_from_xp(321))
+       on conflict (user_id) do update
+       set total_xp = excluded.total_xp,
+           player_level = excluded.player_level`,
       [USER_A],
     );
 

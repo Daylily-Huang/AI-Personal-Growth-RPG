@@ -65,6 +65,7 @@
 - Round 2 domain validation 已落实：三类 authoring context 必填；显式 `entryType`/Quest/Season context PATCH 才触发 resulting-entry 重检；父删除造成的历史 `SET NULL` 行仍允许普通正文、state 与 archive/unarchive PATCH。
 - 新增 `tests/phase8c-api-domain.test.ts`，并增强 `tests/phase8c-db-foundation.test.ts` 的 O007/O018/C011 命名与 `FAILURE_POSTMORTEM` parent-deletion compatibility；随后修正 resulting-entry relevant-context PATCH 校验，并补充历史行无关 contextual FK 更新与非法 timestamp→HTTP 400 回归。最终定向门禁 `49 passed / 8 skipped`；全量 `45 files passed / 22 skipped`、`747 passed / 313 skipped`；ESLint 与 production build 全绿。首次全量测试的一次 Windows `EPERM` 经 `quest-system.test.ts` 隔离 13/13 与全量复跑全绿确认未复现。8 个 skipped 仅因本机未配置 `XP_RPG_TEST_DB_URL`。
 - Round 2 Gatekeeper 在 exact head `c74a58322e063b9461fbae5bf2c2e5f641a05f66` 返回 `P0=0 / P1=3 / P2=0 — NO-GO`。三项 corrective 已落到 `tests/phase8c-db-foundation.test.ts`：跨租户 DELETE 返回 0 行且目标仍存在；parent SET NULL 后完成 archive→unarchive，并比较 Journal 7 标量与 Growth Core 前后快照；C011 使用 STATE_LOG 上下边界值，并比较非空 `player_states`、`skills`、稳定 `quests.status` 及 XP/Evidence/Mastery event counts。当前定向本地门禁 `14 passed / 8 skipped`，8 个 skipped 仍仅因本机缺 `XP_RPG_TEST_DB_URL`。
+- 首个 corrective exact head `10b925cf8994fa2f938c2dac13b2e4ff13871266` 的 CI Run `35363322596`：`check` success，但 `supabase-integration` 在真实 DB tests 的 fixture setup 失败，错误为 `23505 player_states_pkey`。根因是 auth-user bootstrap 已存在 `player_states`，测试又普通 INSERT 同一 `user_id`；已将该基线 seed 改为 `ON CONFLICT (user_id) DO UPDATE`，保持非空 Growth Core 基线而避免重复主键。
 
 ## 关键里程碑归档记录
 
