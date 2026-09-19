@@ -1,9 +1,9 @@
 # AI Personal Growth RPG — 项目总体计划与当前状态 (Task Plan)
 
 > **权威状态主文档**：请统一参阅 [`docs/MASTER_PROJECT_HANDOFF.md`](docs/MASTER_PROJECT_HANDOFF.md)。  
-> **当前里程碑**: Phase 8B — Season & Review 权威实现（FINAL FROZEN）；Phase 8C Round 2 已接受，Round 3 Journey Journal UI 进行中
-> **当前主分支基线 (main)**: `7df500b1c764efd247938dcf3da4e83b6e2e8e45`
-> **最新状态**: 当前 main 基线为 `7df500b1c764efd247938dcf3da4e83b6e2e8e45`。Phase 8C Round 2 最终 exact head `8c156032c95caae7b1832ad7dc0d2603d5bb8981` 的 CI Run `35367209443` 已双 job 全绿，两次独立复审均为 `P0=0 / P1=0 / P2=0 + GO`，Round 2 已接受。Round 3 Journey Journal UI 已完成本地实现；targeted 27/27、全量 752 passed / 314 skipped、lint/build/deterministic 11/11/diff 均全绿，待提交推送后运行 exact-head CI 与独立复审。
+> **当前里程碑**: Phase 8C — Journal + State（FINAL FROZEN）；Phase 8D 未启动 / BLOCKED
+> **当前主分支基线 (main)**: `9aa76e7ce36b20b9f99e28d6cbd08eeb7bc55b85`
+> **最新状态**: PR #35 已合入 `main`；final reviewed exact head `f2f4d2b2d0a857348b6282dfdbfb3cfd08f4a06d` 的 CI Run `35381923343` 全绿，merge commit `9aa76e7ce36b20b9f99e28d6cbd08eeb7bc55b85` 对应 post-merge main CI Run `35432361509` 亦全绿。Phase 8C 最终 Gatekeeper 为 `P0=0 / P1=0 / P2=0 + GO`，现正式 **FINAL FROZEN**。Phase 8D 尚未启动。
 
 ---
 
@@ -49,7 +49,8 @@
   - [complete] Round 5 exit verification：O006/O013/O014/O015/O016/O022、并发 Review version allocation、Proposal accept/edit/reject CAS 与 concurrent winner/loser 均已纳入；fixture 修复 exact head `80abfa3878a76e1f74279c86d0c5413786fad9e9`，CI Run `35128996512` 的 `check` 与 `supabase-integration` 全绿，真实 database-backed tests、deterministic harness、E2E 均 success
   - [complete] Corrective exact head `ae35a63ab15abab6c6e7fafd06fd51281ab6e634` 已关闭旧 Gatekeeper 的 P1-01/P1-02/P2-01/P2-02；独立复审结果 `P0=0 / P1=0 / P2=0 + GO`，Exact-Head CI Run `35310121814` 全绿
   - [complete] PR #33 已合入 main：merge `0e4bec5f26411669f7031af4523b6d4fca747f96`；post-merge main CI Run `35315613393` 全绿，DoD 最终 merge gate 已满足
-- [in_progress] **Phase 8C**: controlling document、Round 1 与 Round 2 已通过 exact-head CI + 独立复审；Round 3 Journey Journal UI 已完成本地实现与门禁，待新 exact-head CI + 独立复审
+- [complete] **Phase 8C: Journal + State** ✅ FINAL FROZEN — PR #35；final reviewed exact head `f2f4d2b2d0a857348b6282dfdbfb3cfd08f4a06d`；Exact-Head CI `35381923343` success；merge `9aa76e7ce36b20b9f99e28d6cbd08eeb7bc55b85`；post-merge main CI `35432361509` success
+- [blocked] **Phase 8D**: 未启动；须先建立独立 controlling document 并通过 Gatekeeper 准入，当前不授权生产实现
 
 ## 2026-09-18 — Phase 8C Journal + State Controlling Document
 
@@ -67,8 +68,8 @@
 - [complete] Round 2 首轮 corrective 已关闭 `c74a583...` 的三项 P1；exact head `886761353a0b053e89f1836e26e287a612b0f2fa` 的 CI Run `35363920987` 双绿，后续独立复审确认上述三项均关闭。
 - [complete] Round 2 第二轮 corrective：最终 head `8c156032c95caae7b1832ad7dc0d2603d5bb8981` 已关闭该轮唯一 P1，并由 exact-head CI 与两次独立复审确认接受。
 - [in_progress] Round 3：新增 `/journey/journal` 与 Journey “日志”导航；实现反思 create/edit、类型/归档筛选、Quest/Season context、archive/unarchive、7 个主观状态控件、当前筛选集描述性均值，以及 loading/empty/error、Ctrl/⌘+Enter、responsive 与长文本处理。独立复审在 exact head `d217366d4e2e401566446b2bfda0ea5faf46a18d` 发现唯一 P1：父对象合法删除并 `SET NULL` 后，历史 required-context Journal 被 UI `required/disabled` 阻断普通编辑。当前已按 Round 2 规则手术式修复：CREATE 始终校验；UPDATE 仅在显式改 `entryType` 或 resulting type 的 relevant contextual FK 时重检。新定向测试 28/28；全量 `46 files passed / 22 skipped`、`759 passed / 314 skipped`；lint、production build、deterministic 11/11、`git diff --check` 全绿；冻结 Phase8 00–12 与 Round 2 authority 区域零新增差异。
-- 当前实现入口基线：`main` / `origin/main` = `7df500b1c764efd247938dcf3da4e83b6e2e8e45`。
-- Gatekeeper GO 已解除“只允许文档/治理变更”限制；生产实现必须按 controlling document 的 Round 1 → Round 2 → Round 3 → Round 4 顺序推进。
+- Phase 8C 实现起始基线为历史 `main` `7df500b1c764efd247938dcf3da4e83b6e2e8e45`；当前权威 `main` 已推进至 merge commit `9aa76e7ce36b20b9f99e28d6cbd08eeb7bc55b85`。
+- controlling document 规定的 Round 1 → Round 2 → Round 3 → Round 4 已全部完成并通过最终 merge gate；后续不得继续扩展 Phase 8C 冻结范围。
 
 ### 2026-09-19 — Phase 8C Round 3 corrective CI governance
 
@@ -77,7 +78,7 @@
 - [complete] Local corrective gates: governance regression `111/111`; Round 3 targeted regression `138/138`; full test `758 passed / 314 skipped`; lint, production build, deterministic harness `11/11`, and `git diff --check` all pass. Frozen Phase8 00–12 and Round 2 production authority areas have zero new diff.
 - [complete] Corrective exact head `d217366d4e2e401566446b2bfda0ea5faf46a18d` 的 GitHub CI Run `35375469477` 已双 job 全绿；随后独立复审返回 `P0=0 / P1=1 / P2=0 + NO-GO`，唯一 finding 是历史 required-context Journal 在父删除 `SET NULL` 后被前端表单门禁阻断普通编辑。
 - [complete] 该 P1 已本地关闭：表单仅在 CREATE、`entryType` 改变或 resulting type 的 relevant contextual FK 被显式改变时恢复严格 context 校验；历史 NULL 上下文普通正文/状态编辑可提交，PATCH 不补造 `questId/seasonId`。新增运行时回归验证此行为；targeted `28/28`、full `759 passed / 314 skipped`、lint/build/deterministic `11/11`、diff-check 全绿。
-- [in_progress] Next gate: commit/push this P1 corrective head, require both exact-head CI jobs green, then run a fresh independent Round 3 re-review. Round 4 remains blocked until `P0=0 / P1=0 / P2=0 + GO`.
+- [complete] Round 3 P1 corrective 已进入后续全基线 Gatekeeper；历史 parent-deletion NULL-context 编辑 finding 已关闭，后续终审仅剩 Round 4 context-filter P2。
 
 ### 2026-09-19 — Phase 8C Round 4 exit verification
 
@@ -85,4 +86,6 @@
 - [complete] Minimal corrective implementation adds Season and Quest context filters to /journey/journal, using the existing HTTP API seasonId / questId query contract only; no backend/domain authority changed.
 - [complete] Regression test now verifies Season and Quest filter selections are sent through /api/journal, while prior parent-deletion NULL-context edit coverage remains intact.
 - [complete] Local corrective gates: targeted 28/28; full 46 files passed / 22 skipped, 759 passed / 314 skipped; lint, production build, deterministic harness 11/11, and git diff --check pass. Frozen Phase8 docs and accepted Round 2 authority areas have zero new diff.
-- [in_progress] Next gate: commit/push the context-filter corrective head, require both exact-head CI jobs green, then run a fresh independent final Round 4 Gatekeeper over the full baseline diff.
+- [complete] Final corrective exact head `f2f4d2b2d0a857348b6282dfdbfb3cfd08f4a06d` 已通过独立最终 Gatekeeper：`P0=0 / P1=0 / P2=0 + GO`；Exact-Head CI Run `35381923343` 全绿。
+- [complete] PR #35 已合入 `main`，merge commit `9aa76e7ce36b20b9f99e28d6cbd08eeb7bc55b85`；post-merge main CI Run `35432361509` 的 `check` 与 `supabase-integration` 均 success。
+- [complete] Phase 8C 最终归档：`docs/Phase8/17_PHASE8C_GATEKEEPER_REREVIEW_AND_FINAL_FREEZE.md`；状态 **FINAL FROZEN**。Phase 8D 保持 BLOCKED / 未启动。
