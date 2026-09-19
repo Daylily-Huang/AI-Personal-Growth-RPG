@@ -54,7 +54,7 @@
 
 ## 2026-09-18 — Phase 8C Journal + State Controlling Document
 
-- [in_progress] 独立复核冻结的 Phase 8 架构包与当前 Phase 8B FINAL FROZEN 基线。
+- [complete] 独立复核冻结的 Phase 8 架构包与当前 Phase 8B FINAL FROZEN 基线。
 - [complete] 起草 `docs/Phase8/16_PHASE8C_JOURNAL_STATE_IMPLEMENTATION_CONTROLLING.md`。
 - [complete] 文档一致性、编码、diff 与生产目录零改动校验通过。
 - [complete] 已提交并推送 `codex/phase8c-controlling-review`，Draft PR #35 已建立。
@@ -67,7 +67,7 @@
 - [complete] Round 2：Journal repository/API/domain 与 parent-SET-NULL 兼容边界已实现并通过最终 exact-head 验证；accepted head 为 `8c156032c95caae7b1832ad7dc0d2603d5bb8981`，CI Run `35367209443` 双绿，两次独立复审均为 `P0=0 / P1=0 / P2=0 + GO`。
 - [complete] Round 2 首轮 corrective 已关闭 `c74a583...` 的三项 P1；exact head `886761353a0b053e89f1836e26e287a612b0f2fa` 的 CI Run `35363920987` 双绿，后续独立复审确认上述三项均关闭。
 - [complete] Round 2 第二轮 corrective：最终 head `8c156032c95caae7b1832ad7dc0d2603d5bb8981` 已关闭该轮唯一 P1，并由 exact-head CI 与两次独立复审确认接受。
-- [in_progress] Round 3：新增 `/journey/journal` 与 Journey “日志”导航；实现反思 create/edit、类型/归档筛选、Quest/Season context、archive/unarchive、7 个主观状态控件、当前筛选集描述性均值，以及 loading/empty/error、Ctrl/⌘+Enter、responsive 与长文本处理。独立复审在 exact head `d217366d4e2e401566446b2bfda0ea5faf46a18d` 发现唯一 P1：父对象合法删除并 `SET NULL` 后，历史 required-context Journal 被 UI `required/disabled` 阻断普通编辑。当前已按 Round 2 规则手术式修复：CREATE 始终校验；UPDATE 仅在显式改 `entryType` 或 resulting type 的 relevant contextual FK 时重检。新定向测试 28/28；全量 `46 files passed / 22 skipped`、`759 passed / 314 skipped`；lint、production build、deterministic 11/11、`git diff --check` 全绿；冻结 Phase8 00–12 与 Round 2 authority 区域零新增差异。
+- [complete] Round 3：新增 `/journey/journal` 与 Journey “日志”导航；实现反思 create/edit、类型/归档筛选、Quest/Season context、archive/unarchive、7 个主观状态控件、当前筛选集描述性均值，以及 loading/empty/error、Ctrl/⌘+Enter、responsive 与长文本处理。独立复审在 exact head `d217366d4e2e401566446b2bfda0ea5faf46a18d` 发现唯一 P1：父对象合法删除并 `SET NULL` 后，历史 required-context Journal 被 UI `required/disabled` 阻断普通编辑。当前已按 Round 2 规则手术式修复：CREATE 始终校验；UPDATE 仅在显式改 `entryType` 或 resulting type 的 relevant contextual FK 时重检。新定向测试 28/28；全量 `46 files passed / 22 skipped`、`759 passed / 314 skipped`；lint、production build、deterministic 11/11、`git diff --check` 全绿；冻结 Phase8 00–12 与 Round 2 authority 区域零新增差异。
 - Phase 8C 实现起始基线为历史 `main` `7df500b1c764efd247938dcf3da4e83b6e2e8e45`；当前权威 `main` 已推进至 merge commit `9aa76e7ce36b20b9f99e28d6cbd08eeb7bc55b85`。
 - controlling document 规定的 Round 1 → Round 2 → Round 3 → Round 4 已全部完成并通过最终 merge gate；后续不得继续扩展 Phase 8C 冻结范围。
 

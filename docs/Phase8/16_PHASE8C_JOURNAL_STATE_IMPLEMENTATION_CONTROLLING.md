@@ -1,9 +1,10 @@
 # Phase 8C — Journal + State Context Implementation Controlling Document
 
-> **Document Version**: 0.9 Draft
-> **Date**: 2026-09-18
-> **Status**: DRAFT — PENDING INDEPENDENT GATEKEEPER; PRODUCTION IMPLEMENTATION BLOCKED
-> **Authority Level**: Phase-specific controlling draft for Phase 8C implementation
+> **Document Version**: 1.0 — Final Freeze Archive
+> **Original Draft Date**: 2026-09-18
+> **Final Freeze Date**: 2026-09-19
+> **Status**: **FINAL FROZEN** — Phase 8C is accepted, merged, and archived; historical NO-GO records remain in §15.
+> **Authority Level**: Historical phase-specific controlling record for the now-frozen Phase 8C implementation
 > **Frozen Phase 8A Architecture Package**: `docs/Phase8/00_PHASE8_MASTER_ROADMAP.md` through `docs/Phase8/12_INFORMATION_ARCHITECTURE_AND_PHASE_PLAN.md`
 > **Phase 8B Accepted Implementation Merge**: `0e4bec5f26411669f7031af4523b6d4fca747f96`
 > **Phase 8C Exact Implementation Entry Baseline**: `7df500b1c764efd247938dcf3da4e83b6e2e8e45`
@@ -17,7 +18,7 @@ This document translates the frozen Phase 8 architecture into a bounded implemen
 
 It does not reopen Phase 1–7 Growth Core rules, Phase 8B Season/Review authority, or any later Phase 8D–8G subsystem.
 
-This draft is **not implementation authorization**. Production work remains blocked until an independent Gatekeeper reviews this exact controlling document against the repository baseline and returns:
+This document began as a pre-implementation controlling draft. Its entry gate and constraints remain below as audit history. The entry gate was satisfied by an independent exact-head re-review, and the completed Phase 8C implementation is now **FINAL FROZEN**; this document does not authorize additional Phase 8C scope.
 
 ```text
 P0 = 0
@@ -54,11 +55,11 @@ The Phase 8C implementation branch must descend from:
 
 Any later baseline substitution must be explicitly recorded and independently re-reviewed before production implementation begins.
 
-### 2.3 Gatekeeper entry rule
+### 2.3 Gatekeeper entry rule (historical)
 
-Even though the dependency gate is satisfied, production implementation remains **BLOCKED** until this controlling document itself is independently accepted.
+At the time of drafting, production implementation was **BLOCKED** until this controlling document itself was independently accepted. That entry gate was later resolved by the second exact-head re-review recorded in §15.
 
-The author of this draft must not self-certify the final Gatekeeper result.
+The author of this controlling document must not self-certify the final Gatekeeper result.
 
 ---
 
@@ -636,15 +637,17 @@ Phase 8C may be declared **FINAL FROZEN** only when all of the following are tru
 
 ## 14. Authorization Statement
 
-**BLOCKED / PENDING GATEKEEPER**: this document is a Phase 8C controlling **draft**, not an active production implementation authorization.
+The following is preserved as the historical pre-implementation authorization gate; it is not the current Phase 8C status.
 
-Phase 8C production implementation may begin only after a separate independent Gatekeeper reviews this exact document and records:
+Phase 8C production implementation could begin only after a separate independent Gatekeeper reviewed this exact document and recorded:
 
 ```text
 P0 = 0 / P1 = 0 / P2 = 0 + GO
 ```
 
-Once accepted, the authorization remains deliberately narrow: Journal + State Context only, with no redesign of Growth Core truth and no premature Phase 8D–8G authority.
+That gate was satisfied by the second exact-head re-review in §15. Its authorization remained deliberately narrow: Journal + State Context only, with no redesign of Growth Core truth and no premature Phase 8D–8G authority.
+
+The final implementation subsequently received an independent Gatekeeper GO and was merged with green post-merge CI. Phase 8C is now **FINAL FROZEN**; no new Phase 8C production scope is authorized.
 
 ---
 
@@ -680,15 +683,22 @@ Once accepted, the authorization remains deliberately narrow: Journal + State Co
 - Ordinary content/state edits and archive/unarchive remain valid after an accepted parent deletion nulls the contextual FK.
 - Parent-deletion compatibility tests now require post-delete content editing and archive/unarchive coverage, while explicit user removal/change of required context remains fail-closed.
 
-### Re-review
+### Second exact-head re-review — GO (controlling-document admission)
 
-Pending independent exact-head re-review.
+- Reviewed exact head: `a702985041c3fb616ea3b64b5998ffd6de0d087b`
+- Base: `7df500b1c764efd247938dcf3da4e83b6e2e8e45`
+- Verdict: **GO**
+- Findings: `P0 = 0 / P1 = 0 / P2 = 0`
+- Closure: P1-01R and P1-02 were both closed. The resulting admission authorized only the bounded Phase 8C implementation sequence in §11.
 
-The future reviewer must bind the verdict to:
+### Final independent implementation Gatekeeper — GO (final freeze)
 
-- the exact controlling-document commit SHA;
-- the exact implementation entry baseline;
-- the frozen Phase 8 architecture package;
-- all scope, security, O011-resolution, deletion, and AI-authority constraints in this document.
+- Reviewed exact implementation head: `f2f4d2b2d0a857348b6282dfdbfb3cfd08f4a06d`
+- Verdict: **GO**
+- Findings: `P0 = 0 / P1 = 0 / P2 = 0`
+- Exact-head CI: GitHub Actions Run `35381923343` — success.
+- Merge: PR #35 merged to `main` as `9aa76e7ce36b20b9f99e28d6cbd08eeb7bc55b85`.
+- Post-merge main CI: GitHub Actions Run `35432361509` — success.
+- Final phase state: **FINAL FROZEN**. The detailed final-freeze evidence is recorded in `17_PHASE8C_GATEKEEPER_REREVIEW_AND_FINAL_FREEZE.md`.
 
-Until that record exists with `P0 = 0 / P1 = 0 / P2 = 0 + GO`, production implementation remains blocked.
+The historical NO-GO records above remain part of the audit trail and are not reclassified as successes. Each GO verdict is bound only to its matching exact head and review purpose.
