@@ -146,3 +146,13 @@
 - Post-merge main CI Run `35432361509` 全绿，`check` 与 `supabase-integration` 均 success。
 - 新增最终归档 `docs/Phase8/17_PHASE8C_GATEKEEPER_REREVIEW_AND_FINAL_FREEZE.md`；Phase 8C 状态更新为 **FINAL FROZEN**。
 - Phase 8D 保持 **BLOCKED / 未启动**；本轮没有进入任何 Phase 8D production code/schema/API/UI 工作。
+
+
+## 2026-09-19 — Phase 8D 启动与准入
+
+- Phase 8C 归档 PR #36 已由用户手动合并；权威 `main` 基线为 `98dbe37e0a6fe334b6638ca568bc3ba06b4c3aac`。
+- Post-merge main CI Run `35436440893`：`check=success`、`supabase-integration=success`，Phase 8C 归档闭环。
+- 已切换到 `codex/phase8d-strategy-playbook`，当前 HEAD 与上述 main 基线一致。
+- `docs/Phase8/18_PHASE8D_STRATEGY_PLAYBOOK_IMPLEMENTATION_CONTROLLING.md` 已完成 admission-candidate 收敛：补齐 deterministic confidence rubric、lifecycle/transition authority、四个 RPC 的输入与失败语义、source provenance / anti-replay / tenant validation、`STRATEGY_HYPOTHESIS` 通过既有 proposal-review CAS 落地、Playbook UI 范围、runtime/database counterexamples、Round 1–5 与最终 merge/post-merge-CI DoD。
+- 当前下一步是提交/推送该 controlling-document exact head，并由独立只读 Gatekeeper 对冻结文档 05/08/09/10/11/12 做 exact-head 准入审查。
+- Phase 8D production schema/RPC/API/UI 仍为 **BLOCKED**；只有 Gatekeeper 返回 `P0=0 / P1=0 / P2=0 + GO` 才进入 Round 1。

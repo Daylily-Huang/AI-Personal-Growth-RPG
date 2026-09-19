@@ -135,3 +135,28 @@
 - Phase 8C Journal + State is therefore **FINAL FROZEN**. The accepted boundary remains one `journal_entries` authority surface plus Journal repository/API/Journey UI; Journal/State remains subjective context and cannot directly mutate XP, Mastery, Evidence, or permanent Growth Core state.
 - Freeze archive: `docs/Phase8/17_PHASE8C_GATEKEEPER_REREVIEW_AND_FINAL_FREEZE.md`.
 - Phase 8D remains **BLOCKED / not started**. No Strategy/Playbook production code, schema, API, or UI is authorized by the Phase 8C freeze.
+
+
+## 2026-09-19 — Phase 8D verified architecture boundary
+
+- Phase 8D = Strategy + Personal Playbook；冻结表为 `strategies`、`strategy_versions`、`strategy_supports`，UI 为 `/journey/playbook`。
+- 生命周期：`HYPOTHESIS`、`TESTING`、`SUPPORTED`、`CONTEXTUAL`、`WEAKENED`、`RETIRED`；confidence：`LOW`、`MODERATE`、`HIGH`、`VERY_HIGH`。
+- `TESTING -> SUPPORTED` 需要至少 4 个不同观察日期、至少 1 个 completed season、至少 2 个 Core links、support ratio >= 75%、derived confidence >= HIGH，以及显式用户确认。
+- AI 仅能提出 `STRATEGY_HYPOTHESIS` proposal；永久 Strategy 创建/状态晋升必须经应用 authority 与显式用户 review。
+- 冻结 RPC：`rpc_insert_strategy_support`、`rpc_evaluate_strategy_status`、`rpc_transition_strategy_status`、`rpc_create_strategy_version`；直接客户端不能修改 `lifecycle_status` / `confidence_level`。
+- `strategy_versions` immutable + RPC-only insert；`strategy_supports` append-only + RPC-only insert，并使用 source provenance composite identity 防 replay。
+- Phase 8D canonical exits：O008、O009、O017、O021。
+
+### Phase 8D implementation pattern check
+
+- 当前迁移链只到 `0045_phase8c_journal_state_foundation.sql`；Phase 8D 若新增首个 migration，顺序号为 `0046`。
+- Phase 8B 的既有实现模式是 foundation schema/guards + `SECURITY DEFINER` RPC authority + server-side repository/service/request/http adapters + Journey UI + static/local tests + CI database-backed tests。Phase 8D 应复用这一分层，不引入新的客户端权威通道。
+- 当前 Journey 仅有 `seasons` / `reviews` / `journal`；当前 tests 仅到 phase8c，仓库中尚无 Phase 8D production file。
+- 冻结文档再次确认 Phase 8D exit gate 为 O008/O009/O017/O021；O009 的 canonical promotion threshold 与 Strategy spec 一致。
+
+### Phase 8D controlling-document admission candidate
+
+- controlling document 已明确 source-class weights 仅作 evidential guidance，不得静默改写 frozen deterministic confidence 或 lifecycle eligibility。
+- `strategy_versions` 采用父 Strategy 行锁串行化版本号；`strategy_supports` 采用 immutable append-only + provenance composite identity 防 replay；两者均要求 tenant/source ownership fail-closed。
+- `STRATEGY_HYPOTHESIS` 继续复用 `rpc_review_outer_loop_proposal` 的既有 CAS：REJECTED 不创建 Strategy；ACCEPTED/EDITED 仅在同事务内创建一次 HYPOTHESIS 并记录 resulting entity；proposal 内 activity IDs 不自动物化为 support，也不提升 confidence。
+- controlling document 当前是 **admission candidate**，不是 production authorization。下一 gate 必须是独立、只读、exact-head-bound 的 `P0/P1/P2 + GO/NO-GO`；生产迁移、RPC、API、UI 在 GO 前保持 BLOCKED。
