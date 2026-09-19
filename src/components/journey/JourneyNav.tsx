@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarRange, ClipboardCheck } from "lucide-react";
+import { BookOpenText, CalendarRange, ClipboardCheck } from "lucide-react";
 
 const JOURNEY_ITEMS = [
   { href: "/journey/seasons", label: "赛季", icon: CalendarRange },
   { href: "/journey/reviews", label: "复盘", icon: ClipboardCheck },
+  { href: "/journey/journal", label: "日志", icon: BookOpenText },
 ] as const;
 
 export function JourneyNav() {

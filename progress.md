@@ -38,6 +38,42 @@
 - Phase 8B DoD 独立审查与最终 merge gate 均满足，状态更新为 **FINAL FROZEN**；Phase 8C 尚未启动。
 - 新增归档：`docs/Phase8/15_PHASE8B_GATEKEEPER_REREVIEW_AND_FINAL_FREEZE.md`。
 
+## 2026-09-18 — Phase 8C controlling document 审查与草拟
+
+- 已从 `main` 基线 `7df500b1c764efd247938dcf3da4e83b6e2e8e45` 创建文档分支 `codex/phase8c-controlling-review`。
+- 已完成 AGENTS.md 要求的 Design ChatGPT 01–09 前置规则阅读（本轮补完 04–09），并复核 Phase 8 冻结架构的 Journal/State、DB、API/RPC、测试、安全与 phase ordering 边界。
+- 已确认关键 O011 编号冲突：Phase 8C 控制文档将采用 supplemental `C011_JOURNAL_STATE_NOT_CAPABILITY`，不篡改 frozen canonical O011。
+- 当前只进入 controlling-document planning/drafting；Phase 8C production implementation 仍为 BLOCKED，等待后续独立 Gatekeeper GO。
+- 已新增 `docs/Phase8/16_PHASE8C_JOURNAL_STATE_IMPLEMENTATION_CONTROLLING.md` 草案；状态明确为 `DRAFT — PENDING INDEPENDENT GATEKEEPER; PRODUCTION IMPLEMENTATION BLOCKED`。
+- 草案已封口三处架构歧义：O011 编号冲突、hard-delete 未闭合契约、WEEKLY_REFLECTION 描述中的 Review link 与冻结 schema 不一致。
+- 首轮文档校验发现并修复尾随空格：`git diff --check` 命中 `task_plan.md` 1 处；同时清理新 controlling draft 头部用于 Markdown 强制换行的尾随空格，避免提交门禁噪声。
+- 最终文档门禁通过：`git diff --cached --check` 无错误；四个修改文件均为有效 UTF-8 且无 NUL；无 `src/`、`supabase/`、`tests/` 或冻结 Phase 8 00–12 变更；现有用户未跟踪文件保持未触碰。
+- controlling draft 首次提交：`0925b3a27043021d5c73e0a5c241c712d34c78ee`，分支 `codex/phase8c-controlling-review` 已推送。
+- 已创建 Draft PR #35：`docs: draft Phase 8C Journal + State controlling document`；下一治理步骤是由独立 Gatekeeper 对 PR exact head 做只读审查，当前不授权生产实现。
+- 独立只读 Gatekeeper 使用单独 Codex 会话审查 exact head `d83c324b4666816359f8b86df87bafca4bf4aa22`，结果 `P0=0 / P1=2 / P2=0 — NO-GO`；tracked worktree/index 未被 reviewer 修改。
+- 已按两项 finding 做最小 controlling-document 修正：authoring-time context 与 FK `ON DELETE SET NULL` 解耦并增加 parent-deletion regression；`JOURNAL_INSIGHT` 全面延期出 Phase 8C production scope。
+- corrective head `e40cd4cf248c82f77a980ff841d6f20c6b6834e2` 的独立复审结果为 `P0=0 / P1=1 / P2=0 — NO-GO`：P1-02 已关闭；P1-01R 发现 parent deletion 后 context FK 合法变 NULL 的历史 Journal 会被“每次 deliberate edit 重检 context”规则阻断普通编辑。
+- 第二轮最小修正已收窄 UPDATE 校验：仅显式变更 `entry_type` 或 relevant contextual FK 时重检；父删除后的普通 content/state edit 与 archive/unarchive 保持允许，并新增对应 acceptance coverage。
+- 第二轮 corrective commit `a702985041c3fb616ea3b64b5998ffd6de0d087b` 已推送，远端分支与本地 exact head 一致；独立复审结果为 `P0=0 / P1=0 / P2=0 + GO`。P1-01R、P1-02 均关闭，Phase 8C production implementation 准入解除。
+- 已进入 Phase 8C Round 1：范围限定为 `journal_entries` migration、数据库约束、RLS/tenant trigger 与真实 database-backed tests；冻结 Phase 8 00–12 保持不改。
+- Round 1 实现前检查确认现有迁移编号止于 0044；Phase 8C schema 契约仅授权一张 `journal_entries` 表，下一 migration 采用 0045，不提前创建 API/UI/AI 代码。
+- Round 1 已落地 `0045_phase8c_journal_state_foundation.sql`：单表 `journal_entries`、9 值 taxonomy CHECK、7 个 state scalar CHECK、Season/Quest/Activity `ON DELETE SET NULL`、required indexes、RLS owner policies、`trg_enforce_journal_entry_tenant_isolation`、immutable-field/update timestamp guard 与最小列权限。
+- 新增 `tests/phase8c-db-foundation.test.ts`，覆盖 taxonomy、scalar 边界、tenant SELECT、跨租户 context、immutable/system timestamps、archive/unarchive、client UUID、parent deletion SET NULL 与 Growth Core 无副作用；`tests/supabase-schema.test.ts` 已纳入 0045 chain 和离线 authority guards。
+- 本机 targeted tests：`35 passed / 8 skipped`；8 个 DB tests 因 `XP_RPG_TEST_DB_URL` 未配置而 skip，不作为 DB runtime 证据。两测试文件 ESLint 全绿，`git diff --check` 无错误。Round 2 必须等待 CI 的真实 Supabase DB tests 成功后再进入。
+- Round 1 implementation 已提交为 `c9d0d2765a043a4dc874a6c0a1f16da9f29807f8` 并推送至 PR #35；GitHub Actions Run `35339072556` 已全绿，真实 database-backed tests、deterministic harness、E2E 均 success，Round 2 阻塞解除。
+- Round 2 已新增 `src/lib/journal/{types,repository,request,http}.ts` 与 `/api/journal`、`/api/journal/[id]` Route Handlers；范围仅 authenticated create/read/list/update/archive，没有 hard-delete route、Journal RPC 或 `JOURNAL_INSIGHT` production authority。
+- Round 2 domain validation 已落实：三类 authoring context 必填；显式 `entryType`/Quest/Season context PATCH 才触发 resulting-entry 重检；父删除造成的历史 `SET NULL` 行仍允许普通正文、state 与 archive/unarchive PATCH。
+- 新增 `tests/phase8c-api-domain.test.ts`，并增强 `tests/phase8c-db-foundation.test.ts` 的 O007/O018/C011 命名与 `FAILURE_POSTMORTEM` parent-deletion compatibility；随后修正 resulting-entry relevant-context PATCH 校验，并补充历史行无关 contextual FK 更新与非法 timestamp→HTTP 400 回归。最终定向门禁 `49 passed / 8 skipped`；全量 `45 files passed / 22 skipped`、`747 passed / 313 skipped`；ESLint 与 production build 全绿。首次全量测试的一次 Windows `EPERM` 经 `quest-system.test.ts` 隔离 13/13 与全量复跑全绿确认未复现。8 个 skipped 仅因本机未配置 `XP_RPG_TEST_DB_URL`。
+- Round 2 Gatekeeper 在 exact head `c74a58322e063b9461fbae5bf2c2e5f641a05f66` 返回 `P0=0 / P1=3 / P2=0 — NO-GO`。三项 corrective 已落到 `tests/phase8c-db-foundation.test.ts`：跨租户 DELETE 返回 0 行且目标仍存在；parent SET NULL 后完成 archive→unarchive，并比较 Journal 7 标量与 Growth Core 前后快照；C011 使用 STATE_LOG 上下边界值，并比较非空 `player_states`、`skills`、稳定 `quests.status` 及 XP/Evidence/Mastery event counts。当前定向本地门禁 `14 passed / 8 skipped`，8 个 skipped 仍仅因本机缺 `XP_RPG_TEST_DB_URL`。
+- 首个 corrective exact head `10b925cf8994fa2f938c2dac13b2e4ff13871266` 的 CI Run `35363322596`：`check` success，但 `supabase-integration` 在真实 DB tests 的 fixture setup 失败，错误为 `23505 player_states_pkey`。根因是 auth-user bootstrap 已存在 `player_states`，测试又普通 INSERT 同一 `user_id`；已将该基线 seed 改为 `ON CONFLICT (user_id) DO UPDATE`，保持非空 Growth Core 基线而避免重复主键。
+- 第二个 corrective exact head `886761353a0b053e89f1836e26e287a612b0f2fa` 的 CI Run `35363920987` 已全绿：`check` 与 `supabase-integration` 均 success，后者包含真实 Supabase startup、production build、database-backed tests、deterministic harness 与 E2E。
+- 对 `8867613...` 的独立 Round 2 复审返回 `P0=0 / P1=1 / P2=0 — NO-GO`。先前三项 P1 均被确认关闭；新增 P1 指向 DB authority：authenticated 角色可直接 INSERT/UPDATE，现有 RLS + field-authority trigger 未强制 required authoring context，可绕过 repository validation。
+- 已完成该 P1 的手术式 corrective：migration trigger 对 authenticated CREATE 强制三类 required context；authenticated UPDATE 仅在 `entry_type` 或 resulting type 的 relevant contextual FK 显式变化时重检，因此父实体删除造成的自动 `SET NULL` 不会阻断历史行普通编辑/归档。DB tests 已覆盖无 context direct INSERT、主动移除 context 与无 context entry-type 转换。
+- 当前本地门禁：targeted `14 passed / 9 skipped`，全量 `45 files passed / 22 skipped`、`747 passed / 314 skipped`，lint、production build、deterministic harness 11/11、`git diff --check` 全绿；冻结 Phase8 00–12 仍零改动。本机 Docker daemon 不可用，因此 DB runtime 证据仍待新 exact-head CI。
+- Round 2 最终 exact head `8c156032c95caae7b1832ad7dc0d2603d5bb8981` 的 GitHub Actions Run `35367209443` 已确认 `check` 与 `supabase-integration` 双绿；两次独立复审均为 `P0=0 / P1=0 / P2=0 + GO`，Round 2 正式接受。
+- Round 3 Journey Journal UI 已实现：新增 `/journey/journal` 与 Journey “日志”导航，覆盖反思 create/edit、类型/归档筛选、Quest/Season context、archive/unarchive、7 个主观状态控件、当前筛选集描述性均值，以及 loading/empty/error、Ctrl/⌘+Enter、响应式与长文本处理；UI 仅调用既有 HTTP API。
+- Round 3 本地门禁：定向 `27/27`；全量 `46 files passed / 22 skipped`、`752 passed / 314 skipped`；lint、production build、deterministic harness `11/11`、`git diff --check` 全绿；冻结 Phase 8 00–12 与 Round 2 authority 区域相对 `8c156032...` 均零新增差异。下一步为提交推送 Round 3，绑定新 exact head 跑 CI 并做独立复审。
+
 ## 关键里程碑归档记录
 
 - **Stage 0~4 业务核心已冻结**：
@@ -78,3 +114,26 @@
     * R3 已关闭：`docs/MASTER_PROJECT_HANDOFF.md` 修正 Mastery 等级为 M0~M10，验证门槛为目标 >= M5 或单次跨级 >= 2。
     * GitHub Actions CI 双绿通过（`check` ✅, `supabase-integration` ✅）。
     * **PR #20 已通过 Squash and merge 合入 main（Commit `6e238a4`），Stage 5C-UI Skills Modernization 正式宣告 FINAL FROZEN！**
+
+## 2026-09-19 — Phase 8C Round 3 corrective head preparation
+
+- Reproduced CI Run `35374173512` locally and confirmed the failure is confined to the historical visual migration governance guard.
+- Added exact Phase 8C controlling-document binding in `tests/visual-foundation.test.ts` for the two Journal API routes and migration `0045`; added three fail-closed regression tests.
+- Verification complete: `111/111` governance tests; `138/138` Round 3 targeted tests; full `758 passed / 314 skipped`; `pnpm lint`, `pnpm build`, `pnpm harness:deterministic` (`11/11`), and `git diff --check` pass.
+- Scope verification complete: frozen `docs/Phase8/00–12` has zero diff; `supabase`, `src/lib/journal`, and `src/app/api/journal` have zero new diff from accepted Round 2 head `8c156032c95caae7b1832ad7dc0d2603d5bb8981`.
+- Pending: commit/push new exact head, confirm both GitHub CI jobs success, then fresh independent Round 3 review.
+
+## 2026-09-19 — Phase 8C Round 3 independent-review P1 corrective
+
+- Exact head `d217366d4e2e401566446b2bfda0ea5faf46a18d` passed GitHub CI Run `35375469477` with both `check` and `supabase-integration` successful.
+- Fresh independent review returned `P0=0 / P1=1 / P2=0 + NO-GO`: historical Journal rows whose required Quest/Season parent was deleted could not be edited because the Round 3 form re-applied context-required UI rules on every edit.
+- Patched only `src/app/journey/journal/page.tsx` and `tests/phase8c-journey-ui.test.tsx` for the product correction. CREATE and deliberate type/context changes remain fail-closed; ordinary edits to historical `NULL` context rows no longer require replacement context, and unchanged NULL FKs are omitted from PATCH.
+- Verification: targeted `28/28`; full `759 passed / 314 skipped`; lint, production build, deterministic `11/11`, and `git diff --check` all pass. Frozen Phase8 00–12 and Round 2 production-authority paths still have zero new diff.
+- Pending: commit/push the new corrective exact head, wait for both exact-head CI jobs, then run a fresh independent Round 3 re-review. Round 4 remains blocked.
+
+## 2026-09-19 — Phase 8C Round 4 context-filter corrective
+
+- Final Gatekeeper for dc4042fc3846d133d23cbe03fd5e24342c3c067 returned P0=0 / P1=0 / P2=1 + NO-GO; only remaining finding was missing Journal context-filter UI.
+- Updated only src/app/journey/journal/page.tsx and 	ests/phase8c-journey-ui.test.tsx: added Season/Quest filters that reuse the existing /api/journal?seasonId=...&questId=... contract and added runtime query assertions.
+- Local verification complete: targeted 28/28; full suite 759 passed / 314 skipped; lint/build/deterministic 11/11; diff-check pass. Frozen Phase8 docs and Round 2 authority areas have zero new diff.
+- Pending: commit/push new exact head, confirm both GitHub CI jobs at that SHA, then fresh independent final Round 4 Gatekeeper. Phase 8D remains blocked.
