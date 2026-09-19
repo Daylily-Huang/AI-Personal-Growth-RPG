@@ -1,9 +1,9 @@
 # AI Personal Growth RPG — 项目总体计划与当前状态 (Task Plan)
 
 > **权威状态主文档**：请统一参阅 [`docs/MASTER_PROJECT_HANDOFF.md`](docs/MASTER_PROJECT_HANDOFF.md)。  
-> **当前里程碑**: Phase 8C — Journal + State（FINAL FROZEN）；Phase 8D 未启动 / BLOCKED
-> **当前主分支基线 (main)**: `9aa76e7ce36b20b9f99e28d6cbd08eeb7bc55b85`
-> **最新状态**: PR #35 已合入 `main`；final reviewed exact head `f2f4d2b2d0a857348b6282dfdbfb3cfd08f4a06d` 的 CI Run `35381923343` 全绿，merge commit `9aa76e7ce36b20b9f99e28d6cbd08eeb7bc55b85` 对应 post-merge main CI Run `35432361509` 亦全绿。Phase 8C 最终 Gatekeeper 为 `P0=0 / P1=0 / P2=0 + GO`，现正式 **FINAL FROZEN**。Phase 8D 尚未启动。
+> **当前里程碑**: Phase 8C — Journal + State（FINAL FROZEN）；Phase 8D — Strategy + Personal Playbook（controlling document in progress；production implementation BLOCKED）
+> **当前主分支基线 (main)**: `98dbe37e0a6fe334b6638ca568bc3ba06b4c3aac`
+> **最新状态**: Phase 8C 实现 PR #35 与归档 PR #36 均已合入；PR #36 reviewed exact head `2a40006e5ce81648700f9c4050a6bc0e5df8267e` 为 `P0=0 / P1=0 / P2=0 + GO`，merge commit `98dbe37e0a6fe334b6638ca568bc3ba06b4c3aac` 的 post-merge main CI Run `35436440893` 中 `check` 与 `supabase-integration` 均 success。Phase 8C **FINAL FROZEN**。Phase 8D 仅进入 controlling-document 准入阶段，production implementation 仍 BLOCKED。
 
 ---
 
@@ -50,7 +50,7 @@
   - [complete] Corrective exact head `ae35a63ab15abab6c6e7fafd06fd51281ab6e634` 已关闭旧 Gatekeeper 的 P1-01/P1-02/P2-01/P2-02；独立复审结果 `P0=0 / P1=0 / P2=0 + GO`，Exact-Head CI Run `35310121814` 全绿
   - [complete] PR #33 已合入 main：merge `0e4bec5f26411669f7031af4523b6d4fca747f96`；post-merge main CI Run `35315613393` 全绿，DoD 最终 merge gate 已满足
 - [complete] **Phase 8C: Journal + State** ✅ FINAL FROZEN — PR #35；final reviewed exact head `f2f4d2b2d0a857348b6282dfdbfb3cfd08f4a06d`；Exact-Head CI `35381923343` success；merge `9aa76e7ce36b20b9f99e28d6cbd08eeb7bc55b85`；post-merge main CI `35432361509` success
-- [blocked] **Phase 8D**: 未启动；须先建立独立 controlling document 并通过 Gatekeeper 准入，当前不授权生产实现
+- [in_progress] **Phase 8D: Strategy + Personal Playbook**: controlling document 准入阶段；生产实现须等待独立 exact-head Gatekeeper `P0=0 / P1=0 / P2=0 + GO`
 
 ## 2026-09-18 — Phase 8C Journal + State Controlling Document
 
@@ -89,3 +89,17 @@
 - [complete] Final corrective exact head `f2f4d2b2d0a857348b6282dfdbfb3cfd08f4a06d` 已通过独立最终 Gatekeeper：`P0=0 / P1=0 / P2=0 + GO`；Exact-Head CI Run `35381923343` 全绿。
 - [complete] PR #35 已合入 `main`，merge commit `9aa76e7ce36b20b9f99e28d6cbd08eeb7bc55b85`；post-merge main CI Run `35432361509` 的 `check` 与 `supabase-integration` 均 success。
 - [complete] Phase 8C 最终归档：`docs/Phase8/17_PHASE8C_GATEKEEPER_REREVIEW_AND_FINAL_FREEZE.md`；状态 **FINAL FROZEN**。Phase 8D 保持 BLOCKED / 未启动。
+
+
+## 2026-09-19 — Phase 8D Strategy + Personal Playbook
+
+- [complete] Phase 8C 归档 PR #36 已合入 `main`：merge `98dbe37e0a6fe334b6638ca568bc3ba06b4c3aac`；post-merge main CI Run `35436440893` 的 `check` 与 `supabase-integration` 均 success。
+- [complete] Phase 8D controlling document 已形成 admission candidate：冻结范围、确定性 confidence/lifecycle 规则、四个 Strategy RPC、source provenance / anti-replay、`STRATEGY_HYPOTHESIS` proposal settlement、Playbook UI、Round 1–5 与 DoD 均已绑定。
+- [in_progress] 提交并推送 controlling-document exact head，随后进行独立只读 Gatekeeper 准入审查。
+- [blocked] Phase 8D production implementation：仅在 controlling-document exact head 的独立 Gatekeeper 返回 `P0=0 / P1=0 / P2=0 + GO` 后解除阻塞。
+
+### Phase 8D Errors Encountered
+
+- 2026-09-19：一条组合式 `rg --files` + 多文件 `rg -n` 只读命令被 Codex 工具安全检查在执行前拦截；仓库零改动。后续改用拆分、窄范围只读查询，不重复该调用。
+
+- 2026-09-19：第二条跨两个文档的复合范围读取同样被工具安全检查在执行前拦截；仓库零改动。后续严格改为单文件单命令读取。
