@@ -1,7 +1,7 @@
 # 调查发现与核心架构决策 (Findings)
 
 > **权威状态主文档**：请统一参阅 [`docs/MASTER_PROJECT_HANDOFF.md`](docs/MASTER_PROJECT_HANDOFF.md)。  
-> **更新时间**: 2026-09-18
+> **更新时间**: 2026-09-19
 
 ---
 
@@ -121,8 +121,17 @@
 
 ## 2026-09-19 — Phase 8C Round 4 Gatekeeper P2 corrective
 
-- Final Round 4 Gatekeeper on exact head dc4042fc3846d133d23cbe03fd5e24342c3c067 found no P0/P1 and one P2: /journey/journal exposed type/archive filters but no user-visible context filters even though controlling document §5.5 requires filters appropriate to entry type/context/archive state.
-- Backend inspection confirms GET /api/journal already accepts seasonId and questId; ctivityId is not a list filter. The correction therefore stays entirely in the Journey Journal UI and its regression test.
+- Final Round 4 Gatekeeper on exact head adc4042fc3846d133d23cbe03fd5e24342c3c067 found no P0/P1 and one P2: /journey/journal exposed type/archive filters but no user-visible context filters even though controlling document §5.5 requires filters appropriate to entry type/context/archive state.
+- Backend inspection confirms GET /api/journal already accepts seasonId and questId; activityId is not a list filter. The correction therefore stays entirely in the Journey Journal UI and its regression test.
 - Added accessible 赛季筛选 and 任务筛选 selects using the already-loaded Season/Quest context lists. Selected UUIDs are appended to URLSearchParams and participate in loadEntries dependencies.
 - Regression verifies seasonId and combined seasonId + questId requests through the HTTP API. No direct Supabase/RPC path, no Journal authority expansion, and no XP/Mastery/Evidence coupling were introduced.
 - Closure gates: targeted 28/28; full 759 passed / 314 skipped; ESLint and production build pass; deterministic harness 11/11; git diff --check pass. Frozen Phase8 docs and accepted Round 2 production-authority paths remain unchanged.
+
+## 2026-09-19 — Phase 8C Final Freeze
+
+- Final corrective exact head `f2f4d2b2d0a857348b6282dfdbfb3cfd08f4a06d` closed the Round 4 context-filter finding; final independent Gatekeeper verdict is `P0=0 / P1=0 / P2=0 + GO`.
+- Exact-head GitHub Actions Run `35381923343` is successful: `check` passed lint/test/build; `supabase-integration` passed Supabase startup, production build, database-backed tests, deterministic Growth Engine harness, and E2E.
+- PR #35 merged to `main` as `9aa76e7ce36b20b9f99e28d6cbd08eeb7bc55b85`; post-merge main Run `35432361509` is also fully successful for `check` and `supabase-integration`.
+- Phase 8C Journal + State is therefore **FINAL FROZEN**. The accepted boundary remains one `journal_entries` authority surface plus Journal repository/API/Journey UI; Journal/State remains subjective context and cannot directly mutate XP, Mastery, Evidence, or permanent Growth Core state.
+- Freeze archive: `docs/Phase8/17_PHASE8C_GATEKEEPER_REREVIEW_AND_FINAL_FREEZE.md`.
+- Phase 8D remains **BLOCKED / not started**. No Strategy/Playbook production code, schema, API, or UI is authorized by the Phase 8C freeze.

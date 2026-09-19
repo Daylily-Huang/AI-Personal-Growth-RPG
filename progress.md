@@ -1,7 +1,7 @@
 # 项目历史工作进度 (Progress Log)
 
 > **权威状态主文档**：请统一参阅 [`docs/MASTER_PROJECT_HANDOFF.md`](docs/MASTER_PROJECT_HANDOFF.md)。  
-> **更新时间**: 2026-09-18
+> **更新时间**: 2026-09-19
 
 ---
 
@@ -133,7 +133,16 @@
 
 ## 2026-09-19 — Phase 8C Round 4 context-filter corrective
 
-- Final Gatekeeper for dc4042fc3846d133d23cbe03fd5e24342c3c067 returned P0=0 / P1=0 / P2=1 + NO-GO; only remaining finding was missing Journal context-filter UI.
+- Final Gatekeeper for adc4042fc3846d133d23cbe03fd5e24342c3c067 returned P0=0 / P1=0 / P2=1 + NO-GO; only remaining finding was missing Journal context-filter UI.
 - Updated only src/app/journey/journal/page.tsx and 	ests/phase8c-journey-ui.test.tsx: added Season/Quest filters that reuse the existing /api/journal?seasonId=...&questId=... contract and added runtime query assertions.
 - Local verification complete: targeted 28/28; full suite 759 passed / 314 skipped; lint/build/deterministic 11/11; diff-check pass. Frozen Phase8 docs and Round 2 authority areas have zero new diff.
 - Pending: commit/push new exact head, confirm both GitHub CI jobs at that SHA, then fresh independent final Round 4 Gatekeeper. Phase 8D remains blocked.
+
+## 2026-09-19 — Phase 8C 最终冻结归档
+
+- Final corrective exact head `f2f4d2b2d0a857348b6282dfdbfb3cfd08f4a06d` 已完成独立最终 Gatekeeper，结论 `P0=0 / P1=0 / P2=0 + GO`。
+- Exact-head CI Run `35381923343` 全绿：`check` 的 lint/test/build success；`supabase-integration` 的 Supabase startup、production build、database-backed tests、deterministic Growth Engine harness、E2E 均 success。
+- PR #35 已合入 `main`，merge commit `9aa76e7ce36b20b9f99e28d6cbd08eeb7bc55b85`。
+- Post-merge main CI Run `35432361509` 全绿，`check` 与 `supabase-integration` 均 success。
+- 新增最终归档 `docs/Phase8/17_PHASE8C_GATEKEEPER_REREVIEW_AND_FINAL_FREEZE.md`；Phase 8C 状态更新为 **FINAL FROZEN**。
+- Phase 8D 保持 **BLOCKED / 未启动**；本轮没有进入任何 Phase 8D production code/schema/API/UI 工作。

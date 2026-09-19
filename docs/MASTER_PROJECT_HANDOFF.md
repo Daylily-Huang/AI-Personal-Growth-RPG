@@ -1,11 +1,12 @@
 # AI Personal Growth RPG — 项目全景交接与治理主文档 (Master Project Handoff)
 
-> **文档版本**: 1.4 (Master Comprehensive Handoff — Phase 8B Final Freeze)
-> **更新时间**: 2026-09-18
+> **文档版本**: 1.5 (Master Comprehensive Handoff — Phase 8C Final Freeze)
+> **更新时间**: 2026-09-19
 > **适用对象**: 后续所有接手的 AI 工程师、独立审查 AI、项目协作者  
 > **Phase 7 终局冻结合并基线 (historical)**: `653fe018f6cee38b2263fbcca19dffbf624d4c18`
 > **Phase 8B 终局冻结合并基线 (main)**: `0e4bec5f26411669f7031af4523b6d4fca747f96`
-> **当前所处里程碑**: Phase 8B — Season + Structured Review (**FINAL FROZEN**)；Phase 8C 尚未启动
+> **Phase 8C 终局冻结合并基线 (main)**: `9aa76e7ce36b20b9f99e28d6cbd08eeb7bc55b85`
+> **当前所处里程碑**: Phase 8C — Journal + State (**FINAL FROZEN**)；Phase 8D 未启动 / BLOCKED
 > **代码仓库**: `Daylily-Huang/AI-Personal-Growth-RPG`  
 > **核心工作区路径**: `d:\AI_Personal_Growth_RPG`（WSL 挂载路径：`/mnt/d/AI_Personal_Growth_RPG`）
 
@@ -141,6 +142,7 @@ AI_Personal_Growth_RPG/
 | **终局冻结** | **Phase 7 — Round 4** | **全页交叉验收、活跃文本对比度合规 (P1-05)、72 格全矩阵运行时证据归档与终局冻结** | **FINAL FROZEN** | **PR #28；merge commit `653fe018f6cee38b2263fbcca19dffbf624d4c18`；Reviewed Exact Head `f1e426ce6f64135066a652882d27c03b9cf6dca0`；Exact-Head CI `34707377871` (success)；post-merge push CI `34708617506` (failure — KNOWN PUSH-TO-MAIN GOVERNANCE GUARD INCOMPATIBILITY)** |
 | **Outer Growth Loop 架构** | **Phase 8A** | **Phase 8 总体架构、依赖链、信息架构与控制边界冻结** | **FINAL FROZEN** | **PR #31；merge baseline `0dffb9d706c3c941c46078c89bf3ae6e70d65d5f`；Phase 8B controlling document 以该 SHA 为不可变架构基线** |
 | **Outer Growth Loop** | **Phase 8B** | **Season + Structured Review：五表、九 RPC、RLS、API/Repository、Journey UI、并发/幂等与 Proposal CAS** | **FINAL FROZEN** | **PR #33；Reviewed Exact Head `ae35a63ab15abab6c6e7fafd06fd51281ab6e634`；Exact-Head CI `35310121814` success；merge `0e4bec5f26411669f7031af4523b6d4fca747f96`；post-merge main CI `35315613393` success** |
+| **Outer Growth Loop** | **Phase 8C** | **Journal + State：`journal_entries` authority、RLS/tenant guard、Repository/API、Journey Journal UI、7 个主观状态与 context/archive 生命周期** | **FINAL FROZEN** | **PR #35；Reviewed Exact Head `f2f4d2b2d0a857348b6282dfdbfb3cfd08f4a06d`；Exact-Head CI `35381923343` success；merge `9aa76e7ce36b20b9f99e28d6cbd08eeb7bc55b85`；post-merge main CI `35432361509` success** |
 
 ---
 
@@ -262,11 +264,11 @@ wsl -d Ubuntu -- bash -lc "cd /mnt/d/AI_Personal_Growth_RPG && pnpm build"
 
 ## 8. 接手 AI 极速上手与后续路线图推进指引 (Next Actions)
 
-当前状态：Phase 1~7 的既有冻结边界保持有效；Phase 8A 架构冻结已完成；**Phase 8B: Season + Structured Review 已完成 corrective Gatekeeper 复审、exact-head CI、PR #33 合并与 post-merge main CI，正式 FINAL FROZEN**。Phase 8C 尚未启动。
+当前状态：Phase 1~7 的既有冻结边界保持有效；Phase 8A 架构冻结已完成；Phase 8B 已 FINAL FROZEN；**Phase 8C: Journal + State 已完成最终 Gatekeeper、exact-head CI、PR #35 合并与 post-merge main CI，正式 FINAL FROZEN**。Phase 8D 未启动。
 
 当前权威主分支基线：
 ```text
-0e4bec5f26411669f7031af4523b6d4fca747f96
+9aa76e7ce36b20b9f99e28d6cbd08eeb7bc55b85
 ```
 
 ### Phase 6 — Knowledge Graph Canvas Modernization（FINAL FROZEN）
@@ -326,12 +328,22 @@ wsl -d Ubuntu -- bash -lc "cd /mnt/d/AI_Personal_Growth_RPG && pnpm build"
 4. **Corrective closure**：corrective exact head `ae35a63ab15abab6c6e7fafd06fd51281ab6e634` 已关闭四项 finding。独立复审结果记录为 `P0=0 / P1=0 / P2=0 + GO`；最终归档见 `docs/Phase8/15_PHASE8B_GATEKEEPER_REREVIEW_AND_FINAL_FREEZE.md`。
 5. **Exact-head CI**：Run `35310121814` success；`check` 的 lint/test/build 全绿，`supabase-integration` 的真实 Supabase、production build、database-backed tests、deterministic Growth Engine harness、E2E 全绿。
 6. **Merge 与 post-merge**：PR #33 已合入 `main`，merge commit `0e4bec5f26411669f7031af4523b6d4fca747f96`；对应 main push CI Run `35315613393` 双 job 全绿。
-7. **冻结结论**：Phase 8B controlling document 的独立复审与最终 merge gate 均已满足，**Phase 8B = FINAL FROZEN**。Phase 8C 尚未启动，也不会因本冻结记录自动获得生产实现授权。
+7. **冻结结论**：Phase 8B controlling document 的独立复审与最终 merge gate 均已满足，**Phase 8B = FINAL FROZEN**。该记录只授权后续 Phase 8C 进入其独立准入流程，不自动授权任何后续阶段。
+
+### Phase 8C — Journal + State（FINAL FROZEN）
+
+1. **权威基线与控制文件**：Phase 8C controlling document 为 `docs/Phase8/16_PHASE8C_JOURNAL_STATE_IMPLEMENTATION_CONTROLLING.md`；最终归档为 `docs/Phase8/17_PHASE8C_GATEKEEPER_REREVIEW_AND_FINAL_FREEZE.md`。
+2. **实现范围**：单表 `journal_entries`、7 个主观状态标量、RLS/tenant guard、authoring-context authority、Journal repository/API、Journey `/journey/journal`、Season/Quest context filters、archive/unarchive 与 parent `ON DELETE SET NULL` 兼容行为。
+3. **不可突破边界**：Journal/State 仅是主观上下文，不得直接产生或扣除 XP，不得改变 Mastery，不得满足 Evidence，不得修改永久 Growth Core；`JOURNAL_INSIGHT` production authority 与 Strategy/Playbook 均不属于 Phase 8C。
+4. **最终独立 Gatekeeper**：final reviewed exact head `f2f4d2b2d0a857348b6282dfdbfb3cfd08f4a06d`；结论 `P0=0 / P1=0 / P2=0 + GO`。
+5. **Exact-head CI**：Run `35381923343` success；`check` 的 lint/test/build 全绿，`supabase-integration` 的 Supabase startup、production build、database-backed tests、deterministic Growth Engine harness、E2E 全绿。
+6. **Merge 与 post-merge**：PR #35 已合入 `main`，merge commit `9aa76e7ce36b20b9f99e28d6cbd08eeb7bc55b85`；对应 main push CI Run `35432361509` 双 job 全绿。
+7. **冻结结论**：Phase 8C controlling document 的独立终审与最终 merge gate 均已满足，**Phase 8C = FINAL FROZEN**。Phase 8D 未启动 / BLOCKED。
 
 ### 下一阶段推进指引 (Next Actions)
 
-Phase 8B 已全面闭环并永久冻结。所有后续工作必须从当前 main 基线 `0e4bec5f26411669f7031af4523b6d4fca747f96` 或其后续纯治理/文档提交切出独立分支，保持 Phase 1~8B 已冻结的领域、数据库、RPC、UI 与治理边界。
+Phase 8C 已全面闭环并永久冻结。所有后续工作必须从当前 main 基线 `9aa76e7ce36b20b9f99e28d6cbd08eeb7bc55b85` 或其后续纯治理/文档提交切出独立分支，保持 Phase 1~8C 已冻结的领域、数据库、RPC/API、UI 与治理边界。
 
 后续建议执行顺序：
-1. **Phase 8C 独立准入**：先建立 Phase 8C phase-specific controlling document，明确 In Scope / Out of Scope / Acceptance Criteria，并完成独立 Gatekeeper 准入；在此之前不写 Phase 8C 生产代码。
+1. **Phase 8D 独立准入**：当前保持 BLOCKED / 未启动。只有在用户明确要求进入 Phase 8D 后，才建立 Phase 8D phase-specific controlling document，明确 In Scope / Out of Scope / Acceptance Criteria，并完成独立 Gatekeeper 准入；在此之前不写 Phase 8D 生产代码、schema、API 或 UI。
 2. **继续保持可审计性**：后续 PR 继续绑定 exact head、CI run、独立审查结论与 merge SHA；不得把历史失败改写为成功，也不得把 skipped/local-only 结果替代真实 database-backed CI 证据。
