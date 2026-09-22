@@ -104,7 +104,7 @@ The deterministic confidence rubric is:
 
 Support ratio is `SUPPORT / (SUPPORT + COUNTER_EVIDENCE)` over accepted immutable support rows. Source-class weights documented in the frozen Strategy spec are metadata/evidential guidance only in Phase 8D; they MUST NOT silently alter this deterministic confidence calculation or lifecycle eligibility.
 
-When the support ratio drops below 60%, deterministic evaluation automatically weakens `SUPPORTED` or `CONTEXTUAL` to `WEAKENED`. No other automatic lifecycle promotion is allowed.
+When the current version has at least one `COUNTER_EVIDENCE` row and its support ratio drops below 60%, deterministic evaluation automatically weakens `SUPPORTED` or `CONTEXTUAL` to `WEAKENED`. A zero-evidence `0/0` state does not trigger lifecycle weakening. No other automatic lifecycle promotion is allowed.
 
 ### 5.1 Canonical counting semantics
 
@@ -202,7 +202,7 @@ Contract:
 - Locks caller-owned strategy row `FOR UPDATE`.
 - Computes distinct observation dates, completed Season evidence, Core links, support ratio, and derived ordinal confidence according to section 5.
 - Always persists deterministic `confidence_level` when changed.
-- If ratio falls below 60%, may automatically transition `SUPPORTED | CONTEXTUAL -> WEAKENED`.
+- If current-version `counter_evidence_count > 0` and support ratio is below 60%, deterministically transitions `SUPPORTED | CONTEXTUAL -> WEAKENED`. A zero-evidence `0/0` state leaves lifecycle unchanged.
 - `TESTING -> SUPPORTED` occurs only when all promotion gates are satisfied AND `p_confirm_promotion = true`; otherwise evaluation is proposal/eligibility only.
 - Confirmation with insufficient evidence fails with 422 and leaves lifecycle status unchanged.
 - Background/AI evaluation must call with `p_confirm_promotion = false`.
@@ -264,7 +264,7 @@ Contract:
 - Allocate `next_version = current version + 1` while holding the parent lock.
 - Insert immutable `strategy_versions` snapshot and update the current strategy protocol/version atomically.
 - Existing support rows remain anchored to their prior immutable version. They are excluded from all current-version confidence/promotion metrics after the version changes.
-- Version creation itself does not mutate lifecycle status or confidence because the frozen version RPC does not authorize that side effect. A later `rpc_evaluate_strategy_status` call evaluates only the current version; with no current-version evidence it derives ratio `0%` and confidence `LOW`. Creating a version is not counter-evidence, so automatic weakening applies only when logged counter-evidence drives the ratio below `60%`.
+- Version creation does not mutate lifecycle status. In the same transaction it MUST derive and persist confidence from the new current version; immediately after version creation there is no current-version evidence, so support ratio is `0%` and confidence is `LOW`. This confidence reset is deterministic derived state, not a lifecycle transition and not counter-evidence. Automatic weakening does not occur merely because the new version has zero evidence; it occurs only after current-version `COUNTER_EVIDENCE` exists and drives the ratio below `60%`.
 - Durable request idempotency MUST make exact replay return the previously created version instead of allocating another number.
 - Writes a `STRATEGY_VERSION_CREATED` audit event.
 
