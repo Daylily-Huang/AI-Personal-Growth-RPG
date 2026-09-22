@@ -9,6 +9,11 @@ Baseline:
 - Main baseline: `98dbe37e0a6fe334b6638ca568bc3ba06b4c3aac`
 - Phase 8D production implementation is blocked until this document receives an independent exact-head Gatekeeper review with `P0=0 / P1=0 / P2=0 + GO`.
 
+Admission review history:
+
+- Exact head `02bbc1be379054c12592cd200474c8e5e4f2cbc6` received `P0=0 / P1=5 / P2=1 + NO-GO` on 2026-09-19. That verdict remains historical evidence and is not overwritten by this corrective candidate.
+- A corrective head MUST receive a fresh independent exact-head Gatekeeper review. No production implementation is authorized by the historical NO-GO or by this document alone.
+
 This document defines implementation contracts. It does not authorize implementation before Gatekeeper admission.
 
 ## 2. Scope
@@ -20,6 +25,7 @@ This document defines implementation contracts. It does not authorize implementa
 - Strategy evidence collection and deterministic status evaluation.
 - Strategy version history.
 - User confirmation flow for AI-generated strategy proposals.
+- AI `STRATEGY_COUNTEREVIDENCE_ALERT` proposal/notification flow with zero direct commit authority.
 
 ### Out of Scope
 
@@ -39,13 +45,15 @@ Frozen tables:
 Strategy lifecycle:
 
 ```
-HYPOTHESIS -> TESTING -> SUPPORTED
-                 |          |
-                 v          v
-             RETIRED    CONTEXTUAL
-                 ^          |
-                 |          v
-              WEAKENED <----
+HYPOTHESIS -> TESTING
+TESTING -> SUPPORTED
+TESTING -> RETIRED
+SUPPORTED -> CONTEXTUAL
+CONTEXTUAL -> SUPPORTED
+SUPPORTED -> WEAKENED
+CONTEXTUAL -> WEAKENED
+WEAKENED -> TESTING
+WEAKENED -> RETIRED
 ```
 
 Allowed states:
@@ -66,9 +74,11 @@ Confidence is derived only from deterministic evidence:
 
 ## 4. Strategy Authority Rules
 
-AI may produce `STRATEGY_HYPOTHESIS` proposals only.
+AI may produce `STRATEGY_HYPOTHESIS` and `STRATEGY_COUNTEREVIDENCE_ALERT` proposal/notification records only. Neither proposal type has direct Strategy commit authority.
 
-AI output must pass `OuterLoopProposal` review. The user must explicitly accept or edit and accept before a strategy enters `HYPOTHESIS`.
+`STRATEGY_HYPOTHESIS` output must pass `OuterLoopProposal` review. The user must explicitly accept or edit and accept before a strategy enters `HYPOTHESIS`.
+
+`STRATEGY_COUNTEREVIDENCE_ALERT` may identify a possible counter-evidence source, but accepting/editing the alert only acknowledges the proposal. It MUST NOT insert `strategy_supports`, change confidence, or change lifecycle status. A Strategy can be affected only after a separate explicit user action logs `COUNTER_EVIDENCE` through `rpc_insert_strategy_support`, which must re-validate the canonical source and tenant ownership.
 
 The application database is the only authority that commits lifecycle state.
 
@@ -96,21 +106,38 @@ Support ratio is `SUPPORT / (SUPPORT + COUNTER_EVIDENCE)` over accepted immutabl
 
 When the support ratio drops below 60%, deterministic evaluation automatically weakens `SUPPORTED` or `CONTEXTUAL` to `WEAKENED`. No other automatic lifecycle promotion is allowed.
 
+### 5.1 Canonical counting semantics
+
+All deterministic metrics are computed from accepted immutable `strategy_supports` rows anchored to the strategy's **current** `strategy_version_id`. Evidence anchored to an older version remains immutable history but contributes zero dates, Seasons, Core links, support-count, or counter-evidence-count to the current version.
+
+- Observation date is the UTC calendar date of the database-resolved canonical source timestamp: `(canonical_observed_at AT TIME ZONE 'UTC')::date`. Caller-provided timestamps never define the counting date.
+- `distinct observation dates` means distinct UTC dates among current-version rows with `observation_type = 'SUPPORT'`.
+- `completed Seasons` means distinct parent `season_id` values from current-version `SUPPORT` rows whose canonical source is a caller-owned `season_reviews` row with `review_type = 'FINAL'` and whose parent `seasons.status = 'COMPLETED'`. `ENDED_EARLY`, `ABANDONED`, `CANCELLED`, non-FINAL reviews, and foreign/missing rows contribute zero completed Seasons.
+- A `Core link` is one distinct canonical entity key from a current-version `SUPPORT` row that resolves to exactly one of: `(ACTIVITY, activities.id)` with `activities.status = 'confirmed'`; `(QUEST, quests.id)` with `quests.status = 'completed'` and non-null `completed_at`; or `(ARTIFACT, artifacts.id)` with `artifacts.lifecycle_status IN ('active', 'archived', 'superseded')`. Draft Artifacts, unconfirmed Activities, incomplete Quests, Journal rows, Season Reviews, and bare `CORE_EVIDENCE_REFERENCE` rows contribute zero Core links.
+- Core-link distinctness is by canonical `(entity_kind, entity_id)`, not by support-row count, evaluator version, note, timestamp assertion, or source-class alias.
+- `support_count` and `counter_evidence_count` count current-version rows by `observation_type` after canonical-source deduplication. If both are zero, support ratio is defined as `0%`; therefore zero evidence derives `LOW` confidence and is never promotion-eligible.
+- `COUNTER_EVIDENCE` rows affect the ratio and weakening evaluation but never satisfy the positive date, completed-Season, or Core-link promotion thresholds.
+
+`canonical_observed_at` is resolved inside database authority from the referenced source, never trusted from the caller: Season Review `created_at`; Activity `created_at`; Quest `COALESCE(completed_at, created_at)`; Artifact `created_at`; Evidence Record `created_at`; Journal-backed observation `created_at`. These fields exist in the current schema and are database-owned or immutable on the relevant authoritative source path. `p_observed_at` remains the frozen RPC input but is assertion-only: any mismatch with this canonical value is rejected and the caller value is never persisted as authority.
+
 ## 6. Database Authority Contract
 
 ### strategies
 
 - Primary tenant owner is `user_id = auth.uid()`; private rows require fail-closed RLS.
 - User may create a `HYPOTHESIS` directly, or a `STRATEGY_HYPOTHESIS` proposal may create it only after accepted/edited user review.
-- Direct client updates may edit descriptive fields, but database authority MUST reject direct mutation of `lifecycle_status` and `confidence_level`.
+- Direct authenticated `INSERT` is allowed only for caller-owned user-authored rows whose authoritative defaults are forced by database authority to `lifecycle_status = 'HYPOTHESIS'`, `confidence_level = 'LOW'`, and `version = 1`. Client-supplied attempts to forge any other initial lifecycle, confidence, version, owner, or system-managed provenance field MUST fail closed rather than being silently accepted.
+- Every successful Strategy insert, including proposal settlement, MUST atomically create immutable `strategy_versions` version `1` from the initial `action_protocol`, `context_trigger`, and `expected_outcome`; a Strategy without its version-1 snapshot is invalid. Version-1 bootstrap is a database-internal side effect of Strategy creation (for example, a trigger/internal helper), not a client insert into `strategy_versions`. Client authority over `strategy_versions` remains denied.
+- Direct authenticated updates are allowlisted to `title` and `description` only, plus database-managed `updated_at`. Direct mutation of `action_protocol`, `context_trigger`, `expected_outcome`, `version`, `lifecycle_status`, `confidence_level`, owner/provenance fields, or any other non-allowlisted field MUST fail closed.
 - Material protocol/context changes MUST go through `rpc_create_strategy_version`, increment `version`, and append an immutable snapshot.
-- Strategy history is retired rather than hard-deleted in normal product flows. `RETIRED` remains queryable history.
+- Controlling interpretation of the frozen authority matrix phrase “edit action protocol”: it describes the user-visible capability, while the frozen versioning contract requires material protocol/context/outcome edits to execute through `rpc_create_strategy_version`. It does not authorize a direct column update that bypasses version history.
+- Direct authenticated `DELETE` is denied. Strategy history is retired rather than hard-deleted in normal product flows, and `RETIRED` remains queryable history.
 
 ### strategy_versions
 
 - Entire row is immutable.
 - `UNIQUE(strategy_id, version_number)`.
-- Insert only through `rpc_create_strategy_version`; direct authenticated `INSERT`, `UPDATE`, and `DELETE` are denied.
+- Version `>= 2` inserts occur only through `rpc_create_strategy_version`. Version `1` is created only by the database-internal Strategy-creation transaction described above. Direct authenticated `INSERT`, `UPDATE`, and `DELETE` are denied for every version.
 - Tenant-isolation trigger asserts `NEW.user_id` equals the parent strategy owner.
 - Version allocation is serialized by locking the parent `strategies` row.
 
@@ -118,9 +145,14 @@ When the support ratio drops below 60%, deterministic evaluation automatically w
 
 - Entire row is append-only/immutable after insert.
 - `source_id uuid NOT NULL`.
-- `UNIQUE(strategy_id, source_class, source_id, observation_type, evaluator_version)`.
+- `strategy_version_id uuid NOT NULL` references the immutable `strategy_versions` row for the same Strategy and tenant with `ON DELETE RESTRICT` semantics.
+- `strategy_version_id` is the implementation field that realizes the frozen Strategy spec requirement that historical support observations remain anchored to the protocol version under which they were gathered; it does not introduce a new lifecycle or product concept.
+- The frozen composite `UNIQUE(strategy_id, source_class, source_id, observation_type, evaluator_version)` remains valid as a storage-level constraint, but it is **not** the confidence-contribution identity.
+- Database authority derives a canonical contribution identity `(strategy_id, canonical_source_kind, source_id, observation_type)`. Because support insertion is RPC-only and the parent Strategy row is locked `FOR UPDATE`, `rpc_insert_strategy_support` first resolves any existing row for this canonical identity and returns it idempotently before insert. No additional schema UNIQUE beyond the frozen composite constraint is introduced; changing evaluator version or metadata cannot create another confidence contribution through the authoritative RPC path.
+- `canonical_source_kind` is database-derived, not caller-controlled. `JOURNAL_CONTEXT` and `MANUAL_OBSERVATION` both normalize to `JOURNAL`, so the same Journal UUID cannot be replayed through two source-class aliases. Other source classes map to their canonical tenant-owned table identity.
 - Insert only through `rpc_insert_strategy_support`; direct authenticated `INSERT`, `UPDATE`, and `DELETE` are denied.
-- Tenant-isolation trigger asserts support owner equals parent strategy owner. For `JOURNAL_CONTEXT`, the referenced journal row MUST belong to the same user. Other source classes MUST be validated against their canonical tenant-owned source where applicable.
+- Tenant-isolation trigger asserts support owner equals parent strategy owner and `strategy_version_id` belongs to that Strategy and user. For `JOURNAL_CONTEXT` and `MANUAL_OBSERVATION`, `source_id` MUST resolve to a caller-owned `journal_entries.id`; no free-form or random observation UUID is authorized in Phase 8D. Other source classes MUST resolve to their exact canonical tenant-owned source table.
+- The frozen spec permits either a Journal row or a dedicated immutable tenant-scoped observation UUID for manual observations. Phase 8D selects the Journal-backed branch because no dedicated observation entity/table is part of the frozen Phase 8D schema; enabling a separate observation entity requires a later governed change rather than accepting bare UUIDs.
 - Duplicate canonical source identity is an idempotent replay, never a second confidence contribution.
 
 ## 7. RPC Contracts
@@ -139,17 +171,18 @@ Input:
   "p_source_id": "uuid",
   "p_evaluator_version": "text",
   "p_note": "text | null",
-  "p_observed_at": "timestamptz"
+  "p_observed_at": "timestamptz; required assertion of canonical source timestamp"
 }
 ```
 
 Contract:
 
 - Strategy must belong to caller and be in `TESTING | SUPPORTED | CONTEXTUAL | WEAKENED`.
-- Referenced source must belong to caller; foreign-tenant sources fail closed.
-- `MANUAL_OBSERVATION` must anchor to a tenant-scoped immutable journal/observation UUID.
+- Referenced source must resolve to the canonical source table and belong to caller; foreign-tenant, missing, source-class-mismatched, and random UUIDs fail closed.
+- `MANUAL_OBSERVATION` is journal-backed in Phase 8D: it MUST anchor to a caller-owned `journal_entries.id` and shares canonical `JOURNAL` identity with `JOURNAL_CONTEXT`.
 - Lock strategy row `FOR UPDATE`.
-- Insert exactly one immutable support row under the composite source identity; exact replay returns the existing row.
+- Resolve the current immutable `strategy_version_id` and the database-owned `canonical_observed_at`; the required caller timestamp is assertion-only and must exactly match or be rejected.
+- Insert exactly one immutable support row under the database-derived canonical contribution identity; exact replay returns the existing row. A changed `evaluator_version`, note, asserted timestamp, or Journal source-class alias cannot create another contribution.
 - Re-evaluate deterministic confidence after insertion and write `STRATEGY_SUPPORT_LOGGED` audit.
 - Null source identity is rejected; no support inflation through duplicate replay is permitted.
 
@@ -230,6 +263,8 @@ Contract:
 - Protocol/context/outcome values must be non-blank.
 - Allocate `next_version = current version + 1` while holding the parent lock.
 - Insert immutable `strategy_versions` snapshot and update the current strategy protocol/version atomically.
+- Existing support rows remain anchored to their prior immutable version. They are excluded from all current-version confidence/promotion metrics after the version changes.
+- Version creation itself does not mutate lifecycle status or confidence because the frozen version RPC does not authorize that side effect. A later `rpc_evaluate_strategy_status` call evaluates only the current version; with no current-version evidence it derives ratio `0%` and confidence `LOW`. Creating a version is not counter-evidence, so automatic weakening applies only when logged counter-evidence drives the ratio below `60%`.
 - Durable request idempotency MUST make exact replay return the previously created version instead of allocating another number.
 - Writes a `STRATEGY_VERSION_CREATED` audit event.
 
@@ -237,8 +272,8 @@ All RPCs require:
 
 - authenticated user.
 - tenant ownership validation.
-- idempotency handling.
-- transactional audit records.
+- contract-appropriate idempotency: canonical source identity for `rpc_insert_strategy_support`; pure deterministic replay for `rpc_evaluate_strategy_status`; durable request keys for `rpc_transition_strategy_status` and `rpc_create_strategy_version`.
+- frozen audit semantics in the same transaction: mutation RPCs write their required audit events; evaluation writes STRATEGY_EVALUATED only when lifecycle status or confidence actually changes.
 - fail-closed cross-tenant behavior.
 
 ## 8. Evidence Rules
@@ -257,14 +292,15 @@ Evidence records require stable source identity and cannot be replayed into dupl
 
 Canonical ownership checks are fail-closed:
 
-- `SEASON_REVIEW` -> caller-owned `season_reviews.id`.
-- `ACTIVITY` -> caller-owned Activity source.
-- `QUEST_OUTCOME` -> caller-owned Quest source.
-- `ARTIFACT` / `CORE_EVIDENCE_REFERENCE` -> caller-owned durable Core source.
+- `SEASON_REVIEW` -> caller-owned `season_reviews.id`; it counts toward the completed-Season metric only when `review_type = 'FINAL'` and the parent caller-owned Season has `status = 'COMPLETED'`.
+- `ACTIVITY` -> caller-owned `activities.id`; it counts as a Core link only when `status = 'confirmed'`.
+- `QUEST_OUTCOME` -> caller-owned `quests.id`; it counts as a Core link only when `status = 'completed'` and `completed_at IS NOT NULL`.
+- `ARTIFACT` -> caller-owned `artifacts.id`; it counts as a Core link only when `lifecycle_status IN ('active', 'archived', 'superseded')`.
+- `CORE_EVIDENCE_REFERENCE` -> caller-owned `evidence_records.id`; it is valid provenance/support input but does not independently satisfy a Core-link unit in Phase 8D.
 - `JOURNAL_CONTEXT` -> caller-owned `journal_entries.id`.
-- `MANUAL_OBSERVATION` -> caller-owned immutable journal/observation UUID.
+- `MANUAL_OBSERVATION` -> caller-owned `journal_entries.id`, normalized to the same canonical `JOURNAL` identity as `JOURNAL_CONTEXT`; no separate observation table or arbitrary UUID is authorized.
 
-The implementation must prove that a foreign-tenant UUID, a missing UUID, and a mismatched source class cannot create a support record.
+The implementation must prove that a foreign-tenant UUID, a missing UUID, a mismatched source class, an evaluator-version replay, a Journal/manual alias replay, and a random UUID cannot create a second or invalid support contribution.
 
 ## 9. API and UI Boundary
 
@@ -284,7 +320,8 @@ The Playbook UI must support, within Phase 8D scope:
 - add context-boundary note and move to `CONTEXTUAL`;
 - retire with reason;
 - create and inspect protocol versions;
-- review AI `STRATEGY_HYPOTHESIS` proposals through the existing proposal-review authority.
+- review AI `STRATEGY_HYPOTHESIS` proposals through the existing proposal-review authority;
+- review/acknowledge AI `STRATEGY_COUNTEREVIDENCE_ALERT` proposals without directly mutating Strategy truth, then require a separate explicit user action through the support RPC before counter-evidence can affect confidence or lifecycle.
 
 The UI MUST NOT import browser Supabase write authority, mutate lifecycle/confidence directly, or expose service-role credentials.
 
@@ -297,6 +334,15 @@ The UI MUST NOT import browser Supabase write authority, mutate lifecycle/confid
 - `ACCEPTED` or `EDITED` validates the final payload, creates exactly one `HYPOTHESIS` strategy in the same transaction, records `resulting_entity_type/resulting_entity_id`, and audits the review.
 - Same review key replay returns the already-created strategy; a different/concurrent second review loses with the existing proposal-review conflict contract.
 - Supporting activity IDs in an AI proposal are contextual proposal evidence only. They MUST NOT silently materialize `strategy_supports` rows or raise confidence without passing the Strategy support authority.
+
+### 9.2 STRATEGY_COUNTEREVIDENCE_ALERT settlement
+
+- AI may create an `outer_loop_proposals` row with proposal type `STRATEGY_COUNTEREVIDENCE_ALERT` that points to a caller-owned Strategy and a candidate canonical source reference.
+- `rpc_review_outer_loop_proposal` remains the user-review CAS boundary for accepting/editing/rejecting the alert record itself.
+- `REJECTED` produces no Strategy/support mutation. `ACCEPTED` or `EDITED` only records the reviewed alert; it MUST NOT insert `strategy_supports`, change confidence, or transition lifecycle status.
+- After an accepted/edited alert, a separate explicit user action is required to log `COUNTER_EVIDENCE` through `rpc_insert_strategy_support`. That RPC performs all canonical source, version-anchor, anti-replay, and tenant checks before any deterministic evaluation can occur.
+- Same review key replay returns the existing reviewed alert; concurrent/different second review follows the existing proposal-review conflict contract.
+- An alert whose Strategy or candidate source is foreign, missing, or source-class-mismatched cannot be turned into Strategy evidence.
 
 ## 10. Required Validation
 
@@ -317,16 +363,25 @@ Security validation:
 
 Required runtime/database counterexamples:
 
-- direct authenticated writes cannot set `confidence_level` or lifecycle status;
+- direct authenticated Strategy insert cannot forge lifecycle/confidence/version/owner/provenance; successful direct creation is `HYPOTHESIS` + `LOW` + version `1` with an atomic immutable version-1 snapshot;
+- direct authenticated updates are limited to `title` / `description`; protocol/context/outcome/version/lifecycle/confidence bypass writes fail;
+- direct authenticated Strategy delete fails and historical rows remain queryable through retirement;
 - direct authenticated writes cannot insert/update/delete Strategy version/support rows;
-- source replay cannot raise support count twice;
+- source replay cannot raise support count twice when evaluator version, note, asserted time, or Journal/manual source alias changes;
+- random/free-form `MANUAL_OBSERVATION` UUIDs fail; only caller-owned Journal IDs are accepted;
 - foreign-tenant strategy/source/version/proposal references fail closed;
 - concurrent version creation yields a serialized monotonic version sequence;
+- each support row is immutably anchored to exactly one Strategy version; version `1` exists at Strategy creation; old-version evidence contributes zero to current-version confidence after a protocol version change;
 - concurrent lifecycle transitions cannot both win;
 - evaluation below promotion thresholds cannot reach `SUPPORTED`;
 - confidence derives identically from the same immutable evidence set;
+- UTC boundary cases produce deterministic distinct-date counts; caller timestamp assertions cannot backdate or forward-date evidence;
+- `0 SUPPORT / 0 COUNTER_EVIDENCE` deterministically yields a `0%` ratio and `LOW` confidence;
+- only FINAL reviews of `COMPLETED` Seasons count toward the completed-Season threshold;
+- only confirmed Activities, completed Quests with `completed_at`, and non-draft durable Artifacts count as distinct Core links;
 - counter-evidence ratio below 60% weakens supported/contextual strategies;
 - proposal reject creates no Strategy; accept/edit creates one Strategy; same-key replay remains one Strategy.
+- counter-evidence alert reject/accept/edit does not mutate Strategy truth; only a separate user-confirmed, source-validated `COUNTER_EVIDENCE` support insert may affect confidence/status.
 
 ## 11. Implementation Sequence
 
