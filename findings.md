@@ -1,7 +1,7 @@
 # 调查发现与核心架构决策 (Findings)
 
 > **权威状态主文档**：请统一参阅 [`docs/MASTER_PROJECT_HANDOFF.md`](docs/MASTER_PROJECT_HANDOFF.md)。  
-> **更新时间**: 2026-09-19
+> **更新时间**: 2026-09-22
 
 ---
 
@@ -28,6 +28,15 @@
    - **72 格无头浏览器全矩阵闭环**：9 路由 × 4 视口 (375/768/1024/1440) × 2 动效模式 (no-preference/reduce) 实现 100% 零水平溢出、零控制台严重错误。
    - **键盘与弹层焦点生命周期**：ReactFlow 拓扑图与原生表格替代视图双轨支持，Modal / Drawer Escape 捕获与焦点恢复规范化。
    - **CI 治理隔离**：post-merge push-to-main CI 失败（Run `34708617506`）经独立审查确认仅来源于 `tests/phase5-quests-ui.test.tsx` 与 `tests/phase5-skills-ui.test.tsx` 的 merge-base delta guard 兼容性（`KNOWN PUSH-TO-MAIN GOVERNANCE GUARD INCOMPATIBILITY`），不撤销 Phase 7 终局冻结效力。
+
+## 2026-09-22 — Phase 8D Admission 与 Round 1 当前边界
+
+- reviewed exact head `b4c26079e5532cc1c02238f70de95f3e4694e554` 已获独立 `P0=0 / P1=0 / P2=0 + GO`；当前本地 HEAD 与该 SHA 相同，Round 1 production implementation 准入已解除。
+- 当前未跟踪的 `0046_phase8d_strategy_database_foundation.sql` 仍是旧草案：使用 `DRAFT/ACTIVE/ARCHIVED` lifecycle、JSON `definition/evidence`，且没有冻结 Strategy 字段、`HYPOTHESIS/LOW/version=1` 强制语义、version-1 原子快照或 direct authenticated create/update authority，因此不能在其假设上增量修补，应按 controlling contract 重构。
+- Round 1 只负责 DB foundation；canonical-source resolution、support insertion anti-replay、deterministic confidence evaluation、status/version RPC 属于 Round 2。Round 1 仍须在存储层提供正确字段/约束、RLS、不可变性、tenant guards 和 Strategy direct-write 边界，使 Round 2 能安全建立 authority RPC。
+- Phase 8C `0045` 已提供可复用的安全模式：RLS + column-level `GRANT INSERT/UPDATE` + `current_user = 'authenticated'` field-authority trigger。Phase 8D Strategy 可用同一模式让 authenticated 直接创建用户假设并只编辑 `title/description`，同时给 Round 2 `SECURITY DEFINER` RPC 保留系统字段变更能力。
+- `strategy_versions` 的 version-1 bootstrap 不能依赖 authenticated 对版本表的 INSERT 权限；应由 Strategy INSERT 后的内部 `SECURITY DEFINER` trigger 在同一事务创建，且 helper/trigger function 对 PUBLIC/anon/authenticated/service_role 均撤销直接 EXECUTE。
+- `strategy_versions` 与 `strategy_supports` 存储层都应有不可变 trigger（UPDATE/DELETE fail closed）；authenticated 仅 SELECT。`strategy_supports` 保留冻结 composite UNIQUE `(strategy_id, source_class, source_id, observation_type, evaluator_version)`，canonical anti-replay 仍由 Round 2 RPC 在父 Strategy lock 下实现。
 
 ## 2026-09-18 — Phase 8C 架构复核结论
 
@@ -160,3 +169,33 @@
 - `strategy_versions` 采用父 Strategy 行锁串行化版本号；`strategy_supports` 采用 immutable append-only + provenance composite identity 防 replay；两者均要求 tenant/source ownership fail-closed。
 - `STRATEGY_HYPOTHESIS` 继续复用 `rpc_review_outer_loop_proposal` 的既有 CAS：REJECTED 不创建 Strategy；ACCEPTED/EDITED 仅在同事务内创建一次 HYPOTHESIS 并记录 resulting entity；proposal 内 activity IDs 不自动物化为 support，也不提升 confidence。
 - controlling document 当前是 **admission candidate**，不是 production authorization。下一 gate 必须是独立、只读、exact-head-bound 的 `P0/P1/P2 + GO/NO-GO`；生产迁移、RPC、API、UI 在 GO 前保持 BLOCKED。
+
+## 2026-09-22 — Phase 8D Round 1 resume findings
+
+- Verified workspace HEAD is `b4c26079e5532cc1c02238f70de95f3e4694e554`; Round 1 migration/test files are still untracked and planning files modified.
+- Current `0046` is an obsolete draft: `strategies` uses `DRAFT/ACTIVE/ARCHIVED`; `strategy_versions` stores JSON `definition`; `strategy_supports` stores JSON `evidence`; current grants still give `service_role` full direct writes.
+- Current `tests/strategy-database-foundation.test.ts` is static string-only coverage and still asserts the obsolete `DRAFT` lifecycle/grant model. It does not provide real database authority evidence.
+- Whole-file reads of `0046` were blocked twice by the outer command safety review; subsequent inspection uses narrow `rg` queries and will not repeat the blocked calls.
+- Confirmed established DB-test pattern: `describe.skipIf(!XP_RPG_TEST_DB_URL)`, `pg.Client`, `set role authenticated`, and `request.jwt.claim.sub` are used for real authority tests.
+- Frozen schema plan confirms exact Strategy storage intent: lifecycle `HYPOTHESIS/TESTING/SUPPORTED/CONTEXTUAL/WEAKENED/RETIRED`, confidence `LOW/MODERATE/HIGH/VERY_HIGH`, immutable `strategy_versions`, append-only `strategy_supports`, and storage UNIQUE `(strategy_id, source_class, source_id, observation_type, evaluator_version)`.
+
+## 2026-09-23 — Phase 8D Round 1 continuation
+
+- 本次续作已核对：分支仍为 codex/phase8d-strategy-playbook，HEAD=b4c26079e5532cc1c02238f70de95f3e4694e554；Phase 8D admission 已通过，当前唯一授权实现范围为 Round 1 DB foundation。
+- 旧的未跟踪 0046 migration 与 strategy DB test 是过期草案，需要以 controlling contract 为准重构；Round 2 RPC authority 继续保持 gated。
+- planning-with-files session-catchup 无未同步输出；恢复上下文以现有 task_plan/findings/progress 为准。
+
+- 已补读权威文档 04–09 的剩余范围，并核对 Phase 8D controlling contract。Round 1 只允许三表、约束、私有 RLS、字段/租户/不可变 guard 与真实数据库负向测试；四个 Strategy RPC、确定性 confidence/lifecycle 计算、anti-replay RPC 逻辑属于 Round 2，当前不得实现。
+- controlling contract §6 冻结：strategies 直接 INSERT 只能创建 caller-owned HYPOTHESIS + LOW + version=1，且必须原子 bootstrap immutable version-1 snapshot；直接 UPDATE 仅 title / description，直接 DELETE 拒绝。strategy_versions 全行 immutable；strategy_supports append-only、direct authenticated INSERT/UPDATE/DELETE 全拒绝，storage UNIQUE 保持 strategy_id/source_class/source_id/observation_type/evaluator_version。
+- controlling document 整文件读取再次被本地安全审查拦截；仓库零改动。已改用标题索引与指定行段读取，成功取得 §6、§10、§11，后续不重复整文件读取。
+
+## 2026-09-28 — Phase 8D Round 1 static-chain closure
+
+- 当前 0046 已不再是旧 DRAFT/ACTIVE/ARCHIVED 草案：三表、冻结 lifecycle/confidence taxonomy、`strategy_version_id`、version-1 原子 bootstrap、private RLS、字段白名单、version/support immutable guard 与来源 tenant guard 均已存在。
+- 全局迁移链此前漏登记 0046，导致 `tests/supabase-schema.test.ts` 的 completeness gate 失败；现已将 0046 纳入 `EXPECTED_ORDER`，并新增 4 项静态 authority 检查。
+- 定向结果：schema 静态测试 39/39 通过；Strategy DB suite 12 项因本机无 `XP_RPG_TEST_DB_URL` 跳过。ESLint 对两个相关测试文件通过，`git diff --check` 通过。
+- 本机 Docker CLI 可发现，但 daemon 未运行；因此不能把静态结果当作 migration 可执行、RLS/trigger 运行时或跨租户负向证据。Round 1 仍为 in progress。
+- 首轮独立只读对抗审查为 `P0=0 / P1=2 / P2=1 + NO-GO`：真实 DB 未运行；五类非 Journal 来源与同租户错误版本锚反例不足；静态测试只查名称/关键词。已补齐后两类覆盖，第一次复审将结果收敛为 `P0=0 / P1=1 / P2=1 + NO-GO`。
+- DB suite 现有 13 项：五类非 Journal canonical source 均覆盖 owned 成功、foreign 失败、source-class mismatch 失败；另覆盖同租户另一 Strategy 的 version anchor 错配。静态 suite 进一步锁定完整 owner policy body，并抽取六个 trigger function body 校验 field authority、tenant/version/source fail-closed、immutability 与 version-1 bootstrap。
+- `docs/MASTER_PROJECT_HANDOFF.md` 的当前状态曾停在 Phase 8D 未启动；现仅更新 current milestone、当前 main 基线与 next action，历史 Phase 8C freeze 叙述保持不改。
+- 后续三轮对抗复审将静态 P2 逐步收敛：精确锁定 5 条 policy 且禁止后续 ALTER/DROP，精确锁定 6 条 trigger wiring 且禁止 WHEN/DISABLE，并逐 source branch 绑定 canonical table 与 `WHERE alias.id = NEW.source_id`。第四次复审结果为 `P0=0 / P1=1 / P2=0 + NO-GO`；唯一保留 P1 是真实 DB 未运行。

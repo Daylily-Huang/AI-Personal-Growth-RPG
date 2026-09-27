@@ -1,9 +1,9 @@
 # AI Personal Growth RPG — 项目总体计划与当前状态 (Task Plan)
 
 > **权威状态主文档**：请统一参阅 [`docs/MASTER_PROJECT_HANDOFF.md`](docs/MASTER_PROJECT_HANDOFF.md)。  
-> **当前里程碑**: Phase 8C — Journal + State（FINAL FROZEN）；Phase 8D — Strategy + Personal Playbook（controlling document in progress；production implementation BLOCKED）
+> **当前里程碑**: Phase 8C — Journal + State（FINAL FROZEN）；Phase 8D — Strategy + Personal Playbook（admission PASSED；Round 1 DB foundation in progress）
 > **当前主分支基线 (main)**: `98dbe37e0a6fe334b6638ca568bc3ba06b4c3aac`
-> **最新状态**: Phase 8C 实现 PR #35 与归档 PR #36 均已合入；PR #36 reviewed exact head `2a40006e5ce81648700f9c4050a6bc0e5df8267e` 为 `P0=0 / P1=0 / P2=0 + GO`，merge commit `98dbe37e0a6fe334b6638ca568bc3ba06b4c3aac` 的 post-merge main CI Run `35436440893` 中 `check` 与 `supabase-integration` 均 success。Phase 8C **FINAL FROZEN**。Phase 8D 仅进入 controlling-document 准入阶段，production implementation 仍 BLOCKED。
+> **最新状态**: Phase 8C **FINAL FROZEN**。Phase 8D controlling document exact head `b4c26079e5532cc1c02238f70de95f3e4694e554` 已通过独立 exact-head Gatekeeper：`P0=0 / P1=0 / P2=0 + GO`。当前工作树 HEAD 与该 reviewed head 完全一致，准入阻塞已解除；仅推进 **Round 1 — DB foundation**，后续 Round 2–5 仍需逐轮实现、测试与独立 Gatekeeper。
 
 ---
 
@@ -50,7 +50,7 @@
   - [complete] Corrective exact head `ae35a63ab15abab6c6e7fafd06fd51281ab6e634` 已关闭旧 Gatekeeper 的 P1-01/P1-02/P2-01/P2-02；独立复审结果 `P0=0 / P1=0 / P2=0 + GO`，Exact-Head CI Run `35310121814` 全绿
   - [complete] PR #33 已合入 main：merge `0e4bec5f26411669f7031af4523b6d4fca747f96`；post-merge main CI Run `35315613393` 全绿，DoD 最终 merge gate 已满足
 - [complete] **Phase 8C: Journal + State** ✅ FINAL FROZEN — PR #35；final reviewed exact head `f2f4d2b2d0a857348b6282dfdbfb3cfd08f4a06d`；Exact-Head CI `35381923343` success；merge `9aa76e7ce36b20b9f99e28d6cbd08eeb7bc55b85`；post-merge main CI `35432361509` success
-- [in_progress] **Phase 8D: Strategy + Personal Playbook**: controlling document 准入阶段；生产实现须等待独立 exact-head Gatekeeper `P0=0 / P1=0 / P2=0 + GO`
+- [in_progress] **Phase 8D: Strategy + Personal Playbook**: admission 已通过；当前只推进 Round 1 DB foundation，完成实现与真实数据库负向验收后再进入独立 Gatekeeper。
 
 ## 2026-09-18 — Phase 8C Journal + State Controlling Document
 
@@ -95,11 +95,24 @@
 
 - [complete] Phase 8C 归档 PR #36 已合入 `main`：merge `98dbe37e0a6fe334b6638ca568bc3ba06b4c3aac`；post-merge main CI Run `35436440893` 的 `check` 与 `supabase-integration` 均 success。
 - [complete] Phase 8D controlling document 已形成 admission candidate：冻结范围、确定性 confidence/lifecycle 规则、四个 Strategy RPC、source provenance / anti-replay、`STRATEGY_HYPOTHESIS` proposal settlement、Playbook UI、Round 1–5 与 DoD 均已绑定。
-- [in_progress] 提交并推送 controlling-document exact head，随后进行独立只读 Gatekeeper 准入审查。
-- [blocked] Phase 8D production implementation：仅在 controlling-document exact head 的独立 Gatekeeper 返回 `P0=0 / P1=0 / P2=0 + GO` 后解除阻塞。
+- [complete] controlling-document reviewed exact head `b4c26079e5532cc1c02238f70de95f3e4694e554` 已通过独立 Gatekeeper：`P0=0 / P1=0 / P2=0 + GO`。
+- [in_progress] Round 1 — DB foundation：重写 `0046_phase8d_strategy_database_foundation.sql`，建立冻结三表、RLS、version/support immutable guards、Strategy direct-write field authority、原子 version-1 bootstrap，并补真实 DB/runtime 负向测试。
+- [pending] Round 1 独立 exact-head Gatekeeper；通过前不进入 Round 2 RPC authority。
 
 ### Phase 8D Errors Encountered
 
 - 2026-09-19：一条组合式 `rg --files` + 多文件 `rg -n` 只读命令被 Codex 工具安全检查在执行前拦截；仓库零改动。后续改用拆分、窄范围只读查询，不重复该调用。
 
 - 2026-09-19：第二条跨两个文档的复合范围读取同样被工具安全检查在执行前拦截；仓库零改动。后续严格改为单文件单命令读取。
+
+- 2026-09-22：一条同时读取 controlling document、0044、0045 与 tests 的组合只读命令再次被 Codex 安全检查拦截；仓库零改动。已改为单文件、窄范围读取，不重复该调用。
+
+- 2026-09-22：尝试读取 `docs/Phase8/06_DATABASE_SCHEMA_AND_DATA_DICTIONARY.md` 返回 `os error 2`；项目规则中的真实路径是 `docs/Design ChatGPT/06_DATABASE_SCHEMA_AND_DATA_DICTIONARY.md`，后续按该路径读取。
+
+- 2026-09-22：按 checkpoint 简写读取 `0045_phase8c_journal_state.sql` 失败；实际迁移文件为 `0045_phase8c_journal_state_foundation.sql`，已通过 `rg --files` 确认，后续使用真实文件名。
+
+- 2026-09-28：`pnpm vitest run ...` 通过当前 Codex fallback pnpm 启动时无法解析工作区 `vitest`（`'vitest' is not recognized`），但 `node_modules/.bin/vitest.cmd` 实际存在；后续使用该工作区二进制执行同一测试，不重复失败入口。
+
+- 2026-09-28：首次新增的 0046 静态“无写权限”断言使用跨分号贪婪范围，误把 `strategies` 的 INSERT grant 与后续 `strategy_versions` SELECT 拼成写授权；已收窄为单条 SQL statement（`[^;]*`）并复跑通过。
+
+- 2026-09-28：本机 `XP_RPG_TEST_DB_URL` 未配置，Docker CLI 存在但 daemon 未运行（`open //./pipe/docker_engine: The system cannot find the file specified`）；Round 1 的 12 个真实 DB 测试仍属未验证，不能进入独立 Gatekeeper 或 Round 2。

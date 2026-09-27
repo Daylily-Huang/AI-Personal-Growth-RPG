@@ -68,6 +68,7 @@ const EXPECTED_ORDER = [
   "0043_phase8b_outer_loop_foundation",
   "0044_phase8b_rpc_authority",
   "0045_phase8c_journal_state_foundation",
+  "0046_phase8d_strategy_database_foundation",
 ];
 
 
@@ -368,5 +369,180 @@ describe("Phase 8C Round 1 — Journal schema authority", () => {
     expect(updateGrant).not.toMatch(/^\s*created_at\s*,?\s*$/m);
     expect(updateGrant).not.toMatch(/^\s*updated_at\s*,?\s*$/m);
     expect(journal).toContain("NEW.updated_at := clock_timestamp()");
+  });
+});
+
+describe("Phase 8D Round 1 — Strategy schema authority", () => {
+  const migrations = readMigrations();
+  const strategy = migrations.get("0046_phase8d_strategy_database_foundation") ?? "";
+  const compactStrategy = strategy.replace(/\s+/g, " ");
+
+  test("0046 creates exactly the three frozen Strategy tables and version anchors", () => {
+    expect(strategy.match(/CREATE TABLE public\./g) ?? []).toHaveLength(3);
+    expect(strategy).toContain("CREATE TABLE public.strategies");
+    expect(strategy).toContain("CREATE TABLE public.strategy_versions");
+    expect(strategy).toContain("CREATE TABLE public.strategy_supports");
+    expect(strategy).toContain("strategy_version_id uuid NOT NULL REFERENCES public.strategy_versions(id) ON DELETE RESTRICT");
+    expect(strategy).toContain("CONSTRAINT strategy_versions_unique_number UNIQUE (strategy_id, version_number)");
+    expect(strategy).toContain("CONSTRAINT strategy_supports_source_identity_unique UNIQUE");
+  });
+
+  test("0046 freezes lifecycle, confidence, support taxonomy, and version-1 bootstrap", () => {
+    for (const lifecycle of [
+      "HYPOTHESIS",
+      "TESTING",
+      "SUPPORTED",
+      "CONTEXTUAL",
+      "WEAKENED",
+      "RETIRED",
+    ]) {
+      expect(strategy).toContain(`'${lifecycle}'`);
+    }
+    for (const confidence of ["LOW", "MODERATE", "HIGH", "VERY_HIGH"]) {
+      expect(strategy).toContain(`'${confidence}'`);
+    }
+    for (const sourceClass of [
+      "SEASON_REVIEW",
+      "ACTIVITY",
+      "QUEST_OUTCOME",
+      "ARTIFACT",
+      "CORE_EVIDENCE_REFERENCE",
+      "JOURNAL_CONTEXT",
+      "MANUAL_OBSERVATION",
+    ]) {
+      expect(strategy).toContain(`'${sourceClass}'`);
+    }
+    expect(strategy).toContain("CREATE TRIGGER trg_bootstrap_strategy_version_one");
+    expect(strategy).toContain("AFTER INSERT ON public.strategies");
+  });
+
+  test("0046 enables private owner reads and denies direct version/support writes", () => {
+    for (const table of ["strategies", "strategy_versions", "strategy_supports"]) {
+      expect(strategy).toContain(`ALTER TABLE public.${table} ENABLE ROW LEVEL SECURITY`);
+    }
+    expect(strategy).toContain("CREATE POLICY strategies_owner_select");
+    expect(strategy).toContain("CREATE POLICY strategies_owner_insert");
+    expect(strategy).toContain("CREATE POLICY strategies_owner_update");
+    expect(strategy).toContain("CREATE POLICY strategy_versions_owner_select");
+    expect(strategy).toContain("CREATE POLICY strategy_supports_owner_select");
+    expect(compactStrategy).toContain(
+      "CREATE POLICY strategies_owner_select ON public.strategies FOR SELECT TO authenticated USING (auth.uid() = user_id);",
+    );
+    expect(compactStrategy).toContain(
+      "CREATE POLICY strategies_owner_insert ON public.strategies FOR INSERT TO authenticated WITH CHECK ( auth.uid() = user_id AND lifecycle_status = 'HYPOTHESIS' AND confidence_level = 'LOW' AND version = 1 );",
+    );
+    expect(compactStrategy).toContain(
+      "CREATE POLICY strategies_owner_update ON public.strategies FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);",
+    );
+    expect(compactStrategy).toContain(
+      "CREATE POLICY strategy_versions_owner_select ON public.strategy_versions FOR SELECT TO authenticated USING (auth.uid() = user_id);",
+    );
+    expect(compactStrategy).toContain(
+      "CREATE POLICY strategy_supports_owner_select ON public.strategy_supports FOR SELECT TO authenticated USING (auth.uid() = user_id);",
+    );
+    expect(strategy.match(/CREATE POLICY /g) ?? []).toHaveLength(5);
+    expect(strategy).not.toMatch(/(?:USING|WITH CHECK)\s*\(\s*true\s*\)/i);
+    expect(strategy).not.toMatch(/\b(?:ALTER|DROP)\s+POLICY\b/i);
+    expect(strategy).not.toMatch(/GRANT\s+(?:INSERT|UPDATE|DELETE)[^;]*ON public\.strategy_versions TO authenticated;/);
+    expect(strategy).not.toMatch(/GRANT\s+(?:INSERT|UPDATE|DELETE)[^;]*ON public\.strategy_supports TO authenticated;/);
+  });
+
+  test("0046 allowlists direct Strategy columns and installs immutable tenant guards", () => {
+    const insertGrant = strategy.match(/GRANT INSERT \([\s\S]*?\) ON public\.strategies TO authenticated;/)?.[0] ?? "";
+    const updateGrant = strategy.match(/GRANT UPDATE \([\s\S]*?\) ON public\.strategies TO authenticated;/)?.[0] ?? "";
+
+    expect(insertGrant).toContain("user_id");
+    expect(insertGrant).toContain("action_protocol");
+    expect(insertGrant).not.toMatch(/^\s*id\s*,?\s*$/m);
+    expect(insertGrant).not.toContain("lifecycle_status");
+    expect(insertGrant).not.toContain("confidence_level");
+    expect(insertGrant).not.toMatch(/^\s*version\s*,?\s*$/m);
+    expect(insertGrant).not.toContain("created_at");
+    expect(insertGrant).not.toContain("updated_at");
+    expect(updateGrant).toMatch(/GRANT UPDATE \(title, description\)/);
+    expect(strategy).toContain("CREATE TRIGGER trg_enforce_strategy_version_tenant_isolation");
+    expect(strategy).toContain("CREATE TRIGGER trg_prevent_strategy_version_mutation");
+    expect(strategy).toContain("CREATE TRIGGER trg_enforce_strategy_support_tenant_isolation");
+    expect(strategy).toContain("CREATE TRIGGER trg_prevent_strategy_support_mutation");
+    for (const wiring of [
+      "CREATE TRIGGER trg_enforce_strategy_field_authority BEFORE INSERT OR UPDATE ON public.strategies FOR EACH ROW EXECUTE FUNCTION public.trg_enforce_strategy_field_authority();",
+      "CREATE TRIGGER trg_enforce_strategy_version_tenant_isolation BEFORE INSERT ON public.strategy_versions FOR EACH ROW EXECUTE FUNCTION public.trg_enforce_strategy_version_tenant_isolation();",
+      "CREATE TRIGGER trg_prevent_strategy_version_mutation BEFORE UPDATE OR DELETE ON public.strategy_versions FOR EACH ROW EXECUTE FUNCTION public.trg_prevent_strategy_version_mutation();",
+      "CREATE TRIGGER trg_enforce_strategy_support_tenant_isolation BEFORE INSERT ON public.strategy_supports FOR EACH ROW EXECUTE FUNCTION public.trg_enforce_strategy_support_tenant_isolation();",
+      "CREATE TRIGGER trg_prevent_strategy_support_mutation BEFORE UPDATE OR DELETE ON public.strategy_supports FOR EACH ROW EXECUTE FUNCTION public.trg_prevent_strategy_support_mutation();",
+      "CREATE TRIGGER trg_bootstrap_strategy_version_one AFTER INSERT ON public.strategies FOR EACH ROW EXECUTE FUNCTION public.trg_bootstrap_strategy_version_one();",
+    ]) {
+      expect(compactStrategy).toContain(wiring);
+    }
+    expect(strategy.match(/CREATE TRIGGER /g) ?? []).toHaveLength(6);
+    expect(strategy).not.toMatch(/CREATE TRIGGER[\s\S]*?\bWHEN\s*\(/i);
+    expect(strategy).not.toMatch(/\bDISABLE\s+TRIGGER\b/i);
+  });
+
+  test("0046 trigger bodies retain fail-closed field, version, source, and bootstrap semantics", () => {
+    const fieldAuthority =
+      strategy.match(/CREATE OR REPLACE FUNCTION public\.trg_enforce_strategy_field_authority\(\)[\s\S]*?\$\$;/)?.[0] ?? "";
+    const versionTenant =
+      strategy.match(/CREATE OR REPLACE FUNCTION public\.trg_enforce_strategy_version_tenant_isolation\(\)[\s\S]*?\$\$;/)?.[0] ?? "";
+    const supportTenant =
+      strategy.match(/CREATE OR REPLACE FUNCTION public\.trg_enforce_strategy_support_tenant_isolation\(\)[\s\S]*?\$\$;/)?.[0] ?? "";
+    const versionImmutable =
+      strategy.match(/CREATE OR REPLACE FUNCTION public\.trg_prevent_strategy_version_mutation\(\)[\s\S]*?\$\$;/)?.[0] ?? "";
+    const supportImmutable =
+      strategy.match(/CREATE OR REPLACE FUNCTION public\.trg_prevent_strategy_support_mutation\(\)[\s\S]*?\$\$;/)?.[0] ?? "";
+    const bootstrap =
+      strategy.match(/CREATE OR REPLACE FUNCTION public\.trg_bootstrap_strategy_version_one\(\)[\s\S]*?\$\$;/)?.[0] ?? "";
+
+    for (const field of [
+      "NEW.context_trigger IS DISTINCT FROM OLD.context_trigger",
+      "NEW.action_protocol IS DISTINCT FROM OLD.action_protocol",
+      "NEW.expected_outcome IS DISTINCT FROM OLD.expected_outcome",
+      "NEW.lifecycle_status IS DISTINCT FROM OLD.lifecycle_status",
+      "NEW.confidence_level IS DISTINCT FROM OLD.confidence_level",
+      "NEW.version IS DISTINCT FROM OLD.version",
+      "NEW.updated_at IS DISTINCT FROM OLD.updated_at",
+    ]) {
+      expect(fieldAuthority).toContain(field);
+    }
+    expect(fieldAuthority).toContain("NEW.lifecycle_status IS DISTINCT FROM 'HYPOTHESIS'");
+    expect(fieldAuthority).toContain("NEW.confidence_level IS DISTINCT FROM 'LOW'");
+    expect(fieldAuthority).toContain("NEW.version IS DISTINCT FROM 1");
+    expect(fieldAuthority).toContain("NEW.updated_at := clock_timestamp()");
+
+    expect(versionTenant).toContain("NEW.user_id IS DISTINCT FROM v_strategy_user_id");
+    expect(versionTenant).toContain("RAISE EXCEPTION 'Strategy version tenant mismatch'");
+    expect(supportTenant).toContain("NEW.strategy_id IS DISTINCT FROM v_version_strategy_id");
+    for (const branch of [
+      ["WHEN 'SEASON_REVIEW'", "FROM public.season_reviews sr", "WHERE sr.id = NEW.source_id"],
+      ["WHEN 'ACTIVITY'", "FROM public.activities a", "WHERE a.id = NEW.source_id"],
+      ["WHEN 'QUEST_OUTCOME'", "FROM public.quests q", "WHERE q.id = NEW.source_id"],
+      ["WHEN 'ARTIFACT'", "FROM public.artifacts a", "WHERE a.id = NEW.source_id"],
+      [
+        "WHEN 'CORE_EVIDENCE_REFERENCE'",
+        "FROM public.evidence_records e",
+        "WHERE e.id = NEW.source_id",
+      ],
+      [
+        "WHEN 'JOURNAL_CONTEXT', 'MANUAL_OBSERVATION'",
+        "FROM public.journal_entries j",
+        "WHERE j.id = NEW.source_id",
+      ],
+    ]) {
+      const [caseLabel, canonicalTable, sourcePredicate] = branch;
+      const caseOffset = supportTenant.indexOf(caseLabel);
+      const nextCaseOffset = supportTenant.indexOf("WHEN '", caseOffset + caseLabel.length);
+      const branchBody = supportTenant.slice(caseOffset, nextCaseOffset === -1 ? undefined : nextCaseOffset);
+      expect(caseOffset).toBeGreaterThanOrEqual(0);
+      expect(branchBody).toContain(canonicalTable);
+      expect(branchBody).toContain(sourcePredicate);
+    }
+    expect(supportTenant).toContain("NEW.user_id IS DISTINCT FROM v_source_user_id");
+    expect(versionImmutable).toContain("RAISE EXCEPTION 'Strategy version is immutable'");
+    expect(supportImmutable).toContain("RAISE EXCEPTION 'Strategy support is immutable'");
+    expect(bootstrap).toContain("SECURITY DEFINER");
+    expect(bootstrap).toContain("INSERT INTO public.strategy_versions");
+    expect(bootstrap).toContain("NEW.action_protocol");
+    expect(bootstrap).toContain("NEW.context_trigger");
+    expect(bootstrap).toContain("NEW.expected_outcome");
   });
 });

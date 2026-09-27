@@ -156,3 +156,34 @@
 - `docs/Phase8/18_PHASE8D_STRATEGY_PLAYBOOK_IMPLEMENTATION_CONTROLLING.md` 已完成 admission-candidate 收敛：补齐 deterministic confidence rubric、lifecycle/transition authority、四个 RPC 的输入与失败语义、source provenance / anti-replay / tenant validation、`STRATEGY_HYPOTHESIS` 通过既有 proposal-review CAS 落地、Playbook UI 范围、runtime/database counterexamples、Round 1–5 与最终 merge/post-merge-CI DoD。
 - 当前下一步是提交/推送该 controlling-document exact head，并由独立只读 Gatekeeper 对冻结文档 05/08/09/10/11/12 做 exact-head 准入审查。
 - Phase 8D production schema/RPC/API/UI 仍为 **BLOCKED**；只有 Gatekeeper 返回 `P0=0 / P1=0 / P2=0 + GO` 才进入 Round 1。
+# 2026-09-22 — Phase 8D Round 1 resume
+
+- Verified branch: `codex/phase8d-strategy-playbook`.
+- Verified HEAD: `b4c26079e5532cc1c02238f70de95f3e4694e554`; reviewed Gatekeeper head is the current exact HEAD and ancestor check passes.
+- No tracked working-tree modifications at resume; existing Round 1 draft migration/test plus unrelated paths are untracked and preserved.
+- Admission status refreshed to `P0=0 / P1=0 / P2=0 + GO`; Round 1 DB foundation is now active. Round 2 remains gated on Round 1 implementation, runtime tests, and independent exact-head review.
+- One broad multi-file read was blocked before execution by Codex safety review; switched to narrow single-file reads with zero repository effect.
+- Read Phase 8C `0045` field-authority/RLS pattern and Phase 8B `0044` SECURITY DEFINER authority conventions. Round 1 design chosen: authenticated Strategy create + title/description update only; internal atomic version-1 bootstrap; versions/supports authenticated read-only; immutable and tenant guards at storage layer.
+
+## 2026-09-22 — Phase 8D Round 1 resumed
+
+- Re-verified exact HEAD `b4c26079e5532cc1c02238f70de95f3e4694e554` and restored planning context.
+- Confirmed `0046` and its test are obsolete Round 1 drafts; no production implementation commit exists yet.
+- Two whole-file reads of `0046` were blocked by command safety review; repository remained unchanged by those failed reads. Switched to narrow read-only queries.
+
+## 2026-09-23 15:12 +08:00 — Resume Phase 8D Round 1
+- 已恢复 planning files、git 状态与 Phase 8D admission 状态。
+- 已读取 MASTER_PROJECT_HANDOFF 与 01_SYSTEM_RULES；继续按 AGENTS.md 要求依次读取 02–09 后再编辑 Round 1 production files。
+- 本轮尚未修改 migration/tests。
+
+- 已完成 Round 1 权威边界复核：补齐 04–09，定位 controlling contract §6/§10/§11 与 frozen Strategy spec schema；下一步只读对照旧 0046、0045 authority pattern 与现有 database-backed test pattern，再重写 Round 1 foundation。
+
+## 2026-09-28 — Phase 8D Round 1 resumed
+
+- 确认当前 HEAD `b4c26079e5532cc1c02238f70de95f3e4694e554` 已是 controlling-document independent Gatekeeper GO 的 exact head；当前只推进 Round 1 DB foundation，Round 2 继续 gated。
+- 补齐 `tests/supabase-schema.test.ts`：迁移链登记 0046，并增加三表/版本锚、taxonomy/version-1 bootstrap、private RLS/无 version-support 直写、Strategy 列权限与 immutable tenant guards 的静态断言。
+- 定向测试最终通过：`39 passed / 12 skipped`；12 skipped 全部来自未配置 `XP_RPG_TEST_DB_URL` 的真实 Strategy DB suite。两个相关测试文件 ESLint 通过，`git diff --check` 通过。
+- 本机 Docker daemon 未运行，真实 migration/RLS/trigger 负向测试尚未执行；在获得真实 DB 证据前不提交 Round 1 Gatekeeper，也不进入 Round 2。
+- 独立对抗初审发现来源/版本锚反例不足与静态守卫脆弱；已补五类 source 的 owned/foreign/class-mismatch、同租户错误 version anchor，并强化 policy/trigger body 静态断言。最新定向结果 `40 passed / 13 skipped`，skipped 仍全部为真实 DB suite。
+- 权威 `docs/MASTER_PROJECT_HANDOFF.md` 已从旧的“Phase 8D 未启动/BLOCKED”手术式同步为 admission exact head 已 GO、Round 1 IN PROGRESS、Round 2 gated；当前 main 基线同步为 Phase 8C archive merge `98dbe37...`。
+- 独立只读对抗第四次复审：`P0=0 / P1=1 / P2=0 + NO-GO`。来源/版本锚覆盖与静态 policy/trigger/source mapping findings 均关闭；唯一剩余 P1 是本机无真实 Supabase runtime，下一步提交并推送 Round 1 candidate，以 exact-head CI 的 `supabase-integration` 获取数据库证据。
