@@ -187,3 +187,20 @@
 - 独立对抗初审发现来源/版本锚反例不足与静态守卫脆弱；已补五类 source 的 owned/foreign/class-mismatch、同租户错误 version anchor，并强化 policy/trigger body 静态断言。最新定向结果 `40 passed / 13 skipped`，skipped 仍全部为真实 DB suite。
 - 权威 `docs/MASTER_PROJECT_HANDOFF.md` 已从旧的“Phase 8D 未启动/BLOCKED”手术式同步为 admission exact head 已 GO、Round 1 IN PROGRESS、Round 2 gated；当前 main 基线同步为 Phase 8C archive merge `98dbe37...`。
 - 独立只读对抗第四次复审：`P0=0 / P1=1 / P2=0 + NO-GO`。来源/版本锚覆盖与静态 policy/trigger/source mapping findings 均关闭；唯一剩余 P1 是本机无真实 Supabase runtime，下一步提交并推送 Round 1 candidate，以 exact-head CI 的 `supabase-integration` 获取数据库证据。
+
+## 2026-09-28 — Phase 8D Round 1 accepted; Round 2 started
+
+- Round 1 commit `400cf1536e86412e6183e45289d87cb21bd56ba1` 已推送。CI Run `36338180207` 的 `check` 与 `supabase-integration` 均 success；integration 的 Supabase startup、production build、database-backed tests、deterministic harness、E2E steps 均 success。
+- Fresh independent Gatekeeper 对上述 exact SHA 返回 `P0=0 / P1=0 / P2=0 + GO`，Round 1 接受。PR #37 仍未合并。
+- 本轮恢复后 `git status` 仅有原有未跟踪目录/文件；HEAD 与远端 Round 1 SHA 一致。开始 Round 2 RPC authority，下一门禁为 Round 2 exact-head CI 与独立 Gatekeeper。
+
+## 2026-09-28 — Phase 8D Round 2 local candidate
+
+- 新增 `0047_phase8d_strategy_rpc_authority.sql`：四个 Strategy RPC、当前版本确定性评估、审计与持久幂等键、提案审核的 Strategy 扩展；`0044` 保留为内部委托，冻结文件未修改。
+- 独立只读初审指出 Quest 完成后时间戳变化破坏重放、晋升确认重放报错、编辑后 alert 内容未留痕（P1=1/P2=2）；已针对三项修复并加入相应回归用例，fresh 复审待结论。
+- 本地全量 Vitest：46 files passed / 24 skipped，764 passed / 332 skipped；确定性 harness 11/11；TypeScript、定向 ESLint、`git diff --check` 通过。新增 5 个真实 DB 用例因 `XP_RPG_TEST_DB_URL` 缺失而跳过；迁移执行、RLS 与数据库负向测试仍未验证，不能宣称 Round 2 GO。
+- Next.js 生产构建通过；Docker daemon 探测仍报 `open //./pipe/docker_engine: The system cannot find the file specified`，不能作为数据库测试替代。
+- Fresh 只读复审确认前轮三项实现路径已修复，指出两项 P2 测试覆盖缺口：晋升确认重放、匿名/外租户来源/直写拒绝。已补这些真实 DB 用例；定向静态 40/40、TypeScript 与 ESLint 通过，Round 2 DB suite 现为 7 skipped。覆盖缺口的复审与数据库运行证据仍待完成。
+- 后续只读复审指出两项 P2：直写负向测试被随机 version FK 遮蔽；`EDITED` 提案同键不同 payload 未拒绝。现改用有效 version/own source 并断言权限 SQLSTATE `42501`，且对已审定编辑载荷做同键冲突比较；回归测试已加。定向静态 40/40、TypeScript/ESLint 复跑通过；fresh 静态复审与真实 DB 仍待完成。
+- 最新限定范围独立静态复审为 `P0=0 / P1=0 / P2=0`，确认两项 P2 的代码与测试闭环；这只代表静态 GO。真实数据库用例仍未运行，因此 Round 2 环境验收继续 NO-GO。下一步形成候选提交，并需另行获准推送该新 SHA 才能触发 exact-head CI。
+- 当前未提交、未推送、未触发新 SHA 的 CI；Round 3 保持 gated。

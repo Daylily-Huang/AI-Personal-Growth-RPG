@@ -69,6 +69,7 @@ const EXPECTED_ORDER = [
   "0044_phase8b_rpc_authority",
   "0045_phase8c_journal_state_foundation",
   "0046_phase8d_strategy_database_foundation",
+  "0047_phase8d_strategy_rpc_authority",
 ];
 
 

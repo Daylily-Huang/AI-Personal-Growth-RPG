@@ -1,12 +1,12 @@
 # AI Personal Growth RPG — 项目全景交接与治理主文档 (Master Project Handoff)
 
-> **文档版本**: 1.6 (Master Comprehensive Handoff — Phase 8D Round 1 In Progress)
+> **文档版本**: 1.7 (Master Comprehensive Handoff — Phase 8D Round 2 In Progress)
 > **更新时间**: 2026-09-28
 > **适用对象**: 后续所有接手的 AI 工程师、独立审查 AI、项目协作者  
 > **Phase 7 终局冻结合并基线 (historical)**: `653fe018f6cee38b2263fbcca19dffbf624d4c18`
 > **Phase 8B 终局冻结合并基线 (main)**: `0e4bec5f26411669f7031af4523b6d4fca747f96`
 > **Phase 8C 终局冻结合并基线 (main)**: `9aa76e7ce36b20b9f99e28d6cbd08eeb7bc55b85`
-> **当前所处里程碑**: Phase 8C — Journal + State (**FINAL FROZEN**)；Phase 8D admission 已通过，Round 1 DB foundation **IN PROGRESS**
+> **当前所处里程碑**: Phase 8C — Journal + State (**FINAL FROZEN**)；Phase 8D Round 1 已通过，Round 2 RPC authority **IN PROGRESS**
 > **代码仓库**: `Daylily-Huang/AI-Personal-Growth-RPG`  
 > **核心工作区路径**: `d:\AI_Personal_Growth_RPG`（WSL 挂载路径：`/mnt/d/AI_Personal_Growth_RPG`）
 
@@ -264,7 +264,7 @@ wsl -d Ubuntu -- bash -lc "cd /mnt/d/AI_Personal_Growth_RPG && pnpm build"
 
 ## 8. 接手 AI 极速上手与后续路线图推进指引 (Next Actions)
 
-当前状态：Phase 1~7 的既有冻结边界保持有效；Phase 8A 架构冻结已完成；Phase 8B 已 FINAL FROZEN；**Phase 8C: Journal + State 已完成最终 Gatekeeper、exact-head CI、PR #35 合并与 post-merge main CI，正式 FINAL FROZEN**。Phase 8D controlling document exact head `b4c26079e5532cc1c02238f70de95f3e4694e554` 已通过独立 Gatekeeper `P0=0 / P1=0 / P2=0 + GO`，当前仅推进 Round 1 DB foundation；Round 2 仍受 Round 1 真实 DB 验证与独立 exact-head Gatekeeper 阻塞。
+当前状态：Phase 1~7 的既有冻结边界保持有效；Phase 8A 架构冻结已完成；Phase 8B 已 FINAL FROZEN；**Phase 8C: Journal + State FINAL FROZEN**。Phase 8D admission 已通过；Round 1 exact head `400cf1536e86412e6183e45289d87cb21bd56ba1` 的 CI Run `36338180207` 双绿，独立 Gatekeeper 为 `P0=0 / P1=0 / P2=0 + GO`。当前推进 Round 2 RPC authority。
 
 当前权威主分支基线：
 ```text
@@ -345,5 +345,5 @@ wsl -d Ubuntu -- bash -lc "cd /mnt/d/AI_Personal_Growth_RPG && pnpm build"
 Phase 8C 已全面闭环并永久冻结。所有后续工作必须从当前 main 基线 `98dbe37e0a6fe334b6638ca568bc3ba06b4c3aac` 或其后续纯治理/文档提交切出独立分支，保持 Phase 1~8C 已冻结的领域、数据库、RPC/API、UI 与治理边界。
 
 后续建议执行顺序：
-1. **完成 Phase 8D Round 1**：仅收敛 `0046` 三表、约束、private RLS、字段/租户/不可变 guard 与数据库负向测试。必须取得真实 Supabase database-backed 通过证据，并由独立 Gatekeeper 对 exact implementation head 给出 `P0=0 / P1=0 / P2=0 + GO`；在此之前不得进入 Round 2 RPC authority。
+1. **完成 Phase 8D Round 2**：实现四个 Strategy RPC、确定性 confidence/lifecycle、source provenance、anti-replay、审计、proposal settlement 和真实数据库负向测试；取得 exact implementation head 的 CI 与独立 Gatekeeper `P0=0 / P1=0 / P2=0 + GO` 后才进入 Round 3。
 2. **继续保持可审计性**：后续 PR 继续绑定 exact head、CI run、独立审查结论与 merge SHA；不得把历史失败改写为成功，也不得把 skipped/local-only 结果替代真实 database-backed CI 证据。

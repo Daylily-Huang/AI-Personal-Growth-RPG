@@ -1,9 +1,9 @@
 # AI Personal Growth RPG — 项目总体计划与当前状态 (Task Plan)
 
 > **权威状态主文档**：请统一参阅 [`docs/MASTER_PROJECT_HANDOFF.md`](docs/MASTER_PROJECT_HANDOFF.md)。  
-> **当前里程碑**: Phase 8C — Journal + State（FINAL FROZEN）；Phase 8D — Strategy + Personal Playbook（admission PASSED；Round 1 DB foundation in progress）
+> **当前里程碑**: Phase 8C — Journal + State（FINAL FROZEN）；Phase 8D — Strategy + Personal Playbook（Round 1 accepted；Round 2 RPC authority in progress）
 > **当前主分支基线 (main)**: `98dbe37e0a6fe334b6638ca568bc3ba06b4c3aac`
-> **最新状态**: Phase 8C **FINAL FROZEN**。Phase 8D controlling document exact head `b4c26079e5532cc1c02238f70de95f3e4694e554` 已通过独立 exact-head Gatekeeper：`P0=0 / P1=0 / P2=0 + GO`。当前工作树 HEAD 与该 reviewed head 完全一致，准入阻塞已解除；仅推进 **Round 1 — DB foundation**，后续 Round 2–5 仍需逐轮实现、测试与独立 Gatekeeper。
+> **最新状态**: Phase 8C **FINAL FROZEN**。Phase 8D admission 已通过；Round 1 exact head `400cf1536e86412e6183e45289d87cb21bd56ba1` 的 CI Run `36338180207` 双绿，独立 Gatekeeper 返回 `P0=0 / P1=0 / P2=0 + GO`。Round 2 RPC authority 正在实施；其独立 Gatekeeper 通过前不进入 Round 3。
 
 ---
 
@@ -50,7 +50,7 @@
   - [complete] Corrective exact head `ae35a63ab15abab6c6e7fafd06fd51281ab6e634` 已关闭旧 Gatekeeper 的 P1-01/P1-02/P2-01/P2-02；独立复审结果 `P0=0 / P1=0 / P2=0 + GO`，Exact-Head CI Run `35310121814` 全绿
   - [complete] PR #33 已合入 main：merge `0e4bec5f26411669f7031af4523b6d4fca747f96`；post-merge main CI Run `35315613393` 全绿，DoD 最终 merge gate 已满足
 - [complete] **Phase 8C: Journal + State** ✅ FINAL FROZEN — PR #35；final reviewed exact head `f2f4d2b2d0a857348b6282dfdbfb3cfd08f4a06d`；Exact-Head CI `35381923343` success；merge `9aa76e7ce36b20b9f99e28d6cbd08eeb7bc55b85`；post-merge main CI `35432361509` success
-- [in_progress] **Phase 8D: Strategy + Personal Playbook**: admission 已通过；当前只推进 Round 1 DB foundation，完成实现与真实数据库负向验收后再进入独立 Gatekeeper。
+- [in_progress] **Phase 8D: Strategy + Personal Playbook**: admission 与 Round 1 DB foundation 已通过；当前推进 Round 2 RPC authority。
 
 ## 2026-09-18 — Phase 8C Journal + State Controlling Document
 
@@ -96,8 +96,9 @@
 - [complete] Phase 8C 归档 PR #36 已合入 `main`：merge `98dbe37e0a6fe334b6638ca568bc3ba06b4c3aac`；post-merge main CI Run `35436440893` 的 `check` 与 `supabase-integration` 均 success。
 - [complete] Phase 8D controlling document 已形成 admission candidate：冻结范围、确定性 confidence/lifecycle 规则、四个 Strategy RPC、source provenance / anti-replay、`STRATEGY_HYPOTHESIS` proposal settlement、Playbook UI、Round 1–5 与 DoD 均已绑定。
 - [complete] controlling-document reviewed exact head `b4c26079e5532cc1c02238f70de95f3e4694e554` 已通过独立 Gatekeeper：`P0=0 / P1=0 / P2=0 + GO`。
-- [in_progress] Round 1 — DB foundation：重写 `0046_phase8d_strategy_database_foundation.sql`，建立冻结三表、RLS、version/support immutable guards、Strategy direct-write field authority、原子 version-1 bootstrap，并补真实 DB/runtime 负向测试。
-- [pending] Round 1 独立 exact-head Gatekeeper；通过前不进入 Round 2 RPC authority。
+- [complete] Round 1 — DB foundation：exact head `400cf1536e86412e6183e45289d87cb21bd56ba1`，CI Run `36338180207` 的 check 与 supabase-integration 均 success，真实 database-backed tests 执行成功；fresh independent Gatekeeper 为 `P0=0 / P1=0 / P2=0 + GO`。
+- [in_progress] Round 2 — RPC authority：四个 Strategy RPC、确定性评估、审计、反重放、幂等、proposal settlement 与真实 DB 负向测试。
+- [pending] Round 2 exact-head CI 与独立 Gatekeeper；通过前不进入 Round 3 server boundary。
 
 ### Phase 8D Errors Encountered
 
