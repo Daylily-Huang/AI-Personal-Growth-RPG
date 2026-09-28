@@ -215,3 +215,4 @@
 - 本地 Next route handler guide 明示 GET 默认不缓存、支持标准 Request/Response 和 NextResponse；应沿用当前仓库的动态 params 约定。
 - 既有 `docs/MASTER_PROJECT_HANDOFF.md` 里 Round 2 状态滞后于 exact-head GO，更新须与 Round 3 candidate 一起明确区分状态与历史快照。
 - `94a1208` 的单元 HTTP adapter 测试模拟了认证仓储与 RPC；它们不能证明真实 cookie/session、Next 路由与 RLS/SQL 错误贯通。Gatekeeper 的 Round 3 P1 指向这类运行时证据缺口，故新增用现成 live Next + Supabase Auth E2E fixture 的跨租户、时间戳、重放和版本排除反例。
+- `fca2842` CI 真实 E2E 已通过，但测试完整运行时可依赖早期用户 fixture；对单测可定位性，应在 Strategy test 内独立注册用户。外租户拒绝还需在 HTTP 层复查 support count=0，不能只看错误状态码。

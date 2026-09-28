@@ -686,10 +686,17 @@ describe.skipIf(!DATABASE_URL)("Stage 3.1 — Full Real HTTP / Browser Auth E2E 
 
     const jarA = createCookieJar();
     const jarB = createCookieJar();
-    const signA = await jarA.client.auth.signInWithPassword({ email: userAEmail, password: testPassword });
-    const signB = await jarB.client.auth.signInWithPassword({ email: userBEmail, password: testPassword });
-    expect(signA.error).toBeNull();
-    expect(signB.error).toBeNull();
+    async function createIndependentUser(jar: ReturnType<typeof createCookieJar>, label: string) {
+      const email = `e2e_strategy_${label}_${Date.now()}@growth.rpg`;
+      const signedUp = await jar.client.auth.signUp({ email, password: testPassword });
+      expect(signedUp.error).toBeNull();
+      if (!signedUp.data.session) {
+        const signedIn = await jar.client.auth.signInWithPassword({ email, password: testPassword });
+        expect(signedIn.error).toBeNull();
+      }
+    }
+    await createIndependentUser(jarA, "a");
+    await createIndependentUser(jarB, "b");
     const cookieA = jarA.getCookieHeader();
     const cookieB = jarB.getCookieHeader();
     expect(cookieA).toBeTruthy();
@@ -766,6 +773,9 @@ describe.skipIf(!DATABASE_URL)("Stage 3.1 — Full Real HTTP / Browser Auth E2E 
     })).status).toBe(200);
     const foreignSource = await post(`/api/strategies/${otherId}/supports`, cookieB, source);
     expect(foreignSource.status).toBe(404);
+    const bSupports = await fetch(`${BASE_URL}/api/strategies/${otherId}/supports`, { headers: { Cookie: cookieB } });
+    expect(bSupports.status).toBe(200);
+    expect((await bSupports.json()).count).toBe(0);
 
     const insufficient = await post(`${strategyPath}/evaluate`, cookieA, { confirmPromotion: true });
     expect(insufficient.status).toBe(422);
