@@ -14,8 +14,11 @@ describe.skipIf(!databaseUrl)("Phase 8D Round 2 — Strategy RPC authority", () 
   async function asUser<T>(userId: string, fn: () => Promise<T>): Promise<T> {
     await pg.query("set role authenticated");
     await pg.query("select set_config('request.jwt.claim.sub', $1, true)", [userId]);
-    try { return await fn(); }
-    finally { await pg.query("reset role"); }
+    // A failed SQL statement aborts the test transaction. Do not let RESET
+    // ROLE's 25P02 mask the original database error; afterEach rolls back.
+    const result = await fn();
+    await pg.query("reset role");
+    return result;
   }
 
   async function mustFail(fn: () => Promise<unknown>, expectedCode?: string): Promise<void> {
