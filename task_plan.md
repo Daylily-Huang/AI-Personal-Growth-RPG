@@ -103,6 +103,8 @@
 - [in_progress] `43bb67b` CI 已确定三处首次 support 调用因测试 `Date` 毫秒截断导致 `SOURCE_TIMESTAMP_MISMATCH`；当前仅修测试为保留 PostgreSQL 微秒的 `created_at::text`，需新 exact-head 数据库 CI 验证。生产 timestamp 权威规则未放宽。
 - [complete] `60d463a` exact-head CI Run `36436421919` 双 job 成功；独立 Gatekeeper 仍给 `P0=0 / P1=1 / P2=0 + NO-GO`，P1 是 §10 的真实数据库反例覆盖不足。CI green 不等于 Gatekeeper GO。
 - [in_progress] 补充零证据、旧版本排除、租户、UTC 日期、Season/Core link 资格、<60% 弱化和双会话并发数据库测试；本地静态检查通过，真实 DB 运行及新 exact-head Gatekeeper 待验证。Round 3 继续暂停。
+- [complete] Round 2 exact head `1910af870fc82ffde35bf76da93d4bac50a5effb`：CI Run `36438563584` 双 job success，Strategy DB suite 12 tests、总计 70 files / 1103 tests passed；独立 Gatekeeper 复核后为 `P0=0 / P1=0 / P2=0 + GO`。原跨表 dedup P1 因与控制文档 §6 明示的 canonical table identity 不符而撤回。PR #37 未合并。
+- [in_progress] Round 3 — server boundary：先对齐现有 Outer Loop repository/service/request/http 分层与当前 Next route 约定；仅实现 Strategy 读/写适配和认证路由，四个 mutation 继续委托 0047 RPC，完成本地测试、exact-head CI 与独立 Gatekeeper 前不进入 Round 4 UI。
 
 ### Phase 8D Errors Encountered
 

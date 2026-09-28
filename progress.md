@@ -213,3 +213,13 @@
 - `43bb67b` 的 CI Run `36435042869`：`check` success，Supabase startup/build success；数据库测试仍 3 failed，三者原始错误均为首次 support 插入的 `SOURCE_TIMESTAMP_MISMATCH` / `22023`。已将相关测试查询改为 `created_at::text`，以保留 PostgreSQL 微秒精度并维持 production RPC 的 exact timestamp 断言；等待新 exact-head CI 验证。
 - 独立只读复核发现测试仍缺 1 微秒错误断言的首次插入/重放拒绝案例（P1），且整秒 Activity 样本不能证明微秒传输（P2）。现补同一 Journal 来源的 `+ interval '1 microsecond'` 两处 `22023` 负向断言与插入前 count=0，四个 Activity 时间戳改为确定非零微秒并断言 `.123456`；本地定向 40 passed / 7 DB skipped、TypeScript/ESLint/diff-check 通过。待真实 DB 与 fresh 复审。
 - 针对微秒 corrective 的第二次独立只读复核未发现新 P0/P1/P2，确认上述负向与确定非零微秒正向覆盖；仅为未提交工作树静态结论，不是 exact-head/运行时 GO。下一步提交并推送后以隔离数据库 CI 验证。
+
+## 2026-09-29 — Phase 8D Round 3 server boundary kickoff
+
+- Round 2 exact head `1910af870fc82ffde35bf76da93d4bac50a5effb` 已通过 CI Run `36438563584` 双 job；数据库日志 Strategy suite 12 tests、整套 70 files / 1103 tests passed。独立 Gatekeeper 修订终判 `P0=0 / P1=0 / P2=0 + GO`，Round 3 可开始；PR #37 保持未合并。
+- 本轮只做 Round 3 repository/service/request/http 与认证 API，不实现 `/journey/playbook` UI。工作区原有未跟踪 `.pnpm-store/`、两个 docs 文件、`launcher/` 均保留不动。
+- 已读取 `planning-with-files-zh`、现有三份进度文件和 Next 本地 route-handler guide；`session-catchup.py` 无未同步报告。一次 `Get-Content` 路由读取因同时传入位置参数和 `-LiteralPath` 失败，改为只用 `-LiteralPath`。
+- 新增 `src/lib/strategy/{types,repository,request,service,http}.ts` 与六个 `src/app/api/strategies` 路由；仅 Strategy 用户草稿/元数据直接使用受限表权限，support/evaluate/transition/version 委托 0047 四 RPC。Proposal review 继续使用既有 `/api/outer-loop/proposals/[id]/review`。
+- 新增 `tests/phase8d-api-adapters.test.ts`。定向初版 12/12、全量本地 47 files passed / 24 skipped（776 passed / 339 skipped）、Next 生产 build、TypeScript/ESLint 均通过；真实 DB tests 因本机未配置 0047 测试库而 skipped。
+- 独立只读初审 `P0=0 / P1=1 / P2=1`：RPC 返回值缺字段可被空字符串/NaN 掩盖；元数据 PATCH 仅改标题会清空描述。已用 Zod 严格解析四类返回结构、PATCH 只提交实际提供的字段，并加两个负向回归。新定向 14/14、TypeScript/ESLint 通过；复审待结果。Round 3 尚未 exact-head CI/Gatekeeper GO。
+- 同一独立审查员复审修复后的未提交工作树为 `P0=0 / P1=0 / P2=0`（仅静态）。修复后本地全量 `47 files passed / 24 skipped`、`778 passed / 339 skipped`；Next 生产 build、TypeScript、ESLint 和 diff-check 通过。尚需候选 exact-head CI、真实 DB suite 与新 exact-head Gatekeeper。

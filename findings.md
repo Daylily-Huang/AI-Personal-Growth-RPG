@@ -207,3 +207,10 @@
 - `43bb67b` 仅修复错误遮蔽，等待其 CI 取得首个 SQLSTATE/错误位置。`check` success 不代表数据库 authority 通过；Round 2 Gatekeeper 继续 NO-GO。
 - `43bb67b` 的 CI Run `36435042869` 将原始失败定位为三处首次 support RPC 的 `SOURCE_TIMESTAMP_MISMATCH`（SQLSTATE `22023`），而非迁移执行失败。测试从 `pg` 得到 JS `Date` 后丢失 PostgreSQL `clock_timestamp()` 的微秒精度，再作为断言参数传回；修正应保留数据库时间戳文本，不能放宽生产端的精确相等规则。
 - 修复必须由负向边界证明：源时间戳增加 1 微秒时，首次写入与同源重放都应返回 `22023` 且不得新增 support；至少一条正向样本固定非零微秒尾数，避免测试在整秒场景下偶然通过。
+
+## 2026-09-29 — Round 3 server boundary
+
+- 现行控制文档 §9 要求 repository/service 与认证 API；生命周期、confidence、version、support 只委托 0047 的四个 RPC。Proposal review 仍走既有 Outer Loop 单一 CAS 路由，不新建第二套提案 authority。
+- 现有 Phase 8B 分层是 `types.ts` → `repository.ts` → `service.ts` / `request.ts` → `http.ts` → `src/app/api/*`；请求库通过 `getSupabaseServerClient()` 和 `auth.getUser()` 获取带用户会话的 client，路由 params 为 `Promise<{id:string}>`。
+- 本地 Next route handler guide 明示 GET 默认不缓存、支持标准 Request/Response 和 NextResponse；应沿用当前仓库的动态 params 约定。
+- 既有 `docs/MASTER_PROJECT_HANDOFF.md` 里 Round 2 状态滞后于 exact-head GO，更新须与 Round 3 candidate 一起明确区分状态与历史快照。
