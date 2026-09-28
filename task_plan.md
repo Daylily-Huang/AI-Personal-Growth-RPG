@@ -99,6 +99,8 @@
 - [complete] Round 1 — DB foundation：exact head `400cf1536e86412e6183e45289d87cb21bd56ba1`，CI Run `36338180207` 的 check 与 supabase-integration 均 success，真实 database-backed tests 执行成功；fresh independent Gatekeeper 为 `P0=0 / P1=0 / P2=0 + GO`。
 - [in_progress] Round 2 — RPC authority：四个 Strategy RPC、确定性评估、审计、反重放、幂等、proposal settlement 与真实 DB 负向测试。
 - [pending] Round 2 exact-head CI 与独立 Gatekeeper；通过前不进入 Round 3 server boundary。
+- [in_progress] Round 2 CI corrective：`dfdb321` 的 Run `36413584990` 在新增 Strategy DB suite 3 项失败；`43bb67b` 已推送以暴露被测试清理动作遮蔽的原始 SQL 错误，Run `36435042869` 待结果。数据库门禁与独立 Gatekeeper 未通过，Round 3 仍 gated。
+- [in_progress] `43bb67b` CI 已确定三处首次 support 调用因测试 `Date` 毫秒截断导致 `SOURCE_TIMESTAMP_MISMATCH`；当前仅修测试为保留 PostgreSQL 微秒的 `created_at::text`，需新 exact-head 数据库 CI 验证。生产 timestamp 权威规则未放宽。
 
 ### Phase 8D Errors Encountered
 

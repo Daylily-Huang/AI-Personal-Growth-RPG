@@ -204,3 +204,12 @@
 - 后续只读复审指出两项 P2：直写负向测试被随机 version FK 遮蔽；`EDITED` 提案同键不同 payload 未拒绝。现改用有效 version/own source 并断言权限 SQLSTATE `42501`，且对已审定编辑载荷做同键冲突比较；回归测试已加。定向静态 40/40、TypeScript/ESLint 复跑通过；fresh 静态复审与真实 DB 仍待完成。
 - 最新限定范围独立静态复审为 `P0=0 / P1=0 / P2=0`，确认两项 P2 的代码与测试闭环；这只代表静态 GO。真实数据库用例仍未运行，因此 Round 2 环境验收继续 NO-GO。下一步形成候选提交，并需另行获准推送该新 SHA 才能触发 exact-head CI。
 - 当前未提交、未推送、未触发新 SHA 的 CI；Round 3 保持 gated。
+
+## 2026-09-28 — Phase 8D Round 2 CI corrective
+
+- `dfdb32182a69e3f6357512f05ba7219837d5270e` 已按授权推送；exact-head CI Run `36413584990` 的 `check` success，`supabase-integration` 在 database-backed tests 阶段 failure：Round 2 新增 7 个 DB 用例中 3 failed，其余 4 passed。失败被测试助手事务错误后的 `RESET ROLE` 覆盖为 `25P02`，首个 SQL 错误未从该日志确认。
+- 诊断修复 `43bb67baac4ec1076db43daf4da580e8c3cec7c4` 仅让测试助手保留原始 DB 错误；已推送到同一分支，exact-head CI Run `36435042869` 运行中。此前本地定向静态 40 passed / 7 DB skipped，TypeScript、ESLint、diff check 通过；Round 2 仍 NO-GO。
+- 更正本机数据库状态：Ubuntu WSL Docker 中运行着本项目 Supabase PostgreSQL，映射端口 `54322`，最高迁移版本 `0042`。先前仅检查 Windows Docker daemon/端口而误称本机没有可用 DB；未向该现有数据库应用 `0043–0047` 或写入测试数据。
+- `43bb67b` 的 CI Run `36435042869`：`check` success，Supabase startup/build success；数据库测试仍 3 failed，三者原始错误均为首次 support 插入的 `SOURCE_TIMESTAMP_MISMATCH` / `22023`。已将相关测试查询改为 `created_at::text`，以保留 PostgreSQL 微秒精度并维持 production RPC 的 exact timestamp 断言；等待新 exact-head CI 验证。
+- 独立只读复核发现测试仍缺 1 微秒错误断言的首次插入/重放拒绝案例（P1），且整秒 Activity 样本不能证明微秒传输（P2）。现补同一 Journal 来源的 `+ interval '1 microsecond'` 两处 `22023` 负向断言与插入前 count=0，四个 Activity 时间戳改为确定非零微秒并断言 `.123456`；本地定向 40 passed / 7 DB skipped、TypeScript/ESLint/diff-check 通过。待真实 DB 与 fresh 复审。
+- 针对微秒 corrective 的第二次独立只读复核未发现新 P0/P1/P2，确认上述负向与确定非零微秒正向覆盖；仅为未提交工作树静态结论，不是 exact-head/运行时 GO。下一步提交并推送后以隔离数据库 CI 验证。

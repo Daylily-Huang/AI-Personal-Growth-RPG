@@ -84,21 +84,33 @@ describe.skipIf(!databaseUrl)("Phase 8D Round 2 — Strategy RPC authority", () 
 
   test("canonical Journal aliases and evaluator changes cannot inflate support", async () => {
     const id = await createStrategy();
-    const observed = await pg.query<{ created_at: Date }>(
-      `select created_at from public.journal_entries where id = $1`, [JOURNAL_A]);
+    const observed = await pg.query<{ observed_at: string }>(
+      `select created_at::text as observed_at from public.journal_entries where id = $1`, [JOURNAL_A]);
+    const incorrect = await pg.query<{ observed_at: string }>(
+      `select (created_at + interval '1 microsecond')::text as observed_at
+       from public.journal_entries where id = $1`, [JOURNAL_A]);
     await asUser(USER_A, async () => {
       await pg.query(`select public.rpc_transition_strategy_status($1, 'TESTING', null, null, 'test-2')`, [id]);
+      await mustFail(() => pg.query(
+        `select public.rpc_insert_strategy_support($1, 'SUPPORT', 'JOURNAL_CONTEXT', $2, 'v1', null, $3)`,
+        [id, JOURNAL_A, incorrect.rows[0]!.observed_at]), "22023");
+      const before = await pg.query<{ count: string }>(
+        `select count(*) from public.strategy_supports where strategy_id = $1`, [id]);
+      expect(before.rows[0]!.count).toBe("0");
       const first = await pg.query<{ result: { replayed: boolean } }>(
         `select public.rpc_insert_strategy_support($1, 'SUPPORT', 'JOURNAL_CONTEXT', $2, 'v1', null, $3) as result`,
-        [id, JOURNAL_A, observed.rows[0]!.created_at]);
+        [id, JOURNAL_A, observed.rows[0]!.observed_at]);
       expect(first.rows[0]!.result.replayed).toBe(false);
       const replay = await pg.query<{ result: { replayed: boolean } }>(
         `select public.rpc_insert_strategy_support($1, 'SUPPORT', 'MANUAL_OBSERVATION', $2, 'v2', 'different', $3) as result`,
-        [id, JOURNAL_A, observed.rows[0]!.created_at]);
+        [id, JOURNAL_A, observed.rows[0]!.observed_at]);
       expect(replay.rows[0]!.result.replayed).toBe(true);
       await mustFail(() => pg.query(
+        `select public.rpc_insert_strategy_support($1, 'SUPPORT', 'MANUAL_OBSERVATION', $2, 'v3', null, $3)`,
+        [id, JOURNAL_A, incorrect.rows[0]!.observed_at]), "22023");
+      await mustFail(() => pg.query(
         `select public.rpc_insert_strategy_support($1, 'SUPPORT', 'JOURNAL_CONTEXT', $2, 'v3', null, $3)`,
-        [id, JOURNAL_B, observed.rows[0]!.created_at]));
+        [id, JOURNAL_B, observed.rows[0]!.observed_at]));
       const count = await pg.query<{ count: string }>(
         `select count(*) from public.strategy_supports where strategy_id = $1`, [id]);
       expect(count.rows[0]!.count).toBe("1");
@@ -107,11 +119,11 @@ describe.skipIf(!databaseUrl)("Phase 8D Round 2 — Strategy RPC authority", () 
 
   test("Quest completion does not invalidate an accepted pre-completion support replay", async () => {
     const id = await createStrategy();
-    const quest = await pg.query<{ id: string; created_at: Date }>(
+    const quest = await pg.query<{ id: string; observed_at: string }>(
       `insert into public.quests (user_id, title, quest_type)
-       values ($1, 'changing quest', 'production') returning id, created_at`, [USER_A]);
+       values ($1, 'changing quest', 'production') returning id, created_at::text as observed_at`, [USER_A]);
     const questId = quest.rows[0]!.id;
-    const originalTimestamp = quest.rows[0]!.created_at;
+    const originalTimestamp = quest.rows[0]!.observed_at;
     await asUser(USER_A, async () => {
       await pg.query(`select public.rpc_transition_strategy_status($1, 'TESTING', null, null, 'quest-test')`, [id]);
       await pg.query(
@@ -131,36 +143,37 @@ describe.skipIf(!databaseUrl)("Phase 8D Round 2 — Strategy RPC authority", () 
 
   test("confirmed promotion is replayable without another transition or audit", async () => {
     const id = await createStrategy();
-    const sources = await pg.query<{ id: string; created_at: Date }>(
+    const sources = await pg.query<{ id: string; observed_at: string }>(
       `insert into public.activities
         (user_id, title, raw_input, rules_version, status, created_at)
        values
-        ($1, 'day 1', 'source', 'phase8d-round2', 'confirmed', '2026-09-01T12:00:00Z'),
-        ($1, 'day 2', 'source', 'phase8d-round2', 'confirmed', '2026-09-02T12:00:00Z'),
-        ($1, 'day 3', 'source', 'phase8d-round2', 'confirmed', '2026-09-03T12:00:00Z'),
-        ($1, 'day 4', 'source', 'phase8d-round2', 'confirmed', '2026-09-04T12:00:00Z')
-       returning id, created_at`, [USER_A]);
+        ($1, 'day 1', 'source', 'phase8d-round2', 'confirmed', '2026-09-01T12:00:00.123456Z'),
+        ($1, 'day 2', 'source', 'phase8d-round2', 'confirmed', '2026-09-02T12:00:00.234567Z'),
+        ($1, 'day 3', 'source', 'phase8d-round2', 'confirmed', '2026-09-03T12:00:00.345678Z'),
+        ($1, 'day 4', 'source', 'phase8d-round2', 'confirmed', '2026-09-04T12:00:00.456789Z')
+       returning id, created_at::text as observed_at`, [USER_A]);
+    expect(sources.rows[0]!.observed_at).toContain(".123456");
     const season = await pg.query<{ id: string }>(
       `insert into public.seasons (user_id, name, status, started_at, ended_at)
        values ($1, 'completed season', 'COMPLETED', '2026-08-01T00:00:00Z', '2026-09-05T00:00:00Z')
        returning id`, [USER_A]);
-    const review = await pg.query<{ id: string; created_at: Date }>(
+    const review = await pg.query<{ id: string; observed_at: string }>(
       `insert into public.season_reviews
         (user_id, season_id, review_type, version, commit_key, period_start,
          period_end, objective_summary, qualitative_reflection, criteria_evaluation)
        values ($1, $2, 'FINAL', 1, gen_random_uuid(),
          '2026-08-01T00:00:00Z', '2026-09-05T00:00:00Z', '{}'::jsonb, 'review', '[]'::jsonb)
-       returning id, created_at`, [USER_A, season.rows[0]!.id]);
+       returning id, created_at::text as observed_at`, [USER_A, season.rows[0]!.id]);
     await asUser(USER_A, async () => {
       await pg.query(`select public.rpc_transition_strategy_status($1, 'TESTING', null, null, 'promotion-test')`, [id]);
       for (const source of sources.rows) {
         await pg.query(
           `select public.rpc_insert_strategy_support($1, 'SUPPORT', 'ACTIVITY', $2, 'v1', null, $3)`,
-          [id, source.id, source.created_at]);
+          [id, source.id, source.observed_at]);
       }
       await pg.query(
         `select public.rpc_insert_strategy_support($1, 'SUPPORT', 'SEASON_REVIEW', $2, 'v1', null, $3)`,
-        [id, review.rows[0]!.id, review.rows[0]!.created_at]);
+        [id, review.rows[0]!.id, review.rows[0]!.observed_at]);
       const first = await pg.query<{ result: { strategy: { lifecycle_status: string } } }>(
         `select public.rpc_evaluate_strategy_status($1, true) as result`, [id]);
       expect(first.rows[0]!.result.strategy.lifecycle_status).toBe("SUPPORTED");

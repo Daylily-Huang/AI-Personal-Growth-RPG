@@ -199,3 +199,11 @@
 - DB suite 现有 13 项：五类非 Journal canonical source 均覆盖 owned 成功、foreign 失败、source-class mismatch 失败；另覆盖同租户另一 Strategy 的 version anchor 错配。静态 suite 进一步锁定完整 owner policy body，并抽取六个 trigger function body 校验 field authority、tenant/version/source fail-closed、immutability 与 version-1 bootstrap。
 - `docs/MASTER_PROJECT_HANDOFF.md` 的当前状态曾停在 Phase 8D 未启动；现仅更新 current milestone、当前 main 基线与 next action，历史 Phase 8C freeze 叙述保持不改。
 - 后续三轮对抗复审将静态 P2 逐步收敛：精确锁定 5 条 policy 且禁止后续 ALTER/DROP，精确锁定 6 条 trigger wiring 且禁止 WHEN/DISABLE，并逐 source branch 绑定 canonical table 与 `WHERE alias.id = NEW.source_id`。第四次复审结果为 `P0=0 / P1=1 / P2=0 + NO-GO`；唯一保留 P1 是真实 DB 未运行。
+
+## 2026-09-28 — Phase 8D Round 2 CI and local DB clarification
+
+- 本项目本地 Supabase 不在 Windows Docker Desktop 中，而在运行中的 Ubuntu WSL Docker daemon；容器 `supabase_db_AI_Personal_Growth_RPG` 映射 `0.0.0.0:54322->5432`。只读查询 `supabase_migrations.schema_migrations` 的最高版本为 `0042`；该实例不能未经授权升级后直接充当 0047 测试库。
+- Exact-head `dfdb321` 的 GitHub CI Run `36413584990` 成功启动临时 Supabase 并执行 migrations/build；数据库测试阶段 3 项失败集中在新 Strategy RPC suite。日志中的 `25P02` 是测试 `asUser` 的 `finally RESET ROLE` 在原始 SQL 错误之后产生，不能当作原始缺陷。
+- `43bb67b` 仅修复错误遮蔽，等待其 CI 取得首个 SQLSTATE/错误位置。`check` success 不代表数据库 authority 通过；Round 2 Gatekeeper 继续 NO-GO。
+- `43bb67b` 的 CI Run `36435042869` 将原始失败定位为三处首次 support RPC 的 `SOURCE_TIMESTAMP_MISMATCH`（SQLSTATE `22023`），而非迁移执行失败。测试从 `pg` 得到 JS `Date` 后丢失 PostgreSQL `clock_timestamp()` 的微秒精度，再作为断言参数传回；修正应保留数据库时间戳文本，不能放宽生产端的精确相等规则。
+- 修复必须由负向边界证明：源时间戳增加 1 微秒时，首次写入与同源重放都应返回 `22023` 且不得新增 support；至少一条正向样本固定非零微秒尾数，避免测试在整秒场景下偶然通过。
