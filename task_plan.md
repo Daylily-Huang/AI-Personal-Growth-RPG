@@ -107,6 +107,7 @@
 - [in_progress] Round 3 — server boundary：先对齐现有 Outer Loop repository/service/request/http 分层与当前 Next route 约定；仅实现 Strategy 读/写适配和认证路由，四个 mutation 继续委托 0047 RPC，完成本地测试、exact-head CI 与独立 Gatekeeper 前不进入 Round 4 UI。
 - [in_progress] Round 3 corrective：`94a1208` 的独立 exact-head Gatekeeper 为 `P0=0 / P1=1 / P2=0 + NO-GO`（真实 HTTP→认证→DB 贯通反例缺失）；已补进既有 E2E suite，待新 SHA 的隔离数据库 CI 与 fresh Gatekeeper。Round 4 继续 gated。
 - [in_progress] `fca2842` 的真实 E2E CI 已通过，旧 P1 关闭；独立复审仍有两个测试稳健性 P2。已补测试独立注册与失败后零写入断言，待新 exact-head CI + fresh Gatekeeper；Round 4 不放行。
+- [complete] Round 3 implementation exact head `2b0796e66fc900344a1571f39ebd771fe64abe47`：CI Run `36452011311` 双 job success，Strategy RPC 12 tests 与真实 HTTP test 11 非 skipped 通过、71 files / 1118 tests passed；独立最终 Gatekeeper 为 `P0=0 / P1=0 / P2=0 + GO`。PR #37 仍开放未合并。下一阶段为 Round 4 Playbook UI，但本次仅做文档状态同步，未开始 UI。
 
 ### Phase 8D Errors Encountered
 
