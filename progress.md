@@ -223,3 +223,5 @@
 - 新增 `tests/phase8d-api-adapters.test.ts`。定向初版 12/12、全量本地 47 files passed / 24 skipped（776 passed / 339 skipped）、Next 生产 build、TypeScript/ESLint 均通过；真实 DB tests 因本机未配置 0047 测试库而 skipped。
 - 独立只读初审 `P0=0 / P1=1 / P2=1`：RPC 返回值缺字段可被空字符串/NaN 掩盖；元数据 PATCH 仅改标题会清空描述。已用 Zod 严格解析四类返回结构、PATCH 只提交实际提供的字段，并加两个负向回归。新定向 14/14、TypeScript/ESLint 通过；复审待结果。Round 3 尚未 exact-head CI/Gatekeeper GO。
 - 同一独立审查员复审修复后的未提交工作树为 `P0=0 / P1=0 / P2=0`（仅静态）。修复后本地全量 `47 files passed / 24 skipped`、`778 passed / 339 skipped`；Next 生产 build、TypeScript、ESLint 和 diff-check 通过。尚需候选 exact-head CI、真实 DB suite 与新 exact-head Gatekeeper。
+- Round 3 candidate `94a120859dfe211c84cc8620ec2fc65beffa8de2` 已推送；CI Run `36450221396` 的 `check` success，数据库作业尚在执行。独立 exact-head Gatekeeper 给 `P0=0 / P1=1 / P2=0 + NO-GO`：新路由缺真实 HTTP→认证→数据库贯通反例。此 finding 与 CI 是否双绿分开处理。
+- 已在现有 `tests/e2e-http-browser.test.ts` 追加 Strategy 双用户真实请求路径：匿名 401、外租户读/写 404、受权测试状态切换、来源时间错拒、Journal alias replay 不增数、外租户来源拒、晋升不足 422、version replay 与旧证据隔离。本机该测试因未配置 0047 数据库跳过；TypeScript/ESLint 通过，需新 exact-head CI 真实执行。

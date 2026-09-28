@@ -679,5 +679,110 @@ describe.skipIf(!DATABASE_URL)("Stage 3.1 — Full Real HTTP / Browser Auth E2E 
     });
     expect([400, 404]).toContain(bCreateEdgeWithANode.status);
   });
+
+  test("11. Strategy HTTP boundary uses real auth, RLS, source authority, replay, and version exclusion", async () => {
+    const anonymous = await fetch(`${BASE_URL}/api/strategies`);
+    expect(anonymous.status).toBe(401);
+
+    const jarA = createCookieJar();
+    const jarB = createCookieJar();
+    const signA = await jarA.client.auth.signInWithPassword({ email: userAEmail, password: testPassword });
+    const signB = await jarB.client.auth.signInWithPassword({ email: userBEmail, password: testPassword });
+    expect(signA.error).toBeNull();
+    expect(signB.error).toBeNull();
+    const cookieA = jarA.getCookieHeader();
+    const cookieB = jarB.getCookieHeader();
+    expect(cookieA).toBeTruthy();
+    expect(cookieB).toBeTruthy();
+    const post = (path: string, cookie: string, body: Record<string, unknown>) => fetch(`${BASE_URL}${path}`, {
+      method: "POST", headers: { "Content-Type": "application/json", Cookie: cookie }, body: JSON.stringify(body),
+    });
+
+    const created = await post("/api/strategies", cookieA, {
+      title: "E2E study protocol", contextTrigger: "research session",
+      actionProtocol: "start with a question", expectedOutcome: "clearer reasoning",
+    });
+    expect(created.status).toBe(201);
+    const { strategy } = await created.json();
+    expect(strategy).toMatchObject({ lifecycleStatus: "HYPOTHESIS", confidenceLevel: "LOW", version: 1 });
+    const strategyPath = `/api/strategies/${strategy.id}`;
+
+    const foreignRead = await fetch(`${BASE_URL}${strategyPath}`, { headers: { Cookie: cookieB } });
+    expect(foreignRead.status).toBe(404);
+    const foreignTransition = await post(`${strategyPath}/transition`, cookieB, {
+      targetStatus: "TESTING", requestIdempotencyKey: "foreign-transition-e2e",
+    });
+    expect(foreignTransition.status).toBe(404);
+    const listB = await fetch(`${BASE_URL}/api/strategies`, { headers: { Cookie: cookieB } });
+    expect(listB.status).toBe(200);
+    expect((await listB.json()).strategies.some((item: { id: string }) => item.id === strategy.id)).toBe(false);
+
+    const begin = await post(`${strategyPath}/transition`, cookieA, {
+      targetStatus: "TESTING", requestIdempotencyKey: "begin-testing-e2e",
+    });
+    expect(begin.status).toBe(200);
+    expect((await begin.json()).strategy.lifecycleStatus).toBe("TESTING");
+    const beginReplay = await post(`${strategyPath}/transition`, cookieA, {
+      targetStatus: "TESTING", requestIdempotencyKey: "begin-testing-e2e",
+    });
+    expect(beginReplay.status).toBe(200);
+    expect((await beginReplay.json()).replayed).toBe(true);
+
+    const journal = await post("/api/journal", cookieA, {
+      entryType: "FREE_REFLECTION", title: "Observed protocol", contentMarkdown: "Worked once",
+    });
+    expect(journal.status).toBe(201);
+    const { entry } = await journal.json();
+    const source = {
+      observationType: "SUPPORT", sourceClass: "JOURNAL_CONTEXT", sourceId: entry.id,
+      evaluatorVersion: "e2e-v1", observedAt: entry.createdAt,
+    };
+    const wrongTime = await post(`${strategyPath}/supports`, cookieA, {
+      ...source, observedAt: new Date(Date.parse(entry.createdAt) + 1000).toISOString(),
+    });
+    expect(wrongTime.status).toBe(400);
+    const countAfterFailure = await fetch(`${BASE_URL}${strategyPath}/supports`, { headers: { Cookie: cookieA } });
+    expect(countAfterFailure.status).toBe(200);
+    expect((await countAfterFailure.json()).count).toBe(0);
+
+    const accepted = await post(`${strategyPath}/supports`, cookieA, source);
+    expect(accepted.status).toBe(201);
+    expect((await accepted.json()).replayed).toBe(false);
+    const replay = await post(`${strategyPath}/supports`, cookieA, {
+      ...source, sourceClass: "MANUAL_OBSERVATION", evaluatorVersion: "e2e-v2", note: "same Journal",
+    });
+    expect(replay.status).toBe(200);
+    expect((await replay.json()).replayed).toBe(true);
+    const afterReplay = await fetch(`${BASE_URL}${strategyPath}/supports`, { headers: { Cookie: cookieA } });
+    expect((await afterReplay.json()).count).toBe(1);
+
+    const other = await post("/api/strategies", cookieB, {
+      title: "B protocol", contextTrigger: "context", actionProtocol: "action", expectedOutcome: "outcome",
+    });
+    expect(other.status).toBe(201);
+    const otherId = (await other.json()).strategy.id;
+    expect((await post(`/api/strategies/${otherId}/transition`, cookieB, {
+      targetStatus: "TESTING", requestIdempotencyKey: "b-testing-e2e",
+    })).status).toBe(200);
+    const foreignSource = await post(`/api/strategies/${otherId}/supports`, cookieB, source);
+    expect(foreignSource.status).toBe(404);
+
+    const insufficient = await post(`${strategyPath}/evaluate`, cookieA, { confirmPromotion: true });
+    expect(insufficient.status).toBe(422);
+    const versionInput = {
+      actionProtocol: "revised protocol", contextTrigger: "revised context",
+      expectedOutcome: "revised outcome", changeSummary: "learned from first observation",
+      requestIdempotencyKey: "version-two-e2e",
+    };
+    const nextVersion = await post(`${strategyPath}/versions`, cookieA, versionInput);
+    expect(nextVersion.status).toBe(201);
+    expect((await nextVersion.json()).version.versionNumber).toBe(2);
+    const versionReplay = await post(`${strategyPath}/versions`, cookieA, versionInput);
+    expect(versionReplay.status).toBe(200);
+    expect((await versionReplay.json()).replayed).toBe(true);
+    const evaluated = await post(`${strategyPath}/evaluate`, cookieA, { confirmPromotion: false });
+    expect(evaluated.status).toBe(200);
+    expect((await evaluated.json()).metrics).toMatchObject({ supportCount: 0, confidenceLevel: "LOW" });
+  });
 });
 
