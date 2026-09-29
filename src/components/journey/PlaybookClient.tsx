@@ -38,6 +38,14 @@ async function request(path: string, method = "GET", body?: Record<string, unkno
 
 function key() { return crypto.randomUUID(); }
 
+function candidateActivityIds(type: StrategyProposalPreview["proposalType"], payload: Record<string, unknown>): string[] {
+  if (type === "STRATEGY_COUNTEREVIDENCE_ALERT") {
+    return typeof payload.counter_evidence_activity_id === "string" ? [payload.counter_evidence_activity_id] : [];
+  }
+  return Array.isArray(payload.supporting_activity_ids)
+    ? payload.supporting_activity_ids.filter((id): id is string => typeof id === "string") : [];
+}
+
 export default function PlaybookClient() {
   const router = useRouter();
   const [strategies, setStrategies] = useState<Strategy[]>([]);
@@ -68,6 +76,7 @@ export default function PlaybookClient() {
   const [sourcePreview, setSourcePreview] = useState<StrategySourceOption | null>(null);
   const [proposals, setProposals] = useState<StrategyProposalPreview[]>([]);
   const [selectedProposalId, setSelectedProposalId] = useState("");
+  const [verifiedActivitySources, setVerifiedActivitySources] = useState<Record<string, StrategySourceOption>>({});
   const [proposalDecision, setProposalDecision] = useState<ProposalDecision>("REJECTED");
   const [proposalEditedPayload, setProposalEditedPayload] = useState("");
   const [rejectionReason, setRejectionReason] = useState("");
@@ -210,6 +219,9 @@ export default function PlaybookClient() {
       const source = ((payload.sources ?? []) as StrategySourceOption[])[0];
       if (!source) throw new Error("这条原始来源已不可访问或不属于当前用户");
       setSourcePreview(source);
+      if (sourceClassToFind === "ACTIVITY") {
+        setVerifiedActivitySources((previous) => ({ ...previous, [source.id]: source }));
+      }
     } catch (cause) { handleError(cause); }
   }
 
@@ -234,6 +246,23 @@ export default function PlaybookClient() {
         if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("编辑后的提案必须是 JSON 对象");
         editedPayload = parsed as Record<string, unknown>;
       } catch (cause) { handleError(cause); return; }
+    }
+    if (proposalDecision !== "REJECTED") {
+      const reviewedPayload = editedPayload ?? proposal.payload;
+      const candidateIds = candidateActivityIds(proposal.proposalType, reviewedPayload);
+      if (proposal.proposalType === "STRATEGY_COUNTEREVIDENCE_ALERT" && candidateIds.length === 0) {
+        setError("反证警报缺少可核对的原始活动 ID");
+        return;
+      }
+      if (candidateIds.some((id) => !verifiedActivitySources[id])) {
+        setError("请先按 ID 核对提案引用的每条原始活动，再确认审核");
+        return;
+      }
+      if (proposal.proposalType === "STRATEGY_COUNTEREVIDENCE_ALERT" &&
+          !strategies.some((item) => item.id === reviewedPayload.strategy_id)) {
+        setError("请先核对警报关联的策略是否属于当前列表");
+        return;
+      }
     }
     setBusy(true); setError(null); setNotice(null);
     void (async () => {
@@ -260,6 +289,16 @@ export default function PlaybookClient() {
   const currentSupports = context?.supports.filter((support) => support.strategyVersionId === currentVersion?.id) ?? [];
   const historicalSupports = context?.supports.filter((support) => support.strategyVersionId !== currentVersion?.id) ?? [];
   const selectedProposal = proposals.find((proposal) => proposal.id === selectedProposalId);
+  let reviewPayload: Record<string, unknown> | null = selectedProposal?.payload ?? null;
+  if (selectedProposal && proposalDecision === "EDITED") {
+    try {
+      const parsed: unknown = JSON.parse(proposalEditedPayload);
+      reviewPayload = parsed && typeof parsed === "object" && !Array.isArray(parsed)
+        ? parsed as Record<string, unknown> : null;
+    } catch { reviewPayload = null; }
+  }
+  const proposalActivityIds = selectedProposal && reviewPayload
+    ? candidateActivityIds(selectedProposal.proposalType, reviewPayload) : [];
 
   return (
     <div className="space-y-5 text-[var(--text-primary)]" data-testid="playbook-page">
@@ -360,7 +399,7 @@ export default function PlaybookClient() {
                   <p>{item.observationType === "SUPPORT" ? "支持" : "反证"} · {sourceText[item.sourceClass]}</p>
                   <p className="break-all text-xs text-[var(--text-muted)]">{item.sourceId} · {item.observedAt}</p>
                   <SecondaryButton type="button" onClick={() => void locateSource(item.sourceClass, item.sourceId)}>核对原始来源</SecondaryButton>
-                  {sourcePreview?.id === item.sourceId && sourcePreview.sourceClass === item.sourceClass && <p className="break-words">原始来源：{sourcePreview.label} · {sourcePreview.observedAt}</p>}
+                  {sourcePreview?.id === item.sourceId && sourcePreview.sourceClass === item.sourceClass && <div className="break-words"><p>原始来源：{sourcePreview.label} · {sourcePreview.observedAt}</p>{sourcePreview.details && <p className="max-h-48 overflow-auto whitespace-pre-wrap">{sourcePreview.details}</p>}</div>}
                   {item.note && <p className="whitespace-pre-wrap break-words">{item.note}</p>}
                 </li>)}</ul>}
                 {historicalSupports.length > 0 && <details>
@@ -369,7 +408,7 @@ export default function PlaybookClient() {
                     <p>{item.observationType === "SUPPORT" ? "支持" : "反证"} · {sourceText[item.sourceClass]}</p>
                     <p className="break-all text-xs text-[var(--text-muted)]">{item.sourceId} · {item.observedAt}</p>
                     <SecondaryButton type="button" onClick={() => void locateSource(item.sourceClass, item.sourceId)}>核对原始来源</SecondaryButton>
-                    {sourcePreview?.id === item.sourceId && sourcePreview.sourceClass === item.sourceClass && <p className="break-words">原始来源：{sourcePreview.label} · {sourcePreview.observedAt}</p>}
+                    {sourcePreview?.id === item.sourceId && sourcePreview.sourceClass === item.sourceClass && <div className="break-words"><p>原始来源：{sourcePreview.label} · {sourcePreview.observedAt}</p>{sourcePreview.details && <p className="max-h-48 overflow-auto whitespace-pre-wrap">{sourcePreview.details}</p>}</div>}
                     {item.note && <p className="whitespace-pre-wrap break-words">{item.note}</p>}
                   </li>)}</ul>
                 </details>}
@@ -399,7 +438,7 @@ export default function PlaybookClient() {
           <p className="text-[var(--text-secondary)]">先阅读下方提案原文与来源，再决定接受、编辑或拒绝。接受反证警报只表示确认收到；必须另行提交反证记录才会影响策略。</p>
           {proposals.length === 0 ? <p>当前没有待审的策略提案。</p> : <div className="grid gap-3 md:grid-cols-[minmax(12rem,1fr)_minmax(0,2fr)]">
             <ul className="space-y-2">{proposals.map((proposal) => <li key={proposal.id}>
-              <button type="button" onClick={() => { setSelectedProposalId(proposal.id); setProposalEditedPayload(JSON.stringify(proposal.payload, null, 2)); setProposalDecision("REJECTED"); }}
+              <button type="button" onClick={() => { setSelectedProposalId(proposal.id); setProposalEditedPayload(JSON.stringify(proposal.payload, null, 2)); setProposalDecision("REJECTED"); setVerifiedActivitySources({}); }}
                 aria-pressed={selectedProposalId === proposal.id} className={`${cardClass} w-full text-left focus-visible:outline-[var(--focus-ring-width)] focus-visible:outline-[var(--focus-ring-color)]`}>
                 {proposal.proposalType === "STRATEGY_HYPOTHESIS" ? "策略假设" : "反证警报"}
                 <span className="mt-1 block break-all text-xs text-[var(--text-muted)]">{proposal.id}</span>
@@ -410,6 +449,19 @@ export default function PlaybookClient() {
               <p className="text-xs text-[var(--text-secondary)]">创建：{selectedProposal.createdAt} · 到期：{selectedProposal.expiresAt}</p>
               <div><h3 className="font-[var(--font-weight-semibold)]">提案原文</h3><pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words rounded-[var(--radius-md)] bg-[var(--surface-ground)] p-3">{JSON.stringify(selectedProposal.payload, null, 2)}</pre></div>
               <div><h3 className="font-[var(--font-weight-semibold)]">来源引用</h3><pre className="max-h-40 overflow-auto whitespace-pre-wrap break-words rounded-[var(--radius-md)] bg-[var(--surface-ground)] p-3">{JSON.stringify(selectedProposal.sourceRefs, null, 2)}</pre></div>
+              {selectedProposal.proposalType === "STRATEGY_COUNTEREVIDENCE_ALERT" && <p>
+                关联策略：{strategies.find((item) => item.id === reviewPayload?.strategy_id)?.title ?? "未在当前策略列表中找到"}
+                <span className="ml-2 break-all text-xs text-[var(--text-muted)]">{String(reviewPayload?.strategy_id ?? "缺少 strategy_id")}</span>
+              </p>}
+              <div className="space-y-2">
+                <h3 className="font-[var(--font-weight-semibold)]">提案引用的原始活动</h3>
+                {proposalActivityIds.length === 0 ? <p>当前提案未列出活动来源。</p> : <ul className="space-y-2">{proposalActivityIds.map((activityId) => <li key={activityId} className={cardClass}>
+                  <p className="break-all text-xs">{activityId}</p>
+                  <SecondaryButton type="button" onClick={() => void locateSource("ACTIVITY", activityId)}>按 ID 核对原始活动</SecondaryButton>
+                  {verifiedActivitySources[activityId] && <div className="break-words"><p>已核对：{verifiedActivitySources[activityId].label} · {verifiedActivitySources[activityId].observedAt}</p>{verifiedActivitySources[activityId].details && <p className="max-h-48 overflow-auto whitespace-pre-wrap">{verifiedActivitySources[activityId].details}</p>}</div>}
+                </li>)}</ul>}
+                <p className="text-xs text-[var(--text-secondary)]">接受或编辑后接受前须逐条核对；编辑后的来源 ID 也会重新检查。接受警报仍不会自动记录反证。</p>
+              </div>
               <form onSubmit={reviewProposal} className="grid gap-3 sm:grid-cols-2">
                 <label className={journeyLabelClass}>审核决定<select className={journeyInputClass} value={proposalDecision} onChange={(e) => setProposalDecision(e.target.value as ProposalDecision)}><option value="REJECTED">拒绝</option><option value="ACCEPTED">接受</option><option value="EDITED">编辑后接受</option></select></label>
                 {proposalDecision === "REJECTED" && <label className={journeyLabelClass}>拒绝原因<input className={journeyInputClass} value={rejectionReason} onChange={(e) => setRejectionReason(e.target.value)} /></label>}

@@ -31,7 +31,8 @@ const context: StrategyContext = {
 };
 const proposal = {
   id: proposalId, proposalType: "STRATEGY_COUNTEREVIDENCE_ALERT", status: "PROPOSED",
-  payload: { strategy_id: id, source_class: "JOURNAL_CONTEXT", source_id: sourceId, note: "可能与预期不符" },
+  payload: { strategy_id: id, counter_evidence_activity_id: sourceId,
+    observation: "可能与预期不符", recommended_action: "核对原始活动" },
   sourceRefs: [{ source_id: sourceId }], createdAt: observedAt, expiresAt: "2099-01-01T00:00:00Z",
 };
 
@@ -49,7 +50,9 @@ describe("Phase 8D Round 4 Playbook UI", () => {
       if (url === "/api/strategies") return response({ strategies: [strategy] });
       if (url === `/api/strategies/${id}`) return response(context);
       if (url === "/api/strategies/proposals") return response({ proposals: [proposal] });
-      if (url.startsWith("/api/strategies/sources?")) return response({ sources: [{ id: sourceId, sourceClass: "JOURNAL_CONTEXT", label: "一条原始记录", observedAt }] });
+      if (url.startsWith("/api/strategies/sources?")) return response({ sources: [{ id: sourceId,
+        sourceClass: url.includes("sourceClass=ACTIVITY") ? "ACTIVITY" : "JOURNAL_CONTEXT",
+        label: "一条原始记录", observedAt, details: url.includes("&id=") ? "原始活动全文" : null }] });
       if (url.endsWith("/evaluate")) return response({ strategy, metrics: {
         supportCount: 4, counterEvidenceCount: 0, distinctObservationDates: 4,
         completedSeasons: 1, coreLinks: 2, supportRatio: 1,
@@ -138,6 +141,13 @@ describe("Phase 8D Round 4 Playbook UI", () => {
     expect(screen.getByText(/可能与预期不符/)).toBeTruthy();
     fireEvent.change(screen.getByLabelText("审核决定"), { target: { value: "ACCEPTED" } });
     fireEvent.click(screen.getByRole("button", { name: "提交提案审核" }));
+    expect(await screen.findByRole("alert")).toHaveProperty("textContent", "请先按 ID 核对提案引用的每条原始活动，再确认审核");
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/outer-loop/proposals/"))).toBe(false);
+    fireEvent.click(screen.getByRole("button", { name: "按 ID 核对原始活动" }));
+    await screen.findByText(/已核对：一条原始记录/);
+    expect(screen.getByText("原始活动全文")).toBeTruthy();
+    expect(fetchMock.mock.calls.some(([url]) => String(url) === `/api/strategies/sources?sourceClass=ACTIVITY&id=${sourceId}`)).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "提交提案审核" }));
     await screen.findByText(/警报已审核；这不会记录反证/);
     expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith("/supports"))).toBe(false);
     const call = fetchMock.mock.calls.find(([url]) => String(url).includes("/outer-loop/proposals/"));
@@ -149,11 +159,27 @@ describe("Phase 8D Round 4 Playbook UI", () => {
     fireEvent.click(await screen.findByRole("button", { name: /反证警报.*33333333/ }));
     expect(screen.getByText(/可能与预期不符/)).toBeTruthy();
     fireEvent.change(screen.getByLabelText("审核决定"), { target: { value: "EDITED" } });
-    fireEvent.change(screen.getByLabelText("编辑后的完整提案 JSON"), { target: { value: JSON.stringify({ ...proposal.payload, note: "修订说明" }) } });
+    fireEvent.change(screen.getByLabelText("编辑后的完整提案 JSON"), { target: { value: JSON.stringify({ ...proposal.payload, observation: "修订说明" }) } });
+    fireEvent.click(screen.getByRole("button", { name: "按 ID 核对原始活动" }));
+    await screen.findByText(/已核对：一条原始记录/);
     fireEvent.click(screen.getByRole("button", { name: "提交提案审核" }));
     await screen.findByText(/警报已审核；这不会记录反证/);
     const call = fetchMock.mock.calls.find(([url]) => String(url).includes("/outer-loop/proposals/"));
-    expect(JSON.parse(call![1].body)).toMatchObject({ decision: "EDITED", editedPayload: { note: "修订说明" } });
+    expect(JSON.parse(call![1].body)).toMatchObject({ decision: "EDITED", editedPayload: { observation: "修订说明" } });
     expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith("/supports"))).toBe(false);
+  });
+
+  test("changing an edited alert's activity ID requires a new exact-source check", async () => {
+    render(<PlaybookPage />);
+    fireEvent.click(await screen.findByRole("button", { name: /反证警报.*33333333/ }));
+    fireEvent.click(screen.getByRole("button", { name: "按 ID 核对原始活动" }));
+    await screen.findByText(/已核对：一条原始记录/);
+    fireEvent.change(screen.getByLabelText("审核决定"), { target: { value: "EDITED" } });
+    fireEvent.change(screen.getByLabelText("编辑后的完整提案 JSON"), { target: { value: JSON.stringify({
+      ...proposal.payload, counter_evidence_activity_id: "99999999-9999-4999-8999-999999999999",
+    }) } });
+    fireEvent.click(screen.getByRole("button", { name: "提交提案审核" }));
+    expect(await screen.findByRole("alert")).toHaveProperty("textContent", "请先按 ID 核对提案引用的每条原始活动，再确认审核");
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/outer-loop/proposals/"))).toBe(false);
   });
 });

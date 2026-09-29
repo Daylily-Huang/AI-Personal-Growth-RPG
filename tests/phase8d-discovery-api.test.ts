@@ -74,6 +74,14 @@ describe("Phase 8D Round 4 authenticated read-only discovery", () => {
     expect(await result.json()).toMatchObject({ sources: [{ observedAt }] });
   });
 
+  test("exact Activity lookup returns full raw input for proposal review; recent list does not", async () => {
+    rows = [{ id: sourceId, title: "活动", created_at: observedAt, raw_input: "原始活动事实全文" }];
+    const exact = await listSources(new Request(`http://localhost/api/strategies/sources?sourceClass=ACTIVITY&id=${sourceId}`));
+    expect(await exact.json()).toMatchObject({ sources: [{ details: "原始活动事实全文" }] });
+    const recent = await listSources(new Request("http://localhost/api/strategies/sources?sourceClass=ACTIVITY"));
+    expect(await recent.json()).toMatchObject({ sources: [{ details: null }] });
+  });
+
   test("invalid source class and ID fail without table access", async () => {
     expect((await listSources(new Request("http://localhost/api/strategies/sources?sourceClass=UNKNOWN"))).status).toBe(400);
     expect((await listSources(new Request("http://localhost/api/strategies/sources?sourceClass=ACTIVITY&id=nope"))).status).toBe(400);

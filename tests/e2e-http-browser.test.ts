@@ -757,9 +757,22 @@ describe.skipIf(!DATABASE_URL)("Stage 3.1 — Full Real HTTP / Browser Auth E2E 
     const owner = await jarA.client.auth.getUser();
     expect(owner.error).toBeNull();
     const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    const sourceActivity = await admin.from("activities").insert({
+      user_id: owner.data.user!.id, title: "Older counterexample", raw_input: "Original observation for proposal review",
+      rules_version: "e2e-source-fixture",
+    }).select("id,created_at").single();
+    expect(sourceActivity.error).toBeNull();
+    const exactActivity = await fetch(`${BASE_URL}/api/strategies/sources?sourceClass=ACTIVITY&id=${sourceActivity.data!.id}`, { headers: { Cookie: cookieA } });
+    expect(exactActivity.status).toBe(200);
+    expect((await exactActivity.json()).sources).toMatchObject([{ id: sourceActivity.data!.id,
+      observedAt: sourceActivity.data!.created_at, details: "Original observation for proposal review" }]);
+    const foreignActivity = await fetch(`${BASE_URL}/api/strategies/sources?sourceClass=ACTIVITY&id=${sourceActivity.data!.id}`, { headers: { Cookie: cookieB } });
+    expect(foreignActivity.status).toBe(200);
+    expect((await foreignActivity.json()).sources).toEqual([]);
     const insertedProposal = await admin.from("outer_loop_proposals").insert({
       user_id: owner.data.user!.id, proposal_type: "STRATEGY_COUNTEREVIDENCE_ALERT", schema_version: 1,
-      payload: { strategy_id: strategy.id, source_class: "JOURNAL_CONTEXT", source_id: entry.id },
+      payload: { strategy_id: strategy.id, counter_evidence_activity_id: sourceActivity.data!.id,
+        observation: "Possible counterexample", recommended_action: "Inspect original activity" },
       source_refs: [],
     }).select("id").single();
     expect(insertedProposal.error).toBeNull();

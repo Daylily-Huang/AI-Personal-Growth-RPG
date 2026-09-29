@@ -9,6 +9,7 @@ export interface StrategySourceOption {
   sourceClass: StrategySourceClass;
   label: string;
   observedAt: string;
+  details: string | null;
 }
 
 export interface StrategyProposalPreview {
@@ -21,14 +22,14 @@ export interface StrategyProposalPreview {
   expiresAt: string;
 }
 
-const SOURCE_TABLE: Record<StrategySourceClass, { table: string; columns: string; order: string }> = {
-  SEASON_REVIEW: { table: "season_reviews", columns: "id,review_type,period_end,created_at", order: "created_at" },
-  ACTIVITY: { table: "activities", columns: "id,title,created_at", order: "created_at" },
-  QUEST_OUTCOME: { table: "quests", columns: "id,title,completed_at,created_at", order: "created_at" },
-  ARTIFACT: { table: "artifacts", columns: "id,title,created_at", order: "created_at" },
-  CORE_EVIDENCE_REFERENCE: { table: "evidence_records", columns: "id,description,created_at", order: "created_at" },
-  JOURNAL_CONTEXT: { table: "journal_entries", columns: "id,title,created_at", order: "created_at" },
-  MANUAL_OBSERVATION: { table: "journal_entries", columns: "id,title,created_at", order: "created_at" },
+const SOURCE_TABLE: Record<StrategySourceClass, { table: string; columns: string; detailColumns: string; detailField: string; order: string }> = {
+  SEASON_REVIEW: { table: "season_reviews", columns: "id,review_type,period_end,created_at", detailColumns: "qualitative_reflection", detailField: "qualitative_reflection", order: "created_at" },
+  ACTIVITY: { table: "activities", columns: "id,title,created_at", detailColumns: "raw_input", detailField: "raw_input", order: "created_at" },
+  QUEST_OUTCOME: { table: "quests", columns: "id,title,completed_at,created_at", detailColumns: "description", detailField: "description", order: "created_at" },
+  ARTIFACT: { table: "artifacts", columns: "id,title,created_at", detailColumns: "description,summary", detailField: "description", order: "created_at" },
+  CORE_EVIDENCE_REFERENCE: { table: "evidence_records", columns: "id,description,created_at", detailColumns: "evidence_type,evidence_level,verified", detailField: "description", order: "created_at" },
+  JOURNAL_CONTEXT: { table: "journal_entries", columns: "id,title,created_at", detailColumns: "content_markdown", detailField: "content_markdown", order: "created_at" },
+  MANUAL_OBSERVATION: { table: "journal_entries", columns: "id,title,created_at", detailColumns: "content_markdown", detailField: "content_markdown", order: "created_at" },
 };
 
 export async function getStrategyReadContext(): Promise<{ db: SupabaseClient; userId: string }> {
@@ -57,7 +58,8 @@ export async function listStrategySources(
   db: SupabaseClient, userId: string, sourceClass: StrategySourceClass, id?: string,
 ): Promise<StrategySourceOption[]> {
   const config = SOURCE_TABLE[sourceClass];
-  let query = db.from(config.table).select(config.columns).eq("user_id", userId);
+  const columns = id ? `${config.columns},${config.detailColumns}` : config.columns;
+  let query = db.from(config.table).select(columns).eq("user_id", userId);
   if (id) query = query.eq("id", id);
   const { data, error } = await query.order(config.order, { ascending: false }).limit(id ? 1 : 50);
   if (error) throw error;
@@ -71,6 +73,7 @@ export async function listStrategySources(
       id: String(row.id), sourceClass, label,
       // Preserve PostgREST's full timestamp precision. Never round-trip through JS Date.
       observedAt: String(sourceClass === "QUEST_OUTCOME" ? row.completed_at ?? row.created_at : row.created_at),
+      details: id ? String(row[config.detailField] ?? row.summary ?? "") || null : null,
     };
   });
 }

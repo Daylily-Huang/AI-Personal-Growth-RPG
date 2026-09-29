@@ -14,6 +14,11 @@
 - 用户明确允许本轮补充只读接口。现已新增 authenticated `GET /api/strategies/proposals` 与 `GET /api/strategies/sources`，服务器只用用户 session 和显式 `user_id` 过滤，七类来源按 0047 canonical table/timestamp 投影；UI 显示待审提案原文、来源与过期时间，并使用来源选择/精确查询，不新增 mutation authority。
 - 新增只读 adapter 单测涵盖匿名、七类来源表与 tenant filter、QUEST_OUTCOME timestamp、非法参数；真实 HTTP E2E 增加匿名/跨用户提案与日志来源读取反例。此真实数据库测试只能在 CI 临时最新迁移库执行，本机旧 0042 实例未改动。
 - 纠正独立初审 P2：补充编辑后提案 CAS、历史版本证据仅作历史展示等 UI 测试。最新定向 57/57、全量 49 files passed / 24 skipped、796 passed / 340 skipped；ESLint、TypeScript、production build 和 `git diff --check` 全绿。exact-head CI 与独立重审仍待执行。
+- 首轮 Round 4 exact head `ad915fc992ab7c6c28297d34987acec978a7cb83` 已推送同一分支；CI Run `36557413857` 的 `check` 与 `supabase-integration` 均 success，真实 database-backed tests、deterministic harness、E2E 均已执行。PR #37 head 已核实为该 SHA 且未合并。
+- 独立 exact-head Gatekeeper 对 `ad915fc` 返回 `P0=0 / P1=1 / P2=0 + NO-GO`：提案原文虽显示 JSON，但其 canonical Activity 来源（包括超过近期 50 条的旧记录）无法从提案审核卡按 ID 核对。CI green 不覆盖此 P1，Round 5 继续 gated。
+- Corrective UI 正按 0047 RPC 真实 payload 字段 `counter_evidence_activity_id` / `supporting_activity_ids` 加提案内按 ID 精确查询与接受前逐条核对；编辑后改动来源 ID 也重新门禁。定向 19/19、lint、typecheck 已通过，新 SHA 尚未提交。
+- 进一步收敛 P1：按 ID 的 Activity projection 返回 `raw_input` 全文供提案内核对，近期列表只返回轻量标题/时间；提案接受/编辑后接受须先核对每个 Activity ID，警报还需核对关联 Strategy。新增 CI 真实 HTTP E2E 使用合法 Activity + 警报 fixture，验证全文、原始时间戳与跨租户不可见。最新定向 20/20、lint/typecheck 通过，待新 exact-head CI。
+- Corrective 本地全量门禁：49 files passed / 24 skipped，800 passed / 340 skipped；production build、TypeScript、ESLint、`git diff --check` 均通过。跳过的真 DB/E2E 留给新 exact-head CI，不能据本机结果声称通过。
 
 
 > **权威状态主文档**：请统一参阅 [`docs/MASTER_PROJECT_HANDOFF.md`](docs/MASTER_PROJECT_HANDOFF.md)。  
