@@ -3,6 +3,7 @@ import next from "next";
 import { describe, expect, test, beforeAll, afterAll } from "vitest";
 import { startDeterministicMockAiServer, type MockAiServerHandle } from "./helpers/mock-ai-server";
 import { createServerClient } from "@supabase/ssr";
+import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
 
 const DATABASE_URL = process.env.XP_RPG_TEST_DB_URL;
@@ -678,6 +679,162 @@ describe.skipIf(!DATABASE_URL)("Stage 3.1 — Full Real HTTP / Browser Auth E2E 
       }),
     });
     expect([400, 404]).toContain(bCreateEdgeWithANode.status);
+  });
+
+  test("11. Strategy HTTP boundary uses real auth, RLS, source authority, replay, and version exclusion", async () => {
+    const anonymous = await fetch(`${BASE_URL}/api/strategies`);
+    expect(anonymous.status).toBe(401);
+
+    const jarA = createCookieJar();
+    const jarB = createCookieJar();
+    async function createIndependentUser(jar: ReturnType<typeof createCookieJar>, label: string) {
+      const email = `e2e_strategy_${label}_${Date.now()}@growth.rpg`;
+      const signedUp = await jar.client.auth.signUp({ email, password: testPassword });
+      expect(signedUp.error).toBeNull();
+      if (!signedUp.data.session) {
+        const signedIn = await jar.client.auth.signInWithPassword({ email, password: testPassword });
+        expect(signedIn.error).toBeNull();
+      }
+    }
+    await createIndependentUser(jarA, "a");
+    await createIndependentUser(jarB, "b");
+    const cookieA = jarA.getCookieHeader();
+    const cookieB = jarB.getCookieHeader();
+    expect(cookieA).toBeTruthy();
+    expect(cookieB).toBeTruthy();
+    const post = (path: string, cookie: string, body: Record<string, unknown>) => fetch(`${BASE_URL}${path}`, {
+      method: "POST", headers: { "Content-Type": "application/json", Cookie: cookie }, body: JSON.stringify(body),
+    });
+
+    const created = await post("/api/strategies", cookieA, {
+      title: "E2E study protocol", contextTrigger: "research session",
+      actionProtocol: "start with a question", expectedOutcome: "clearer reasoning",
+    });
+    expect(created.status).toBe(201);
+    const { strategy } = await created.json();
+    expect(strategy).toMatchObject({ lifecycleStatus: "HYPOTHESIS", confidenceLevel: "LOW", version: 1 });
+    const strategyPath = `/api/strategies/${strategy.id}`;
+
+    const foreignRead = await fetch(`${BASE_URL}${strategyPath}`, { headers: { Cookie: cookieB } });
+    expect(foreignRead.status).toBe(404);
+    const foreignTransition = await post(`${strategyPath}/transition`, cookieB, {
+      targetStatus: "TESTING", requestIdempotencyKey: "foreign-transition-e2e",
+    });
+    expect(foreignTransition.status).toBe(404);
+    const listB = await fetch(`${BASE_URL}/api/strategies`, { headers: { Cookie: cookieB } });
+    expect(listB.status).toBe(200);
+    expect((await listB.json()).strategies.some((item: { id: string }) => item.id === strategy.id)).toBe(false);
+
+    const begin = await post(`${strategyPath}/transition`, cookieA, {
+      targetStatus: "TESTING", requestIdempotencyKey: "begin-testing-e2e",
+    });
+    expect(begin.status).toBe(200);
+    expect((await begin.json()).strategy.lifecycleStatus).toBe("TESTING");
+    const beginReplay = await post(`${strategyPath}/transition`, cookieA, {
+      targetStatus: "TESTING", requestIdempotencyKey: "begin-testing-e2e",
+    });
+    expect(beginReplay.status).toBe(200);
+    expect((await beginReplay.json()).replayed).toBe(true);
+
+    const journal = await post("/api/journal", cookieA, {
+      entryType: "FREE_REFLECTION", title: "Observed protocol", contentMarkdown: "Worked once",
+    });
+    expect(journal.status).toBe(201);
+    const { entry } = await journal.json();
+    const source = {
+      observationType: "SUPPORT", sourceClass: "JOURNAL_CONTEXT", sourceId: entry.id,
+      evaluatorVersion: "e2e-v1", observedAt: entry.createdAt,
+    };
+    const anonymousSource = await fetch(`${BASE_URL}/api/strategies/sources?sourceClass=JOURNAL_CONTEXT&id=${entry.id}`);
+    expect(anonymousSource.status).toBe(401);
+    const ownedSource = await fetch(`${BASE_URL}/api/strategies/sources?sourceClass=JOURNAL_CONTEXT&id=${entry.id}`, { headers: { Cookie: cookieA } });
+    expect(ownedSource.status).toBe(200);
+    expect((await ownedSource.json()).sources).toMatchObject([{ id: entry.id, observedAt: entry.createdAt }]);
+    const foreignSourceRead = await fetch(`${BASE_URL}/api/strategies/sources?sourceClass=JOURNAL_CONTEXT&id=${entry.id}`, { headers: { Cookie: cookieB } });
+    expect(foreignSourceRead.status).toBe(200);
+    expect((await foreignSourceRead.json()).sources).toEqual([]);
+
+    const owner = await jarA.client.auth.getUser();
+    expect(owner.error).toBeNull();
+    const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    const sourceActivity = await admin.from("activities").insert({
+      user_id: owner.data.user!.id, title: "Older counterexample", raw_input: "Original observation for proposal review",
+      rules_version: "e2e-source-fixture",
+    }).select("id,created_at").single();
+    expect(sourceActivity.error).toBeNull();
+    const exactActivity = await fetch(`${BASE_URL}/api/strategies/sources?sourceClass=ACTIVITY&id=${sourceActivity.data!.id}`, { headers: { Cookie: cookieA } });
+    expect(exactActivity.status).toBe(200);
+    expect((await exactActivity.json()).sources).toMatchObject([{ id: sourceActivity.data!.id,
+      observedAt: sourceActivity.data!.created_at, details: "Original observation for proposal review" }]);
+    const foreignActivity = await fetch(`${BASE_URL}/api/strategies/sources?sourceClass=ACTIVITY&id=${sourceActivity.data!.id}`, { headers: { Cookie: cookieB } });
+    expect(foreignActivity.status).toBe(200);
+    expect((await foreignActivity.json()).sources).toEqual([]);
+    const insertedProposal = await admin.from("outer_loop_proposals").insert({
+      user_id: owner.data.user!.id, proposal_type: "STRATEGY_COUNTEREVIDENCE_ALERT", schema_version: 1,
+      payload: { strategy_id: strategy.id, counter_evidence_activity_id: sourceActivity.data!.id,
+        observation: "Possible counterexample", recommended_action: "Inspect original activity" },
+      source_refs: [],
+    }).select("id").single();
+    expect(insertedProposal.error).toBeNull();
+    const anonymousProposals = await fetch(`${BASE_URL}/api/strategies/proposals`);
+    expect(anonymousProposals.status).toBe(401);
+    const ownedProposals = await fetch(`${BASE_URL}/api/strategies/proposals`, { headers: { Cookie: cookieA } });
+    expect(ownedProposals.status).toBe(200);
+    expect((await ownedProposals.json()).proposals).toContainEqual(expect.objectContaining({ id: insertedProposal.data!.id,
+      proposalType: "STRATEGY_COUNTEREVIDENCE_ALERT" }));
+    const foreignProposals = await fetch(`${BASE_URL}/api/strategies/proposals`, { headers: { Cookie: cookieB } });
+    expect(foreignProposals.status).toBe(200);
+    expect((await foreignProposals.json()).proposals.some((item: { id: string }) => item.id === insertedProposal.data!.id)).toBe(false);
+
+    const wrongTime = await post(`${strategyPath}/supports`, cookieA, {
+      ...source, observedAt: new Date(Date.parse(entry.createdAt) + 1000).toISOString(),
+    });
+    expect(wrongTime.status).toBe(400);
+    const countAfterFailure = await fetch(`${BASE_URL}${strategyPath}/supports`, { headers: { Cookie: cookieA } });
+    expect(countAfterFailure.status).toBe(200);
+    expect((await countAfterFailure.json()).count).toBe(0);
+
+    const accepted = await post(`${strategyPath}/supports`, cookieA, source);
+    expect(accepted.status).toBe(201);
+    expect((await accepted.json()).replayed).toBe(false);
+    const replay = await post(`${strategyPath}/supports`, cookieA, {
+      ...source, sourceClass: "MANUAL_OBSERVATION", evaluatorVersion: "e2e-v2", note: "same Journal",
+    });
+    expect(replay.status).toBe(200);
+    expect((await replay.json()).replayed).toBe(true);
+    const afterReplay = await fetch(`${BASE_URL}${strategyPath}/supports`, { headers: { Cookie: cookieA } });
+    expect((await afterReplay.json()).count).toBe(1);
+
+    const other = await post("/api/strategies", cookieB, {
+      title: "B protocol", contextTrigger: "context", actionProtocol: "action", expectedOutcome: "outcome",
+    });
+    expect(other.status).toBe(201);
+    const otherId = (await other.json()).strategy.id;
+    expect((await post(`/api/strategies/${otherId}/transition`, cookieB, {
+      targetStatus: "TESTING", requestIdempotencyKey: "b-testing-e2e",
+    })).status).toBe(200);
+    const foreignSource = await post(`/api/strategies/${otherId}/supports`, cookieB, source);
+    expect(foreignSource.status).toBe(404);
+    const bSupports = await fetch(`${BASE_URL}/api/strategies/${otherId}/supports`, { headers: { Cookie: cookieB } });
+    expect(bSupports.status).toBe(200);
+    expect((await bSupports.json()).count).toBe(0);
+
+    const insufficient = await post(`${strategyPath}/evaluate`, cookieA, { confirmPromotion: true });
+    expect(insufficient.status).toBe(422);
+    const versionInput = {
+      actionProtocol: "revised protocol", contextTrigger: "revised context",
+      expectedOutcome: "revised outcome", changeSummary: "learned from first observation",
+      requestIdempotencyKey: "version-two-e2e",
+    };
+    const nextVersion = await post(`${strategyPath}/versions`, cookieA, versionInput);
+    expect(nextVersion.status).toBe(201);
+    expect((await nextVersion.json()).version.versionNumber).toBe(2);
+    const versionReplay = await post(`${strategyPath}/versions`, cookieA, versionInput);
+    expect(versionReplay.status).toBe(200);
+    expect((await versionReplay.json()).replayed).toBe(true);
+    const evaluated = await post(`${strategyPath}/evaluate`, cookieA, { confirmPromotion: false });
+    expect(evaluated.status).toBe(200);
+    expect((await evaluated.json()).metrics).toMatchObject({ supportCount: 0, confidenceLevel: "LOW" });
   });
 });
 

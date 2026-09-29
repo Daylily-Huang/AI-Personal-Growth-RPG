@@ -1,9 +1,9 @@
 # AI Personal Growth RPG — 项目总体计划与当前状态 (Task Plan)
 
 > **权威状态主文档**：请统一参阅 [`docs/MASTER_PROJECT_HANDOFF.md`](docs/MASTER_PROJECT_HANDOFF.md)。  
-> **当前里程碑**: Phase 8C — Journal + State（FINAL FROZEN）；Phase 8D 未启动 / BLOCKED
-> **当前主分支基线 (main)**: `9aa76e7ce36b20b9f99e28d6cbd08eeb7bc55b85`
-> **最新状态**: PR #35 已合入 `main`；final reviewed exact head `f2f4d2b2d0a857348b6282dfdbfb3cfd08f4a06d` 的 CI Run `35381923343` 全绿，merge commit `9aa76e7ce36b20b9f99e28d6cbd08eeb7bc55b85` 对应 post-merge main CI Run `35432361509` 亦全绿。Phase 8C 最终 Gatekeeper 为 `P0=0 / P1=0 / P2=0 + GO`，现正式 **FINAL FROZEN**。Phase 8D 尚未启动。
+> **当前里程碑**: Phase 8C — Journal + State（FINAL FROZEN）；Phase 8D — Strategy + Personal Playbook（Round 1–5 accepted；待用户手动 merge gate 与 post-merge main CI）
+> **当前主分支基线 (main)**: `98dbe37e0a6fe334b6638ca568bc3ba06b4c3aac`
+> **最新状态**: Phase 8C **FINAL FROZEN**。Phase 8D admission 与 Round 1–4 已通过；Round 5 exit verification 的 corrective implementation exact head `8b33cca8e994ba45862194d5588642e9e76626ba` 的 CI Run `36590521018` 双绿，fresh independent Gatekeeper `P0=0 / P1=0 / P2=0 + GO`（DoD 7/8/9 满足）。PR #37 未合并；Phase 8D 需在用户手动 merge 且 post-merge main CI 通过后才可 FINAL FROZEN（DoD 10/11）。
 
 ---
 
@@ -50,7 +50,15 @@
   - [complete] Corrective exact head `ae35a63ab15abab6c6e7fafd06fd51281ab6e634` 已关闭旧 Gatekeeper 的 P1-01/P1-02/P2-01/P2-02；独立复审结果 `P0=0 / P1=0 / P2=0 + GO`，Exact-Head CI Run `35310121814` 全绿
   - [complete] PR #33 已合入 main：merge `0e4bec5f26411669f7031af4523b6d4fca747f96`；post-merge main CI Run `35315613393` 全绿，DoD 最终 merge gate 已满足
 - [complete] **Phase 8C: Journal + State** ✅ FINAL FROZEN — PR #35；final reviewed exact head `f2f4d2b2d0a857348b6282dfdbfb3cfd08f4a06d`；Exact-Head CI `35381923343` success；merge `9aa76e7ce36b20b9f99e28d6cbd08eeb7bc55b85`；post-merge main CI `35432361509` success
-- [blocked] **Phase 8D**: 未启动；须先建立独立 controlling document 并通过 Gatekeeper 准入，当前不授权生产实现
+- [in_progress] **Phase 8D: Strategy + Personal Playbook**: admission 与 Round 1 DB foundation、Round 2 RPC authority、Round 3 server boundary、Round 4 Playbook UI 已通过；Round 5 exit verification 尚未开始，PR #37 仍待用户手动合并。
+
+### 2026-09-29 — Round 4 Playbook UI
+
+- [complete] 核对控制契约、现有 HTTP 响应、Journey 样式和测试模式；用户批准补充当前用户可见的只读提案/来源投影。
+- [complete] 实现 `/journey/playbook` 与 Journey 导航：列表/详情、创建、测试、证据、评估与显式晋升、情境化、退役、版本、知情提案审核。
+- [complete] 增加交互回归，执行定向/全量测试、lint、typecheck、build 与差异边界检查。
+- [complete] implementation exact head `6fea360adffc4f7d9cde7a159797d246ca55f592` 的 CI Run `36559214448` 双绿，独立只读 Gatekeeper `P0=0 / P1=0 / P2=0 + GO`；PR 保持未合并。
+- [pending] Round 5 exit verification（另阶段）；不在本次 Round 4 交付内。
 
 ## 2026-09-18 — Phase 8C Journal + State Controlling Document
 
@@ -89,3 +97,52 @@
 - [complete] Final corrective exact head `f2f4d2b2d0a857348b6282dfdbfb3cfd08f4a06d` 已通过独立最终 Gatekeeper：`P0=0 / P1=0 / P2=0 + GO`；Exact-Head CI Run `35381923343` 全绿。
 - [complete] PR #35 已合入 `main`，merge commit `9aa76e7ce36b20b9f99e28d6cbd08eeb7bc55b85`；post-merge main CI Run `35432361509` 的 `check` 与 `supabase-integration` 均 success。
 - [complete] Phase 8C 最终归档：`docs/Phase8/17_PHASE8C_GATEKEEPER_REREVIEW_AND_FINAL_FREEZE.md`；状态 **FINAL FROZEN**。Phase 8D 保持 BLOCKED / 未启动。
+
+
+## 2026-09-19 — Phase 8D Strategy + Personal Playbook
+
+- [complete] Phase 8C 归档 PR #36 已合入 `main`：merge `98dbe37e0a6fe334b6638ca568bc3ba06b4c3aac`；post-merge main CI Run `35436440893` 的 `check` 与 `supabase-integration` 均 success。
+- [complete] Phase 8D controlling document 已形成 admission candidate：冻结范围、确定性 confidence/lifecycle 规则、四个 Strategy RPC、source provenance / anti-replay、`STRATEGY_HYPOTHESIS` proposal settlement、Playbook UI、Round 1–5 与 DoD 均已绑定。
+- [complete] controlling-document reviewed exact head `b4c26079e5532cc1c02238f70de95f3e4694e554` 已通过独立 Gatekeeper：`P0=0 / P1=0 / P2=0 + GO`。
+- [complete] Round 1 — DB foundation：exact head `400cf1536e86412e6183e45289d87cb21bd56ba1`，CI Run `36338180207` 的 check 与 supabase-integration 均 success，真实 database-backed tests 执行成功；fresh independent Gatekeeper 为 `P0=0 / P1=0 / P2=0 + GO`。
+- [in_progress] Round 2 — RPC authority：四个 Strategy RPC、确定性评估、审计、反重放、幂等、proposal settlement 与真实 DB 负向测试。
+- [pending] Round 2 exact-head CI 与独立 Gatekeeper；通过前不进入 Round 3 server boundary。
+- [in_progress] Round 2 CI corrective：`dfdb321` 的 Run `36413584990` 在新增 Strategy DB suite 3 项失败；`43bb67b` 已推送以暴露被测试清理动作遮蔽的原始 SQL 错误，Run `36435042869` 待结果。数据库门禁与独立 Gatekeeper 未通过，Round 3 仍 gated。
+- [in_progress] `43bb67b` CI 已确定三处首次 support 调用因测试 `Date` 毫秒截断导致 `SOURCE_TIMESTAMP_MISMATCH`；当前仅修测试为保留 PostgreSQL 微秒的 `created_at::text`，需新 exact-head 数据库 CI 验证。生产 timestamp 权威规则未放宽。
+- [complete] `60d463a` exact-head CI Run `36436421919` 双 job 成功；独立 Gatekeeper 仍给 `P0=0 / P1=1 / P2=0 + NO-GO`，P1 是 §10 的真实数据库反例覆盖不足。CI green 不等于 Gatekeeper GO。
+- [in_progress] 补充零证据、旧版本排除、租户、UTC 日期、Season/Core link 资格、<60% 弱化和双会话并发数据库测试；本地静态检查通过，真实 DB 运行及新 exact-head Gatekeeper 待验证。Round 3 继续暂停。
+- [complete] Round 2 exact head `1910af870fc82ffde35bf76da93d4bac50a5effb`：CI Run `36438563584` 双 job success，Strategy DB suite 12 tests、总计 70 files / 1103 tests passed；独立 Gatekeeper 复核后为 `P0=0 / P1=0 / P2=0 + GO`。原跨表 dedup P1 因与控制文档 §6 明示的 canonical table identity 不符而撤回。PR #37 未合并。
+- [in_progress] Round 3 — server boundary：先对齐现有 Outer Loop repository/service/request/http 分层与当前 Next route 约定；仅实现 Strategy 读/写适配和认证路由，四个 mutation 继续委托 0047 RPC，完成本地测试、exact-head CI 与独立 Gatekeeper 前不进入 Round 4 UI。
+- [in_progress] Round 3 corrective：`94a1208` 的独立 exact-head Gatekeeper 为 `P0=0 / P1=1 / P2=0 + NO-GO`（真实 HTTP→认证→DB 贯通反例缺失）；已补进既有 E2E suite，待新 SHA 的隔离数据库 CI 与 fresh Gatekeeper。Round 4 继续 gated。
+- [in_progress] `fca2842` 的真实 E2E CI 已通过，旧 P1 关闭；独立复审仍有两个测试稳健性 P2。已补测试独立注册与失败后零写入断言，待新 exact-head CI + fresh Gatekeeper；Round 4 不放行。
+- [complete] Round 3 implementation exact head `2b0796e66fc900344a1571f39ebd771fe64abe47`：CI Run `36452011311` 双 job success，Strategy RPC 12 tests 与真实 HTTP test 11 非 skipped 通过、71 files / 1118 tests passed；独立最终 Gatekeeper 为 `P0=0 / P1=0 / P2=0 + GO`。PR #37 仍开放未合并。下一阶段为 Round 4 Playbook UI，但本次仅做文档状态同步，未开始 UI。
+
+### 2026-09-29 — Phase 8D Round 5 exit verification
+
+- [complete] Round 5 — exit verification：新增 `tests/phase8d-exit-verification.test.ts`，显式命名控制文档 §10/§11.6 的四个 canonical exit test O008/O009/O017/O021，并补齐 O009 的 Case A（同日聚簇）/ Case B（3 日期 MODERATE 边界）反例；未改 production/迁移。
+- [complete] §10 反例与安全项逐条核对：全部条目均有具名测试覆盖（DB foundation、RPC authority、API adapters、discovery API、Playbook UI、真实 HTTP E2E）。
+- [complete] 首轮独立对抗复审 `P0=0 / P1=4 / P2=6 + NO-GO` 的四项 P1 已修复：后台 `confirm=false` 非晋升断言、CONTEXTUAL 生命周期、RETIRED 历史可查询、CI-only 策略提案并发 CAS；并收敛 P2（精确 `42501` 断言、VERY_HIGH、ratio=0.75 边界、CORE_EVIDENCE_REFERENCE 零 Core link）。
+- [complete] 最终 Gatekeeper 对 `3c09f8a` 的 `P2=3 + NO-GO` 已在 corrective head `8b33cca` 关闭：anon/service_role 不能提交 Strategy 真值、`supporting_activity_ids` 不物化 support、§5.1 canonical timestamp 前提、ratio 0.65/0.85 精确门槛、CONTEXTUAL confirm 仅 transition-only 契约。
+- [complete] 本机真实 DB 证据：0043–0047 已增量应用到本机 Supabase dev DB（应用前 `pg_dump` 备份 `.data/phase8d-pre-0043.dump`）；exit set 无 CI `10 passed / 1 skipped`、`CI=true` `11 passed / 0 skipped`；定向 Phase 8D `69 passed / 2 skipped`；全量 `1151 passed / 1 failed`（唯一失败为 `stage5b-db-repository` 用例 1 与本机既有 `demo_player@growth-rpg.dev` 的硬编码 domain UUID 冲突，CI 全新库不触发）。
+- [complete] 本机门禁：ESLint 全量 0 error、`tsc --noEmit` 0 error、`next build` 成功、deterministic harness `11/11`、`git diff --check` 通过；测试残留已清理，scratch DB 已 drop。
+- [complete] exact-head CI：`3c09f8a` Run `36587173704`、`8b33cca` Run `36590521018` 均双 job success（真实 DB tests、deterministic harness、E2E）；fresh independent Gatekeeper 对 `8b33cca` 为 `P0=0 / P1=0 / P2=0 + GO`。Round 5 接受，DoD 7/8/9 满足。
+- [pending] 用户手动 merge PR #37，并在 post-merge main CI 双绿后宣告 Phase 8D FINAL FROZEN（DoD 10/11）；PR #37 仍 open/unmerged。
+- [pending] 可选 backlog（需迁移才能改，非门禁项）：已合格 CONTEXTUAL 上 `rpc_evaluate_strategy_status(confirm=true)` 的错误码命名 `INSUFFICIENT_SUPPORT_FOR_PROMOTION` 不够精确。
+
+### Phase 8D Errors Encountered
+
+- 2026-09-19：一条组合式 `rg --files` + 多文件 `rg -n` 只读命令被 Codex 工具安全检查在执行前拦截；仓库零改动。后续改用拆分、窄范围只读查询，不重复该调用。
+
+- 2026-09-19：第二条跨两个文档的复合范围读取同样被工具安全检查在执行前拦截；仓库零改动。后续严格改为单文件单命令读取。
+
+- 2026-09-22：一条同时读取 controlling document、0044、0045 与 tests 的组合只读命令再次被 Codex 安全检查拦截；仓库零改动。已改为单文件、窄范围读取，不重复该调用。
+
+- 2026-09-22：尝试读取 `docs/Phase8/06_DATABASE_SCHEMA_AND_DATA_DICTIONARY.md` 返回 `os error 2`；项目规则中的真实路径是 `docs/Design ChatGPT/06_DATABASE_SCHEMA_AND_DATA_DICTIONARY.md`，后续按该路径读取。
+
+- 2026-09-22：按 checkpoint 简写读取 `0045_phase8c_journal_state.sql` 失败；实际迁移文件为 `0045_phase8c_journal_state_foundation.sql`，已通过 `rg --files` 确认，后续使用真实文件名。
+
+- 2026-09-28：`pnpm vitest run ...` 通过当前 Codex fallback pnpm 启动时无法解析工作区 `vitest`（`'vitest' is not recognized`），但 `node_modules/.bin/vitest.cmd` 实际存在；后续使用该工作区二进制执行同一测试，不重复失败入口。
+
+- 2026-09-28：首次新增的 0046 静态“无写权限”断言使用跨分号贪婪范围，误把 `strategies` 的 INSERT grant 与后续 `strategy_versions` SELECT 拼成写授权；已收窄为单条 SQL statement（`[^;]*`）并复跑通过。
+
+- 2026-09-28：本机 `XP_RPG_TEST_DB_URL` 未配置，Docker CLI 存在但 daemon 未运行（`open //./pipe/docker_engine: The system cannot find the file specified`）；Round 1 的 12 个真实 DB 测试仍属未验证，不能进入独立 Gatekeeper 或 Round 2。

@@ -90,6 +90,22 @@ export const PHASE8C_JOURNAL_STATE_AUTHORIZED_BACKEND = [
   'supabase/migrations/0045_phase8c_journal_state_foundation.sql',
 ];
 
+export const PHASE8D_STRATEGY_PLAYBOOK_CONTROL_DOCUMENT =
+  'docs/Phase8/18_PHASE8D_STRATEGY_PLAYBOOK_IMPLEMENTATION_CONTROLLING.md';
+
+export const PHASE8D_STRATEGY_AUTHORIZED_BACKEND = [
+  'src/app/api/strategies/[id]/evaluate/route.ts',
+  'src/app/api/strategies/[id]/route.ts',
+  'src/app/api/strategies/[id]/supports/route.ts',
+  'src/app/api/strategies/[id]/transition/route.ts',
+  'src/app/api/strategies/[id]/versions/route.ts',
+  'src/app/api/strategies/route.ts',
+  'src/app/api/strategies/proposals/route.ts',
+  'src/app/api/strategies/sources/route.ts',
+  'supabase/migrations/0046_phase8d_strategy_database_foundation.sql',
+  'supabase/migrations/0047_phase8d_strategy_rpc_authority.sql',
+];
+
 export function isFrozenBackendViolation(filePath: string): boolean {
   if (AUTHORIZED_CORE_BUGFIX_ALLOWLIST.includes(filePath)) {
     return false;
@@ -118,6 +134,11 @@ export function validateVisualMigrationDelta(changedFiles: string[]): VisualMigr
   }
   if (changedFiles.includes(PHASE8C_JOURNAL_STATE_CONTROL_DOCUMENT)) {
     for (const file of PHASE8C_JOURNAL_STATE_AUTHORIZED_BACKEND) {
+      authorizedBackend.add(file);
+    }
+  }
+  if (changedFiles.includes(PHASE8D_STRATEGY_PLAYBOOK_CONTROL_DOCUMENT)) {
+    for (const file of PHASE8D_STRATEGY_AUTHORIZED_BACKEND) {
       authorizedBackend.add(file);
     }
   }
@@ -534,5 +555,25 @@ describe('Visual Foundation & Design Tokens Runtime Verification', () => {
       'src/app/api/journal/route.ts',
       'supabase/migrations/0045_phase8c_journal_state_foundation.sql',
     ]);
+  });
+
+  it('26. binds only exact accepted Phase 8D backend paths to its controlling document', () => {
+    const accepted = validateVisualMigrationDelta([
+      PHASE8D_STRATEGY_PLAYBOOK_CONTROL_DOCUMENT,
+      'src/app/journey/playbook/page.tsx',
+      ...PHASE8D_STRATEGY_AUTHORIZED_BACKEND,
+    ]);
+    expect(accepted.violations).toEqual([]);
+    const unbound = validateVisualMigrationDelta([
+      'src/app/journey/playbook/page.tsx',
+      ...PHASE8D_STRATEGY_AUTHORIZED_BACKEND,
+    ]);
+    expect(unbound.violations).toEqual(PHASE8D_STRATEGY_AUTHORIZED_BACKEND);
+    const unknown = validateVisualMigrationDelta([
+      PHASE8D_STRATEGY_PLAYBOOK_CONTROL_DOCUMENT,
+      'src/app/journey/playbook/page.tsx',
+      'src/app/api/strategies/unapproved/route.ts',
+    ]);
+    expect(unknown.violations).toEqual(['src/app/api/strategies/unapproved/route.ts']);
   });
 });

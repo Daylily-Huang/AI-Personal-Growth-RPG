@@ -1,5 +1,42 @@
 # 项目历史工作进度 (Progress Log)
 
+## 2026-09-29 — Phase 8D Round 5 exit verification (accepted)
+
+- Round 4 已接受后启动 Round 5（exit verification）。新增 `tests/phase8d-exit-verification.test.ts`，把控制文档 §10/§11.6 绑定的四个 canonical exit test 显式命名：`O008_AI_CANNOT_COMMIT_STRATEGY`、`O009_STRATEGY_REQUIRES_CROSS_TIME_SUPPORT`、`O017_STRATEGY_CONFIDENCE_IS_DETERMINISTIC_DERIVED`、`O021_AI_PROPOSAL_REQUIRES_CONFIRM_BEFORE_COMMIT`；未修改任何 production 代码、迁移或已接受测试。
+- O009 补齐 §10 要求的边界反例：Case A 同日两次观测 + 0 completed Season 严格 LOW 且 `rpc_evaluate_strategy_status(true)` / `rpc_transition_strategy_status('SUPPORTED')` 均以 `22023` 拒绝；Case B 3 个不同 UTC 日期 + 1 个 COMPLETED Season FINAL review + 3 个 Core link + 100% ratio 严格 MODERATE 且拒绝晋升；第 4 个日期后才 HIGH 并在显式确认下转 `SUPPORTED`。
+- §10 反例与安全项逐条对照现有测试：直接写/伪造字段、DELETE 拒绝、版本与支持不可变、反重放（evaluator/note/timestamp/Journal 别名）、随机 MANUAL UUID、跨租户、并发版本与并发 transition、UTC 边界、0/0→LOW、FINAL+COMPLETED 资格、Core link 资格、<60% 弱化、提案 reject/accept/edit 与同键重放、counter-evidence alert 只确认不改真值，均有具名测试覆盖。
+- 首轮独立对抗复审为 `P0=0 / P1=4 / P2=6 + NO-GO`，指出四类未被证伪的缺口：后台 `confirm=false` 对已合格策略的非晋升未断言；CONTEXTUAL 生命周期完全未覆盖；RETIRED 后历史可查询未覆盖；策略提案并发 CAS 未覆盖（既有 CAS 测试走 `phase8b_review_outer_loop_proposal` 分支）。已全部修复：O009 在 4 日期合格后先断言 `confirm=false` 仍为 TESTING 再显式确认；新增 CONTEXTUAL（空 note `22023`、SUPPORTED↔CONTEXTUAL、<60% 弱化）与退休（空 reason `22023`、RETIRED 不可再建版本 `23514`、历史仍可查询）用例；新增 CI-only 双会话 `STRATEGY_HYPOTHESIS` 并发评审用例（一个胜出、另一个 `23514`、恰好一个 Strategy）。
+- 同时收敛 P2：伪造字段/越权 UPDATE 断言精确 `42501`；补充 VERY_HIGH（8 日期 / 2 Season / 8 Core link）、ratio 恰为 0.75 的包含性门槛、`CORE_EVIDENCE_REFERENCE` 贡献 0 Core link；O008 注明 Phase 8D 无 AI 生成 HTTP 端点、AI 生产者面即 `outer_loop_proposals` 权威。
+- 最终独立 Gatekeeper 对 `3c09f8a` 给出 `P0=0 / P1=0 / P2=3 + NO-GO`（实质结论全部确认，NO-GO 仅由三项非阻塞覆盖缺口驱动）：service_role/AI 角色未测；§9.1 `supporting_activity_ids` 与 §5.1 canonical timestamp 前提未在 DB 层断言；ratio 0.65/0.85 精确边界与 CONTEXTUAL confirm 语义未测。已在纯测试 corrective head `8b33cca` 全部关闭：新增 anon/service_role 对 strategies/versions/supports 的 INSERT/UPDATE/DELETE 一律 `42501`、service_role 仅能建 proposal 不能提交 Strategy；新增含两条 owned `supporting_activity_ids` 的提案审核后 0 `strategy_supports` 且保持 HYPOTHESIS/LOW/v1，并断言 authenticated 直写 activities/journal_entries 被拒；新增 13/7=0.65→MODERATE 与 17/3=0.85→VERY_HIGH 精确包含性门槛，并把「已合格 CONTEXTUAL + `confirm=true` 仍 `22023` 且生命周期不变、只能经 transition RPC 晋升」pin 为 §7 的既定契约。仅剩错误码命名（`INSUFFICIENT_SUPPORT_FOR_PROMOTION` 用词不够精确）作为可选 backlog，需迁移才能改，不作为门禁项。
+- 本机真实数据库证据（此前 Round 1–4 只能依赖 CI）：先把 0043–0047 增量应用到本机 Supabase dev DB（应用前已 `pg_dump` 备份到 `.data/phase8d-pre-0043.dump`），并另建隔离 scratch DB 复跑全量。修正后 exit set：无 CI 时 `10 passed / 1 skipped`（skip 为 CI-only 并发用例），`CI=true` 时 `11 passed / 0 skipped`；定向 Phase 8D 6 文件 `69 passed / 2 skipped`；全量 `73 files passed / 1 failed`、`1151 passed / 1 failed`。
+- 唯一全量失败为 `tests/stage5b-db-repository.test.ts` 用例 1：其硬编码 domain UUID `d1111111-...-0001` 在本机 dev DB 已被既有 `demo_player@growth-rpg.dev`（2026-09-02 创建）占用，`on conflict (id) do nothing` 使该用户只剩 1 条 domain。该失败与本轮改动无关，CI 全新数据库不触发；本机为环境性数据冲突，未修改该既有数据。
+- 本机门禁：ESLint 全量 `exit=0`、`tsc --noEmit` 0 error、`next build` 成功（含 `/journey/playbook` 与 6 个 `/api/strategies` 路由）、deterministic harness `11/11`、`git diff --check` 通过。
+- 已清理本轮全量运行在本机 dev DB 留下的测试残留（e2e/stage5d/stage7b 时间戳用户、strategy 行、audit 行；临时关闭用户触发器后删除并恢复，验证 0 残留、0 disabled trigger），并 drop scratch DB。dev DB 现保留 0043–0047 迁移。
+- exact-head CI：`3c09f8a` Run `36587173704` 与 corrective `8b33cca` Run `36590521018` 均 completed/success，`check`（Lint/Test/Build）与 `supabase-integration`（真实 database-backed tests、deterministic harness、E2E）全部 success；两次 run 均以 `head_sha` 精确绑定到对应 SHA。fresh independent Gatekeeper 对 `8b33cca` 重审为 `P0=0 / P1=0 / P2=0 + GO`。Round 5 exit verification 接受，DoD 7/8/9 满足。PR #37 仍 open/unmerged；按 §11 下一步是用户手动 merge gate 与 post-merge main CI，通过后才可宣告 Phase 8D FINAL FROZEN。
+
+## 2026-09-29 — Phase 8D Round 4 kickoff
+
+- 用户明确要求搭建 Playbook UI。当前分支 `codex/phase8d-strategy-playbook`，Round 3 final exact head `789569372af37e9f9e43fe4492ad914408a10125` 已通过 CI/Gatekeeper；PR #37 仍未合并。
+- 已阅读本地 Next App Router 页面及 Server/Client 组件指南、控制文档 §9/§11、Strategy HTTP 类型与既有 Journey 组件。Round 4 保持 HTTP-only，不增加浏览器 DB/RPC 权威。
+- 发现现有提案只有按 ID 的 review HTTP 接口、没有列表接口；本轮采用提案 ID 审核入口，不擅自扩展已接受的 Round 3 server boundary。时间戳必须保留数据库原始精度。
+- 已实现 `/journey/playbook`、导航、策略全生命周期 UI、当前版本证据视图、日志来源选择器与提案 ID 审核表单；所有写入经既有 HTTP routes，无 browser Supabase 调用。
+- 定向 Journey/治理回归 44/44，TypeScript、ESLint、production build 通过；全量 48 files passed / 24 skipped、783 passed / 340 skipped。`git diff --check` 通过。确定性 harness 11/11 通过。
+- 首次 harness 命令错误地猜测了不存在的 `src/lib/growth-engine/harness.ts`，报 `ERR_MODULE_NOT_FOUND`；读取 `package.json` 后改跑真实脚本目标 `tests/growth-engine.test.ts`，11/11 通过，不再重复错误路径。
+- 已发起独立只读对抗审查，特别核查提案审阅原文、来源时间戳、版本与确认边界。CI/exact-head 尚未进行。
+- 独立初审未提交工作区结果为 `P0=0 / P1=2 / P2=1 + NO-GO`：提案 UI 无原文/检索，非日志来源无可核对定位；新版本/编辑后审核测试不足。初审环境用 `pnpm exec vitest` 未找到命令；执行侧使用实际存在的 `node_modules/.bin/vitest.cmd` 已验证全量 783 passed，不把初审工具缺失误报为代码失败。
+- 当前 Round 4 不提交/推送、不声称 exact-head CI 或 Gatekeeper GO；要闭合提案与所有来源定位需补充已认证只读 HTTP/domain surface，与 §11 的“只消费已接受接口”存在授权边界，待用户确认扩展范围。
+- 用户明确允许本轮补充只读接口。现已新增 authenticated `GET /api/strategies/proposals` 与 `GET /api/strategies/sources`，服务器只用用户 session 和显式 `user_id` 过滤，七类来源按 0047 canonical table/timestamp 投影；UI 显示待审提案原文、来源与过期时间，并使用来源选择/精确查询，不新增 mutation authority。
+- 新增只读 adapter 单测涵盖匿名、七类来源表与 tenant filter、QUEST_OUTCOME timestamp、非法参数；真实 HTTP E2E 增加匿名/跨用户提案与日志来源读取反例。此真实数据库测试只能在 CI 临时最新迁移库执行，本机旧 0042 实例未改动。
+- 纠正独立初审 P2：补充编辑后提案 CAS、历史版本证据仅作历史展示等 UI 测试。最新定向 57/57、全量 49 files passed / 24 skipped、796 passed / 340 skipped；ESLint、TypeScript、production build 和 `git diff --check` 全绿。exact-head CI 与独立重审仍待执行。
+- 首轮 Round 4 exact head `ad915fc992ab7c6c28297d34987acec978a7cb83` 已推送同一分支；CI Run `36557413857` 的 `check` 与 `supabase-integration` 均 success，真实 database-backed tests、deterministic harness、E2E 均已执行。PR #37 head 已核实为该 SHA 且未合并。
+- 独立 exact-head Gatekeeper 对 `ad915fc` 返回 `P0=0 / P1=1 / P2=0 + NO-GO`：提案原文虽显示 JSON，但其 canonical Activity 来源（包括超过近期 50 条的旧记录）无法从提案审核卡按 ID 核对。CI green 不覆盖此 P1，Round 5 继续 gated。
+- Corrective UI 正按 0047 RPC 真实 payload 字段 `counter_evidence_activity_id` / `supporting_activity_ids` 加提案内按 ID 精确查询与接受前逐条核对；编辑后改动来源 ID 也重新门禁。定向 19/19、lint、typecheck 已通过，新 SHA 尚未提交。
+- 进一步收敛 P1：按 ID 的 Activity projection 返回 `raw_input` 全文供提案内核对，近期列表只返回轻量标题/时间；提案接受/编辑后接受须先核对每个 Activity ID，警报还需核对关联 Strategy。新增 CI 真实 HTTP E2E 使用合法 Activity + 警报 fixture，验证全文、原始时间戳与跨租户不可见。最新定向 20/20、lint/typecheck 通过，待新 exact-head CI。
+- Corrective 本地全量门禁：49 files passed / 24 skipped，800 passed / 340 skipped；production build、TypeScript、ESLint、`git diff --check` 均通过。跳过的真 DB/E2E 留给新 exact-head CI，不能据本机结果声称通过。
+- `fc086041ccd342bfd62b2e92b41b8402a79ed212` 的 CI Run `36558552775` 双 job success，真实 database-backed tests、deterministic harness 与 E2E 全部执行成功。但独立 exact-head Gatekeeper 返回 `P0=0 / P1=0 / P2=1 + NO-GO`：缺少含两条 `supporting_activity_ids` 的策略假设逐条审核回归。已增加该测试，验证只核对一条时不发 review POST，两条均核对后才发；定向 9/9、typecheck、lint 通过。仍需新 SHA 的 CI/Gatekeeper。
+- Round 4 最终 implementation exact head `6fea360adffc4f7d9cde7a159797d246ca55f592`：CI Run `36559214448` 的 `check` 与 `supabase-integration` 均 success，真实数据库、deterministic harness、E2E 已通过；独立 exact-head Gatekeeper `P0=0 / P1=0 / P2=0 + GO`。PR #37 head 已核实匹配该 SHA 且未合并。Round 4 accepted；Round 5 未开始、Phase 8D 未 FINAL FROZEN。
+
+
 > **权威状态主文档**：请统一参阅 [`docs/MASTER_PROJECT_HANDOFF.md`](docs/MASTER_PROJECT_HANDOFF.md)。  
 > **更新时间**: 2026-09-19
 
@@ -146,3 +183,85 @@
 - Post-merge main CI Run `35432361509` 全绿，`check` 与 `supabase-integration` 均 success。
 - 新增最终归档 `docs/Phase8/17_PHASE8C_GATEKEEPER_REREVIEW_AND_FINAL_FREEZE.md`；Phase 8C 状态更新为 **FINAL FROZEN**。
 - Phase 8D 保持 **BLOCKED / 未启动**；本轮没有进入任何 Phase 8D production code/schema/API/UI 工作。
+
+
+## 2026-09-19 — Phase 8D 启动与准入
+
+- Phase 8C 归档 PR #36 已由用户手动合并；权威 `main` 基线为 `98dbe37e0a6fe334b6638ca568bc3ba06b4c3aac`。
+- Post-merge main CI Run `35436440893`：`check=success`、`supabase-integration=success`，Phase 8C 归档闭环。
+- 已切换到 `codex/phase8d-strategy-playbook`，当前 HEAD 与上述 main 基线一致。
+- `docs/Phase8/18_PHASE8D_STRATEGY_PLAYBOOK_IMPLEMENTATION_CONTROLLING.md` 已完成 admission-candidate 收敛：补齐 deterministic confidence rubric、lifecycle/transition authority、四个 RPC 的输入与失败语义、source provenance / anti-replay / tenant validation、`STRATEGY_HYPOTHESIS` 通过既有 proposal-review CAS 落地、Playbook UI 范围、runtime/database counterexamples、Round 1–5 与最终 merge/post-merge-CI DoD。
+- 当前下一步是提交/推送该 controlling-document exact head，并由独立只读 Gatekeeper 对冻结文档 05/08/09/10/11/12 做 exact-head 准入审查。
+- Phase 8D production schema/RPC/API/UI 仍为 **BLOCKED**；只有 Gatekeeper 返回 `P0=0 / P1=0 / P2=0 + GO` 才进入 Round 1。
+# 2026-09-22 — Phase 8D Round 1 resume
+
+- Verified branch: `codex/phase8d-strategy-playbook`.
+- Verified HEAD: `b4c26079e5532cc1c02238f70de95f3e4694e554`; reviewed Gatekeeper head is the current exact HEAD and ancestor check passes.
+- No tracked working-tree modifications at resume; existing Round 1 draft migration/test plus unrelated paths are untracked and preserved.
+- Admission status refreshed to `P0=0 / P1=0 / P2=0 + GO`; Round 1 DB foundation is now active. Round 2 remains gated on Round 1 implementation, runtime tests, and independent exact-head review.
+- One broad multi-file read was blocked before execution by Codex safety review; switched to narrow single-file reads with zero repository effect.
+- Read Phase 8C `0045` field-authority/RLS pattern and Phase 8B `0044` SECURITY DEFINER authority conventions. Round 1 design chosen: authenticated Strategy create + title/description update only; internal atomic version-1 bootstrap; versions/supports authenticated read-only; immutable and tenant guards at storage layer.
+
+## 2026-09-22 — Phase 8D Round 1 resumed
+
+- Re-verified exact HEAD `b4c26079e5532cc1c02238f70de95f3e4694e554` and restored planning context.
+- Confirmed `0046` and its test are obsolete Round 1 drafts; no production implementation commit exists yet.
+- Two whole-file reads of `0046` were blocked by command safety review; repository remained unchanged by those failed reads. Switched to narrow read-only queries.
+
+## 2026-09-23 15:12 +08:00 — Resume Phase 8D Round 1
+- 已恢复 planning files、git 状态与 Phase 8D admission 状态。
+- 已读取 MASTER_PROJECT_HANDOFF 与 01_SYSTEM_RULES；继续按 AGENTS.md 要求依次读取 02–09 后再编辑 Round 1 production files。
+- 本轮尚未修改 migration/tests。
+
+- 已完成 Round 1 权威边界复核：补齐 04–09，定位 controlling contract §6/§10/§11 与 frozen Strategy spec schema；下一步只读对照旧 0046、0045 authority pattern 与现有 database-backed test pattern，再重写 Round 1 foundation。
+
+## 2026-09-28 — Phase 8D Round 1 resumed
+
+- 确认当前 HEAD `b4c26079e5532cc1c02238f70de95f3e4694e554` 已是 controlling-document independent Gatekeeper GO 的 exact head；当前只推进 Round 1 DB foundation，Round 2 继续 gated。
+- 补齐 `tests/supabase-schema.test.ts`：迁移链登记 0046，并增加三表/版本锚、taxonomy/version-1 bootstrap、private RLS/无 version-support 直写、Strategy 列权限与 immutable tenant guards 的静态断言。
+- 定向测试最终通过：`39 passed / 12 skipped`；12 skipped 全部来自未配置 `XP_RPG_TEST_DB_URL` 的真实 Strategy DB suite。两个相关测试文件 ESLint 通过，`git diff --check` 通过。
+- 本机 Docker daemon 未运行，真实 migration/RLS/trigger 负向测试尚未执行；在获得真实 DB 证据前不提交 Round 1 Gatekeeper，也不进入 Round 2。
+- 独立对抗初审发现来源/版本锚反例不足与静态守卫脆弱；已补五类 source 的 owned/foreign/class-mismatch、同租户错误 version anchor，并强化 policy/trigger body 静态断言。最新定向结果 `40 passed / 13 skipped`，skipped 仍全部为真实 DB suite。
+- 权威 `docs/MASTER_PROJECT_HANDOFF.md` 已从旧的“Phase 8D 未启动/BLOCKED”手术式同步为 admission exact head 已 GO、Round 1 IN PROGRESS、Round 2 gated；当前 main 基线同步为 Phase 8C archive merge `98dbe37...`。
+- 独立只读对抗第四次复审：`P0=0 / P1=1 / P2=0 + NO-GO`。来源/版本锚覆盖与静态 policy/trigger/source mapping findings 均关闭；唯一剩余 P1 是本机无真实 Supabase runtime，下一步提交并推送 Round 1 candidate，以 exact-head CI 的 `supabase-integration` 获取数据库证据。
+
+## 2026-09-28 — Phase 8D Round 1 accepted; Round 2 started
+
+- Round 1 commit `400cf1536e86412e6183e45289d87cb21bd56ba1` 已推送。CI Run `36338180207` 的 `check` 与 `supabase-integration` 均 success；integration 的 Supabase startup、production build、database-backed tests、deterministic harness、E2E steps 均 success。
+- Fresh independent Gatekeeper 对上述 exact SHA 返回 `P0=0 / P1=0 / P2=0 + GO`，Round 1 接受。PR #37 仍未合并。
+- 本轮恢复后 `git status` 仅有原有未跟踪目录/文件；HEAD 与远端 Round 1 SHA 一致。开始 Round 2 RPC authority，下一门禁为 Round 2 exact-head CI 与独立 Gatekeeper。
+
+## 2026-09-28 — Phase 8D Round 2 local candidate
+
+- 新增 `0047_phase8d_strategy_rpc_authority.sql`：四个 Strategy RPC、当前版本确定性评估、审计与持久幂等键、提案审核的 Strategy 扩展；`0044` 保留为内部委托，冻结文件未修改。
+- 独立只读初审指出 Quest 完成后时间戳变化破坏重放、晋升确认重放报错、编辑后 alert 内容未留痕（P1=1/P2=2）；已针对三项修复并加入相应回归用例，fresh 复审待结论。
+- 本地全量 Vitest：46 files passed / 24 skipped，764 passed / 332 skipped；确定性 harness 11/11；TypeScript、定向 ESLint、`git diff --check` 通过。新增 5 个真实 DB 用例因 `XP_RPG_TEST_DB_URL` 缺失而跳过；迁移执行、RLS 与数据库负向测试仍未验证，不能宣称 Round 2 GO。
+- Next.js 生产构建通过；Docker daemon 探测仍报 `open //./pipe/docker_engine: The system cannot find the file specified`，不能作为数据库测试替代。
+- Fresh 只读复审确认前轮三项实现路径已修复，指出两项 P2 测试覆盖缺口：晋升确认重放、匿名/外租户来源/直写拒绝。已补这些真实 DB 用例；定向静态 40/40、TypeScript 与 ESLint 通过，Round 2 DB suite 现为 7 skipped。覆盖缺口的复审与数据库运行证据仍待完成。
+- 后续只读复审指出两项 P2：直写负向测试被随机 version FK 遮蔽；`EDITED` 提案同键不同 payload 未拒绝。现改用有效 version/own source 并断言权限 SQLSTATE `42501`，且对已审定编辑载荷做同键冲突比较；回归测试已加。定向静态 40/40、TypeScript/ESLint 复跑通过；fresh 静态复审与真实 DB 仍待完成。
+- 最新限定范围独立静态复审为 `P0=0 / P1=0 / P2=0`，确认两项 P2 的代码与测试闭环；这只代表静态 GO。真实数据库用例仍未运行，因此 Round 2 环境验收继续 NO-GO。下一步形成候选提交，并需另行获准推送该新 SHA 才能触发 exact-head CI。
+- 当前未提交、未推送、未触发新 SHA 的 CI；Round 3 保持 gated。
+
+## 2026-09-28 — Phase 8D Round 2 CI corrective
+
+- `dfdb32182a69e3f6357512f05ba7219837d5270e` 已按授权推送；exact-head CI Run `36413584990` 的 `check` success，`supabase-integration` 在 database-backed tests 阶段 failure：Round 2 新增 7 个 DB 用例中 3 failed，其余 4 passed。失败被测试助手事务错误后的 `RESET ROLE` 覆盖为 `25P02`，首个 SQL 错误未从该日志确认。
+- 诊断修复 `43bb67baac4ec1076db43daf4da580e8c3cec7c4` 仅让测试助手保留原始 DB 错误；已推送到同一分支，exact-head CI Run `36435042869` 运行中。此前本地定向静态 40 passed / 7 DB skipped，TypeScript、ESLint、diff check 通过；Round 2 仍 NO-GO。
+- 更正本机数据库状态：Ubuntu WSL Docker 中运行着本项目 Supabase PostgreSQL，映射端口 `54322`，最高迁移版本 `0042`。先前仅检查 Windows Docker daemon/端口而误称本机没有可用 DB；未向该现有数据库应用 `0043–0047` 或写入测试数据。
+- `43bb67b` 的 CI Run `36435042869`：`check` success，Supabase startup/build success；数据库测试仍 3 failed，三者原始错误均为首次 support 插入的 `SOURCE_TIMESTAMP_MISMATCH` / `22023`。已将相关测试查询改为 `created_at::text`，以保留 PostgreSQL 微秒精度并维持 production RPC 的 exact timestamp 断言；等待新 exact-head CI 验证。
+- 独立只读复核发现测试仍缺 1 微秒错误断言的首次插入/重放拒绝案例（P1），且整秒 Activity 样本不能证明微秒传输（P2）。现补同一 Journal 来源的 `+ interval '1 microsecond'` 两处 `22023` 负向断言与插入前 count=0，四个 Activity 时间戳改为确定非零微秒并断言 `.123456`；本地定向 40 passed / 7 DB skipped、TypeScript/ESLint/diff-check 通过。待真实 DB 与 fresh 复审。
+- 针对微秒 corrective 的第二次独立只读复核未发现新 P0/P1/P2，确认上述负向与确定非零微秒正向覆盖；仅为未提交工作树静态结论，不是 exact-head/运行时 GO。下一步提交并推送后以隔离数据库 CI 验证。
+
+## 2026-09-29 — Phase 8D Round 3 server boundary kickoff
+
+- Round 2 exact head `1910af870fc82ffde35bf76da93d4bac50a5effb` 已通过 CI Run `36438563584` 双 job；数据库日志 Strategy suite 12 tests、整套 70 files / 1103 tests passed。独立 Gatekeeper 修订终判 `P0=0 / P1=0 / P2=0 + GO`，Round 3 可开始；PR #37 保持未合并。
+- 本轮只做 Round 3 repository/service/request/http 与认证 API，不实现 `/journey/playbook` UI。工作区原有未跟踪 `.pnpm-store/`、两个 docs 文件、`launcher/` 均保留不动。
+- 已读取 `planning-with-files-zh`、现有三份进度文件和 Next 本地 route-handler guide；`session-catchup.py` 无未同步报告。一次 `Get-Content` 路由读取因同时传入位置参数和 `-LiteralPath` 失败，改为只用 `-LiteralPath`。
+- 新增 `src/lib/strategy/{types,repository,request,service,http}.ts` 与六个 `src/app/api/strategies` 路由；仅 Strategy 用户草稿/元数据直接使用受限表权限，support/evaluate/transition/version 委托 0047 四 RPC。Proposal review 继续使用既有 `/api/outer-loop/proposals/[id]/review`。
+- 新增 `tests/phase8d-api-adapters.test.ts`。定向初版 12/12、全量本地 47 files passed / 24 skipped（776 passed / 339 skipped）、Next 生产 build、TypeScript/ESLint 均通过；真实 DB tests 因本机未配置 0047 测试库而 skipped。
+- 独立只读初审 `P0=0 / P1=1 / P2=1`：RPC 返回值缺字段可被空字符串/NaN 掩盖；元数据 PATCH 仅改标题会清空描述。已用 Zod 严格解析四类返回结构、PATCH 只提交实际提供的字段，并加两个负向回归。新定向 14/14、TypeScript/ESLint 通过；复审待结果。Round 3 尚未 exact-head CI/Gatekeeper GO。
+- 同一独立审查员复审修复后的未提交工作树为 `P0=0 / P1=0 / P2=0`（仅静态）。修复后本地全量 `47 files passed / 24 skipped`、`778 passed / 339 skipped`；Next 生产 build、TypeScript、ESLint 和 diff-check 通过。尚需候选 exact-head CI、真实 DB suite 与新 exact-head Gatekeeper。
+- Round 3 candidate `94a120859dfe211c84cc8620ec2fc65beffa8de2` 已推送；CI Run `36450221396` 的 `check` success，数据库作业尚在执行。独立 exact-head Gatekeeper 给 `P0=0 / P1=1 / P2=0 + NO-GO`：新路由缺真实 HTTP→认证→数据库贯通反例。此 finding 与 CI 是否双绿分开处理。
+- 已在现有 `tests/e2e-http-browser.test.ts` 追加 Strategy 双用户真实请求路径：匿名 401、外租户读/写 404、受权测试状态切换、来源时间错拒、Journal alias replay 不增数、外租户来源拒、晋升不足 422、version replay 与旧证据隔离。本机该测试因未配置 0047 数据库跳过；TypeScript/ESLint 通过，需新 exact-head CI 真实执行。
+- Corrective exact head `fca284249dcdaf141cfe0dfd1515013a41f6f480` 的 CI Run `36450973097` 双 job success；integration 日志明确显示 test 11 执行并通过，71 files / 1118 tests passed。独立审查撤回真实 HTTP P1，但给两个 P2：test 11 依赖早期用例建用户；外租户来源 404 后未核验 B support 零写入。现改为 test 内独立注册 A/B、并在拒绝后 GET B supports 断言 count=0；本地类型/ESLint 通过，真实执行待新 CI。
+- Final Round 3 implementation exact head `2b0796e66fc900344a1571f39ebd771fe64abe47` 的 CI Run `36452011311` 双 job success；integration 原始日志确认 Strategy RPC 12 tests 与真实 HTTP Strategy test 11 执行通过、71 files / 1118 tests passed，deterministic harness 和单独 E2E 步骤 success。独立 Gatekeeper 最终 `P0=0 / P1=0 / P2=0 + GO`；PR #37 head 同 SHA，仍 open/unmerged。Round 4 可作为下一阶段开始，但本次尚未写 UI。
+- 文档-only 状态同步提交 `1949e1f` 的独立复审发现 `task_plan.md` 顶部“当前”摘要仍停在 Round 2，与新增 Round 3 GO 记录冲突（P2）。已只更新当前摘要与阶段总览，保留历史过程行；需对此新文档 SHA 重新做 CI/复审。
