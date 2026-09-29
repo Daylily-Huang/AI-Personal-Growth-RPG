@@ -1,5 +1,13 @@
 # 项目历史工作进度 (Progress Log)
 
+## 2026-09-29 — Phase 8D 独立审查落盘（PR #38 归档闭环）
+
+- PR #38（`docs(phase8d): final freeze archive and status sync`）已由用户合入 `main`：merge commit `a1da765e492b8d93e6350ac32865d8e0018faa91`（parents `b93273cd` + `597e3f8`）。PR head `597e3f8` 的 CI Run `36596794622` 双 job success。
+- 第三个全新独立 Gatekeeper（agent `696420ae`，未复用前两个）对 `597e3f8` 给 `P0=0 / P1=0 / P2=0 + GO`：逐个 API 核对 9 个 Phase-8D CI run 的 `head_sha` 绑定、核对 merge 血缘与 main head、确认 diff 仅 4 个文档且 `src/supabase/tests` 零改动，并在本机真实 PG 上复跑 exit set（`10 passed / 1 skipped`）与六文件集（`69 passed / 2 skipped`），多次反例构造均被契约挡回。
+- 该 Gatekeeper 指出 Phase 8D 缺少 8B `docs/Phase8/14_...` 式的独立审查落盘文档，判决只存在于进度记录中。已补齐 `docs/Phase8/20_PHASE8D_INDEPENDENT_REVIEW_RECORD.md`：记录三个审查实例（`e4d3ab4b` / `7bae83b5` / `696420ae`）、Round 5 的 4 项 P1 与 6 项 P2 开启与关闭证据、可外部复现的 CI/test 证据表，并明确声明三个判决均为 session attestation（同供应商同模型族、由执行方 spawn），第三方可复核 CI 绑定与重跑测试，但无法复算判决本身；同时披露"复审复用原判 agent、未为每个 corrective head 换新审查员"这一流程偏差。
+- 其全量测试在本机 dev DB 留下的残留已清除（7 用户 / 2 策略 / 27 活动等；复核：10 用户、0 策略、0 proposal、0 禁用触发器）。
+- 待补：PR #38 的 post-merge main push CI run ID 因匿名 GitHub API 限流未捕获；公开 CI badge 显示 main **passing**。限流恢复后可补录。
+
 ## 2026-09-29 — Phase 8D 最终冻结归档
 
 - PR #37 已由用户手动合入 `main`：merge commit `b93273cd87d39e04a66ed0ebfd76fa95ebd2e643`（parents `98dbe37e` + `f5dd59d`）。

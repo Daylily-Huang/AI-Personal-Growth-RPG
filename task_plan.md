@@ -2,7 +2,7 @@
 
 > **权威状态主文档**：请统一参阅 [`docs/MASTER_PROJECT_HANDOFF.md`](docs/MASTER_PROJECT_HANDOFF.md)。  
 > **当前里程碑**: Phase 8C — Journal + State（FINAL FROZEN）；Phase 8D — Strategy + Personal Playbook（**FINAL FROZEN**）
-> **当前主分支基线 (main)**: `b93273cd87d39e04a66ed0ebfd76fa95ebd2e643`
+> **当前主分支基线 (main)**: `a1da765e492b8d93e6350ac32865d8e0018faa91`
 > **最新状态**: Phase 8C **FINAL FROZEN**；Phase 8D admission 与 Round 1–5 全部通过。Round 5 corrective implementation exact head `8b33cca8e994ba45862194d5588642e9e76626ba` 的 CI Run `36590521018` 双绿，fresh independent Gatekeeper `P0=0 / P1=0 / P2=0 + GO`；PR #37 已由用户合入 `main`（merge `b93273cd87d39e04a66ed0ebfd76fa95ebd2e643`），post-merge main CI Run `36593720889` 双绿。**Phase 8D = FINAL FROZEN**（归档 `docs/Phase8/19_PHASE8D_GATEKEEPER_REREVIEW_AND_FINAL_FREEZE.md`）。
 
 ---
@@ -127,6 +127,8 @@
 - [complete] 本机门禁：ESLint 全量 0 error、`tsc --noEmit` 0 error、`next build` 成功、deterministic harness `11/11`、`git diff --check` 通过；测试残留已清理，scratch DB 已 drop。
 - [complete] exact-head CI：`3c09f8a` Run `36587173704`、`8b33cca` Run `36590521018` 均双 job success（真实 DB tests、deterministic harness、E2E）；fresh independent Gatekeeper 对 `8b33cca` 为 `P0=0 / P1=0 / P2=0 + GO`。Round 5 接受，DoD 7/8/9 满足。
 - [complete] PR #37 已由用户手动合入 `main`：merge commit `b93273cd87d39e04a66ed0ebfd76fa95ebd2e643`（parents `98dbe37e` + `f5dd59d`）；post-merge main CI Run `36593720889` 的 `check` 与 `supabase-integration` 均 success。最终归档 `docs/Phase8/19_PHASE8D_GATEKEEPER_REREVIEW_AND_FINAL_FREEZE.md`，Phase 8D = **FINAL FROZEN**（DoD 1–11 全部满足）。
+- [complete] PR #38（归档+状态同步）已合入 `main`：merge commit `a1da765e492b8d93e6350ac32865d8e0018faa91`；pr head `597e3f8` 的 CI Run `36596794622` 双 job success，fresh 第三 Gatekeeper `P0=0 / P1=0 / P2=0 + GO`。
+- [complete] 8B 式独立审查落盘补齐：`docs/Phase8/20_PHASE8D_INDEPENDENT_REVIEW_RECORD.md`，记录三个独立审查实例、四类 P1 与六类 P2 的开启与关闭证据、可复现 CI/test 证据，以及"判决属 attestation"的边界声明。
 - [pending] 可选 backlog（需迁移才能改，非门禁项）：已合格 CONTEXTUAL 上 `rpc_evaluate_strategy_status(confirm=true)` 的错误码命名 `INSUFFICIENT_SUPPORT_FOR_PROMOTION` 不够精确。
 
 ### Phase 8D Errors Encountered
