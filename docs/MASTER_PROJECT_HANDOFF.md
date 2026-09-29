@@ -1,12 +1,13 @@
 # AI Personal Growth RPG — 项目全景交接与治理主文档 (Master Project Handoff)
 
-> **文档版本**: 2.0 (Master Comprehensive Handoff — Phase 8D Round 4 Accepted)
+> **文档版本**: 2.1 (Master Comprehensive Handoff — Phase 8D FINAL FROZEN)
 > **更新时间**: 2026-09-29
 > **适用对象**: 后续所有接手的 AI 工程师、独立审查 AI、项目协作者  
 > **Phase 7 终局冻结合并基线 (historical)**: `653fe018f6cee38b2263fbcca19dffbf624d4c18`
 > **Phase 8B 终局冻结合并基线 (main)**: `0e4bec5f26411669f7031af4523b6d4fca747f96`
 > **Phase 8C 终局冻结合并基线 (main)**: `9aa76e7ce36b20b9f99e28d6cbd08eeb7bc55b85`
-> **当前所处里程碑**: Phase 8C — Journal + State (**FINAL FROZEN**)；Phase 8D Round 1/2/3/4 已通过，Round 5 **PENDING**
+> **Phase 8D 终局冻结合并基线 (main)**: `b93273cd87d39e04a66ed0ebfd76fa95ebd2e643`
+> **当前所处里程碑**: Phase 8C — Journal + State（**FINAL FROZEN**）；Phase 8D — Strategy + Personal Playbook（**FINAL FROZEN**）
 > **代码仓库**: `Daylily-Huang/AI-Personal-Growth-RPG`  
 > **核心工作区路径**: `d:\AI_Personal_Growth_RPG`（WSL 挂载路径：`/mnt/d/AI_Personal_Growth_RPG`）
 
@@ -264,11 +265,11 @@ wsl -d Ubuntu -- bash -lc "cd /mnt/d/AI_Personal_Growth_RPG && pnpm build"
 
 ## 8. 接手 AI 极速上手与后续路线图推进指引 (Next Actions)
 
-当前状态：Phase 1~7 的既有冻结边界保持有效；Phase 8A 架构冻结已完成；Phase 8B 已 FINAL FROZEN；**Phase 8C: Journal + State FINAL FROZEN**。Phase 8D admission 已通过；Round 1 exact head `400cf1536e86412e6183e45289d87cb21bd56ba1` 的 CI Run `36338180207` 双绿且 Gatekeeper GO。Round 2 exact head `1910af870fc82ffde35bf76da93d4bac50a5effb` 的 CI Run `36438563584` 双绿且独立 Gatekeeper GO。Round 3 implementation exact head `2b0796e66fc900344a1571f39ebd771fe64abe47` 的 CI Run `36452011311` 双绿、独立 Gatekeeper `P0=0 / P1=0 / P2=0 + GO`；文档同步 head `789569372af37e9f9e43fe4492ad914408a10125` 亦通过 exact-head CI/Gatekeeper。Round 4 implementation exact head `6fea360adffc4f7d9cde7a159797d246ca55f592` 的 CI Run `36559214448` 双绿、独立 Gatekeeper `P0=0 / P1=0 / P2=0 + GO`。Round 5 exit verification 的 corrective implementation exact head `8b33cca8e994ba45862194d5588642e9e76626ba` 的 CI Run `36590521018` 双绿，fresh independent Gatekeeper `P0=0 / P1=0 / P2=0 + GO`（DoD 7/8/9 满足）。PR #37 未合并；Phase 8D 需在用户手动 merge 且 post-merge main CI 双绿后才可 FINAL FROZEN（DoD 10/11）。
+当前状态：Phase 1~7 的既有冻结边界保持有效；Phase 8A 架构冻结已完成；Phase 8B 已 FINAL FROZEN；**Phase 8C: Journal + State FINAL FROZEN**。Phase 8D admission 已通过；Round 1 exact head `400cf1536e86412e6183e45289d87cb21bd56ba1` 的 CI Run `36338180207` 双绿且 Gatekeeper GO。Round 2 exact head `1910af870fc82ffde35bf76da93d4bac50a5effb` 的 CI Run `36438563584` 双绿且独立 Gatekeeper GO。Round 3 implementation exact head `2b0796e66fc900344a1571f39ebd771fe64abe47` 的 CI Run `36452011311` 双绿、独立 Gatekeeper `P0=0 / P1=0 / P2=0 + GO`；文档同步 head `789569372af37e9f9e43fe4492ad914408a10125` 亦通过 exact-head CI/Gatekeeper。Round 4 implementation exact head `6fea360adffc4f7d9cde7a159797d246ca55f592` 的 CI Run `36559214448` 双绿、独立 Gatekeeper `P0=0 / P1=0 / P2=0 + GO`。Round 5 exit verification 的 corrective implementation exact head `8b33cca8e994ba45862194d5588642e9e76626ba` 的 CI Run `36590521018` 双绿，fresh independent Gatekeeper `P0=0 / P1=0 / P2=0 + GO`。PR #37 已由用户合入 `main`，merge commit `b93273cd87d39e04a66ed0ebfd76fa95ebd2e643`；对应 post-merge main CI Run `36593720889` 双 job success。**Phase 8D = FINAL FROZEN**（归档：`docs/Phase8/19_PHASE8D_GATEKEEPER_REREVIEW_AND_FINAL_FREEZE.md`）。
 
 当前权威主分支基线：
 ```text
-98dbe37e0a6fe334b6638ca568bc3ba06b4c3aac
+b93273cd87d39e04a66ed0ebfd76fa95ebd2e643
 ```
 
 ### Phase 6 — Knowledge Graph Canvas Modernization（FINAL FROZEN）
@@ -342,9 +343,9 @@ wsl -d Ubuntu -- bash -lc "cd /mnt/d/AI_Personal_Growth_RPG && pnpm build"
 
 ### 下一阶段推进指引 (Next Actions)
 
-Phase 8C 已全面闭环并永久冻结。所有后续工作必须从当前 main 基线 `98dbe37e0a6fe334b6638ca568bc3ba06b4c3aac` 或其后续纯治理/文档提交切出独立分支，保持 Phase 1~8C 已冻结的领域、数据库、RPC/API、UI 与治理边界。
+Phase 8C 与 Phase 8D 均已全面闭环并永久冻结。所有后续工作必须从当前 main 基线 `b93273cd87d39e04a66ed0ebfd76fa95ebd2e643` 或其后续纯治理/文档提交切出独立分支，保持 Phase 1~8D 已冻结的领域、数据库、RPC/API、UI 与治理边界。
 
 后续建议执行顺序：
-1. **下一步：Phase 8D 合并门禁与终局冻结（DoD 10/11）**：Journey `/journey/playbook`、导航与用户授权的只读提案/来源投影已通过 Round 4 exact-head CI/Gatekeeper；浏览器无 Supabase 写权限，四个 RPC 仍是业务权威。Round 5 exit verification 已落地 canonical exit set `tests/phase8d-exit-verification.test.ts`（O008/O009/O017/O021，含 O009 Case A/B 边界、CONTEXTUAL/退休生命周期、service_role/AI 角色边界、`supporting_activity_ids` 不物化 support、VERY_HIGH 与 ratio 0.65/0.75/0.85 精确门槛、CI-only 策略提案并发 CAS）；`3c09f8a` Run `36587173704` 与 corrective `8b33cca` Run `36590521018` 均双 job success，fresh independent Gatekeeper 对 `8b33cca` 为 `P0=0 / P1=0 / P2=0 + GO`。剩余动作：用户手动 merge PR #37，确认 post-merge main CI 双绿后写最终归档并宣告 Phase 8D FINAL FROZEN。
+1. **下一阶段需先立治理文档**：Phase 8 剩余的 `06_REWARD_ECONOMY_AND_WISHES_SPEC.md`、`07_MILESTONE_ACHIEVEMENT_SPEC.md` 尚未授权实现。任何下一阶段工作必须先从当前 main 基线切独立分支、撰写该阶段的 controlling document、通过独立 Gatekeeper admission（`P0=0 / P1=0 / P2=0 + GO`）后才可进入生产实现；不得直接复用 Phase 8D 的授权。
 2. **可选 backlog（需迁移，非门禁项）**：已合格 `CONTEXTUAL` 上 `rpc_evaluate_strategy_status(confirm=true)` 的错误码命名 `INSUFFICIENT_SUPPORT_FOR_PROMOTION` 不够精确（行为本身 fail-closed 且已有测试 pin）。
 3. **继续保持可审计性**：后续 PR 继续绑定 exact head、CI run、独立审查结论与 merge SHA；不得把历史失败改写为成功，也不得把 skipped/local-only 结果替代真实 database-backed CI 证据。
