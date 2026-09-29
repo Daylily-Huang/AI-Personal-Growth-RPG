@@ -117,6 +117,7 @@ Reviewer C additionally verified that all nine Phase-8D CI runs are bound by `he
 | `36592178536` | `f5dd59d…` | pull_request | success |
 | `36593720889` | `b93273cd…` | push / main | success |
 | `36596794622` | `597e3f8b…` | pull_request (#38) | success |
+| `36599144119` | `a1da765e…` | push / main (PR #38 post-merge) | success |
 
 Each green run covers lint, test, production build, Supabase startup, database-backed tests, the deterministic Growth Engine harness, and E2E. CI step **logs** are not retrievable without authentication (the logs API returns 403 anonymously), so reviewers relied on step conclusions plus verified environment wiring (`scripts/export-supabase-ci-env.cjs` exports `XP_RPG_TEST_DB_URL`, and Actions sets `CI=true`, so the database-backed and concurrency tests execute rather than skip).
 
@@ -137,4 +138,4 @@ FREEZE ARCHIVE MERGE = DONE (PR #38 -> a1da765)
 PHASE 8D = FINAL FROZEN
 ```
 
-The archive head `597e3f8` was confirmed docs-only (`git diff b93273cd..597e3f8 -- src supabase tests` empty, and `git diff 8b33cca..597e3f8 -- src supabase tests` empty), based on the then-current `main`, with PR CI green. PR #38 merged as `a1da765e492b8d93e6350ac32865d8e0018faa91`; the public CI workflow badge for `main` reported **passing** after the merge. The run ID for that push was not captured in this record because the anonymous GitHub API rate limit was exhausted at record time; it is a backfill item, not an open question about the merge.
+The archive head `597e3f8` was confirmed docs-only (`git diff b93273cd..597e3f8 -- src supabase tests` empty, and `git diff 8b33cca..597e3f8 -- src supabase tests` empty), based on the then-current `main`, with PR CI green. PR #38 merged as `a1da765e492b8d93e6350ac32865d8e0018faa91`; the post-merge main push Run is `36599144119` — success, with both `check` and `supabase-integration` green. The public CI workflow badge for `main` also reported **passing** at record time.
