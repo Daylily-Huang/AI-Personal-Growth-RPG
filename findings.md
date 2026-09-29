@@ -225,3 +225,13 @@
 - 既有 `docs/MASTER_PROJECT_HANDOFF.md` 里 Round 2 状态滞后于 exact-head GO，更新须与 Round 3 candidate 一起明确区分状态与历史快照。
 - `94a1208` 的单元 HTTP adapter 测试模拟了认证仓储与 RPC；它们不能证明真实 cookie/session、Next 路由与 RLS/SQL 错误贯通。Gatekeeper 的 Round 3 P1 指向这类运行时证据缺口，故新增用现成 live Next + Supabase Auth E2E fixture 的跨租户、时间戳、重放和版本排除反例。
 - `fca2842` CI 真实 E2E 已通过，但测试完整运行时可依赖早期用户 fixture；对单测可定位性，应在 Strategy test 内独立注册用户。外租户拒绝还需在 HTTP 层复查 support count=0，不能只看错误状态码。
+
+## 2026-09-30 — Phase 8E architecture gaps
+
+- 冻结规范要求“versioned deterministic server policy table”，但授权表清单只有四张 Reward/Wish 表且没有 policy 表；精确 grant amounts 也未冻结。控制文档推荐 immutable versioned SQL function，但将载体与数值保留为 D1 用户决策。
+- `ARTIFACT` earning source 的“significant verified”没有映射到现有 Artifact 的确定性、不可伪造字段；生命周期与 reusability 分数均不足以单独作为铸币依据，故列为 D2 blocker。
+- `REAL_WORLD_VERIFIED` 依赖尚未实现的 Phase 8F milestone authority；在 8E 提前实现会违反冻结阶段顺序。
+- schema plan 的 `cost_credits_estimate` 与 RPC plan 的 `wish.credit_cost` 不一致；控制草案统一为 positive nullable `credit_cost`，并禁止 PRIMARY/RESERVED/REDEEMED 后直接改价。
+- 只对 PRIMARY 建唯一索引会在 reserve 后允许第二个 PRIMARY；必须对 `status IN ('PRIMARY','RESERVED')` 建合并 partial unique index。
+- `cooldown_until` 若只写在已兑换 Wish 而 reserve RPC 不查询，则 cooldown 无实际效果；草案要求 reserve 时检查任一未过期 redeemed cooldown。
+- Phase 8E 控制草案的独立审查未发现 P0/P1/P2；但“文档无缺陷”不等于 admission GO。D1/D2 用户决策和 D3 后续 exact-head Gatekeeper 接受仍是正式前置条件。

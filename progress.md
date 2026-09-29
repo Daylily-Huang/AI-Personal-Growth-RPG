@@ -274,3 +274,12 @@
 - Corrective exact head `fca284249dcdaf141cfe0dfd1515013a41f6f480` 的 CI Run `36450973097` 双 job success；integration 日志明确显示 test 11 执行并通过，71 files / 1118 tests passed。独立审查撤回真实 HTTP P1，但给两个 P2：test 11 依赖早期用例建用户；外租户来源 404 后未核验 B support 零写入。现改为 test 内独立注册 A/B、并在拒绝后 GET B supports 断言 count=0；本地类型/ESLint 通过，真实执行待新 CI。
 - Final Round 3 implementation exact head `2b0796e66fc900344a1571f39ebd771fe64abe47` 的 CI Run `36452011311` 双 job success；integration 原始日志确认 Strategy RPC 12 tests 与真实 HTTP Strategy test 11 执行通过、71 files / 1118 tests passed，deterministic harness 和单独 E2E 步骤 success。独立 Gatekeeper 最终 `P0=0 / P1=0 / P2=0 + GO`；PR #37 head 同 SHA，仍 open/unmerged。Round 4 可作为下一阶段开始，但本次尚未写 UI。
 - 文档-only 状态同步提交 `1949e1f` 的独立复审发现 `task_plan.md` 顶部“当前”摘要仍停在 Round 2，与新增 Round 3 GO 记录冲突（P2）。已只更新当前摘要与阶段总览，保留历史过程行；需对此新文档 SHA 重新做 CI/复审。
+
+## 2026-09-30 — Phase 8E pre-admission draft
+
+- 从 `origin/main` baseline `a1da765e492b8d93e6350ac32865d8e0018faa91` 切出 `codex/phase8e-reward-wishes-admission`；原有未跟踪 `.pnpm-store/`、两份 docs 与 `launcher/` 保留不动。
+- 新增 `docs/Phase8/21_PHASE8E_REWARD_WISHES_IMPLEMENTATION_CONTROLLING.md`，状态为 PRE-ADMISSION DRAFT；没有创建 migration、RPC、API 或 UI。
+- 已明确 `REAL_WORLD_VERIFIED` 依赖 Phase 8F、O005 在 8E 只验 correction primitive、单一 selected Wish 覆盖 PRIMARY+RESERVED、循环 FK migration 顺序、cooldown 实际 enforcement 与 `credit_cost` 字段统一。
+- 两项承重政策保持 blocker：D1 奖励策略载体/精确数值，D2 Artifact 确定性资格。未获用户决策与 fresh exact-head Gatekeeper GO 前生产实现不授权。
+- 本地治理定向验证通过：`visual-foundation`、`supabase-schema`、`governance-delta-guard` 共 3 files / 92 tests passed；WSL 因现有 Windows node_modules 缺 Linux rolldown native binding 未执行，结果来自 Windows Vitest。
+- Fresh 独立只读对抗审查：`P0=0 / P1=0 / P2=0`，三条承重命题均通过；因 D1–D3 尚未解除，阶段总判保持非缺陷性 `NO-GO`。
