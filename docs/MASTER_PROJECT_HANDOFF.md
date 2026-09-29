@@ -264,7 +264,7 @@ wsl -d Ubuntu -- bash -lc "cd /mnt/d/AI_Personal_Growth_RPG && pnpm build"
 
 ## 8. 接手 AI 极速上手与后续路线图推进指引 (Next Actions)
 
-当前状态：Phase 1~7 的既有冻结边界保持有效；Phase 8A 架构冻结已完成；Phase 8B 已 FINAL FROZEN；**Phase 8C: Journal + State FINAL FROZEN**。Phase 8D admission 已通过；Round 1 exact head `400cf1536e86412e6183e45289d87cb21bd56ba1` 的 CI Run `36338180207` 双绿且 Gatekeeper GO。Round 2 exact head `1910af870fc82ffde35bf76da93d4bac50a5effb` 的 CI Run `36438563584` 双绿且独立 Gatekeeper GO。Round 3 implementation exact head `2b0796e66fc900344a1571f39ebd771fe64abe47` 的 CI Run `36452011311` 双绿、独立 Gatekeeper `P0=0 / P1=0 / P2=0 + GO`；文档同步 head `789569372af37e9f9e43fe4492ad914408a10125` 亦通过 exact-head CI/Gatekeeper。Round 4 implementation exact head `6fea360adffc4f7d9cde7a159797d246ca55f592` 的 CI Run `36559214448` 双绿、独立 Gatekeeper `P0=0 / P1=0 / P2=0 + GO`；PR #37 未合并。Round 5 尚未开始。
+当前状态：Phase 1~7 的既有冻结边界保持有效；Phase 8A 架构冻结已完成；Phase 8B 已 FINAL FROZEN；**Phase 8C: Journal + State FINAL FROZEN**。Phase 8D admission 已通过；Round 1 exact head `400cf1536e86412e6183e45289d87cb21bd56ba1` 的 CI Run `36338180207` 双绿且 Gatekeeper GO。Round 2 exact head `1910af870fc82ffde35bf76da93d4bac50a5effb` 的 CI Run `36438563584` 双绿且独立 Gatekeeper GO。Round 3 implementation exact head `2b0796e66fc900344a1571f39ebd771fe64abe47` 的 CI Run `36452011311` 双绿、独立 Gatekeeper `P0=0 / P1=0 / P2=0 + GO`；文档同步 head `789569372af37e9f9e43fe4492ad914408a10125` 亦通过 exact-head CI/Gatekeeper。Round 4 implementation exact head `6fea360adffc4f7d9cde7a159797d246ca55f592` 的 CI Run `36559214448` 双绿、独立 Gatekeeper `P0=0 / P1=0 / P2=0 + GO`。Round 5 exit verification 已本地落地 `tests/phase8d-exit-verification.test.ts`（O008/O009/O017/O021）并取得本机真实数据库证据；exact-head CI 与最终 Gatekeeper 尚未进行。PR #37 未合并，Phase 8D 未 FINAL FROZEN。
 
 当前权威主分支基线：
 ```text
@@ -345,5 +345,6 @@ wsl -d Ubuntu -- bash -lc "cd /mnt/d/AI_Personal_Growth_RPG && pnpm build"
 Phase 8C 已全面闭环并永久冻结。所有后续工作必须从当前 main 基线 `98dbe37e0a6fe334b6638ca568bc3ba06b4c3aac` 或其后续纯治理/文档提交切出独立分支，保持 Phase 1~8C 已冻结的领域、数据库、RPC/API、UI 与治理边界。
 
 后续建议执行顺序：
-1. **下一步 Round 5 exit verification**：Journey `/journey/playbook`、导航与用户授权的只读提案/来源投影已通过 Round 4 exact-head CI/Gatekeeper；浏览器无 Supabase 写权限，四个 RPC 仍是业务权威。Round 5 尚需单独验证 O008/O009/O017/O021 与全套安全、并发、幂等、提案 CAS、租户、版本和回归门禁；不得把 Round 4 GO 当作 Phase 8D 最终冻结。
-2. **继续保持可审计性**：后续 PR 继续绑定 exact head、CI run、独立审查结论与 merge SHA；不得把历史失败改写为成功，也不得把 skipped/local-only 结果替代真实 database-backed CI 证据。
+1. **下一步 Round 5 exit verification**：Journey `/journey/playbook`、导航与用户授权的只读提案/来源投影已通过 Round 4 exact-head CI/Gatekeeper；浏览器无 Supabase 写权限，四个 RPC 仍是业务权威。Round 5 已新增 canonical exit set `tests/phase8d-exit-verification.test.ts`（O008/O009/O017/O021，含 O009 Case A/B 边界、CONTEXTUAL/退休生命周期、VERY_HIGH 与 ratio=0.75 边界、CI-only 策略提案并发 CAS），首轮独立对抗复审的 4 项 P1 已修复并完成本机真实数据库与全量回归门禁；仍需提交/推送 exact-head、确认 CI 双绿并取得 fresh independent Gatekeeper。不得把 Round 4 GO 或本机结果当作 Phase 8D 最终冻结。
+2. **Round 5 遗留 P2（需另行治理变更）**：已合格 `CONTEXTUAL` 上 `rpc_evaluate_strategy_status(confirm=true)` 抛 `INSUFFICIENT_SUPPORT_FOR_PROMOTION` 的错误码语义；ratio 0.65 / 0.85 精确边界断言。二者不阻塞本机候选，但应在最终冻结前决定是否以新迁移/新测试收敛。
+3. **继续保持可审计性**：后续 PR 继续绑定 exact head、CI run、独立审查结论与 merge SHA；不得把历史失败改写为成功，也不得把 skipped/local-only 结果替代真实 database-backed CI 证据。

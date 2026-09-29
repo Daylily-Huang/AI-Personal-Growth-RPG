@@ -1,5 +1,19 @@
 # 项目历史工作进度 (Progress Log)
 
+## 2026-09-29 — Phase 8D Round 5 exit verification (local candidate)
+
+- Round 4 已接受后启动 Round 5（exit verification）。新增 `tests/phase8d-exit-verification.test.ts`，把控制文档 §10/§11.6 绑定的四个 canonical exit test 显式命名：`O008_AI_CANNOT_COMMIT_STRATEGY`、`O009_STRATEGY_REQUIRES_CROSS_TIME_SUPPORT`、`O017_STRATEGY_CONFIDENCE_IS_DETERMINISTIC_DERIVED`、`O021_AI_PROPOSAL_REQUIRES_CONFIRM_BEFORE_COMMIT`；未修改任何 production 代码、迁移或已接受测试。
+- O009 补齐 §10 要求的边界反例：Case A 同日两次观测 + 0 completed Season 严格 LOW 且 `rpc_evaluate_strategy_status(true)` / `rpc_transition_strategy_status('SUPPORTED')` 均以 `22023` 拒绝；Case B 3 个不同 UTC 日期 + 1 个 COMPLETED Season FINAL review + 3 个 Core link + 100% ratio 严格 MODERATE 且拒绝晋升；第 4 个日期后才 HIGH 并在显式确认下转 `SUPPORTED`。
+- §10 反例与安全项逐条对照现有测试：直接写/伪造字段、DELETE 拒绝、版本与支持不可变、反重放（evaluator/note/timestamp/Journal 别名）、随机 MANUAL UUID、跨租户、并发版本与并发 transition、UTC 边界、0/0→LOW、FINAL+COMPLETED 资格、Core link 资格、<60% 弱化、提案 reject/accept/edit 与同键重放、counter-evidence alert 只确认不改真值，均有具名测试覆盖。
+- 首轮独立对抗复审为 `P0=0 / P1=4 / P2=6 + NO-GO`，指出四类未被证伪的缺口：后台 `confirm=false` 对已合格策略的非晋升未断言；CONTEXTUAL 生命周期完全未覆盖；RETIRED 后历史可查询未覆盖；策略提案并发 CAS 未覆盖（既有 CAS 测试走 `phase8b_review_outer_loop_proposal` 分支）。已全部修复：O009 在 4 日期合格后先断言 `confirm=false` 仍为 TESTING 再显式确认；新增 CONTEXTUAL（空 note `22023`、SUPPORTED↔CONTEXTUAL、<60% 弱化）与退休（空 reason `22023`、RETIRED 不可再建版本 `23514`、历史仍可查询）用例；新增 CI-only 双会话 `STRATEGY_HYPOTHESIS` 并发评审用例（一个胜出、另一个 `23514`、恰好一个 Strategy）。
+- 同时收敛 P2：伪造字段/越权 UPDATE 断言精确 `42501`；补充 VERY_HIGH（8 日期 / 2 Season / 8 Core link）、ratio 恰为 0.75 的包含性门槛、`CORE_EVIDENCE_REFERENCE` 贡献 0 Core link；O008 注明 Phase 8D 无 AI 生成 HTTP 端点、AI 生产者面即 `outer_loop_proposals` 权威。
+- 遗留 P2（不在本轮 exit verification 范围内改生产代码）：`rpc_evaluate_strategy_status(confirm=true)` 对已合格的 CONTEXTUAL 会抛 `INSUFFICIENT_SUPPORT_FOR_PROMOTION`（CONTEXTUAL→SUPPORTED 仅由 transition RPC 授权），错误码语义误导，需另行治理变更；ratio 0.65 / 0.85 未做精确边界断言。
+- 本机真实数据库证据（此前 Round 1–4 只能依赖 CI）：先把 0043–0047 增量应用到本机 Supabase dev DB（应用前已 `pg_dump` 备份到 `.data/phase8d-pre-0043.dump`），并另建隔离 scratch DB 复跑全量。定向 Phase 8D：`6 files passed`、`63 passed / 1 skipped`（skipped 为 CI-only 并发用例）；修复后 exit set 为 `8 passed`（含本机以 `CI=true` 实跑的并发提案 CAS）；全量 `73 files passed / 1 failed`、`1148 passed / 1 failed`。
+- 唯一全量失败为 `tests/stage5b-db-repository.test.ts` 用例 1：其硬编码 domain UUID `d1111111-...-0001` 在本机 dev DB 已被既有 `demo_player@growth-rpg.dev`（2026-09-02 创建）占用，`on conflict (id) do nothing` 使该用户只剩 1 条 domain。该失败与本轮改动无关，CI 全新数据库不触发；本机为环境性数据冲突，未修改该既有数据。
+- 本机门禁：ESLint 全量 `exit=0`、`tsc --noEmit` 0 error、`next build` 成功（含 `/journey/playbook` 与 6 个 `/api/strategies` 路由）、deterministic harness `11/11`、`git diff --check` 通过。
+- 已清理本轮全量运行在本机 dev DB 留下的测试残留（e2e/stage5d/stage7b 时间戳用户、strategy 行、audit 行；临时关闭用户触发器后删除并恢复，验证 0 残留、0 disabled trigger），并 drop scratch DB。dev DB 现保留 0043–0047 迁移。
+- 用户已授权推送该候选以触发 exact-head CI。待办：提交并推送 exact-head、exact-head CI 双绿、fresh independent Gatekeeper；PR #37 仍 open/unmerged，Phase 8D 未 FINAL FROZEN。
+
 ## 2026-09-29 — Phase 8D Round 4 kickoff
 
 - 用户明确要求搭建 Playbook UI。当前分支 `codex/phase8d-strategy-playbook`，Round 3 final exact head `789569372af37e9f9e43fe4492ad914408a10125` 已通过 CI/Gatekeeper；PR #37 仍未合并。

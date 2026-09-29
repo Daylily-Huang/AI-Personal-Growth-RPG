@@ -1,9 +1,9 @@
 # AI Personal Growth RPG — 项目总体计划与当前状态 (Task Plan)
 
 > **权威状态主文档**：请统一参阅 [`docs/MASTER_PROJECT_HANDOFF.md`](docs/MASTER_PROJECT_HANDOFF.md)。  
-> **当前里程碑**: Phase 8C — Journal + State（FINAL FROZEN）；Phase 8D — Strategy + Personal Playbook（Round 1–4 accepted；Round 5 pending）
+> **当前里程碑**: Phase 8C — Journal + State（FINAL FROZEN）；Phase 8D — Strategy + Personal Playbook（Round 1–4 accepted；Round 5 exit verification 本地候选待 exact-head CI/Gatekeeper）
 > **当前主分支基线 (main)**: `98dbe37e0a6fe334b6638ca568bc3ba06b4c3aac`
-> **最新状态**: Phase 8C **FINAL FROZEN**。Phase 8D admission 与 Round 1–4 已通过；Round 4 implementation exact head `6fea360adffc4f7d9cde7a159797d246ca55f592` 的 CI Run `36559214448` 双绿，独立 Gatekeeper `P0=0 / P1=0 / P2=0 + GO`。PR #37 未合并；Round 5 尚未开始。
+> **最新状态**: Phase 8C **FINAL FROZEN**。Phase 8D admission 与 Round 1–4 已通过；Round 4 implementation exact head `6fea360adffc4f7d9cde7a159797d246ca55f592` 的 CI Run `36559214448` 双绿，独立 Gatekeeper `P0=0 / P1=0 / P2=0 + GO`。Round 5 已新增 `tests/phase8d-exit-verification.test.ts`（O008/O009/O017/O021）并取得本机真实数据库证据；PR #37 未合并，Phase 8D 未 FINAL FROZEN。
 
 ---
 
@@ -116,6 +116,16 @@
 - [in_progress] Round 3 corrective：`94a1208` 的独立 exact-head Gatekeeper 为 `P0=0 / P1=1 / P2=0 + NO-GO`（真实 HTTP→认证→DB 贯通反例缺失）；已补进既有 E2E suite，待新 SHA 的隔离数据库 CI 与 fresh Gatekeeper。Round 4 继续 gated。
 - [in_progress] `fca2842` 的真实 E2E CI 已通过，旧 P1 关闭；独立复审仍有两个测试稳健性 P2。已补测试独立注册与失败后零写入断言，待新 exact-head CI + fresh Gatekeeper；Round 4 不放行。
 - [complete] Round 3 implementation exact head `2b0796e66fc900344a1571f39ebd771fe64abe47`：CI Run `36452011311` 双 job success，Strategy RPC 12 tests 与真实 HTTP test 11 非 skipped 通过、71 files / 1118 tests passed；独立最终 Gatekeeper 为 `P0=0 / P1=0 / P2=0 + GO`。PR #37 仍开放未合并。下一阶段为 Round 4 Playbook UI，但本次仅做文档状态同步，未开始 UI。
+
+### 2026-09-29 — Phase 8D Round 5 exit verification
+
+- [in_progress] Round 5 — exit verification：新增 `tests/phase8d-exit-verification.test.ts`，显式命名控制文档 §10/§11.6 的四个 canonical exit test O008/O009/O017/O021，并补齐 O009 的 Case A（同日聚簇）/ Case B（3 日期 MODERATE 边界）反例；未改 production/迁移。
+- [complete] §10 反例与安全项逐条核对：全部条目均有具名测试覆盖（DB foundation、RPC authority、API adapters、discovery API、Playbook UI、真实 HTTP E2E）。
+- [complete] 首轮独立对抗复审 `P0=0 / P1=4 / P2=6 + NO-GO` 的四项 P1 已修复：后台 `confirm=false` 非晋升断言、CONTEXTUAL 生命周期、RETIRED 历史可查询、CI-only 策略提案并发 CAS；并收敛 P2（精确 `42501` 断言、VERY_HIGH、ratio=0.75 边界、CORE_EVIDENCE_REFERENCE 零 Core link）。
+- [complete] 本机真实 DB 证据：0043–0047 已增量应用到本机 Supabase dev DB（应用前 `pg_dump` 备份 `.data/phase8d-pre-0043.dump`）；定向 Phase 8D `63 passed / 1 skipped`，exit set `8 passed`（含 `CI=true` 本机并发 CAS）；全量 `1148 passed / 1 failed`（唯一失败为 `stage5b-db-repository` 用例 1 与本机既有 `demo_player@growth-rpg.dev` 的硬编码 domain UUID 冲突，CI 全新库不触发）。
+- [complete] 本机门禁：ESLint 全量 0 error、`tsc --noEmit` 0 error、`next build` 成功、deterministic harness `11/11`、`git diff --check` 通过；测试残留已清理，scratch DB 已 drop。
+- [pending] 提交/推送 Round 5 exact-head，等待 exact-head CI 双绿与 fresh independent Gatekeeper；PR #37 仍 open/unmerged，Phase 8D 未 FINAL FROZEN。
+- [pending] 遗留 P2（需另行治理变更，不在 Round 5 范围）：已合格 CONTEXTUAL 上 `rpc_evaluate_strategy_status(confirm=true)` 抛 `INSUFFICIENT_SUPPORT_FOR_PROMOTION` 的误导性错误码；ratio 0.65 / 0.85 精确边界断言。
 
 ### Phase 8D Errors Encountered
 
