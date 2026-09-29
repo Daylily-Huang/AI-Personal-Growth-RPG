@@ -1,12 +1,12 @@
 # AI Personal Growth RPG — 项目全景交接与治理主文档 (Master Project Handoff)
 
-> **文档版本**: 1.9 (Master Comprehensive Handoff — Phase 8D Round 3 Accepted)
+> **文档版本**: 2.0 (Master Comprehensive Handoff — Phase 8D Round 4 Accepted)
 > **更新时间**: 2026-09-29
 > **适用对象**: 后续所有接手的 AI 工程师、独立审查 AI、项目协作者  
 > **Phase 7 终局冻结合并基线 (historical)**: `653fe018f6cee38b2263fbcca19dffbf624d4c18`
 > **Phase 8B 终局冻结合并基线 (main)**: `0e4bec5f26411669f7031af4523b6d4fca747f96`
 > **Phase 8C 终局冻结合并基线 (main)**: `9aa76e7ce36b20b9f99e28d6cbd08eeb7bc55b85`
-> **当前所处里程碑**: Phase 8C — Journal + State (**FINAL FROZEN**)；Phase 8D Round 1/2/3 已通过，Round 4 Playbook UI **CANDIDATE / 待 exact-head CI 与独立 Gatekeeper**
+> **当前所处里程碑**: Phase 8C — Journal + State (**FINAL FROZEN**)；Phase 8D Round 1/2/3/4 已通过，Round 5 **PENDING**
 > **代码仓库**: `Daylily-Huang/AI-Personal-Growth-RPG`  
 > **核心工作区路径**: `d:\AI_Personal_Growth_RPG`（WSL 挂载路径：`/mnt/d/AI_Personal_Growth_RPG`）
 
@@ -264,7 +264,7 @@ wsl -d Ubuntu -- bash -lc "cd /mnt/d/AI_Personal_Growth_RPG && pnpm build"
 
 ## 8. 接手 AI 极速上手与后续路线图推进指引 (Next Actions)
 
-当前状态：Phase 1~7 的既有冻结边界保持有效；Phase 8A 架构冻结已完成；Phase 8B 已 FINAL FROZEN；**Phase 8C: Journal + State FINAL FROZEN**。Phase 8D admission 已通过；Round 1 exact head `400cf1536e86412e6183e45289d87cb21bd56ba1` 的 CI Run `36338180207` 双绿且 Gatekeeper GO。Round 2 exact head `1910af870fc82ffde35bf76da93d4bac50a5effb` 的 CI Run `36438563584` 双绿且独立 Gatekeeper GO。Round 3 implementation exact head `2b0796e66fc900344a1571f39ebd771fe64abe47` 的 CI Run `36452011311` 双绿、独立 Gatekeeper `P0=0 / P1=0 / P2=0 + GO`；文档同步 head `789569372af37e9f9e43fe4492ad914408a10125` 亦通过 exact-head CI/Gatekeeper。Round 4 Playbook UI 已形成候选、未通过本轮 exact-head CI/Gatekeeper；PR #37 未合并。
+当前状态：Phase 1~7 的既有冻结边界保持有效；Phase 8A 架构冻结已完成；Phase 8B 已 FINAL FROZEN；**Phase 8C: Journal + State FINAL FROZEN**。Phase 8D admission 已通过；Round 1 exact head `400cf1536e86412e6183e45289d87cb21bd56ba1` 的 CI Run `36338180207` 双绿且 Gatekeeper GO。Round 2 exact head `1910af870fc82ffde35bf76da93d4bac50a5effb` 的 CI Run `36438563584` 双绿且独立 Gatekeeper GO。Round 3 implementation exact head `2b0796e66fc900344a1571f39ebd771fe64abe47` 的 CI Run `36452011311` 双绿、独立 Gatekeeper `P0=0 / P1=0 / P2=0 + GO`；文档同步 head `789569372af37e9f9e43fe4492ad914408a10125` 亦通过 exact-head CI/Gatekeeper。Round 4 implementation exact head `6fea360adffc4f7d9cde7a159797d246ca55f592` 的 CI Run `36559214448` 双绿、独立 Gatekeeper `P0=0 / P1=0 / P2=0 + GO`；PR #37 未合并。Round 5 尚未开始。
 
 当前权威主分支基线：
 ```text
@@ -345,5 +345,5 @@ wsl -d Ubuntu -- bash -lc "cd /mnt/d/AI_Personal_Growth_RPG && pnpm build"
 Phase 8C 已全面闭环并永久冻结。所有后续工作必须从当前 main 基线 `98dbe37e0a6fe334b6638ca568bc3ba06b4c3aac` 或其后续纯治理/文档提交切出独立分支，保持 Phase 1~8C 已冻结的领域、数据库、RPC/API、UI 与治理边界。
 
 后续建议执行顺序：
-1. **验收 Phase 8D Round 4 候选**：Journey `/journey/playbook` 与导航已实现。用户另行授权补充仅当前用户可见的提案/来源只读投影；不得在浏览器中引入 Supabase 写权限或复制四个 RPC 业务权威。须取得本轮 exact-head CI 与独立 Gatekeeper GO，方可进入 Round 5。
+1. **下一步 Round 5 exit verification**：Journey `/journey/playbook`、导航与用户授权的只读提案/来源投影已通过 Round 4 exact-head CI/Gatekeeper；浏览器无 Supabase 写权限，四个 RPC 仍是业务权威。Round 5 尚需单独验证 O008/O009/O017/O021 与全套安全、并发、幂等、提案 CAS、租户、版本和回归门禁；不得把 Round 4 GO 当作 Phase 8D 最终冻结。
 2. **继续保持可审计性**：后续 PR 继续绑定 exact head、CI run、独立审查结论与 merge SHA；不得把历史失败改写为成功，也不得把 skipped/local-only 结果替代真实 database-backed CI 证据。

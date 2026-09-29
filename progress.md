@@ -20,6 +20,7 @@
 - 进一步收敛 P1：按 ID 的 Activity projection 返回 `raw_input` 全文供提案内核对，近期列表只返回轻量标题/时间；提案接受/编辑后接受须先核对每个 Activity ID，警报还需核对关联 Strategy。新增 CI 真实 HTTP E2E 使用合法 Activity + 警报 fixture，验证全文、原始时间戳与跨租户不可见。最新定向 20/20、lint/typecheck 通过，待新 exact-head CI。
 - Corrective 本地全量门禁：49 files passed / 24 skipped，800 passed / 340 skipped；production build、TypeScript、ESLint、`git diff --check` 均通过。跳过的真 DB/E2E 留给新 exact-head CI，不能据本机结果声称通过。
 - `fc086041ccd342bfd62b2e92b41b8402a79ed212` 的 CI Run `36558552775` 双 job success，真实 database-backed tests、deterministic harness 与 E2E 全部执行成功。但独立 exact-head Gatekeeper 返回 `P0=0 / P1=0 / P2=1 + NO-GO`：缺少含两条 `supporting_activity_ids` 的策略假设逐条审核回归。已增加该测试，验证只核对一条时不发 review POST，两条均核对后才发；定向 9/9、typecheck、lint 通过。仍需新 SHA 的 CI/Gatekeeper。
+- Round 4 最终 implementation exact head `6fea360adffc4f7d9cde7a159797d246ca55f592`：CI Run `36559214448` 的 `check` 与 `supabase-integration` 均 success，真实数据库、deterministic harness、E2E 已通过；独立 exact-head Gatekeeper `P0=0 / P1=0 / P2=0 + GO`。PR #37 head 已核实匹配该 SHA 且未合并。Round 4 accepted；Round 5 未开始、Phase 8D 未 FINAL FROZEN。
 
 
 > **权威状态主文档**：请统一参阅 [`docs/MASTER_PROJECT_HANDOFF.md`](docs/MASTER_PROJECT_HANDOFF.md)。  

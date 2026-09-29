@@ -1,9 +1,9 @@
 # AI Personal Growth RPG — 项目总体计划与当前状态 (Task Plan)
 
 > **权威状态主文档**：请统一参阅 [`docs/MASTER_PROJECT_HANDOFF.md`](docs/MASTER_PROJECT_HANDOFF.md)。  
-> **当前里程碑**: Phase 8C — Journal + State（FINAL FROZEN）；Phase 8D — Strategy + Personal Playbook（Round 1–3 accepted；Round 4 Playbook UI candidate）
+> **当前里程碑**: Phase 8C — Journal + State（FINAL FROZEN）；Phase 8D — Strategy + Personal Playbook（Round 1–4 accepted；Round 5 pending）
 > **当前主分支基线 (main)**: `98dbe37e0a6fe334b6638ca568bc3ba06b4c3aac`
-> **最新状态**: Phase 8C **FINAL FROZEN**。Phase 8D admission 与 Round 1–3 已通过；Round 3 implementation exact head `2b0796e66fc900344a1571f39ebd771fe64abe47` 的 CI Run `36452011311` 双绿，独立 Gatekeeper `P0=0 / P1=0 / P2=0 + GO`；后续文档同步 head `789569372af37e9f9e43fe4492ad914408a10125` 亦已通过 exact-head CI/Gatekeeper。PR #37 未合并；Round 4 Playbook UI 已形成候选，尚待新 exact-head CI 与独立 Gatekeeper。
+> **最新状态**: Phase 8C **FINAL FROZEN**。Phase 8D admission 与 Round 1–4 已通过；Round 4 implementation exact head `6fea360adffc4f7d9cde7a159797d246ca55f592` 的 CI Run `36559214448` 双绿，独立 Gatekeeper `P0=0 / P1=0 / P2=0 + GO`。PR #37 未合并；Round 5 尚未开始。
 
 ---
 
@@ -50,14 +50,15 @@
   - [complete] Corrective exact head `ae35a63ab15abab6c6e7fafd06fd51281ab6e634` 已关闭旧 Gatekeeper 的 P1-01/P1-02/P2-01/P2-02；独立复审结果 `P0=0 / P1=0 / P2=0 + GO`，Exact-Head CI Run `35310121814` 全绿
   - [complete] PR #33 已合入 main：merge `0e4bec5f26411669f7031af4523b6d4fca747f96`；post-merge main CI Run `35315613393` 全绿，DoD 最终 merge gate 已满足
 - [complete] **Phase 8C: Journal + State** ✅ FINAL FROZEN — PR #35；final reviewed exact head `f2f4d2b2d0a857348b6282dfdbfb3cfd08f4a06d`；Exact-Head CI `35381923343` success；merge `9aa76e7ce36b20b9f99e28d6cbd08eeb7bc55b85`；post-merge main CI `35432361509` success
-- [in_progress] **Phase 8D: Strategy + Personal Playbook**: admission 与 Round 1 DB foundation、Round 2 RPC authority、Round 3 server boundary 已通过；Round 4 Playbook UI 实施中，PR #37 仍待用户手动合并。
+- [in_progress] **Phase 8D: Strategy + Personal Playbook**: admission 与 Round 1 DB foundation、Round 2 RPC authority、Round 3 server boundary、Round 4 Playbook UI 已通过；Round 5 exit verification 尚未开始，PR #37 仍待用户手动合并。
 
 ### 2026-09-29 — Round 4 Playbook UI
 
-- [in_progress] 核对控制契约、现有 HTTP 响应、Journey 样式和测试模式；只复用已接受的 HTTP/domain surfaces。
-- [pending] 实现 `/journey/playbook` 与 Journey 导航：列表/详情、创建、测试、证据、评估与显式晋升、情境化、退役、版本、提案审核。
-- [pending] 增加交互回归，执行定向/全量测试、lint、typecheck、build 与差异边界检查。
-- [in_progress] 提交并推送同一分支，取得 exact-head CI 双绿与独立只读 Gatekeeper P0=0/P1=0/P2=0 + GO；用户已批准补充仅当前用户可见的只读提案/来源接口，初审 P1 的实现缺口已修正但尚待新 exact-head Gatekeeper。PR 保持未合并，Round 5 继续 gated。
+- [complete] 核对控制契约、现有 HTTP 响应、Journey 样式和测试模式；用户批准补充当前用户可见的只读提案/来源投影。
+- [complete] 实现 `/journey/playbook` 与 Journey 导航：列表/详情、创建、测试、证据、评估与显式晋升、情境化、退役、版本、知情提案审核。
+- [complete] 增加交互回归，执行定向/全量测试、lint、typecheck、build 与差异边界检查。
+- [complete] implementation exact head `6fea360adffc4f7d9cde7a159797d246ca55f592` 的 CI Run `36559214448` 双绿，独立只读 Gatekeeper `P0=0 / P1=0 / P2=0 + GO`；PR 保持未合并。
+- [pending] Round 5 exit verification（另阶段）；不在本次 Round 4 交付内。
 
 ## 2026-09-18 — Phase 8C Journal + State Controlling Document
 
