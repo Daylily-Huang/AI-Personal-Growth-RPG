@@ -60,7 +60,7 @@ Verdict `P0=0 / P1=4 / P2=6 + NO-GO` on the pre-commit working tree. The four P1
 
 Actionable P2s closed in the same corrective: exact SQLSTATE assertions instead of "any error" (`42501`, `22023`, `23514`, `P0002`); `VERY_HIGH` derivation asserted; the exact `0.75` inclusive ratio gate asserted; `CORE_EVIDENCE_REFERENCE` proven to contribute zero Core links; O008 documented as authority-level because Phase 8D exposes no AI generation HTTP endpoint.
 
-Left open by reviewer A and accepted as non-blocking: P2-9, the imprecise error label for confirmation on an eligible `CONTEXTUAL` (see §6).
+Left open by reviewer A and accepted as non-blocking: the imprecise error label for confirmation on an eligible `CONTEXTUAL` (see §6). It was the last of reviewer A's six P2 items and carried the label "P2-9" in that reviewer's combined P1/P2 list; the P2 count in the verdict is six.
 
 ### 3.2 Reviewer B — final exact-head Gatekeeper
 
@@ -90,7 +90,9 @@ Each reviewer ran the committed tests against a real local Supabase PostgreSQL i
 | Exit file, without `CI=true` | `10 passed / 1 skipped` (skip = CI-gated concurrency) | reviewer B, reviewer C |
 | Exit file, with `CI=true` | `11 passed / 0 skipped`, concurrent proposal CAS observed waiting on the row lock | reviewer B |
 | Full Phase-8D six-file set | `69 passed / 2 skipped` (both skips are the CI-gated concurrency tests) | reviewer B, reviewer C |
-| Full local suite | `1151 passed / 1 failed`; the single failure is `stage5b-db-repository` case 1, root-caused to a hardcoded domain UUID already owned by the pre-existing `demo_player@growth-rpg.dev` account, and does not reproduce on CI's disposable database | reviewer C confirmed the same failure and root cause |
+| Full local suite, with `CI=true` and the Supabase key variables set | `1151 passed / 1 failed / 0 skipped`; the single failed test is `stage5b-db-repository` case 1, root-caused to a hardcoded domain UUID already owned by the pre-existing `demo_player@growth-rpg.dev` account, and does not reproduce on CI's disposable database | reviewer C reproduced the same failure and root cause |
+
+Environment note for the full-suite row: the figures above require `CI=true` plus `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` and `SUPABASE_SECRET_KEY`. Run with only `XP_RPG_TEST_DB_URL` set, the same suite reports `1121 passed / 1 failed / 30 skipped` with 3 failed files: the two CI-gated Phase-8D concurrency tests skip, and `tests/stage7d-artifact-e2e.test.ts` and `tests/stage7d-artifact-security.test.ts` fail in `beforeAll` because the Supabase keys are absent, which accounts for the remaining 28 skips. Those two file-level failures are missing-environment artifacts, not Phase 8D regressions; only `stage5b-db-repository` case 1 is the pre-existing local-data collision.
 
 Falsification attempts that did **not** find a defect (all returned contract-compliant behavior):
 
