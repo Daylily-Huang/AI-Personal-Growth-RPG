@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import PlaybookPage from "@/app/journey/playbook/page";
 import { JourneyNav } from "@/components/journey/JourneyNav";
 import type { Strategy, StrategyContext } from "@/lib/strategy/types";
+import type { StrategyProposalPreview } from "@/lib/strategy/discovery";
 
 const routerPush = vi.fn();
 vi.mock("next/navigation", () => ({
@@ -14,6 +15,7 @@ vi.mock("next/navigation", () => ({
 
 const id = "11111111-1111-4111-8111-111111111111";
 const sourceId = "22222222-2222-4222-8222-222222222222";
+const secondSourceId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const proposalId = "33333333-3333-4333-8333-333333333333";
 const observedAt = "2026-09-29T12:34:56.123456+00:00";
 const strategy: Strategy = {
@@ -29,7 +31,7 @@ const context: StrategyContext = {
     expectedOutcome: strategy.expectedOutcome, createdAt: observedAt }],
   supports: [],
 };
-const proposal = {
+const proposal: StrategyProposalPreview = {
   id: proposalId, proposalType: "STRATEGY_COUNTEREVIDENCE_ALERT", status: "PROPOSED",
   payload: { strategy_id: id, counter_evidence_activity_id: sourceId,
     observation: "可能与预期不符", recommended_action: "核对原始活动" },
@@ -42,15 +44,17 @@ function response(payload: unknown, status = 200) {
 
 describe("Phase 8D Round 4 Playbook UI", () => {
   let fetchMock: ReturnType<typeof vi.fn>;
+  let currentProposals: StrategyProposalPreview[];
   beforeEach(() => {
     routerPush.mockReset();
+    currentProposals = [proposal];
     fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       if (url === "/api/strategies" && init?.method === "POST") return response({ strategy }, 201);
       if (url === "/api/strategies") return response({ strategies: [strategy] });
       if (url === `/api/strategies/${id}`) return response(context);
-      if (url === "/api/strategies/proposals") return response({ proposals: [proposal] });
-      if (url.startsWith("/api/strategies/sources?")) return response({ sources: [{ id: sourceId,
+      if (url === "/api/strategies/proposals") return response({ proposals: currentProposals });
+      if (url.startsWith("/api/strategies/sources?")) return response({ sources: [{ id: new URL(url, "http://localhost").searchParams.get("id") ?? sourceId,
         sourceClass: url.includes("sourceClass=ACTIVITY") ? "ACTIVITY" : "JOURNAL_CONTEXT",
         label: "一条原始记录", observedAt, details: url.includes("&id=") ? "原始活动全文" : null }] });
       if (url.endsWith("/evaluate")) return response({ strategy, metrics: {
@@ -181,5 +185,27 @@ describe("Phase 8D Round 4 Playbook UI", () => {
     fireEvent.click(screen.getByRole("button", { name: "提交提案审核" }));
     expect(await screen.findByRole("alert")).toHaveProperty("textContent", "请先按 ID 核对提案引用的每条原始活动，再确认审核");
     expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/outer-loop/proposals/"))).toBe(false);
+  });
+
+  test("hypothesis with two supporting activities requires both exact-source checks", async () => {
+    currentProposals = [{ ...proposal, proposalType: "STRATEGY_HYPOTHESIS", payload: {
+      title: "新的策略假设", context_trigger: "研究开始时", action_protocol: "先列问题",
+      expected_outcome: "找到可检验结论", supporting_activity_ids: [sourceId, secondSourceId],
+    } }];
+    render(<PlaybookPage />);
+    fireEvent.click(await screen.findByRole("button", { name: /策略假设.*33333333/ }));
+    fireEvent.change(screen.getByLabelText("审核决定"), { target: { value: "ACCEPTED" } });
+    let checks = screen.getAllByRole("button", { name: "按 ID 核对原始活动" });
+    expect(checks).toHaveLength(2);
+    fireEvent.click(checks[0]);
+    await waitFor(() => expect(screen.getAllByText(/已核对：一条原始记录/)).toHaveLength(1));
+    fireEvent.click(screen.getByRole("button", { name: "提交提案审核" }));
+    expect(await screen.findByRole("alert")).toHaveProperty("textContent", "请先按 ID 核对提案引用的每条原始活动，再确认审核");
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/outer-loop/proposals/"))).toBe(false);
+    checks = screen.getAllByRole("button", { name: "按 ID 核对原始活动" });
+    fireEvent.click(checks[1]);
+    await waitFor(() => expect(screen.getAllByText(/已核对：一条原始记录/)).toHaveLength(2));
+    fireEvent.click(screen.getByRole("button", { name: "提交提案审核" }));
+    await waitFor(() => expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/outer-loop/proposals/"))).toBe(true));
   });
 });
