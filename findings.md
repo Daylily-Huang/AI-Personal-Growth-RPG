@@ -1,5 +1,14 @@
 # 调查发现与核心架构决策 (Findings)
 
+## 2026-09-29 Round 4 Playbook UI
+
+- 控制文档 §9 要求 Strategy 列表/详情、用户创建、测试状态、正反证、显式晋升、情境化/退役、版本、两类 AI 提案审核。§11 将 Round 4 限定为 `/journey/playbook` 与 Journey 导航，消费已接受 HTTP/domain surfaces。
+- 当前策略 HTTP API 已有 GET/POST `/api/strategies`、GET/PATCH detail、GET/POST supports/versions、POST evaluate/transition。提案只有 `POST /api/outer-loop/proposals/[id]/review`；没有列表 API。
+- 支持记录的 observedAt 由 RPC 与 canonical source timestamp 精确比较；UI 不得将原值经 JS Date / datetime-local 序列化后截断微秒。
+- 独立初审发现：现有 Outer Loop 只有 POST proposal review，没有可安全展示原文的 GET/list；直接让用户输入 UUID 接受属于盲审，不能满足 §9。现有来源读 API 不覆盖全部 Strategy source class，Core Evidence Reference 尤无直接读路径。完整闭环需要新增 authenticated read-only projection，但这触及 Round 3 已接受的 server boundary，应取得范围决定后实施。
+- 用户已授权该只读扩展。新 projection 仅从当前用户会话读取 `outer_loop_proposals` 与七种 canonical source 表；不读取 service role，不增加任何写入路由。真实匿名/跨租户行为由 CI 临时最新迁移库 E2E 验证，本机 0042 数据库不升级。
+
+
 > **权威状态主文档**：请统一参阅 [`docs/MASTER_PROJECT_HANDOFF.md`](docs/MASTER_PROJECT_HANDOFF.md)。  
 > **更新时间**: 2026-09-22
 

@@ -77,7 +77,7 @@ describe("Phase 8B Round 4 — Journey UI", () => {
     expect(seasons.getAttribute("aria-current")).toBe("page");
     expect(reviews.getAttribute("href")).toBe("/journey/reviews");
     expect(journal.getAttribute("href")).toBe("/journey/journal");
-    expect(screen.getAllByRole("link")).toHaveLength(3);
+    expect(screen.getAllByRole("link")).toHaveLength(4);
   });
 
   test("Seasons page renders the bounded empty state and opens an accessible create modal", async () => {

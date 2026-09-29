@@ -3,6 +3,7 @@ import next from "next";
 import { describe, expect, test, beforeAll, afterAll } from "vitest";
 import { startDeterministicMockAiServer, type MockAiServerHandle } from "./helpers/mock-ai-server";
 import { createServerClient } from "@supabase/ssr";
+import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
 
 const DATABASE_URL = process.env.XP_RPG_TEST_DB_URL;
@@ -744,6 +745,34 @@ describe.skipIf(!DATABASE_URL)("Stage 3.1 — Full Real HTTP / Browser Auth E2E 
       observationType: "SUPPORT", sourceClass: "JOURNAL_CONTEXT", sourceId: entry.id,
       evaluatorVersion: "e2e-v1", observedAt: entry.createdAt,
     };
+    const anonymousSource = await fetch(`${BASE_URL}/api/strategies/sources?sourceClass=JOURNAL_CONTEXT&id=${entry.id}`);
+    expect(anonymousSource.status).toBe(401);
+    const ownedSource = await fetch(`${BASE_URL}/api/strategies/sources?sourceClass=JOURNAL_CONTEXT&id=${entry.id}`, { headers: { Cookie: cookieA } });
+    expect(ownedSource.status).toBe(200);
+    expect((await ownedSource.json()).sources).toMatchObject([{ id: entry.id, observedAt: entry.createdAt }]);
+    const foreignSourceRead = await fetch(`${BASE_URL}/api/strategies/sources?sourceClass=JOURNAL_CONTEXT&id=${entry.id}`, { headers: { Cookie: cookieB } });
+    expect(foreignSourceRead.status).toBe(200);
+    expect((await foreignSourceRead.json()).sources).toEqual([]);
+
+    const owner = await jarA.client.auth.getUser();
+    expect(owner.error).toBeNull();
+    const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    const insertedProposal = await admin.from("outer_loop_proposals").insert({
+      user_id: owner.data.user!.id, proposal_type: "STRATEGY_COUNTEREVIDENCE_ALERT", schema_version: 1,
+      payload: { strategy_id: strategy.id, source_class: "JOURNAL_CONTEXT", source_id: entry.id },
+      source_refs: [],
+    }).select("id").single();
+    expect(insertedProposal.error).toBeNull();
+    const anonymousProposals = await fetch(`${BASE_URL}/api/strategies/proposals`);
+    expect(anonymousProposals.status).toBe(401);
+    const ownedProposals = await fetch(`${BASE_URL}/api/strategies/proposals`, { headers: { Cookie: cookieA } });
+    expect(ownedProposals.status).toBe(200);
+    expect((await ownedProposals.json()).proposals).toContainEqual(expect.objectContaining({ id: insertedProposal.data!.id,
+      proposalType: "STRATEGY_COUNTEREVIDENCE_ALERT" }));
+    const foreignProposals = await fetch(`${BASE_URL}/api/strategies/proposals`, { headers: { Cookie: cookieB } });
+    expect(foreignProposals.status).toBe(200);
+    expect((await foreignProposals.json()).proposals.some((item: { id: string }) => item.id === insertedProposal.data!.id)).toBe(false);
+
     const wrongTime = await post(`${strategyPath}/supports`, cookieA, {
       ...source, observedAt: new Date(Date.parse(entry.createdAt) + 1000).toISOString(),
     });

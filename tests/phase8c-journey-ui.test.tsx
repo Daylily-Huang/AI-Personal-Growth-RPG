@@ -84,7 +84,7 @@ describe("Phase 8C Round 3 — Journey Journal UI", () => {
     const journal = screen.getByRole("link", { name: "日志" });
     expect(journal.getAttribute("href")).toBe("/journey/journal");
     expect(journal.getAttribute("aria-current")).toBe("page");
-    expect(screen.getAllByRole("link")).toHaveLength(3);
+    expect(screen.getAllByRole("link")).toHaveLength(4);
   });
 
   test("Journal renders loading-to-empty state and opens a keyboard-capable reflection editor", async () => {

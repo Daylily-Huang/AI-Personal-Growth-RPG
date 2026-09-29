@@ -1,5 +1,21 @@
 # 项目历史工作进度 (Progress Log)
 
+## 2026-09-29 — Phase 8D Round 4 kickoff
+
+- 用户明确要求搭建 Playbook UI。当前分支 `codex/phase8d-strategy-playbook`，Round 3 final exact head `789569372af37e9f9e43fe4492ad914408a10125` 已通过 CI/Gatekeeper；PR #37 仍未合并。
+- 已阅读本地 Next App Router 页面及 Server/Client 组件指南、控制文档 §9/§11、Strategy HTTP 类型与既有 Journey 组件。Round 4 保持 HTTP-only，不增加浏览器 DB/RPC 权威。
+- 发现现有提案只有按 ID 的 review HTTP 接口、没有列表接口；本轮采用提案 ID 审核入口，不擅自扩展已接受的 Round 3 server boundary。时间戳必须保留数据库原始精度。
+- 已实现 `/journey/playbook`、导航、策略全生命周期 UI、当前版本证据视图、日志来源选择器与提案 ID 审核表单；所有写入经既有 HTTP routes，无 browser Supabase 调用。
+- 定向 Journey/治理回归 44/44，TypeScript、ESLint、production build 通过；全量 48 files passed / 24 skipped、783 passed / 340 skipped。`git diff --check` 通过。确定性 harness 11/11 通过。
+- 首次 harness 命令错误地猜测了不存在的 `src/lib/growth-engine/harness.ts`，报 `ERR_MODULE_NOT_FOUND`；读取 `package.json` 后改跑真实脚本目标 `tests/growth-engine.test.ts`，11/11 通过，不再重复错误路径。
+- 已发起独立只读对抗审查，特别核查提案审阅原文、来源时间戳、版本与确认边界。CI/exact-head 尚未进行。
+- 独立初审未提交工作区结果为 `P0=0 / P1=2 / P2=1 + NO-GO`：提案 UI 无原文/检索，非日志来源无可核对定位；新版本/编辑后审核测试不足。初审环境用 `pnpm exec vitest` 未找到命令；执行侧使用实际存在的 `node_modules/.bin/vitest.cmd` 已验证全量 783 passed，不把初审工具缺失误报为代码失败。
+- 当前 Round 4 不提交/推送、不声称 exact-head CI 或 Gatekeeper GO；要闭合提案与所有来源定位需补充已认证只读 HTTP/domain surface，与 §11 的“只消费已接受接口”存在授权边界，待用户确认扩展范围。
+- 用户明确允许本轮补充只读接口。现已新增 authenticated `GET /api/strategies/proposals` 与 `GET /api/strategies/sources`，服务器只用用户 session 和显式 `user_id` 过滤，七类来源按 0047 canonical table/timestamp 投影；UI 显示待审提案原文、来源与过期时间，并使用来源选择/精确查询，不新增 mutation authority。
+- 新增只读 adapter 单测涵盖匿名、七类来源表与 tenant filter、QUEST_OUTCOME timestamp、非法参数；真实 HTTP E2E 增加匿名/跨用户提案与日志来源读取反例。此真实数据库测试只能在 CI 临时最新迁移库执行，本机旧 0042 实例未改动。
+- 纠正独立初审 P2：补充编辑后提案 CAS、历史版本证据仅作历史展示等 UI 测试。最新定向 57/57、全量 49 files passed / 24 skipped、796 passed / 340 skipped；ESLint、TypeScript、production build 和 `git diff --check` 全绿。exact-head CI 与独立重审仍待执行。
+
+
 > **权威状态主文档**：请统一参阅 [`docs/MASTER_PROJECT_HANDOFF.md`](docs/MASTER_PROJECT_HANDOFF.md)。  
 > **更新时间**: 2026-09-19
 
