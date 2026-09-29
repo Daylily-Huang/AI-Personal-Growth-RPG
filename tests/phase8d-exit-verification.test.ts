@@ -66,7 +66,9 @@ describe.skipIf(!databaseUrl)("Phase 8D Round 5 — canonical exit verification"
     const rows: Array<{ id: string; observed_at: string }> = [];
     for (let index = 0; index < count; index += 1) {
       const day = String(index + 1).padStart(2, "0");
-      rows.push(await insertActivity(`activity day ${index + 1}`, `2026-09-${day}T12:00:00.${index + 1}00000Z`));
+      // Always six fractional digits: PostgreSQL keeps microsecond precision.
+      const micros = String((index + 1) * 1000).padStart(6, "0");
+      rows.push(await insertActivity(`activity day ${index + 1}`, `2026-09-${day}T12:00:00.${micros}Z`));
     }
     return rows;
   }
@@ -417,6 +419,131 @@ describe.skipIf(!databaseUrl)("Phase 8D Round 5 — canonical exit verification"
         distinct_observation_dates: 5, completed_seasons: 1, core_links: 5,
         confidence_level: "HIGH", promotion_eligible: true,
       });
+    });
+  });
+
+  test("service_role and anon cannot commit Strategy truth", async () => {
+    const id = await createStrategy();
+    const version = await pg.query<{ id: string }>(
+      `select id from public.strategy_versions where strategy_id = $1 and version_number = 1`, [id]);
+    const baseline = await pg.query<{ count: string }>(
+      `select count(*) from public.strategies where user_id = $1`, [USER_A]);
+    for (const role of ["anon", "service_role"] as const) {
+      await pg.query(`set role ${role}`);
+      await mustFail(() => pg.query(
+        `insert into public.strategies
+           (user_id, title, context_trigger, action_protocol, expected_outcome)
+         values ($1, 'role commit', 'context', 'protocol', 'outcome')`, [USER_A]), "42501");
+      await mustFail(() => pg.query(
+        `update public.strategies set title = 'role rewrite' where id = $1`, [id]), "42501");
+      await mustFail(() => pg.query(
+        `insert into public.strategy_versions
+           (user_id, strategy_id, version_number, context_trigger, action_protocol, expected_outcome)
+         values ($1, $2, 2, 'context', 'protocol', 'outcome')`, [USER_A, id]), "42501");
+      await mustFail(() => pg.query(
+        `insert into public.strategy_supports
+           (user_id, strategy_id, strategy_version_id, observation_type, source_class, source_id, evaluator_version, observed_at)
+         values ($1, $2, $3, 'SUPPORT', 'JOURNAL_CONTEXT', $4, 'v1', clock_timestamp())`,
+        [USER_A, id, version.rows[0]!.id, JOURNAL_A]), "42501");
+      await mustFail(() => pg.query(`delete from public.strategies where id = $1`, [id]), "42501");
+      await pg.query("reset role");
+    }
+    // The AI role may still file a proposal, but filing one commits no Strategy.
+    await pg.query("set role service_role");
+    await pg.query(
+      `insert into public.outer_loop_proposals (user_id, proposal_type, schema_version, payload)
+       values ($1, 'STRATEGY_HYPOTHESIS', 1, $2::jsonb)`,
+      [USER_A, JSON.stringify({ title: "role proposal", description: "draft", context_trigger: "context",
+        action_protocol: "protocol", expected_outcome: "outcome" })]);
+    await pg.query("reset role");
+    const after = await pg.query<{ count: string }>(
+      `select count(*) from public.strategies where user_id = $1`, [USER_A]);
+    expect(after.rows[0]!.count).toBe(baseline.rows[0]!.count);
+  });
+
+  test("accepted hypothesis supporting activity IDs never materialize strategy_supports", async () => {
+    const activities = await insertActivities(2);
+    // §5.1 premise: callers cannot mint the canonical source timestamp directly.
+    await asUser(USER_A, async () => {
+      await mustFail(() => pg.query(
+        `insert into public.activities (user_id, title, raw_input, rules_version, status, created_at)
+         values ($1, 'direct activity', 'source', 'phase8d-exit', 'confirmed', '2026-01-01T00:00:00Z')`,
+        [USER_A]), "42501");
+      await mustFail(() => pg.query(
+        `insert into public.journal_entries (user_id, entry_type, title, content_markdown, created_at)
+         values ($1, 'FREE_REFLECTION', 'direct journal', 'content', '2026-01-01T00:00:00Z')`,
+        [USER_A]), "42501");
+    });
+    const proposal = await pg.query<{ id: string }>(
+      `insert into public.outer_loop_proposals (user_id, proposal_type, schema_version, payload)
+       values ($1, 'STRATEGY_HYPOTHESIS', 1, $2::jsonb) returning id`,
+      [USER_A, JSON.stringify({ title: "with supporting activities", description: "draft",
+        context_trigger: "context", action_protocol: "protocol", expected_outcome: "outcome",
+        supporting_activity_ids: activities.map((activity) => activity.id) })]);
+    await asUser(USER_A, async () => {
+      const settled = await pg.query<{ result: { proposal: { resulting_entity_id: string } } }>(
+        `select public.rpc_review_outer_loop_proposal($1, 'ACCEPTED', null, null, 'support-ids-accept') as result`,
+        [proposal.rows[0]!.id]);
+      const strategyId = settled.rows[0]!.result.proposal.resulting_entity_id;
+      const supports = await pg.query<{ count: string }>(
+        `select count(*) from public.strategy_supports where strategy_id = $1`, [strategyId]);
+      expect(supports.rows[0]!.count).toBe("0");
+      expect(await strategyState(strategyId)).toEqual({
+        lifecycle_status: "HYPOTHESIS", confidence_level: "LOW", version: 1,
+      });
+    });
+  });
+
+  test("exact 0.65 / 0.85 ratio gates and CONTEXTUAL confirmation is transition-only", async () => {
+    // 13 SUPPORT / 7 COUNTER_EVIDENCE = 0.65 exactly, the inclusive MODERATE gate.
+    const moderate = await createStrategy();
+    const moderateActivities = await insertActivities(13);
+    await asUser(USER_A, async () => {
+      await transition(moderate, "TESTING", `moderate-testing-${moderate}`);
+      for (const activity of moderateActivities) await insertSupport(moderate, "SUPPORT", "ACTIVITY", activity.id, activity.observed_at);
+      for (const activity of moderateActivities.slice(0, 7)) {
+        await insertSupport(moderate, "COUNTER_EVIDENCE", "ACTIVITY", activity.id, activity.observed_at);
+      }
+      expect(await metrics(moderate)).toMatchObject({
+        support_count: 13, counter_evidence_count: 7, support_ratio: 0.65,
+        distinct_observation_dates: 13, completed_seasons: 0, core_links: 13,
+        confidence_level: "MODERATE", promotion_eligible: false,
+      });
+      await mustFail(() => pg.query(`select public.rpc_evaluate_strategy_status($1, true)`, [moderate]), "22023");
+    });
+
+    // 17 SUPPORT / 3 COUNTER_EVIDENCE = 0.85 exactly, the inclusive VERY_HIGH gate.
+    const veryHighBoundary = await createStrategy();
+    const boundaryActivities = await insertActivities(15);
+    const boundaryReviews = [
+      await insertCompletedSeasonReview("2026-09-15T18:00:00.700000Z"),
+      await insertCompletedSeasonReview("2026-09-15T19:00:00.800000Z"),
+    ];
+    await asUser(USER_A, async () => {
+      await transition(veryHighBoundary, "TESTING", `vhb-testing-${veryHighBoundary}`);
+      for (const activity of boundaryActivities) await insertSupport(veryHighBoundary, "SUPPORT", "ACTIVITY", activity.id, activity.observed_at);
+      for (const review of boundaryReviews) await insertSupport(veryHighBoundary, "SUPPORT", "SEASON_REVIEW", review.id, review.observed_at);
+      for (const activity of boundaryActivities.slice(0, 3)) {
+        await insertSupport(veryHighBoundary, "COUNTER_EVIDENCE", "ACTIVITY", activity.id, activity.observed_at);
+      }
+      expect(await metrics(veryHighBoundary)).toMatchObject({
+        support_count: 17, counter_evidence_count: 3, support_ratio: 0.85,
+        distinct_observation_dates: 15, completed_seasons: 2, core_links: 15,
+        confidence_level: "VERY_HIGH", promotion_eligible: true,
+      });
+    });
+
+    // §7 scopes evaluation promotion to TESTING -> SUPPORTED. An eligible
+    // CONTEXTUAL Strategy is promoted only through rpc_transition_strategy_status,
+    // so confirmation here stays fail-closed (22023) and the lifecycle is
+    // unchanged; this pins that decision instead of leaving it untested.
+    const { id: contextualId } = await buildEligibleSupportedStrategy();
+    await asUser(USER_A, async () => {
+      await transition(contextualId, "CONTEXTUAL", `ctx-confirm-${contextualId}`, "narrow context");
+      await mustFail(() => pg.query(`select public.rpc_evaluate_strategy_status($1, true)`, [contextualId]), "22023");
+      expect((await strategyState(contextualId)).lifecycle_status).toBe("CONTEXTUAL");
+      await transition(contextualId, "SUPPORTED", `ctx-confirm-back-${contextualId}`);
+      expect((await strategyState(contextualId)).lifecycle_status).toBe("SUPPORTED");
     });
   });
 });
