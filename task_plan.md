@@ -1,9 +1,9 @@
 # AI Personal Growth RPG — 项目总体计划与当前状态 (Task Plan)
 
 > **权威状态主文档**：请统一参阅 [`docs/MASTER_PROJECT_HANDOFF.md`](docs/MASTER_PROJECT_HANDOFF.md)。  
-> **当前里程碑**: Phase 8C — Journal + State（FINAL FROZEN）；Phase 8D — Strategy + Personal Playbook（Round 1–5 accepted；待用户手动 merge gate 与 post-merge main CI）
-> **当前主分支基线 (main)**: `98dbe37e0a6fe334b6638ca568bc3ba06b4c3aac`
-> **最新状态**: Phase 8C **FINAL FROZEN**。Phase 8D admission 与 Round 1–4 已通过；Round 5 exit verification 的 corrective implementation exact head `8b33cca8e994ba45862194d5588642e9e76626ba` 的 CI Run `36590521018` 双绿，fresh independent Gatekeeper `P0=0 / P1=0 / P2=0 + GO`（DoD 7/8/9 满足）。PR #37 未合并；Phase 8D 需在用户手动 merge 且 post-merge main CI 通过后才可 FINAL FROZEN（DoD 10/11）。
+> **当前里程碑**: Phase 8C — Journal + State（FINAL FROZEN）；Phase 8D — Strategy + Personal Playbook（**FINAL FROZEN**）
+> **当前主分支基线 (main)**: `b93273cd87d39e04a66ed0ebfd76fa95ebd2e643`
+> **最新状态**: Phase 8C **FINAL FROZEN**；Phase 8D admission 与 Round 1–5 全部通过。Round 5 corrective implementation exact head `8b33cca8e994ba45862194d5588642e9e76626ba` 的 CI Run `36590521018` 双绿，fresh independent Gatekeeper `P0=0 / P1=0 / P2=0 + GO`；PR #37 已由用户合入 `main`（merge `b93273cd87d39e04a66ed0ebfd76fa95ebd2e643`），post-merge main CI Run `36593720889` 双绿。**Phase 8D = FINAL FROZEN**（归档 `docs/Phase8/19_PHASE8D_GATEKEEPER_REREVIEW_AND_FINAL_FREEZE.md`）。
 
 ---
 
@@ -50,7 +50,7 @@
   - [complete] Corrective exact head `ae35a63ab15abab6c6e7fafd06fd51281ab6e634` 已关闭旧 Gatekeeper 的 P1-01/P1-02/P2-01/P2-02；独立复审结果 `P0=0 / P1=0 / P2=0 + GO`，Exact-Head CI Run `35310121814` 全绿
   - [complete] PR #33 已合入 main：merge `0e4bec5f26411669f7031af4523b6d4fca747f96`；post-merge main CI Run `35315613393` 全绿，DoD 最终 merge gate 已满足
 - [complete] **Phase 8C: Journal + State** ✅ FINAL FROZEN — PR #35；final reviewed exact head `f2f4d2b2d0a857348b6282dfdbfb3cfd08f4a06d`；Exact-Head CI `35381923343` success；merge `9aa76e7ce36b20b9f99e28d6cbd08eeb7bc55b85`；post-merge main CI `35432361509` success
-- [in_progress] **Phase 8D: Strategy + Personal Playbook**: admission 与 Round 1 DB foundation、Round 2 RPC authority、Round 3 server boundary、Round 4 Playbook UI 已通过；Round 5 exit verification 尚未开始，PR #37 仍待用户手动合并。
+- [complete] **Phase 8D: Strategy + Personal Playbook** ✅ FINAL FROZEN — PR #37 已合入 `main`（merge `b93273cd87d39e04a66ed0ebfd76fa95ebd2e643`，post-merge main CI Run `36593720889` 双绿）；final reviewed implementation exact head `8b33cca8e994ba45862194d5588642e9e76626ba`，Gatekeeper `P0=0 / P1=0 / P2=0 + GO`。
 
 ### 2026-09-29 — Round 4 Playbook UI
 
@@ -126,7 +126,7 @@
 - [complete] 本机真实 DB 证据：0043–0047 已增量应用到本机 Supabase dev DB（应用前 `pg_dump` 备份 `.data/phase8d-pre-0043.dump`）；exit set 无 CI `10 passed / 1 skipped`、`CI=true` `11 passed / 0 skipped`；定向 Phase 8D `69 passed / 2 skipped`；全量 `1151 passed / 1 failed`（唯一失败为 `stage5b-db-repository` 用例 1 与本机既有 `demo_player@growth-rpg.dev` 的硬编码 domain UUID 冲突，CI 全新库不触发）。
 - [complete] 本机门禁：ESLint 全量 0 error、`tsc --noEmit` 0 error、`next build` 成功、deterministic harness `11/11`、`git diff --check` 通过；测试残留已清理，scratch DB 已 drop。
 - [complete] exact-head CI：`3c09f8a` Run `36587173704`、`8b33cca` Run `36590521018` 均双 job success（真实 DB tests、deterministic harness、E2E）；fresh independent Gatekeeper 对 `8b33cca` 为 `P0=0 / P1=0 / P2=0 + GO`。Round 5 接受，DoD 7/8/9 满足。
-- [pending] 用户手动 merge PR #37，并在 post-merge main CI 双绿后宣告 Phase 8D FINAL FROZEN（DoD 10/11）；PR #37 仍 open/unmerged。
+- [complete] PR #37 已由用户手动合入 `main`：merge commit `b93273cd87d39e04a66ed0ebfd76fa95ebd2e643`（parents `98dbe37e` + `f5dd59d`）；post-merge main CI Run `36593720889` 的 `check` 与 `supabase-integration` 均 success。最终归档 `docs/Phase8/19_PHASE8D_GATEKEEPER_REREVIEW_AND_FINAL_FREEZE.md`，Phase 8D = **FINAL FROZEN**（DoD 1–11 全部满足）。
 - [pending] 可选 backlog（需迁移才能改，非门禁项）：已合格 CONTEXTUAL 上 `rpc_evaluate_strategy_status(confirm=true)` 的错误码命名 `INSUFFICIENT_SUPPORT_FOR_PROMOTION` 不够精确。
 
 ### Phase 8D Errors Encountered

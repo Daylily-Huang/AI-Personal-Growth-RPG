@@ -1,5 +1,14 @@
 # 项目历史工作进度 (Progress Log)
 
+## 2026-09-29 — Phase 8D 最终冻结归档
+
+- PR #37 已由用户手动合入 `main`：merge commit `b93273cd87d39e04a66ed0ebfd76fa95ebd2e643`（parents `98dbe37e` + `f5dd59d`）。
+- Post-merge main CI Run `36593720889`（event=push，head_sha=b93273cd）双 job success：`check`（Lint/Test/Build）与 `supabase-integration`（Supabase startup、production build、database-backed tests、deterministic harness、E2E）全部 success。
+- 最终 reviewed implementation exact head 为 `8b33cca8e994ba45862194d5588642e9e76626ba`（CI Run `36590521018` 双绿、independent Gatekeeper `P0=0 / P1=0 / P2=0 + GO`）；`3c09f8a` 的 Run `36587173704` 与 Gatekeeper `P2=3 + NO-GO`、Round 5 首轮对抗复审 `P1=4 / P2=6 + NO-GO` 均作为历史保留，未被改写。
+- 新增最终归档 `docs/Phase8/19_PHASE8D_GATEKEEPER_REREVIEW_AND_FINAL_FREEZE.md`；`docs/MASTER_PROJECT_HANDOFF.md`、`task_plan.md` 同步至 main 基线 `b93273cd` 与 **Phase 8D = FINAL FROZEN**。DoD 1–11 全部满足。
+- 冻结边界：`0046`/`0047`、四个 Strategy RPC、Strategy server boundary 与 `/journey/playbook` 随 Phase 1–8C 一并冻结；Phase 8 剩余的 reward/milestone 规格未获授权，下一阶段须先有独立 controlling document 与 Gatekeeper admission。
+- 可选 backlog（需迁移，非门禁项）：已合格 `CONTEXTUAL` 上 `rpc_evaluate_strategy_status(confirm=true)` 的错误码命名不够精确。
+
 ## 2026-09-29 — Phase 8D Round 5 exit verification (accepted)
 
 - Round 4 已接受后启动 Round 5（exit verification）。新增 `tests/phase8d-exit-verification.test.ts`，把控制文档 §10/§11.6 绑定的四个 canonical exit test 显式命名：`O008_AI_CANNOT_COMMIT_STRATEGY`、`O009_STRATEGY_REQUIRES_CROSS_TIME_SUPPORT`、`O017_STRATEGY_CONFIDENCE_IS_DETERMINISTIC_DERIVED`、`O021_AI_PROPOSAL_REQUIRES_CONFIRM_BEFORE_COMMIT`；未修改任何 production 代码、迁移或已接受测试。
