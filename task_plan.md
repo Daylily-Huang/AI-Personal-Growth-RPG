@@ -2,7 +2,7 @@
 
 > **权威状态主文档**：请统一参阅 [`docs/MASTER_PROJECT_HANDOFF.md`](docs/MASTER_PROJECT_HANDOFF.md)。  
 > **当前里程碑**: Phase 8C — Journal + State（FINAL FROZEN）；Phase 8D — Strategy + Personal Playbook（**FINAL FROZEN**）
-> **当前主分支基线 (main)**: `b93273cd87d39e04a66ed0ebfd76fa95ebd2e643`
+> **当前主分支基线 (main)**: `a1da765e492b8d93e6350ac32865d8e0018faa91`
 > **最新状态**: Phase 8C **FINAL FROZEN**；Phase 8D admission 与 Round 1–5 全部通过。Round 5 corrective implementation exact head `8b33cca8e994ba45862194d5588642e9e76626ba` 的 CI Run `36590521018` 双绿，fresh independent Gatekeeper `P0=0 / P1=0 / P2=0 + GO`；PR #37 已由用户合入 `main`（merge `b93273cd87d39e04a66ed0ebfd76fa95ebd2e643`），post-merge main CI Run `36593720889` 双绿。**Phase 8D = FINAL FROZEN**（归档 `docs/Phase8/19_PHASE8D_GATEKEEPER_REREVIEW_AND_FINAL_FREEZE.md`）。
 
 ---
@@ -123,10 +123,12 @@
 - [complete] §10 反例与安全项逐条核对：全部条目均有具名测试覆盖（DB foundation、RPC authority、API adapters、discovery API、Playbook UI、真实 HTTP E2E）。
 - [complete] 首轮独立对抗复审 `P0=0 / P1=4 / P2=6 + NO-GO` 的四项 P1 已修复：后台 `confirm=false` 非晋升断言、CONTEXTUAL 生命周期、RETIRED 历史可查询、CI-only 策略提案并发 CAS；并收敛 P2（精确 `42501` 断言、VERY_HIGH、ratio=0.75 边界、CORE_EVIDENCE_REFERENCE 零 Core link）。
 - [complete] 最终 Gatekeeper 对 `3c09f8a` 的 `P2=3 + NO-GO` 已在 corrective head `8b33cca` 关闭：anon/service_role 不能提交 Strategy 真值、`supporting_activity_ids` 不物化 support、§5.1 canonical timestamp 前提、ratio 0.65/0.85 精确门槛、CONTEXTUAL confirm 仅 transition-only 契约。
-- [complete] 本机真实 DB 证据：0043–0047 已增量应用到本机 Supabase dev DB（应用前 `pg_dump` 备份 `.data/phase8d-pre-0043.dump`）；exit set 无 CI `10 passed / 1 skipped`、`CI=true` `11 passed / 0 skipped`；定向 Phase 8D `69 passed / 2 skipped`；全量 `1151 passed / 1 failed`（唯一失败为 `stage5b-db-repository` 用例 1 与本机既有 `demo_player@growth-rpg.dev` 的硬编码 domain UUID 冲突，CI 全新库不触发）。
+- [complete] 本机真实 DB 证据：0043–0047 已增量应用到本机 Supabase dev DB（应用前 `pg_dump` 备份 `.data/phase8d-pre-0043.dump`）；exit set 无 CI `10 passed / 1 skipped`、`CI=true` `11 passed / 0 skipped`；定向 Phase 8D `69 passed / 2 skipped`；全量在 `CI=true` 且设置 Supabase key 变量时 `1151 passed / 1 failed / 0 skipped`（唯一失败为 `stage5b-db-repository` 用例 1 与本机既有 `demo_player@growth-rpg.dev` 的硬编码 domain UUID 冲突，CI 全新库不触发）；仅设 `XP_RPG_TEST_DB_URL` 时为 `1121 passed / 1 failed / 30 skipped`、3 文件失败，多出的 2 个为 stage7d 缺 key 的环境性失败。
 - [complete] 本机门禁：ESLint 全量 0 error、`tsc --noEmit` 0 error、`next build` 成功、deterministic harness `11/11`、`git diff --check` 通过；测试残留已清理，scratch DB 已 drop。
 - [complete] exact-head CI：`3c09f8a` Run `36587173704`、`8b33cca` Run `36590521018` 均双 job success（真实 DB tests、deterministic harness、E2E）；fresh independent Gatekeeper 对 `8b33cca` 为 `P0=0 / P1=0 / P2=0 + GO`。Round 5 接受，DoD 7/8/9 满足。
 - [complete] PR #37 已由用户手动合入 `main`：merge commit `b93273cd87d39e04a66ed0ebfd76fa95ebd2e643`（parents `98dbe37e` + `f5dd59d`）；post-merge main CI Run `36593720889` 的 `check` 与 `supabase-integration` 均 success。最终归档 `docs/Phase8/19_PHASE8D_GATEKEEPER_REREVIEW_AND_FINAL_FREEZE.md`，Phase 8D = **FINAL FROZEN**（DoD 1–11 全部满足）。
+- [complete] PR #38（归档+状态同步）已合入 `main`：merge commit `a1da765e492b8d93e6350ac32865d8e0018faa91`；pr head `597e3f8` 的 CI Run `36596794622` 双 job success，fresh 第三 Gatekeeper `P0=0 / P1=0 / P2=0 + GO`。
+- [complete] 8B 式独立审查落盘补齐：`docs/Phase8/20_PHASE8D_INDEPENDENT_REVIEW_RECORD.md`，记录三个独立审查实例、四类 P1 与六类 P2 的开启与关闭证据、可复现 CI/test 证据，以及"判决属 attestation"的边界声明。
 - [pending] 可选 backlog（需迁移才能改，非门禁项）：已合格 CONTEXTUAL 上 `rpc_evaluate_strategy_status(confirm=true)` 的错误码命名 `INSUFFICIENT_SUPPORT_FOR_PROMOTION` 不够精确。
 
 ### Phase 8D Errors Encountered
