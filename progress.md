@@ -292,3 +292,4 @@
 - Admission exact head `080accd5b49088ba8e62686bb2a54dcdc189c515` 已获 fresh independent Gatekeeper `P0=0 / P1=0 / P2=0 + GO`；D3 明确接受，Phase 8E 仅获准进入 Round 1。
 - Round 1 范围锁定：`0048` 四表 foundation、RLS/tenant/field-authority/immutability guards、纯 `foldRewardLedger` 与测试；`0049` RPC、API、UI 继续 gated。
 - Round 1 写入前发现 admission contract 的新 P1：`IDEA -> ACTIVE` 生命周期没有合法 authority path；直接客户端状态更新被禁止，原九 RPC 也无 activate。生产写入继续暂停，先补 `rpc_activate_wish` 控制契约并重新送 Gatekeeper。
+- Exact head `4bbe3d1...` 的 fresh Gatekeeper 返回 `P0=0 / P1=2 / P2=0 + NO-GO`：通用 RPC 规则误要求 activation 写 ledger/account；activation 幂等 key 未绑定 RPC/target/payload。现拆分通用与六个财务 RPC 规则，并定义 audit-backed SHA-256 fingerprint、stored result snapshot 与 `IDEMPOTENCY_KEY_REUSED` 冲突。
