@@ -152,8 +152,15 @@ DECLARE
   v_original_user_id uuid;
   v_original_account_id uuid;
   v_original_kind text;
+  v_original_amount integer;
+  v_original_source_type text;
+  v_original_source_id text;
+  v_original_policy_version text;
+  v_wish_user_id uuid;
   v_redemption_user_id uuid;
   v_redemption_wish_id uuid;
+  v_redemption_credits_spent integer;
+  v_redemption_account_id uuid;
 BEGIN
   SELECT a.user_id
   INTO v_account_user_id
@@ -166,29 +173,51 @@ BEGIN
   END IF;
 
   IF NEW.event_kind = 'CORRECTION' THEN
-    SELECT t.user_id, t.account_id, t.event_kind
-    INTO v_original_user_id, v_original_account_id, v_original_kind
+    SELECT t.user_id, t.account_id, t.event_kind, t.amount,
+           t.canonical_source_type, t.canonical_source_id, t.policy_version
+    INTO v_original_user_id, v_original_account_id, v_original_kind, v_original_amount,
+         v_original_source_type, v_original_source_id, v_original_policy_version
     FROM public.reward_transactions t
     WHERE t.id = NEW.correction_for_id;
 
     IF v_original_user_id IS NULL
        OR NEW.user_id IS DISTINCT FROM v_original_user_id
        OR NEW.account_id IS DISTINCT FROM v_original_account_id
-       OR v_original_kind IS DISTINCT FROM 'EARN' THEN
+       OR v_original_kind IS DISTINCT FROM 'EARN'
+       OR NEW.amount IS DISTINCT FROM -v_original_amount
+       OR NEW.canonical_source_type IS DISTINCT FROM v_original_source_type
+       OR NEW.canonical_source_id IS DISTINCT FROM v_original_source_id
+       OR NEW.policy_version IS DISTINCT FROM v_original_policy_version THEN
       RAISE EXCEPTION 'Reward correction source mismatch'
         USING ERRCODE = '23514';
     END IF;
   END IF;
 
+  IF NEW.event_kind IN ('RESERVE', 'UNRESERVE', 'REDEEM', 'REFUND') THEN
+    SELECT w.user_id
+    INTO v_wish_user_id
+    FROM public.wishes w
+    WHERE w.id::text = NEW.canonical_source_id;
+
+    IF v_wish_user_id IS NULL OR NEW.user_id IS DISTINCT FROM v_wish_user_id THEN
+      RAISE EXCEPTION 'Reward transaction/Wish tenant mismatch'
+        USING ERRCODE = '23514';
+    END IF;
+  END IF;
+
   IF NEW.event_kind = 'REFUND' THEN
-    SELECT r.user_id, r.wish_id
-    INTO v_redemption_user_id, v_redemption_wish_id
+    SELECT r.user_id, r.wish_id, r.credits_spent, t.account_id
+    INTO v_redemption_user_id, v_redemption_wish_id, v_redemption_credits_spent,
+         v_redemption_account_id
     FROM public.reward_redemptions r
+    JOIN public.reward_transactions t ON t.id = r.transaction_id
     WHERE r.id = NEW.refund_for_redemption_id;
 
     IF v_redemption_user_id IS NULL
        OR NEW.user_id IS DISTINCT FROM v_redemption_user_id
-       OR NEW.canonical_source_id IS DISTINCT FROM v_redemption_wish_id::text THEN
+       OR NEW.account_id IS DISTINCT FROM v_redemption_account_id
+       OR NEW.canonical_source_id IS DISTINCT FROM v_redemption_wish_id::text
+       OR NEW.amount IS DISTINCT FROM v_redemption_credits_spent THEN
       RAISE EXCEPTION 'Reward refund receipt mismatch'
         USING ERRCODE = '23514';
     END IF;

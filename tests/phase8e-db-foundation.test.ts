@@ -150,21 +150,29 @@ describe.skipIf(!DATABASE_URL)("Phase 8E Round 1 — Reward/Wish DB foundation",
     );
     expect(otherView.rows).toEqual([]);
 
-    await expectDbFailure(() =>
-      asRole("anon", null, () =>
-        pg.query("insert into public.wishes (user_id, title) values ($1, 'anon wish')", [USER_A]),
-      ),
-    );
-    await expectDbFailure(() =>
-      asRole("service_role", USER_A, () =>
-        pg.query("insert into public.reward_accounts (user_id) values ($1)", [USER_A]),
-      ),
-    );
+    const directWrites = [
+      "insert into public.reward_accounts (user_id) values ($1)",
+      "insert into public.reward_transactions (user_id) values ($1)",
+      "insert into public.wishes (user_id, title) values ($1, 'forbidden wish')",
+      "insert into public.reward_redemptions (user_id) values ($1)",
+    ];
+    for (const role of ["anon", "service_role"] as const) {
+      for (const statement of directWrites) {
+        await expectDbFailure(() =>
+          asRole(role, role === "anon" ? null : USER_A, () => pg.query(statement, [USER_A])),
+        );
+      }
+    }
+
+    for (const statement of [directWrites[0], directWrites[1], directWrites[3]]) {
+      await expectDbFailure(() => asUser(USER_A, () => pg.query(statement, [USER_A])));
+    }
   });
 
   test("ledger constraints and tenant triggers reject malformed or cross-tenant rows", async () => {
     const accountA = await createAccount(USER_A);
     const accountB = await createAccount(USER_B);
+    const wishB = await createWish(USER_B, "B wish");
 
     await expectDbFailure(() =>
       pg.query(
@@ -173,6 +181,15 @@ describe.skipIf(!DATABASE_URL)("Phase 8E Round 1 — Reward/Wish DB foundation",
             policy_version, request_idempotency_key)
          values ($1, $2, 'EARN', 100, 'SEASON', 'season-a', 'reward-v1', 'cross-tenant')`,
         [accountB.id, USER_A],
+      ),
+    );
+    await expectDbFailure(() =>
+      pg.query(
+        `insert into public.reward_transactions
+           (account_id, user_id, event_kind, amount, canonical_source_type, canonical_source_id,
+            request_idempotency_key)
+         values ($1, $2, 'RESERVE', 10, 'WISH', $3, 'cross-tenant-wish')`,
+        [accountA.id, USER_A, wishB.id],
       ),
     );
     await expectDbFailure(() =>
@@ -225,6 +242,32 @@ describe.skipIf(!DATABASE_URL)("Phase 8E Round 1 — Reward/Wish DB foundation",
     );
 
     await expectDbFailure(() =>
+      pg.query(
+        `insert into public.reward_transactions
+           (account_id, user_id, event_kind, amount, canonical_source_type, canonical_source_id,
+            request_idempotency_key, refund_for_redemption_id)
+         values ($1, $2, 'REFUND', 1, 'WISH', $3, 'partial-refund', $4)`,
+        [account.id, USER_A, wish.id, receipt.rows[0]!.id],
+      ),
+    );
+    await pg.query(
+      `insert into public.reward_transactions
+         (account_id, user_id, event_kind, amount, canonical_source_type, canonical_source_id,
+          request_idempotency_key, refund_for_redemption_id)
+       values ($1, $2, 'REFUND', 100, 'WISH', $3, 'exact-refund', $4)`,
+      [account.id, USER_A, wish.id, receipt.rows[0]!.id],
+    );
+    await expectDbFailure(() =>
+      pg.query(
+        `insert into public.reward_transactions
+           (account_id, user_id, event_kind, amount, canonical_source_type, canonical_source_id,
+            request_idempotency_key, refund_for_redemption_id)
+         values ($1, $2, 'REFUND', 100, 'WISH', $3, 'duplicate-refund', $4)`,
+        [account.id, USER_A, wish.id, receipt.rows[0]!.id],
+      ),
+    );
+
+    await expectDbFailure(() =>
       pg.query("update public.reward_transactions set note = 'rewrite' where id = $1", [redeem.rows[0]!.id]),
     );
     await expectDbFailure(() =>
@@ -238,7 +281,7 @@ describe.skipIf(!DATABASE_URL)("Phase 8E Round 1 — Reward/Wish DB foundation",
     );
   });
 
-  test("one account, one selected Wish, canonical EARN, correction, and refund identities are unique", async () => {
+  test("one account, one selected Wish, canonical EARN, and exact correction identities are unique", async () => {
     const account = await createAccount(USER_A);
     await expectDbFailure(() => createAccount(USER_A));
 
@@ -249,11 +292,12 @@ describe.skipIf(!DATABASE_URL)("Phase 8E Round 1 — Reward/Wish DB foundation",
       pg.query("update public.wishes set status = 'RESERVED' where id = $1", [second.id]),
     );
 
-    await pg.query(
+    const earn = await pg.query<{ id: string }>(
       `insert into public.reward_transactions
          (account_id, user_id, event_kind, amount, canonical_source_type, canonical_source_id,
           policy_version, request_idempotency_key)
-       values ($1, $2, 'EARN', 100, 'QUEST', 'quest-a', 'reward-v1', 'earn-one')`,
+       values ($1, $2, 'EARN', 100, 'QUEST', 'quest-a', 'reward-v1', 'earn-one')
+       returning id`,
       [account.id, USER_A],
     );
     await expectDbFailure(() =>
@@ -263,6 +307,31 @@ describe.skipIf(!DATABASE_URL)("Phase 8E Round 1 — Reward/Wish DB foundation",
             policy_version, request_idempotency_key)
          values ($1, $2, 'EARN', 100, 'QUEST', 'quest-a', 'reward-v1', 'earn-two')`,
         [account.id, USER_A],
+      ),
+    );
+    await expectDbFailure(() =>
+      pg.query(
+        `insert into public.reward_transactions
+           (account_id, user_id, event_kind, amount, canonical_source_type, canonical_source_id,
+            policy_version, request_idempotency_key, correction_for_id)
+         values ($1, $2, 'CORRECTION', -1, 'QUEST', 'quest-a', 'reward-v1', 'partial-correction', $3)`,
+        [account.id, USER_A, earn.rows[0]!.id],
+      ),
+    );
+    await pg.query(
+      `insert into public.reward_transactions
+         (account_id, user_id, event_kind, amount, canonical_source_type, canonical_source_id,
+          policy_version, request_idempotency_key, correction_for_id)
+       values ($1, $2, 'CORRECTION', -100, 'QUEST', 'quest-a', 'reward-v1', 'exact-correction', $3)`,
+      [account.id, USER_A, earn.rows[0]!.id],
+    );
+    await expectDbFailure(() =>
+      pg.query(
+        `insert into public.reward_transactions
+           (account_id, user_id, event_kind, amount, canonical_source_type, canonical_source_id,
+            policy_version, request_idempotency_key, correction_for_id)
+         values ($1, $2, 'CORRECTION', -100, 'QUEST', 'quest-a', 'reward-v1', 'duplicate-correction', $3)`,
+        [account.id, USER_A, earn.rows[0]!.id],
       ),
     );
   });

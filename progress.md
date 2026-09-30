@@ -298,3 +298,4 @@
 - Exact head `bf0229e...` 的 fresh Gatekeeper 返回 `P0=0 / P1=2 / P2=0 + NO-GO`：ownership 校验仍排在 key replay 前；D2 rejection audit 与“任何失败零审计残留”冲突。现冻结 auth -> normalized tuple -> `(user,key)` lock -> existing replay -> first-seen ownership 的优先级，并区分可提交的确定性业务拒绝与必须全回滚的事务失败。
 - Corrective exact head `cd24254...` 已获 fresh Gatekeeper `P0=0 / P1=0 / P2=0 + GO`，只授权 Phase 8E Round 1 DB foundation；Round 2 RPC/API/UI 仍未授权。
 - Phase 8E Round 1 已实现 `0048` 四表/RLS/field authority/immutable guards、纯 `foldRewardLedger` 与静态/可选真实 DB 测试。定向测试 82 passed、全量测试 818 passed、TypeScript/ESLint、Next production build 均通过。真实 DB 测试未验证：Supabase CLI 2.114.0 可用，但 Docker Desktop Linux engine 未建立 `dockerDesktopLinuxEngine` 管道。
+- Round 1 exact head `ac7c27a...` 的独立 Gatekeeper 返回 `P0=0 / P1=2 / P2=1 + NO-GO`：WISH ledger tenant、exact correction/refund guards 不完整；`src/lib/reward/` 未纳入 visual backend freeze。现补齐永久账本关联守卫、反例测试与精确 `fold.ts` allowlist；真实 DB 未运行继续作为未验证 P2，不进入 Round 2。

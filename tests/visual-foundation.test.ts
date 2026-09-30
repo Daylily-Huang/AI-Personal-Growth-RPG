@@ -10,6 +10,7 @@ export const FROZEN_BACKEND_DENYLIST = [
   'src/lib/store/',
   'src/lib/ai/',
   'src/lib/growth-engine/',
+  'src/lib/reward/',
   'src/lib/supabase/',
   'src/lib/http/',
   'src/lib/auth/',
@@ -110,6 +111,7 @@ export const PHASE8E_REWARD_WISHES_CONTROL_DOCUMENT =
   'docs/Phase8/21_PHASE8E_REWARD_WISHES_IMPLEMENTATION_CONTROLLING.md';
 
 export const PHASE8E_ROUND1_AUTHORIZED_BACKEND = [
+  'src/lib/reward/fold.ts',
   'supabase/migrations/0048_phase8e_reward_wishes_foundation.sql',
 ];
 
@@ -611,5 +613,12 @@ describe('Visual Foundation & Design Tokens Runtime Verification', () => {
     expect(prematureRound2.violations).toEqual([
       'supabase/migrations/0049_phase8e_reward_wishes_rpc_authority.sql',
     ]);
+
+    const unapprovedRewardBackend = validateVisualMigrationDelta([
+      PHASE8E_REWARD_WISHES_CONTROL_DOCUMENT,
+      'src/app/journey/rewards/page.tsx',
+      'src/lib/reward/rpc.ts',
+    ]);
+    expect(unapprovedRewardBackend.violations).toEqual(['src/lib/reward/rpc.ts']);
   });
 });

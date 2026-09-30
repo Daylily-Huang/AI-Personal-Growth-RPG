@@ -615,7 +615,13 @@ describe("Phase 8E Round 1 — Reward/Wish schema authority", () => {
       expect(reward).toContain(`REVOKE ALL ON FUNCTION public.${trigger}()`);
     }
     expect(reward).toContain("NEW.user_id IS DISTINCT FROM v_account_user_id");
+    expect(reward).toContain("NEW.user_id IS DISTINCT FROM v_original_user_id");
+    expect(reward).toContain("NEW.amount IS DISTINCT FROM -v_original_amount");
+    expect(reward).toContain("NEW.canonical_source_type IS DISTINCT FROM v_original_source_type");
+    expect(reward).toContain("NEW.policy_version IS DISTINCT FROM v_original_policy_version");
     expect(reward).toContain("NEW.user_id IS DISTINCT FROM v_wish_user_id");
+    expect(reward).toContain("NEW.account_id IS DISTINCT FROM v_redemption_account_id");
+    expect(reward).toContain("NEW.amount IS DISTINCT FROM v_redemption_credits_spent");
     expect(reward).toContain("NEW.user_id IS DISTINCT FROM v_transaction_user_id");
     expect(reward).toContain("OLD.status NOT IN ('IDEA', 'ACTIVE')");
     expect(reward).toContain("NEW.status IS DISTINCT FROM OLD.status");
