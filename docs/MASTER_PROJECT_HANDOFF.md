@@ -345,9 +345,9 @@ be949deb67f62269d58a0e21865580d0e67204e0
 
 ### 下一阶段推进指引 (Next Actions)
 
-Phase 8C 与 Phase 8D 均已全面闭环并永久冻结。所有后续工作必须从当前 main 基线 `a1da765e492b8d93e6350ac32865d8e0018faa91` 或其后续纯治理/文档提交切出独立分支，保持 Phase 1~8D 已冻结的领域、数据库、RPC/API、UI 与治理边界。Phase 8D 的独立审查链已落盘为 `docs/Phase8/20_PHASE8D_INDEPENDENT_REVIEW_RECORD.md`，其中明确区分了可外部复现的 CI/test 证据与仅属 agent attestation 的判决。Phase 8E controlling candidate 为 `docs/Phase8/21_PHASE8E_REWARD_WISHES_IMPLEMENTATION_CONTROLLING.md`；D1/D2 已由用户决策、D3 已获 admission gate 接受，Round 1 `0048` 已在真实 PostgreSQL 上验证完毕；生产实现继续 BLOCKED，直至 Round 1 的 exact-head CI 与 fresh Gatekeeper `P0=0 / P1=0 / P2=0 + GO`。
+Phase 8C 与 Phase 8D 均已全面闭环并永久冻结。所有后续工作必须从当前 main 基线 `a1da765e492b8d93e6350ac32865d8e0018faa91` 或其后续纯治理/文档提交切出独立分支，保持 Phase 1~8D 已冻结的领域、数据库、RPC/API、UI 与治理边界。Phase 8D 的独立审查链已落盘为 `docs/Phase8/20_PHASE8D_INDEPENDENT_REVIEW_RECORD.md`，其中明确区分了可外部复现的 CI/test 证据与仅属 agent attestation 的判决。Phase 8E controlling candidate 为 `docs/Phase8/21_PHASE8E_REWARD_WISHES_IMPLEMENTATION_CONTROLLING.md`；D1/D2 已由用户决策、D3 已获 admission gate 接受，Round 1 `0048` 已在真实 PostgreSQL 与 PR #40 exact-head CI 上验证；Round 2 仅包含 `0049` RPC authority、proposal settlement extension 与真实 DB/并发测试，不包含 API/UI。生产 RPC 继续 BLOCKED，直至 corrective exact-head CI 与 fresh Gatekeeper `P0=0 / P1=0 / P2=0 + GO`。
 
 后续建议执行顺序：
-1. **Phase 8E admission gate**：提交控制文档候选 exact head，运行治理门禁并取得 fresh independent Gatekeeper `P0=0 / P1=0 / P2=0 + GO`；在此之前不得创建 `0048/0049`、Reward RPC/API/UI，也不得直接复用 Phase 8D 的授权。
+1. **Phase 8E Round 1 corrective gate**：PR #40 head `958829c215626df165640a3f33279d28d4b05c9b` 的 CI Run `36713825255` 已双绿；提交 DB 门禁可复核性与文档一致性修正，取得新 exact-head CI 双绿及 fresh independent Gatekeeper `P0=0 / P1=0 / P2=0 + GO` 后，方可开始 Round 2 `0049`/RPC。API/UI 分属后续 Round 3/4，不得提前实现。
 2. **可选 backlog（需迁移，非门禁项）**：已合格 `CONTEXTUAL` 上 `rpc_evaluate_strategy_status(confirm=true)` 的错误码命名 `INSUFFICIENT_SUPPORT_FOR_PROMOTION` 不够精确（行为本身 fail-closed 且已有测试 pin）。
 3. **继续保持可审计性**：后续 PR 继续绑定 exact head、CI run、独立审查结论与 merge SHA；不得把历史失败改写为成功，也不得把 skipped/local-only 结果替代真实 database-backed CI 证据。

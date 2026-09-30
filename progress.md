@@ -348,3 +348,9 @@
 - 过程中修掉两个**本机复现环境**的坑（非被测代码缺陷）：① `.env.local` 白名单在覆盖文件之后执行，把 `NEXT_PUBLIC_SUPABASE_URL` 写回 dev 的 54321，导致「pg 写一次性栈 / PostgREST 读 dev 栈」混用，出现 4 个假失败；② 本机 `.next` 是早先用 dev 凭据构建的，而 CI 是在导出一次性栈凭据**之后**才 build（`NEXT_PUBLIC_*` 会内联进产物），导致进程内起 Next 的 HTTP/E2E 套件全部 401，按 CI 顺序重建后全绿。
 - 环境已完整还原：一次性栈 `supabase stop --no-backup` 后残留容器 0、dev 栈 11 个容器与 `54321`/`54322` 正常；dev DB 清回基线 `users=10 / activities=2 / 8E 四表全 0 / 禁用触发器 0`（混用期间被写脏的 13 个测试账号已按「禁用 public 触发器 + 按外键循环删子表」流程清除）；`.next` 已用 dev 凭据重建；仓库 tracked 文件未被环境操作改动。
 - PR **#40** 已由用户创建（base `main` @ `be949deb`，head `59a45f5`），创建时状态为 conflict（`dirty`）且未触发任何 CI run。已把 `origin/main` 合并进分支并解决 `docs/MASTER_PROJECT_HANDOFF.md`、`task_plan.md` 的冲突（保留 main 的 8D FINAL FROZEN + 文档 20 叙述，并追加 Phase 8E Round 1 状态），`progress.md` 自动合并成功。
+
+## 2026-09-30 — Phase 8E Round 1：PR #40 exact-head CI 与 corrective gate
+
+- PR #40 当前 exact head `958829c215626df165640a3f33279d28d4b05c9b`，base `be949deb67f62269d58a0e21865580d0e67204e0`，GitHub 显示 `mergeable=true / mergeable_state=clean`。Actions Run `36713825255` 的 `check` 与 `supabase-integration` 均 success。
+- 公开 Jobs API 可复核 `supabase-integration` 的 `Export local Supabase credentials` 与 `Run database-backed tests` 两个步骤均 success；`scripts/export-supabase-ci-env.cjs` 在 `DB_URL` 缺失时 exit 1，并把非空值写入 `XP_RPG_TEST_DB_URL`；`tests/phase8e-db-foundation.test.ts` 唯一 skip 条件正是该变量缺失。因此该 exact-head 的 Phase 8E DB suite 不可能以缺少 DB URL 的 skip 路径得到成功。为让后续审查无需下载受限 job log，在 integration workflow 中新增独立的 `Verify database test gate is active` 步骤，缺少变量即失败。
+- Fresh 独立 Gatekeeper 对 `958829c` 返回 `P0=0 / P1=2 / P2=0 + NO-GO`：P1-01 为公开 job log 下载受限导致 0-skip 证据不可直接复核；P1-02 为 `task_plan.md` 将 Round 2 错写成含 API/UI，且 Master handoff 保留了“尚未创建 0048”的过时 admission 待办。本次仅修复 CI 证据可见性与上述文档矛盾；不创建 `0049`，Round 2 继续 BLOCKED，等待 corrective exact-head CI 与新的 fresh Gatekeeper。
