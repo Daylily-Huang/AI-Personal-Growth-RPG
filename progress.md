@@ -301,3 +301,5 @@
 - Round 1 exact head `ac7c27a...` 的独立 Gatekeeper 返回 `P0=0 / P1=2 / P2=1 + NO-GO`：WISH ledger tenant、exact correction/refund guards 不完整；`src/lib/reward/` 未纳入 visual backend freeze。现补齐永久账本关联守卫、反例测试与精确 `fold.ts` allowlist；真实 DB 未运行继续作为未验证 P2，不进入 Round 2。
 - Corrective head `b898bc9...` 的 fresh Gatekeeper 返回 `P0=0 / P1=1 / P2=1 + NO-GO`：生产 SQL 两项 P1 已关闭，但 direct-write 测试使用不完整载荷，可能因 NOT NULL 而错误通过。现改为完整可落库载荷、精确 SQLSTATE `42501` 与四表前后行数不变断言；真实 DB P2 仍未验证。
 - Corrective head `d7d7a75...` 的 fresh Gatekeeper 返回 `P0=0 / P1=1 / P2=1 + NO-GO`：完整载荷已关闭前项，但 `SET ROLE` 自身的 42501 仍可能冒充 INSERT 拒绝。现将角色/JWT/current_user/auth.uid 核验移到捕获范围外，仅捕获目标 INSERT，并保留 SQLSTATE 与零副作用断言。
+- Exact head `6f8dfdd640f41b24fc8ae3d58443c94f477e4753` 的 fresh Gatekeeper 返回 `P0=0 / P1=0 / P2=1 + Round 1 GO`。Round 1 代码/静态门禁通过；Round 2 继续 BLOCKED，必须先在该 HEAD 或仅补验证证据的后继 HEAD 上跑通真实 PostgreSQL 套件。
+- 本机真实 DB 阻塞已独立诊断：Supabase CLI 2.114.0 可用；WSL2/Ubuntu 正常；Docker Desktop backend 因 `C:\Users\Administrator\AppData\Local\Docker\run\sailor-ingest.sock` 返回 Error 1920 而崩溃，停止服务后 Move/Remove/fsutil 仍无法访问；Ubuntu 侧未发现 `psql/postgres/initdb/pg_ctl`。未删除 socket、镜像、容器或 volume，Docker 服务恢复为原先的 stopped 状态。
