@@ -13,10 +13,16 @@ describe.skipIf(!DATABASE_URL)("Phase 8E Round 1 — Reward/Wish DB foundation",
   async function asRole<T>(role: "anon" | "authenticated" | "service_role", userId: string | null, run: () => Promise<T>): Promise<T> {
     await pg.query(`set role ${role}`);
     await pg.query("select set_config('request.jwt.claim.sub', $1, false)", [userId ?? ""]);
+    let completed = false;
     try {
-      return await run();
+      const result = await run();
+      completed = true;
+      return result;
     } finally {
-      await pg.query("reset role");
+      // A failed SQL statement leaves the transaction aborted until the
+      // surrounding savepoint rollback. Reset only on success; the failure
+      // helper rolls back SET ROLE and then explicitly resets the role.
+      if (completed) await pg.query("reset role");
     }
   }
 
@@ -24,7 +30,10 @@ describe.skipIf(!DATABASE_URL)("Phase 8E Round 1 — Reward/Wish DB foundation",
     return asRole("authenticated", userId, run);
   }
 
-  async function expectDbFailure(run: () => Promise<unknown>): Promise<void> {
+  async function expectDbFailure(
+    run: () => Promise<unknown>,
+    expectedCode?: string,
+  ): Promise<void> {
     failureSequence += 1;
     const savepoint = `phase8e_expected_failure_${failureSequence}`;
     await pg.query(`savepoint ${savepoint}`);
@@ -35,8 +44,12 @@ describe.skipIf(!DATABASE_URL)("Phase 8E Round 1 — Reward/Wish DB foundation",
       caught = error;
     }
     await pg.query(`rollback to savepoint ${savepoint}`);
+    await pg.query("reset role");
     await pg.query(`release savepoint ${savepoint}`);
     expect(caught).toBeDefined();
+    if (expectedCode) {
+      expect(caught).toMatchObject({ code: expectedCode });
+    }
   }
 
   async function createAccount(userId: string): Promise<{ id: string }> {
@@ -144,29 +157,86 @@ describe.skipIf(!DATABASE_URL)("Phase 8E Round 1 — Reward/Wish DB foundation",
   });
 
   test("RLS isolates owner reads and anon/service-role direct writes stay denied", async () => {
+    const account = await createAccount(USER_A);
     const wish = await createWish(USER_A, "Private wish");
     const otherView = await asUser(USER_B, () =>
       pg.query("select id from public.wishes where id = $1", [wish.id]),
     );
     expect(otherView.rows).toEqual([]);
 
+    await pg.query("update public.wishes set status = 'REDEEMED' where id = $1", [wish.id]);
+    const redeem = await pg.query<{ id: string }>(
+      `insert into public.reward_transactions
+         (account_id, user_id, event_kind, amount, canonical_source_type, canonical_source_id,
+          request_idempotency_key)
+       values ($1, $2, 'REDEEM', 100, 'WISH', $3, 'authority-fixture-redeem')
+       returning id`,
+      [account.id, USER_A, wish.id],
+    );
+
+    const countRows = async (): Promise<Record<string, number>> => {
+      const result = await pg.query<{ table_name: string; row_count: number }>(
+        `select 'reward_accounts'::text as table_name, count(*)::int as row_count
+           from public.reward_accounts where user_id in ($1, $2)
+         union all
+         select 'reward_transactions', count(*)::int
+           from public.reward_transactions where user_id in ($1, $2)
+         union all
+         select 'wishes', count(*)::int
+           from public.wishes where user_id in ($1, $2)
+         union all
+         select 'reward_redemptions', count(*)::int
+           from public.reward_redemptions where user_id in ($1, $2)`,
+        [USER_A, USER_B],
+      );
+      return Object.fromEntries(result.rows.map((row) => [row.table_name, row.row_count]));
+    };
+
+    const before = await countRows();
     const directWrites = [
-      "insert into public.reward_accounts (user_id) values ($1)",
-      "insert into public.reward_transactions (user_id) values ($1)",
-      "insert into public.wishes (user_id, title) values ($1, 'forbidden wish')",
-      "insert into public.reward_redemptions (user_id) values ($1)",
+      {
+        table: "reward_accounts",
+        sql: "insert into public.reward_accounts (user_id) values ($1)",
+        params: [USER_B],
+      },
+      {
+        table: "reward_transactions",
+        sql: `insert into public.reward_transactions
+                (account_id, user_id, event_kind, amount, canonical_source_type,
+                 canonical_source_id, policy_version, request_idempotency_key)
+              values ($1, $2, 'EARN', 100, 'SEASON', 'authority-season',
+                      'reward-v1', 'authority-direct-earn')`,
+        params: [account.id, USER_A],
+      },
+      {
+        table: "wishes",
+        sql: "insert into public.wishes (user_id, title, description, credit_cost) values ($1, 'forbidden wish', '', 50)",
+        params: [USER_A],
+      },
+      {
+        table: "reward_redemptions",
+        sql: `insert into public.reward_redemptions
+                (user_id, wish_id, transaction_id, credits_spent, celebration_note)
+              values ($1, $2, $3, 100, 'authority probe')`,
+        params: [USER_A, wish.id, redeem.rows[0]!.id],
+      },
     ];
     for (const role of ["anon", "service_role"] as const) {
-      for (const statement of directWrites) {
+      for (const write of directWrites) {
         await expectDbFailure(() =>
-          asRole(role, role === "anon" ? null : USER_A, () => pg.query(statement, [USER_A])),
+          asRole(role, role === "anon" ? null : USER_A, () => pg.query(write.sql, write.params)),
+          "42501",
         );
       }
     }
 
-    for (const statement of [directWrites[0], directWrites[1], directWrites[3]]) {
-      await expectDbFailure(() => asUser(USER_A, () => pg.query(statement, [USER_A])));
+    for (const write of directWrites.filter((candidate) => candidate.table !== "wishes")) {
+      await expectDbFailure(
+        () => asUser(USER_A, () => pg.query(write.sql, write.params)),
+        "42501",
+      );
     }
+    expect(await countRows()).toEqual(before);
   });
 
   test("ledger constraints and tenant triggers reject malformed or cross-tenant rows", async () => {
