@@ -300,3 +300,4 @@
 - Phase 8E Round 1 已实现 `0048` 四表/RLS/field authority/immutable guards、纯 `foldRewardLedger` 与静态/可选真实 DB 测试。定向测试 82 passed、全量测试 818 passed、TypeScript/ESLint、Next production build 均通过。真实 DB 测试未验证：Supabase CLI 2.114.0 可用，但 Docker Desktop Linux engine 未建立 `dockerDesktopLinuxEngine` 管道。
 - Round 1 exact head `ac7c27a...` 的独立 Gatekeeper 返回 `P0=0 / P1=2 / P2=1 + NO-GO`：WISH ledger tenant、exact correction/refund guards 不完整；`src/lib/reward/` 未纳入 visual backend freeze。现补齐永久账本关联守卫、反例测试与精确 `fold.ts` allowlist；真实 DB 未运行继续作为未验证 P2，不进入 Round 2。
 - Corrective head `b898bc9...` 的 fresh Gatekeeper 返回 `P0=0 / P1=1 / P2=1 + NO-GO`：生产 SQL 两项 P1 已关闭，但 direct-write 测试使用不完整载荷，可能因 NOT NULL 而错误通过。现改为完整可落库载荷、精确 SQLSTATE `42501` 与四表前后行数不变断言；真实 DB P2 仍未验证。
+- Corrective head `d7d7a75...` 的 fresh Gatekeeper 返回 `P0=0 / P1=1 / P2=1 + NO-GO`：完整载荷已关闭前项，但 `SET ROLE` 自身的 42501 仍可能冒充 INSERT 拒绝。现将角色/JWT/current_user/auth.uid 核验移到捕获范围外，仅捕获目标 INSERT，并保留 SQLSTATE 与零副作用断言。

@@ -52,6 +52,41 @@ describe.skipIf(!DATABASE_URL)("Phase 8E Round 1 — Reward/Wish DB foundation",
     }
   }
 
+  async function expectDirectWriteDenied(args: {
+    role: "anon" | "authenticated" | "service_role";
+    userId: string | null;
+    sql: string;
+    params: unknown[];
+  }): Promise<void> {
+    // Role setup is deliberately outside the expected-failure savepoint. A
+    // connection that cannot enter the requested role must fail the test here,
+    // rather than letting SET ROLE's 42501 impersonate a table/RLS denial.
+    await pg.query(`set role ${args.role}`);
+    await pg.query("select set_config('request.jwt.claim.sub', $1, false)", [args.userId ?? ""]);
+    const identity = await pg.query<{ current_role: string; uid: string | null }>(
+      "select current_user::text as current_role, auth.uid()::text as uid",
+    );
+    expect(identity.rows[0]).toEqual({
+      current_role: args.role,
+      uid: args.userId,
+    });
+
+    failureSequence += 1;
+    const savepoint = `phase8e_direct_denial_${failureSequence}`;
+    await pg.query(`savepoint ${savepoint}`);
+    let caught: unknown;
+    try {
+      await pg.query(args.sql, args.params);
+    } catch (error) {
+      caught = error;
+    }
+    await pg.query(`rollback to savepoint ${savepoint}`);
+    await pg.query(`release savepoint ${savepoint}`);
+    await pg.query("reset role");
+
+    expect(caught).toMatchObject({ code: "42501" });
+  }
+
   async function createAccount(userId: string): Promise<{ id: string }> {
     const result = await pg.query<{ id: string }>(
       "insert into public.reward_accounts (user_id) values ($1) returning id",
@@ -223,18 +258,22 @@ describe.skipIf(!DATABASE_URL)("Phase 8E Round 1 — Reward/Wish DB foundation",
     ];
     for (const role of ["anon", "service_role"] as const) {
       for (const write of directWrites) {
-        await expectDbFailure(() =>
-          asRole(role, role === "anon" ? null : USER_A, () => pg.query(write.sql, write.params)),
-          "42501",
-        );
+        await expectDirectWriteDenied({
+          role,
+          userId: role === "anon" ? null : USER_A,
+          sql: write.sql,
+          params: write.params,
+        });
       }
     }
 
     for (const write of directWrites.filter((candidate) => candidate.table !== "wishes")) {
-      await expectDbFailure(
-        () => asUser(USER_A, () => pg.query(write.sql, write.params)),
-        "42501",
-      );
+      await expectDirectWriteDenied({
+        role: "authenticated",
+        userId: USER_A,
+        sql: write.sql,
+        params: write.params,
+      });
     }
     expect(await countRows()).toEqual(before);
   });
