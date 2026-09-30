@@ -95,6 +95,12 @@ All target-selection and reservation RPCs lock the account and the caller's sele
 
 The frozen RPC contract supplies a seven-day cooldown after redemption. `rpc_reserve_wish_credits` must reject reservation while any caller-owned redeemed wish has `cooldown_until > clock_timestamp()`. The seven-day value is treated as the frozen v1 constant; changing it requires a later governed policy revision.
 
+### 4.6 `IDEA -> ACTIVE` requires an authority path
+
+The frozen lifecycle requires `IDEA -> ACTIVE`, while the schema plan limits direct client updates to editable content and the frozen RPC inventory omits an activation RPC. Without a narrow authority path, an IDEA Wish cannot legally become ACTIVE.
+
+Phase 8E therefore adds `rpc_activate_wish` as the tenth RPC. It authenticates ownership, locks the Wish row, requires `status = 'IDEA'` and positive `credit_cost`, transitions exactly `IDEA -> ACTIVE`, writes `WISH_ACTIVATED` audit evidence, and is idempotent by request key. It performs no ledger mutation. Direct client status updates remain forbidden.
+
 ## 5. Domain Model
 
 ### 5.1 Reward transaction taxonomy
@@ -224,6 +230,7 @@ Authorized RPCs:
 
 - `rpc_grant_reward_credit`
 - `rpc_correct_reward_transaction`
+- `rpc_activate_wish`
 - `rpc_set_primary_wish`
 - `rpc_reserve_wish_credits`
 - `rpc_unreserve_wish_credits`
@@ -275,6 +282,7 @@ The exact route inventory must be frozen before Round 3. At minimum it must supp
 - exact migration order and four-table inventory;
 - no FK or trigger path from reward tables to `xp_transactions`;
 - immutable ledger/receipt guards and grants;
+- Wish creation pinned to `IDEA`, direct status mutation rejected, and `IDEA -> ACTIVE` available only through `rpc_activate_wish`;
 - pure `foldRewardLedger` examples A/B/C plus impossible-state throws;
 - TypeScript/PostgreSQL fold parity fixtures;
 - canonical source and policy-version validation;
@@ -310,7 +318,7 @@ No round may begin before the prior round has an exact-head green CI result and 
 
 1. **Admission**: resolve §13, freeze this document, exact-head independent review.
 2. **Round 1 — DB foundation**: `0048`, four tables, constraints, RLS, field authority, immutable guards, pure fold implementation/tests. No production RPCs.
-3. **Round 2 — RPC authority**: `0049`, policy/source validation, nine RPCs, proposal settlement extension, real DB/concurrency tests. No API/UI.
+3. **Round 2 — RPC authority**: `0049`, policy/source validation, ten RPCs, proposal settlement extension, real DB/concurrency tests. No API/UI.
 4. **Round 3 — Server boundary**: repository/service/request/http/routes plus real authenticated HTTP tests. No UI.
 5. **Round 4 — Wishes UI**: `/rewards/wishes`, accessibility/responsive tests, no new authority.
 6. **Round 5 — Exit verification**: O001–O005/O019/O020, full suite, deterministic harness, lint, production build, real DB/E2E, final exact-head Gatekeeper.
@@ -335,7 +343,7 @@ Admission review must explicitly accept both narrow interpretations: `REAL_WORLD
 Phase 8E is complete only when:
 
 - D1 and D2 remain implemented exactly as the recorded user decisions, and admission Gatekeeper explicitly accepts D3;
-- all four tables and nine RPCs match this authority contract;
+- all four tables and ten RPCs match this authority contract;
 - every account cache equals deterministic ledger fold;
 - direct and cross-tenant writes fail closed;
 - all exit tests and full project gates pass without relevant skips in exact-head CI;

@@ -289,3 +289,6 @@
 - 用户明确批准 D1：采用 immutable versioned PostgreSQL function `reward-v1`；额度冻结为 Season 150，Quest Major/Epic/Main-or-Boss 为 100/150/200，Mastery M6/M8/M10 为 100/150/250。
 - 用户明确批准 D2：Phase 8E 延后 Artifact EARN，等待独立、确定性的验证标准；当前必须 fail closed 且零 ledger mutation。
 - 控制文档已从 PRE-ADMISSION DRAFT 更新为 ADMISSION CANDIDATE；生产实现仍需 fresh exact-head Gatekeeper 接受 D3 并返回 `P0=0 / P1=0 / P2=0 + GO`。
+- Admission exact head `080accd5b49088ba8e62686bb2a54dcdc189c515` 已获 fresh independent Gatekeeper `P0=0 / P1=0 / P2=0 + GO`；D3 明确接受，Phase 8E 仅获准进入 Round 1。
+- Round 1 范围锁定：`0048` 四表 foundation、RLS/tenant/field-authority/immutability guards、纯 `foldRewardLedger` 与测试；`0049` RPC、API、UI 继续 gated。
+- Round 1 写入前发现 admission contract 的新 P1：`IDEA -> ACTIVE` 生命周期没有合法 authority path；直接客户端状态更新被禁止，原九 RPC 也无 activate。生产写入继续暂停，先补 `rpc_activate_wish` 控制契约并重新送 Gatekeeper。

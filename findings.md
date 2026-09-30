@@ -237,3 +237,6 @@
 - Phase 8E 控制草案的独立审查未发现 P0/P1/P2；但“文档无缺陷”不等于 admission GO。D1/D2 用户决策和 D3 后续 exact-head Gatekeeper 接受仍是正式前置条件。
 - D1 已由用户冻结：`reward-v1` 为不可变版本化 SQL 函数；Season=150，Quest Major/Epic/Main-or-Boss=100/150/200，Mastery M6/M8/M10=100/150/250。Quest 多重命中只取最高档。
 - D2 已由用户冻结：Phase 8E 不实现 Artifact EARN；`ARTIFACT` 与 `REAL_WORLD_VERIFIED` 均以 `SOURCE_CLASS_NOT_YET_AVAILABLE` fail closed，不得产生 ledger row。
+- Admission Gatekeeper 已在 exact head `080accd...` 接受 D3 并给 GO。现有 migration chain 到 `0047`，Round 1 foundation 编号为 `0048`。
+- 现有 visual/governance delta guard 只绑定到 Phase 8D；Phase 8E 必须新增精确控制文档绑定与 exact path allowlist，不能授权整个 `src/lib`、`tests` 或 migrations 目录。
+- Frozen Wish lifecycle 要求 `IDEA -> ACTIVE`，但 schema plan 又把直接 UPDATE 限于内容字段，既有 RPC inventory 没有 activation。若不补 authority，IDEA 是死状态；最小修复是新增无 ledger side effect、带审计和幂等的 `rpc_activate_wish`，RPC 总数从 9 改为 10。
