@@ -70,6 +70,7 @@ const EXPECTED_ORDER = [
   "0045_phase8c_journal_state_foundation",
   "0046_phase8d_strategy_database_foundation",
   "0047_phase8d_strategy_rpc_authority",
+  "0048_phase8e_reward_wishes_foundation",
 ];
 
 
@@ -545,5 +546,78 @@ describe("Phase 8D Round 1 — Strategy schema authority", () => {
     expect(bootstrap).toContain("NEW.action_protocol");
     expect(bootstrap).toContain("NEW.context_trigger");
     expect(bootstrap).toContain("NEW.expected_outcome");
+  });
+});
+
+describe("Phase 8E Round 1 — Reward/Wish schema authority", () => {
+  const migrations = readMigrations();
+  const reward = migrations.get("0048_phase8e_reward_wishes_foundation") ?? "";
+  const compactReward = reward.replace(/\s+/g, " ");
+
+  test("0048 creates exactly the four authorized tables without XP coupling or Round 2 RPCs", () => {
+    expect(reward.match(/CREATE TABLE public\./g) ?? []).toHaveLength(4);
+    for (const table of [
+      "reward_accounts",
+      "reward_transactions",
+      "wishes",
+      "reward_redemptions",
+    ]) {
+      expect(reward).toContain(`CREATE TABLE public.${table}`);
+      expect(reward).toContain(`ALTER TABLE public.${table} ENABLE ROW LEVEL SECURITY;`);
+    }
+    expect(reward).not.toContain("xp_transactions");
+    expect(reward).not.toMatch(/CREATE OR REPLACE FUNCTION public\.rpc_/);
+    expect(reward).not.toContain("calculate_reward_grant_v1");
+  });
+
+  test("0048 freezes event taxonomy, uniqueness, circular FK order, and selected-Wish cardinality", () => {
+    for (const event of ["EARN", "CORRECTION", "RESERVE", "UNRESERVE", "REDEEM", "REFUND"]) {
+      expect(reward).toContain(`'${event}'`);
+    }
+    expect(reward).toContain("UNIQUE (user_id, request_idempotency_key)");
+    expect(reward).toContain("CREATE UNIQUE INDEX uq_reward_tx_canonical_source");
+    expect(reward).toContain("CREATE UNIQUE INDEX uq_reward_tx_correction_for");
+    expect(reward).toContain("CREATE UNIQUE INDEX uq_reward_tx_refund_for_redemption");
+    expect(reward).toContain("ADD CONSTRAINT reward_transactions_refund_redemption_fk");
+    expect(reward).toContain("CREATE UNIQUE INDEX uq_wishes_single_selected");
+    expect(compactReward).toContain("WHERE status IN ('PRIMARY', 'RESERVED');");
+    expect(reward).toContain("credit_cost integer NULL CHECK (credit_cost IS NULL OR credit_cost > 0)");
+  });
+
+  test("0048 keeps accounts/ledger/receipts RPC-only and grants only Wish draft metadata", () => {
+    for (const table of ["reward_accounts", "reward_transactions", "reward_redemptions"]) {
+      expect(reward).toContain(`GRANT SELECT ON public.${table} TO authenticated;`);
+      expect(reward).not.toMatch(
+        new RegExp(`GRANT (?:INSERT|UPDATE|DELETE)[^;]*ON public\\.${table} TO authenticated;`),
+      );
+    }
+    const wishInsert =
+      reward.match(/GRANT INSERT \([\s\S]*?\) ON public\.wishes TO authenticated;/)?.[0] ?? "";
+    const wishUpdate =
+      reward.match(/GRANT UPDATE \([\s\S]*?\) ON public\.wishes TO authenticated;/)?.[0] ?? "";
+    expect(wishInsert).toContain("user_id");
+    expect(wishInsert).toContain("credit_cost");
+    expect(wishInsert).not.toContain("status");
+    expect(wishInsert).not.toContain("cooldown_until");
+    expect(wishUpdate).toMatch(/GRANT UPDATE \(title, description, credit_cost\)/);
+    expect(reward).not.toMatch(/GRANT DELETE[^;]*ON public\.wishes TO authenticated;/);
+  });
+
+  test("0048 installs fail-closed tenant, field-authority, and immutable-row triggers", () => {
+    for (const trigger of [
+      "trg_enforce_reward_transaction_integrity",
+      "trg_prevent_reward_transaction_mutation",
+      "trg_enforce_wish_field_authority",
+      "trg_enforce_reward_redemption_integrity",
+      "trg_prevent_reward_redemption_mutation",
+    ]) {
+      expect(reward).toContain(`CREATE TRIGGER ${trigger}`);
+      expect(reward).toContain(`REVOKE ALL ON FUNCTION public.${trigger}()`);
+    }
+    expect(reward).toContain("NEW.user_id IS DISTINCT FROM v_account_user_id");
+    expect(reward).toContain("NEW.user_id IS DISTINCT FROM v_wish_user_id");
+    expect(reward).toContain("NEW.user_id IS DISTINCT FROM v_transaction_user_id");
+    expect(reward).toContain("OLD.status NOT IN ('IDEA', 'ACTIVE')");
+    expect(reward).toContain("NEW.status IS DISTINCT FROM OLD.status");
   });
 });

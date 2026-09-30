@@ -106,6 +106,13 @@ export const PHASE8D_STRATEGY_AUTHORIZED_BACKEND = [
   'supabase/migrations/0047_phase8d_strategy_rpc_authority.sql',
 ];
 
+export const PHASE8E_REWARD_WISHES_CONTROL_DOCUMENT =
+  'docs/Phase8/21_PHASE8E_REWARD_WISHES_IMPLEMENTATION_CONTROLLING.md';
+
+export const PHASE8E_ROUND1_AUTHORIZED_BACKEND = [
+  'supabase/migrations/0048_phase8e_reward_wishes_foundation.sql',
+];
+
 export function isFrozenBackendViolation(filePath: string): boolean {
   if (AUTHORIZED_CORE_BUGFIX_ALLOWLIST.includes(filePath)) {
     return false;
@@ -139,6 +146,11 @@ export function validateVisualMigrationDelta(changedFiles: string[]): VisualMigr
   }
   if (changedFiles.includes(PHASE8D_STRATEGY_PLAYBOOK_CONTROL_DOCUMENT)) {
     for (const file of PHASE8D_STRATEGY_AUTHORIZED_BACKEND) {
+      authorizedBackend.add(file);
+    }
+  }
+  if (changedFiles.includes(PHASE8E_REWARD_WISHES_CONTROL_DOCUMENT)) {
+    for (const file of PHASE8E_ROUND1_AUTHORIZED_BACKEND) {
       authorizedBackend.add(file);
     }
   }
@@ -575,5 +587,29 @@ describe('Visual Foundation & Design Tokens Runtime Verification', () => {
       'src/app/api/strategies/unapproved/route.ts',
     ]);
     expect(unknown.violations).toEqual(['src/app/api/strategies/unapproved/route.ts']);
+  });
+
+  it('27. authorizes only the Phase 8E Round 1 migration bound to its controlling document', () => {
+    const accepted = validateVisualMigrationDelta([
+      PHASE8E_REWARD_WISHES_CONTROL_DOCUMENT,
+      'src/app/journey/rewards/page.tsx',
+      ...PHASE8E_ROUND1_AUTHORIZED_BACKEND,
+    ]);
+    expect(accepted.violations).toEqual([]);
+
+    const unbound = validateVisualMigrationDelta([
+      'src/app/journey/rewards/page.tsx',
+      ...PHASE8E_ROUND1_AUTHORIZED_BACKEND,
+    ]);
+    expect(unbound.violations).toEqual(PHASE8E_ROUND1_AUTHORIZED_BACKEND);
+
+    const prematureRound2 = validateVisualMigrationDelta([
+      PHASE8E_REWARD_WISHES_CONTROL_DOCUMENT,
+      'src/app/journey/rewards/page.tsx',
+      'supabase/migrations/0049_phase8e_reward_wishes_rpc_authority.sql',
+    ]);
+    expect(prematureRound2.violations).toEqual([
+      'supabase/migrations/0049_phase8e_reward_wishes_rpc_authority.sql',
+    ]);
   });
 });
