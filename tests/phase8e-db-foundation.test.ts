@@ -179,15 +179,55 @@ describe.skipIf(!DATABASE_URL)("Phase 8E Round 1 — Reward/Wish DB foundation",
       status: "IDEA",
     });
 
-    await expectDbFailure(() =>
-      asUser(USER_A, () => pg.query("update public.wishes set status = 'ACTIVE' where id = $1", [wish.id])),
+    await expectDbFailure(
+      () => asUser(USER_A, () => pg.query("update public.wishes set status = 'ACTIVE' where id = $1", [wish.id])),
+      "42501",
     );
+
+    // ACTIVE is the second positive path named by the controlling contract:
+    // title/description/credit_cost stay editable while the Wish is IDEA or ACTIVE.
+    await pg.query("update public.wishes set status = 'ACTIVE' where id = $1", [wish.id]);
+    await asUser(USER_A, () =>
+      pg.query("update public.wishes set title = 'Active edit', description = 'Still editable', credit_cost = 150 where id = $1", [wish.id]),
+    );
+    const activeEdited = await pg.query(
+      "select title, description, credit_cost, status from public.wishes where id = $1",
+      [wish.id],
+    );
+    expect(activeEdited.rows[0]).toMatchObject({
+      title: "Active edit",
+      description: "Still editable",
+      credit_cost: 150,
+      status: "ACTIVE",
+    });
+
+    // Past ACTIVE the same statement must fail loudly (SQLSTATE 42501) instead of
+    // silently matching zero rows through the RLS USING clause, which would leave
+    // the field-authority trigger unreachable and hand clients a no-op success.
     await pg.query("update public.wishes set status = 'PRIMARY' where id = $1", [wish.id]);
-    await expectDbFailure(() =>
-      asUser(USER_A, () => pg.query("update public.wishes set title = 'Too late' where id = $1", [wish.id])),
+    await expectDbFailure(
+      () => asUser(USER_A, () => pg.query("update public.wishes set title = 'Too late' where id = $1", [wish.id])),
+      "42501",
     );
-    await expectDbFailure(() =>
-      asUser(USER_A, () => pg.query("delete from public.wishes where id = $1", [wish.id])),
+    const afterDenial = await pg.query(
+      "select title, description, credit_cost, status from public.wishes where id = $1",
+      [wish.id],
+    );
+    expect(afterDenial.rows[0]).toMatchObject({
+      title: "Active edit",
+      description: "Still editable",
+      credit_cost: 150,
+      status: "PRIMARY",
+    });
+
+    await expectDbFailure(
+      () => asUser(USER_A, () =>
+        pg.query("update public.wishes set cooldown_until = clock_timestamp() where id = $1", [wish.id])),
+      "42501",
+    );
+    await expectDbFailure(
+      () => asUser(USER_A, () => pg.query("delete from public.wishes where id = $1", [wish.id])),
+      "42501",
     );
   });
 

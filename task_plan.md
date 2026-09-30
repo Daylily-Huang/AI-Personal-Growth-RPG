@@ -4,7 +4,7 @@
 > **当前里程碑**: Phase 8D — Strategy + Personal Playbook（FINAL FROZEN）；Phase 8E — Reward Economy + Wishes（**ADMISSION CANDIDATE / production BLOCKED**）
 > **当前主分支基线 (main)**: `a1da765e492b8d93e6350ac32865d8e0018faa91`
 > **最新状态**: Phase 8C **FINAL FROZEN**；Phase 8D admission 与 Round 1–5 全部通过。Round 5 corrective implementation exact head `8b33cca8e994ba45862194d5588642e9e76626ba` 的 CI Run `36590521018` 双绿，fresh independent Gatekeeper `P0=0 / P1=0 / P2=0 + GO`；PR #37 已由用户合入 `main`（merge `b93273cd87d39e04a66ed0ebfd76fa95ebd2e643`），post-merge main CI Run `36593720889` 双绿。**Phase 8D = FINAL FROZEN**（归档 `docs/Phase8/19_PHASE8D_GATEKEEPER_REREVIEW_AND_FINAL_FREEZE.md`）。
-> **Phase 8E 当前状态**: ADMISSION CANDIDATE；D1 已冻结 `reward-v1` SQL 函数与精确额度，D2 已决定 Artifact EARN 延后。生产实现仍在 fresh exact-head Gatekeeper `P0=0 / P1=0 / P2=0 + GO` 前 **BLOCKED**。
+> **Phase 8E 当前状态**: ADMISSION CANDIDATE 已获 D3 接受；**Round 1 (`0048` 四表 foundation) 已在真实 PostgreSQL 上验证完毕**（本机 dev DB 应用 `0048` 后定向 6/6、全量 `1174 passed / 1 failed / 0 skipped`，唯一失败为本机历史数据导致的 `stage5b` case 1）。真实 DB 阻塞系上一轮误判（实为 Windows CLI 的 Docker Desktop 管道问题，测试仅由 `XP_RPG_TEST_DB_URL` 开关），并在真实执行中发现并修复了 `wishes_owner_update` 的静默 0 行缺陷。生产 RPC/API/UI 与 Round 2 (`0049`) 仍需 fresh exact-head Gatekeeper `P0=0 / P1=0 / P2=0 + GO` 后才解锁。
 
 ---
 
@@ -52,7 +52,7 @@
   - [complete] PR #33 已合入 main：merge `0e4bec5f26411669f7031af4523b6d4fca747f96`；post-merge main CI Run `35315613393` 全绿，DoD 最终 merge gate 已满足
 - [complete] **Phase 8C: Journal + State** ✅ FINAL FROZEN — PR #35；final reviewed exact head `f2f4d2b2d0a857348b6282dfdbfb3cfd08f4a06d`；Exact-Head CI `35381923343` success；merge `9aa76e7ce36b20b9f99e28d6cbd08eeb7bc55b85`；post-merge main CI `35432361509` success
 - [complete] **Phase 8D: Strategy + Personal Playbook** ✅ FINAL FROZEN — PR #37 已合入 `main`（merge `b93273cd87d39e04a66ed0ebfd76fa95ebd2e643`，post-merge main CI Run `36593720889` 双绿）；final reviewed implementation exact head `8b33cca8e994ba45862194d5588642e9e76626ba`，Gatekeeper `P0=0 / P1=0 / P2=0 + GO`。
-- [in_progress] **Phase 8E: Reward Economy + Wishes admission** — D1/D2 用户决策已写入 controlling candidate；等待本地 exact-head Gatekeeper，生产 migration/RPC/API/UI 保持 BLOCKED。
+- [in_progress] **Phase 8E: Reward Economy + Wishes admission** — D1/D2 用户决策已写入 controlling candidate，D3 已获 fresh Gatekeeper 接受（`cd24254`，`P0=0 / P1=0 / P2=0 + GO`）。Round 1 (`0048`) 生产 SQL/纯 fold 已实现，并已在**真实 PostgreSQL**上跑通（定向 6/6、全量 1174/1175，唯一失败为本机历史数据 `stage5b`）；期间修复 `wishes_owner_update` RLS `USING` 静默 0 行缺陷。Round 1 corrective head 待 fresh 独立 Gatekeeper；Round 2 (`0049` RPC/API/UI) 保持 BLOCKED。
 
 ### 2026-09-29 — Round 4 Playbook UI
 

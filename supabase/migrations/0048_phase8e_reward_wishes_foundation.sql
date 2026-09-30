@@ -387,9 +387,15 @@ CREATE POLICY wishes_owner_insert ON public.wishes
   FOR INSERT TO authenticated
   WITH CHECK (auth.uid() = user_id AND status = 'IDEA' AND cooldown_until IS NULL);
 
+-- USING is intentionally ownership-only. Filtering rows by lifecycle state here
+-- would make a disallowed metadata edit match zero rows instead of failing, so
+-- the client would receive a silent no-op and the field-authority trigger below
+-- would never fire for the exact states it exists to protect. Denial is the
+-- trigger's job (SQLSTATE 42501); WITH CHECK keeps the lifecycle guard as
+-- defence in depth if the trigger is ever dropped.
 CREATE POLICY wishes_owner_update ON public.wishes
   FOR UPDATE TO authenticated
-  USING (auth.uid() = user_id AND status IN ('IDEA', 'ACTIVE'))
+  USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id AND status IN ('IDEA', 'ACTIVE'));
 
 CREATE POLICY reward_redemptions_owner_select ON public.reward_redemptions
