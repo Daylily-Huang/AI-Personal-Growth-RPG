@@ -311,7 +311,13 @@
 - `XP_RPG_TEST_DB_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres` 下首跑 `tests/phase8e-db-foundation.test.ts`：**5 passed / 1 failed**。失败用例「authenticated metadata edits are narrow and stop after ACTIVE」暴露真实缺陷：`wishes_owner_update` 的 `USING (auth.uid() = user_id AND status IN ('IDEA','ACTIVE'))` 会把越权 UPDATE 过滤成 **0 行**而非报错，导致 `trg_enforce_wish_field_authority` 对 `PRIMARY` 等状态完全不可达，客户端拿到静默成功。已改为 ownership-only `USING`（拒绝由触发器 `42501` 负责，`WITH CHECK` 作为纵深防御），并补契约要求的第二条正向路径（`ACTIVE` 期间仍可改 title/description/credit_cost）、拒绝后行内容不变断言、cooldown 与 DELETE 的 `42501` 断言。
 - 全量真实 DB 套件（`.data/run-tests.cjs`，只注入 `.env.local` 的 Supabase 凭据 + `XP_RPG_TEST_DB_URL`，`CI=true`）：修复前 `1173 passed / 2 failed / 0 skipped (1175)`，修复后 `1174 passed / 1 failed / 0 skipped (1175)`；唯一剩余失败是本机历史数据导致的 `tests/stage5b-db-repository.test.ts` case 1（`d1111111-1111-4000-a000-000000000001` 已被 `demo_player@growth-rpg.dev` 占用 + `on conflict (id) do nothing`），与 8E 无关、CI 干净库不复现。
 - 曾把 `.env.local` 整份注入测试进程，导致 `AI_BASE_URL` 指向已下线的 `127.0.0.1:3099` 桥接、mock AI 未启动，产生 3 个 e2e + 1 个 stage5d 假失败（超时/502）；改为白名单注入后全部通过。`tsc --noEmit`、`eslint`、`next build` 均 exit 0。
-- 空库可复现性由本轮自查的独立 scratch DB 证明（**不是** `empty-db-migration.smoke`）：Gatekeeper 指出该 smoke 在 `public.activities` 已存在时会跳过整个 migration 循环（`tests/empty-db-migration.smoke.test.ts:52-59`），本机即为此情形，故原引用无效。实际做法：`create database gk8e_owner_verify` + 最小 `auth` shim（`auth.users`、`auth.uid()`），以 `psql -v ON_ERROR_STOP=1 -1 -f -` 应用 HEAD 的 `0048` blob → 0 error，四表/5 触发器全部创建，四表 policy 指纹 `md5=7881dbec1a794d84ecf5e631e72d0364` 与 dev DB **完全一致**，随后 `drop database`。
+- 空库可复现性由本轮自查的独立 scratch DB 证明（**不是** `empty-db-migration.smoke`）：Gatekeeper 指出该 smoke 在 `public.activities` 已存在时会跳过整个 migration 循环（`tests/empty-db-migration.smoke.test.ts:52-59`），本机即为此情形，故原引用无效。实际做法：`create database gk8e_owner_verify` + 最小 `auth` shim（`auth.users`、`auth.uid()`），以 `psql -v ON_ERROR_STOP=1 -1 -f -` 应用 corrective head `5e0d449003a88da98c3659cd7adbae64ef951046` 的 `0048` blob → 0 error（4 张表、5 个触发器、6 条 policy），随后 `drop database`。指纹命令如下（dev DB 与 scratch DB 各执行一次，输出完全相同）：
+
+`select md5(string_agg(polname || '|' || pg_get_expr(polqual, polrelid) || '|' || coalesce(pg_get_expr(polwithcheck, polrelid), '-'), E'\n' order by polname)) from pg_policy where polrelid in ('public.wishes'::regclass, 'public.reward_accounts'::regclass, 'public.reward_transactions'::regclass, 'public.reward_redemptions'::regclass);`
+
+两边结果均为 `7881dbec1a794d84ecf5e631e72d0364`。（此前只写了摘要值未附命令，第三位 Gatekeeper 因此无法复算；该值本身可复现。）
+- 测试残留已清理：删除 27 个时间戳/`phase8d-*` 测试账号（事务内先禁用 public 触发器、按 `auth.users` 外键循环删子表、再启用触发器），本机 dev DB 回到基线 `users=10`、`activities=2`、禁用触发器 0、孤儿行 0；`wishes/reward_accounts/reward_transactions/reward_redemptions` 全为 0。
+- 本轮为 corrective exact head，Round 1 已重新送 fresh 独立 Gatekeeper（见下一节）。
 
 ## 2026-09-30 — Phase 8E Round 1：两个 fresh 独立 Gatekeeper 复核与 P2 关闭
 
@@ -322,6 +328,5 @@
   3. 补系统时间戳直接写拒绝断言：`authenticated` 改 `created_at`/`updated_at` 均 `42501`，且在可编辑的 `ACTIVE` 状态下断言，排除「因生命周期被拒」的错误归因。
   4. 记录（非认可）Round 2 前置条件：契约允许 `IDEA/ACTIVE` 期间改 `credit_cost` 且该列可为 NULL，属主当前可把 `ACTIVE` Wish 的 `credit_cost` 清空（测试已固化该行为），因此 `rpc_reserve_wish_credits` / `rpc_set_primary_wish` 必须对 NULL cost fail closed，不能假设「ACTIVE ⇒ 有正数 cost」。
 - 残留清理：两位 Gatekeeper 的全量跑又留下 18 个时间戳/`phase8d-*` 账号（其中一位因 `trg_prevent_strategy_version_mutation` 拒绝直接删除而保留），已按既定「事务内禁用 public 触发器 + 按 `auth.users` 外键循环删子表」流程清空；dev DB 回到 `users=10`、残留 0、禁用触发器 0。
-- 待办：该后继 head 需重新推送 → 用户创建 PR → exact-head CI 双绿 → 再跑一次 fresh Gatekeeper `P2=0 + GO`，方可解锁 Round 2 (`0049`)。
-- 测试残留已清理：删除 27 个时间戳/`phase8d-*` 测试账号（事务内先禁用 public 触发器、按 `auth.users` 外键循环删子表、再启用触发器），本机 dev DB 回到基线 `users=10`、`activities=2`、禁用触发器 0、孤儿行 0；`wishes/reward_accounts/reward_transactions/reward_redemptions` 全为 0。
-- 本轮为 corrective exact head，Round 1 需重新做 fresh 独立 Gatekeeper；Round 2（`0049`/RPC）在取得该 GO 前继续 BLOCKED。
+- 第三位 fresh Gatekeeper 复核 P2 关闭提交 `5e0d449003a88da98c3659cd7adbae64ef951046`：`P0=0 / P1=0 / P2=1 + GO`。唯一 P2 是 `progress.md` 只记录指纹摘要值、未附复算命令（已在上一节补全命令）；另指出送出任务书时的 head 全 SHA 写错（真实值如上，已核对 `git cat-file`）。它同时做了**变异测试**证明新断言可失败：把四张表的 owner_select policy 依次改成 `USING (true)` 会让对应那张表的断言分别失败；把 `wishes_owner_select` 改成 `auth.uid() <> user_id` 会让 6/6 全败；把 `credit_cost` 改成 `NOT NULL` 会让 metadata 用例失败——均随后回滚/恢复为 6/6。
+- 待办：`5e0d449` 已推送 origin；等用户创建 PR → exact-head CI 双绿（DB/concurrency 套件不得 skip）→ 再跑一次 fresh Gatekeeper 取得 `P2=0 + GO`，方可解锁 Round 2 (`0049`)。
