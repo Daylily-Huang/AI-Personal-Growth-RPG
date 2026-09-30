@@ -242,3 +242,4 @@
 - Frozen Wish lifecycle 要求 `IDEA -> ACTIVE`，但 schema plan 又把直接 UPDATE 限于内容字段，既有 RPC inventory 没有 activation。若不补 authority，IDEA 是死状态；最小修复是新增无 ledger side effect、带审计和幂等的 `rpc_activate_wish`，RPC 总数从 9 改为 10。
 - Activation 是 non-ledger lifecycle RPC，不能继承财务 RPC 的 account lock/fold 义务。所有 RPC 共用认证、归属、bound replay 与审计规则；只有 grant/correct/reserve/unreserve/redeem/refund 六个 RPC 写 ledger/account。
 - Lifecycle RPC 的 request key 必须绑定 user + rpc + target + canonical payload fingerprint；相同 tuple 返回审计中保存的 result snapshot，不同 tuple 复用同 key 必须在状态检查前返回 `409 IDEMPOTENCY_KEY_REUSED`。
+- Authority wording must distinguish ledger/lifecycle mutation from user-authored draft metadata. Financial changes and status transitions are RPC-only; Wish INSERT and title/description/credit_cost edits in IDEA/ACTIVE may be direct only through exact column grants, RLS, and field-authority triggers.

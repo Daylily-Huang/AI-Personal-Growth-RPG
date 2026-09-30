@@ -49,7 +49,7 @@ The following frozen documents remain controlling unless this document explicitl
 1. `XP != reward credit`; no reward operation may insert, update, delete, or settle `xp_transactions`.
 2. Reward truth is the append-only `reward_transactions` ledger. `reward_accounts` is only a transactionally maintained cache of the deterministic fold.
 3. Historical reward rows and redemption receipts are immutable. Corrections and refunds are compensating events, never edits or deletes.
-4. Every mutation is tenant-bound, idempotent, auditable, and committed through an authenticated database authority RPC.
+4. Every financial mutation and every Wish lifecycle transition is tenant-bound, idempotent, auditable, and committed through an authenticated database authority RPC. User-authored Wish creation and title/description/`credit_cost` edits in `IDEA` or `ACTIVE` may use field-scoped grants plus RLS/trigger enforcement; they cannot change lifecycle, ledger, account, receipt, ownership, or system timestamps.
 5. Client and AI payloads never supply an authoritative EARN amount.
 6. Repetition, micro-activities, daily login, journal volume, focus time, and self-attested claims mint zero credits.
 7. Impossible negative reserved or redeemed fold states fail closed; only `current_available` and `correction_deficit` use the frozen clamp semantics.

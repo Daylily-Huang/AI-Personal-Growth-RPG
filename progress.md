@@ -293,3 +293,4 @@
 - Round 1 范围锁定：`0048` 四表 foundation、RLS/tenant/field-authority/immutability guards、纯 `foldRewardLedger` 与测试；`0049` RPC、API、UI 继续 gated。
 - Round 1 写入前发现 admission contract 的新 P1：`IDEA -> ACTIVE` 生命周期没有合法 authority path；直接客户端状态更新被禁止，原九 RPC 也无 activate。生产写入继续暂停，先补 `rpc_activate_wish` 控制契约并重新送 Gatekeeper。
 - Exact head `4bbe3d1...` 的 fresh Gatekeeper 返回 `P0=0 / P1=2 / P2=0 + NO-GO`：通用 RPC 规则误要求 activation 写 ledger/account；activation 幂等 key 未绑定 RPC/target/payload。现拆分通用与六个财务 RPC 规则，并定义 audit-backed SHA-256 fingerprint、stored result snapshot 与 `IDEMPOTENCY_KEY_REUSED` 冲突。
+- Corrective head `f4adc14...` 已关闭前两项 P1，但 fresh Gatekeeper 新发现 1 个 P1：总不变量“Every mutation RPC-only”与 Wish 草稿 INSERT / IDEA-ACTIVE metadata field grants 冲突。现收窄为 financial mutation + lifecycle transition RPC-only，草稿内容编辑仍受字段级 grant/RLS/trigger 限制。
