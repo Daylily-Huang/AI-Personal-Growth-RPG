@@ -1,5 +1,13 @@
 # 项目历史工作进度 (Progress Log)
 
+## 2026-09-29 — Phase 8D 独立审查落盘（PR #38 归档闭环）
+
+- PR #38（`docs(phase8d): final freeze archive and status sync`）已由用户合入 `main`：merge commit `a1da765e492b8d93e6350ac32865d8e0018faa91`（parents `b93273cd` + `597e3f8`）。PR head `597e3f8` 的 CI Run `36596794622` 双 job success。
+- 第三个全新独立 Gatekeeper（agent `696420ae`，未复用前两个）对 `597e3f8` 给 `P0=0 / P1=0 / P2=0 + GO`：逐个 API 核对 9 个 Phase-8D CI run 的 `head_sha` 绑定、核对 merge 血缘与 main head、确认 diff 仅 4 个文档且 `src/supabase/tests` 零改动，并在本机真实 PG 上复跑 exit set（`10 passed / 1 skipped`）与六文件集（`69 passed / 2 skipped`），多次反例构造均被契约挡回。
+- 该 Gatekeeper 指出 Phase 8D 缺少 8B `docs/Phase8/14_...` 式的独立审查落盘文档，判决只存在于进度记录中。已补齐 `docs/Phase8/20_PHASE8D_INDEPENDENT_REVIEW_RECORD.md`：记录三个审查实例（`e4d3ab4b` / `7bae83b5` / `696420ae`）、Round 5 的 4 项 P1 与 6 项 P2 开启与关闭证据、可外部复现的 CI/test 证据表，并明确声明三个判决均为 session attestation（同供应商同模型族、由执行方 spawn），第三方可复核 CI 绑定与重跑测试，但无法复算判决本身；同时披露"复审复用原判 agent、未为每个 corrective head 换新审查员"这一流程偏差。
+- 其全量测试在本机 dev DB 留下的残留已清除（7 用户 / 2 策略 / 27 活动等；复核：10 用户、0 策略、0 proposal、0 禁用触发器）。
+- PR #38 的 post-merge main push CI 已补录：Run `36599144119`（event=push，head `a1da765`）双 job success；独立审查记录 `docs/Phase8/20_...` 已同步该 run ID。
+
 ## 2026-09-29 — Phase 8D 最终冻结归档
 
 - PR #37 已由用户手动合入 `main`：merge commit `b93273cd87d39e04a66ed0ebfd76fa95ebd2e643`（parents `98dbe37e` + `f5dd59d`）。
@@ -17,7 +25,7 @@
 - 首轮独立对抗复审为 `P0=0 / P1=4 / P2=6 + NO-GO`，指出四类未被证伪的缺口：后台 `confirm=false` 对已合格策略的非晋升未断言；CONTEXTUAL 生命周期完全未覆盖；RETIRED 后历史可查询未覆盖；策略提案并发 CAS 未覆盖（既有 CAS 测试走 `phase8b_review_outer_loop_proposal` 分支）。已全部修复：O009 在 4 日期合格后先断言 `confirm=false` 仍为 TESTING 再显式确认；新增 CONTEXTUAL（空 note `22023`、SUPPORTED↔CONTEXTUAL、<60% 弱化）与退休（空 reason `22023`、RETIRED 不可再建版本 `23514`、历史仍可查询）用例；新增 CI-only 双会话 `STRATEGY_HYPOTHESIS` 并发评审用例（一个胜出、另一个 `23514`、恰好一个 Strategy）。
 - 同时收敛 P2：伪造字段/越权 UPDATE 断言精确 `42501`；补充 VERY_HIGH（8 日期 / 2 Season / 8 Core link）、ratio 恰为 0.75 的包含性门槛、`CORE_EVIDENCE_REFERENCE` 贡献 0 Core link；O008 注明 Phase 8D 无 AI 生成 HTTP 端点、AI 生产者面即 `outer_loop_proposals` 权威。
 - 最终独立 Gatekeeper 对 `3c09f8a` 给出 `P0=0 / P1=0 / P2=3 + NO-GO`（实质结论全部确认，NO-GO 仅由三项非阻塞覆盖缺口驱动）：service_role/AI 角色未测；§9.1 `supporting_activity_ids` 与 §5.1 canonical timestamp 前提未在 DB 层断言；ratio 0.65/0.85 精确边界与 CONTEXTUAL confirm 语义未测。已在纯测试 corrective head `8b33cca` 全部关闭：新增 anon/service_role 对 strategies/versions/supports 的 INSERT/UPDATE/DELETE 一律 `42501`、service_role 仅能建 proposal 不能提交 Strategy；新增含两条 owned `supporting_activity_ids` 的提案审核后 0 `strategy_supports` 且保持 HYPOTHESIS/LOW/v1，并断言 authenticated 直写 activities/journal_entries 被拒；新增 13/7=0.65→MODERATE 与 17/3=0.85→VERY_HIGH 精确包含性门槛，并把「已合格 CONTEXTUAL + `confirm=true` 仍 `22023` 且生命周期不变、只能经 transition RPC 晋升」pin 为 §7 的既定契约。仅剩错误码命名（`INSUFFICIENT_SUPPORT_FOR_PROMOTION` 用词不够精确）作为可选 backlog，需迁移才能改，不作为门禁项。
-- 本机真实数据库证据（此前 Round 1–4 只能依赖 CI）：先把 0043–0047 增量应用到本机 Supabase dev DB（应用前已 `pg_dump` 备份到 `.data/phase8d-pre-0043.dump`），并另建隔离 scratch DB 复跑全量。修正后 exit set：无 CI 时 `10 passed / 1 skipped`（skip 为 CI-only 并发用例），`CI=true` 时 `11 passed / 0 skipped`；定向 Phase 8D 6 文件 `69 passed / 2 skipped`；全量 `73 files passed / 1 failed`、`1151 passed / 1 failed`。
+- 本机真实数据库证据（此前 Round 1–4 只能依赖 CI）：先把 0043–0047 增量应用到本机 Supabase dev DB（应用前已 `pg_dump` 备份到 `.data/phase8d-pre-0043.dump`），并另建隔离 scratch DB 复跑全量。修正后 exit set：无 CI 时 `10 passed / 1 skipped`（skip 为 CI-only 并发用例），`CI=true` 时 `11 passed / 0 skipped`；定向 Phase 8D 6 文件 `69 passed / 2 skipped`；全量在 `CI=true` 且设置 Supabase key 变量时为 `1151 passed / 1 failed / 0 skipped`。同一全量仅设 `XP_RPG_TEST_DB_URL` 时为 `1121 passed / 1 failed / 30 skipped`、3 个文件失败——多出的 2 个文件失败是 `stage7d-artifact-e2e` / `stage7d-artifact-security` 在 `beforeAll` 因缺 Supabase key 抛错，属环境缺失而非 Phase 8D 回归；`30 skipped` 中的 28 个来自这两个文件。
 - 唯一全量失败为 `tests/stage5b-db-repository.test.ts` 用例 1：其硬编码 domain UUID `d1111111-...-0001` 在本机 dev DB 已被既有 `demo_player@growth-rpg.dev`（2026-09-02 创建）占用，`on conflict (id) do nothing` 使该用户只剩 1 条 domain。该失败与本轮改动无关，CI 全新数据库不触发；本机为环境性数据冲突，未修改该既有数据。
 - 本机门禁：ESLint 全量 `exit=0`、`tsc --noEmit` 0 error、`next build` 成功（含 `/journey/playbook` 与 6 个 `/api/strategies` 路由）、deterministic harness `11/11`、`git diff --check` 通过。
 - 已清理本轮全量运行在本机 dev DB 留下的测试残留（e2e/stage5d/stage7b 时间戳用户、strategy 行、audit 行；临时关闭用户触发器后删除并恢复，验证 0 残留、0 disabled trigger），并 drop scratch DB。dev DB 现保留 0043–0047 迁移。
@@ -330,3 +338,13 @@
 - 残留清理：两位 Gatekeeper 的全量跑又留下 18 个时间戳/`phase8d-*` 账号（其中一位因 `trg_prevent_strategy_version_mutation` 拒绝直接删除而保留），已按既定「事务内禁用 public 触发器 + 按 `auth.users` 外键循环删子表」流程清空；dev DB 回到 `users=10`、残留 0、禁用触发器 0。
 - 第三位 fresh Gatekeeper 复核 P2 关闭提交 `5e0d449003a88da98c3659cd7adbae64ef951046`：`P0=0 / P1=0 / P2=1 + GO`。唯一 P2 是 `progress.md` 只记录指纹摘要值、未附复算命令（已在上一节补全命令）；另指出送出任务书时的 head 全 SHA 写错（真实值如上，已核对 `git cat-file`）。它同时做了**变异测试**证明新断言可失败：把四张表的 owner_select policy 依次改成 `USING (true)` 会让对应那张表的断言分别失败；把 `wishes_owner_select` 改成 `auth.uid() <> user_id` 会让 6/6 全败；把 `credit_cost` 改成 `NOT NULL` 会让 metadata 用例失败——均随后回滚/恢复为 6/6。
 - 待办：`5e0d449` 已推送 origin；等用户创建 PR → exact-head CI 双绿（DB/concurrency 套件不得 skip）→ 再跑一次 fresh Gatekeeper 取得 `P2=0 + GO`，方可解锁 Round 2 (`0049`)。
+
+## 2026-09-30 — Phase 8E Round 1：一次性实例 CI 等价复现 + 合并 main 解冲突
+
+- 为补齐三位 Gatekeeper 唯一共同标注的「无法验证」项（一次性 disposable 实例上 DB/并发套件不得 skip），在 WSL 内下载 **Linux supabase CLI 2.114.0**（`.data/ci/supabase`，gitignored），用独立工作目录 `.data/ci/stack`（`project_id = ai_growth_rpg_ci_scratch`、端口整体 +1000：API 55321 / DB 55322、独立卷与网络）起了一个全新栈，**未触碰用户现有 dev 栈**。
+- 严格按 `.github/workflows/ci.yml` 的 `supabase-integration` 顺序复刻：`supabase start`（48 个 migration 全量应用、`users=0`）→ `supabase status -o env` 导出与 CI 完全相同的四个变量（`NEXT_PUBLIC_SUPABASE_URL`、`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`、`SUPABASE_SECRET_KEY`、`XP_RPG_TEST_DB_URL`）→ `next build` → `vitest run` → `harness:deterministic` → `test:e2e`。
+- 结果：`Test Files 76 passed (76)`、**`Tests 1175 passed (1175)`、0 skipped、0 failed**；`harness:deterministic` 11/11；`test:e2e` 10/10；`tsc --noEmit`、`eslint`、`next build` 均 exit 0。这同时证明 dev 栈上 `stage5b` 的那 1 个失败纯属本机历史数据（干净栈上通过）。
+- CI `check` job 等价复现（不设 `XP_RPG_TEST_DB_URL`）：`Test Files 50 passed | 26 skipped (76)`、`818 passed | 357 skipped (1175)`——这正是上一轮报告里「818 passed / 357 skipped」的真实来源，即 DB 套件当时被整批 skip。
+- 过程中修掉两个**本机复现环境**的坑（非被测代码缺陷）：① `.env.local` 白名单在覆盖文件之后执行，把 `NEXT_PUBLIC_SUPABASE_URL` 写回 dev 的 54321，导致「pg 写一次性栈 / PostgREST 读 dev 栈」混用，出现 4 个假失败；② 本机 `.next` 是早先用 dev 凭据构建的，而 CI 是在导出一次性栈凭据**之后**才 build（`NEXT_PUBLIC_*` 会内联进产物），导致进程内起 Next 的 HTTP/E2E 套件全部 401，按 CI 顺序重建后全绿。
+- 环境已完整还原：一次性栈 `supabase stop --no-backup` 后残留容器 0、dev 栈 11 个容器与 `54321`/`54322` 正常；dev DB 清回基线 `users=10 / activities=2 / 8E 四表全 0 / 禁用触发器 0`（混用期间被写脏的 13 个测试账号已按「禁用 public 触发器 + 按外键循环删子表」流程清除）；`.next` 已用 dev 凭据重建；仓库 tracked 文件未被环境操作改动。
+- PR **#40** 已由用户创建（base `main` @ `be949deb`，head `59a45f5`），创建时状态为 conflict（`dirty`）且未触发任何 CI run。已把 `origin/main` 合并进分支并解决 `docs/MASTER_PROJECT_HANDOFF.md`、`task_plan.md` 的冲突（保留 main 的 8D FINAL FROZEN + 文档 20 叙述，并追加 Phase 8E Round 1 状态），`progress.md` 自动合并成功。

@@ -63,7 +63,7 @@ Round 5 was additionally verified against a real Supabase PostgreSQL instance (m
 
 - The canonical exit file passes `10 passed / 1 skipped` without `CI=true` and `11 passed / 0 skipped` with it (the skip is the CI-gated two-session proposal CAS).
 - The full Phase-8D six-file set passes `69 passed / 2 skipped` (both skips are the CI-gated concurrency tests).
-- The full local suite reports `1151 passed / 1 failed`. The single failure is `tests/stage5b-db-repository.test.ts` case 1, caused by the persistent local development database already containing the hardcoded domain UUID under the pre-existing `demo_player@growth-rpg.dev` account; it does not reproduce on CI's disposable database. It is recorded here as an environment artifact, not a Phase 8D regression.
+- The full local suite, run with `CI=true` and the Supabase key variables set, reports `1151 passed / 1 failed / 0 skipped`. The single failed test is `tests/stage5b-db-repository.test.ts` case 1, caused by the persistent local development database already containing the hardcoded domain UUID under the pre-existing `demo_player@growth-rpg.dev` account; it does not reproduce on CI's disposable database. With only `XP_RPG_TEST_DB_URL` set, the same suite instead reports `1121 passed / 1 failed / 30 skipped` across 3 failed files, the extra two being `stage7d-artifact-e2e` / `stage7d-artifact-security` failing in `beforeAll` for missing Supabase keys — an environment gap, not a Phase 8D regression. The `stage5b` collision is likewise recorded as an environment artifact.
 - ESLint, `tsc --noEmit`, the production build, the deterministic Growth Engine harness (`11/11`), and `git diff --check` are green locally.
 
 ## 6. Merge and post-merge evidence

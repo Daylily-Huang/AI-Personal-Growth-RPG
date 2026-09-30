@@ -7,8 +7,9 @@
 > **Phase 8B 终局冻结合并基线 (main)**: `0e4bec5f26411669f7031af4523b6d4fca747f96`
 > **Phase 8C 终局冻结合并基线 (main)**: `9aa76e7ce36b20b9f99e28d6cbd08eeb7bc55b85`
 > **Phase 8D implementation 冻结合并基线 (main)**: `b93273cd87d39e04a66ed0ebfd76fa95ebd2e643`
-> **Phase 8D 归档最终合并基线 (main)**: `a1da765e492b8d93e6350ac32865d8e0018faa91`
-> **当前所处里程碑**: Phase 8D — Strategy + Personal Playbook（**FINAL FROZEN**）；Phase 8E — Reward Economy + Wishes（**ADMISSION CANDIDATE / production BLOCKED**）
+> **Phase 8D 归档+审查记录 最终合并基线 (main)**: `a1da765e492b8d93e6350ac32865d8e0018faa91`
+> **当前 main 基线 (含 PR #39 审查落盘)**: `be949deb67f62269d58a0e21865580d0e67204e0`
+> **当前所处里程碑**: Phase 8D — Strategy + Personal Playbook（**FINAL FROZEN**）；Phase 8E — Reward Economy + Wishes（**ADMISSION CANDIDATE；Round 1 `0048` 已通过真实 PostgreSQL 验证，生产 RPC/API/UI BLOCKED**）
 > **代码仓库**: `Daylily-Huang/AI-Personal-Growth-RPG`  
 > **核心工作区路径**: `d:\AI_Personal_Growth_RPG`（WSL 挂载路径：`/mnt/d/AI_Personal_Growth_RPG`）
 
@@ -266,11 +267,11 @@ wsl -d Ubuntu -- bash -lc "cd /mnt/d/AI_Personal_Growth_RPG && pnpm build"
 
 ## 8. 接手 AI 极速上手与后续路线图推进指引 (Next Actions)
 
-当前状态：Phase 1~7 的既有冻结边界保持有效；Phase 8A 架构冻结已完成；Phase 8B、8C、8D 均已 FINAL FROZEN。Phase 8D Round 1–5 的 exact-head CI 与独立 Gatekeeper 已通过；PR #37 implementation merge 为 `b93273cd87d39e04a66ed0ebfd76fa95ebd2e643`，PR #38 archive merge 为 `a1da765e492b8d93e6350ac32865d8e0018faa91`。Phase 8E controlling document 已进入 ADMISSION CANDIDATE，D1/D2 已由用户决策；生产实现继续 BLOCKED，直至 fresh exact-head Gatekeeper `P0=0 / P1=0 / P2=0 + GO`。
+当前状态：Phase 1~7 的既有冻结边界保持有效；Phase 8A 架构冻结已完成；Phase 8B 已 FINAL FROZEN；**Phase 8C: Journal + State FINAL FROZEN**。Phase 8D admission 已通过；Round 1 exact head `400cf1536e86412e6183e45289d87cb21bd56ba1` 的 CI Run `36338180207` 双绿且 Gatekeeper GO。Round 2 exact head `1910af870fc82ffde35bf76da93d4bac50a5effb` 的 CI Run `36438563584` 双绿且独立 Gatekeeper GO。Round 3 implementation exact head `2b0796e66fc900344a1571f39ebd771fe64abe47` 的 CI Run `36452011311` 双绿、独立 Gatekeeper `P0=0 / P1=0 / P2=0 + GO`；文档同步 head `789569372af37e9f9e43fe4492ad914408a10125` 亦通过 exact-head CI/Gatekeeper。Round 4 implementation exact head `6fea360adffc4f7d9cde7a159797d246ca55f592` 的 CI Run `36559214448` 双绿、独立 Gatekeeper `P0=0 / P1=0 / P2=0 + GO`。Round 5 exit verification 的 corrective implementation exact head `8b33cca8e994ba45862194d5588642e9e76626ba` 的 CI Run `36590521018` 双绿，fresh independent Gatekeeper `P0=0 / P1=0 / P2=0 + GO`。PR #37 已由用户合入 `main`，merge commit `b93273cd87d39e04a66ed0ebfd76fa95ebd2e643`；对应 post-merge main CI Run `36593720889` 双 job success。PR #38（最终归档+状态同步）亦已合入，merge commit `a1da765e492b8d93e6350ac32865d8e0018faa91`。**Phase 8D = FINAL FROZEN**（归档：`docs/Phase8/19_PHASE8D_GATEKEEPER_REREVIEW_AND_FINAL_FREEZE.md`；独立审查落盘：`docs/Phase8/20_PHASE8D_INDEPENDENT_REVIEW_RECORD.md`）。Phase 8E controlling document 已进入 ADMISSION CANDIDATE（`docs/Phase8/21_PHASE8E_REWARD_WISHES_IMPLEMENTATION_CONTROLLING.md`），D1/D2/D3 已决策/接受；Round 1 `0048` 四表 foundation 已在真实 PostgreSQL 上验证（含一次性实例 1175/1175），生产 RPC/API/UI 保持 BLOCKED。
 
 当前权威主分支基线：
 ```text
-a1da765e492b8d93e6350ac32865d8e0018faa91
+be949deb67f62269d58a0e21865580d0e67204e0
 ```
 
 ### Phase 6 — Knowledge Graph Canvas Modernization（FINAL FROZEN）
@@ -344,7 +345,7 @@ a1da765e492b8d93e6350ac32865d8e0018faa91
 
 ### 下一阶段推进指引 (Next Actions)
 
-Phase 8C 与 Phase 8D 均已全面闭环并永久冻结。当前 main 基线为 Phase 8D archive merge `a1da765e492b8d93e6350ac32865d8e0018faa91`。Phase 8E controlling document candidate 为 `docs/Phase8/21_PHASE8E_REWARD_WISHES_IMPLEMENTATION_CONTROLLING.md`；D1 奖励策略/数值与 D2 Artifact 延后已由用户于 2026-09-30 决策，但生产实现仍在 fresh exact-head admission Gatekeeper GO 前保持 BLOCKED。
+Phase 8C 与 Phase 8D 均已全面闭环并永久冻结。所有后续工作必须从当前 main 基线 `a1da765e492b8d93e6350ac32865d8e0018faa91` 或其后续纯治理/文档提交切出独立分支，保持 Phase 1~8D 已冻结的领域、数据库、RPC/API、UI 与治理边界。Phase 8D 的独立审查链已落盘为 `docs/Phase8/20_PHASE8D_INDEPENDENT_REVIEW_RECORD.md`，其中明确区分了可外部复现的 CI/test 证据与仅属 agent attestation 的判决。Phase 8E controlling candidate 为 `docs/Phase8/21_PHASE8E_REWARD_WISHES_IMPLEMENTATION_CONTROLLING.md`；D1/D2 已由用户决策、D3 已获 admission gate 接受，Round 1 `0048` 已在真实 PostgreSQL 上验证完毕；生产实现继续 BLOCKED，直至 Round 1 的 exact-head CI 与 fresh Gatekeeper `P0=0 / P1=0 / P2=0 + GO`。
 
 后续建议执行顺序：
 1. **Phase 8E admission gate**：提交控制文档候选 exact head，运行治理门禁并取得 fresh independent Gatekeeper `P0=0 / P1=0 / P2=0 + GO`；在此之前不得创建 `0048/0049`、Reward RPC/API/UI，也不得直接复用 Phase 8D 的授权。
