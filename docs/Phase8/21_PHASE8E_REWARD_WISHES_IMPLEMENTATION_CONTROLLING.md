@@ -2,14 +2,14 @@
 
 ## 1. Governance Boundary
 
-Status: **PRE-ADMISSION DRAFT — production implementation remains BLOCKED**
+Status: **ADMISSION CANDIDATE — production implementation remains BLOCKED pending fresh exact-head Gatekeeper GO**
 
 Baseline:
 
 - Immutable main baseline: `a1da765e492b8d93e6350ac32865d8e0018faa91`.
 - Phase 8D is FINAL FROZEN. This document cannot reopen or modify its schema, RPC, API, UI, tests, or evidence.
 - This document does not authorize migrations, RPCs, server routes, UI, or reward settlement.
-- Admission requires all blocking decisions in §13 to be resolved, a committed exact head, green deterministic documentation/governance checks, and a fresh independent Gatekeeper verdict `P0=0 / P1=0 / P2=0 + GO`.
+- User decisions D1 and D2 in §13 are frozen as of 2026-09-30. Admission still requires a committed exact head, green deterministic documentation/governance checks, and a fresh independent Gatekeeper verdict `P0=0 / P1=0 / P2=0 + GO` explicitly accepting D3.
 
 The following frozen documents remain controlling unless this document explicitly identifies a contradiction and records the proposed narrow resolution:
 
@@ -39,6 +39,7 @@ The following frozen documents remain controlling unless this document explicitl
 
 - Any XP spending, XP conversion, Mastery mutation, Evidence mutation, or Growth Core write.
 - `milestones` or any Phase 8F production table/RPC/UI.
+- `ARTIFACT` minting until a separately governed deterministic verification contract exists.
 - `REAL_WORLD_VERIFIED` minting before Phase 8F supplies an independently verified authority record.
 - Bank, payment, cash-out, voucher, gift-card, gifting, transfer, trading, gambling, random-drop, streak, or leaderboard mechanics.
 - Automatic AI minting, cost commitment, reservation, redemption, correction, or refund.
@@ -60,7 +61,7 @@ The following frozen documents remain controlling unless this document explicitl
 
 The frozen reward spec names `REAL_WORLD_VERIFIED`, but the verified authority record is the Phase 8F `milestones` subsystem. Phase 8E must not create a shadow verification table or implement Phase 8F early.
 
-Phase 8E source whitelist is therefore limited to `SEASON`, `QUEST`, `MASTERY`, and—only after Decision D2—`ARTIFACT`. `REAL_WORLD_VERIFIED` remains a reserved enum value rejected with `SOURCE_CLASS_NOT_YET_AVAILABLE` until Phase 8F.
+Phase 8E source whitelist is therefore limited to `SEASON`, `QUEST`, and `MASTERY`. Per user Decision D2, both `ARTIFACT` and `REAL_WORLD_VERIFIED` remain reserved enum values rejected with `SOURCE_CLASS_NOT_YET_AVAILABLE`; neither may append a ledger row in Phase 8E.
 
 ### 4.2 O005 does not pull Phase 8F into Phase 8E
 
@@ -147,22 +148,36 @@ IDEA | ACTIVE | PRIMARY -> ARCHIVED | CANCELLED
 
 ### 6.4 Artifact
 
-Artifact minting remains **BLOCKED by Decision D2**. `lifecycle_status`, user-controlled metadata, or a numeric reusability score alone is not independent verification and cannot silently become a reward faucet.
+Per user Decision D2 on 2026-09-30, Artifact minting is deferred beyond Phase 8E until a separately governed, deterministic verification contract exists. `lifecycle_status`, user-controlled metadata, or a numeric reusability score alone is not independent verification and cannot silently become a reward faucet. Phase 8E rejects `ARTIFACT` with `SOURCE_CLASS_NOT_YET_AVAILABLE` and appends no ledger row.
 
 ### 6.5 Rejected sources
 
-`MICRO_ACTIVITY`, `DAILY_LOGIN`, `HABIT_CHECKIN`, `JOURNAL`, `FOCUS_TIME`, `STREAK`, `SELF_ATTESTED`, and `REAL_WORLD_VERIFIED` in Phase 8E fail before account mutation and append an audit rejection event without a ledger row.
+`MICRO_ACTIVITY`, `DAILY_LOGIN`, `HABIT_CHECKIN`, `JOURNAL`, `FOCUS_TIME`, `STREAK`, `SELF_ATTESTED`, `ARTIFACT`, and `REAL_WORLD_VERIFIED` in Phase 8E fail before account mutation and append an audit rejection event without a ledger row.
 
 ## 7. Reward Policy Contract
 
-The frozen architecture requires a versioned deterministic server policy but does not include a policy table among the four authorized Phase 8E tables and does not freeze grant amounts. This document does not invent those constants.
+The frozen architecture requires a versioned deterministic server policy but does not include a policy table among the four authorized Phase 8E tables. User Decision D1 on 2026-09-30 freezes the v1 carrier and exact amounts below.
 
-Pending Decision D1, the recommended v1 implementation is a versioned immutable PostgreSQL policy function rather than a fifth mutable production table:
+Phase 8E uses a versioned immutable PostgreSQL policy function rather than a fifth mutable production table:
 
 ```text
 calculate_reward_grant_v1(source_type, verified_source_attributes) -> positive integer
 policy_version = 'reward-v1'
 ```
+
+Frozen `reward-v1` grants:
+
+| Eligible canonical source | Credits |
+| --- | ---: |
+| Confirmed completed Season | 150 |
+| Completed Major Quest | 100 |
+| Completed Epic Quest | 150 |
+| Completed Main Quest or any Boss Quest | 200 |
+| Verified Mastery M6 threshold | 100 |
+| Verified Mastery M8 threshold | 150 |
+| Verified Mastery M10 threshold | 250 |
+
+Quest precedence is deterministic: `is_boss = true` or `quest_size = 'main'` selects 200; otherwise `epic` selects 150; otherwise eligible `major` selects 100. A Quest matching multiple conditions receives only the single highest tier and retains one canonical EARN identity per policy version.
 
 Requirements:
 
@@ -172,7 +187,7 @@ Requirements:
 - client, AI, and API payloads cannot supply or override the amount;
 - policy lookup and source verification occur in the same transaction as EARN.
 
-No Gatekeeper may return admission GO while the D1 values and policy carrier remain unresolved.
+No client, AI payload, mutable table row, or runtime configuration may alter `reward-v1`. Any future amount change requires a new immutable policy version and governed migration; historical EARN rows retain their original policy version and amount.
 
 ## 8. Database Authority Contract
 
@@ -301,20 +316,15 @@ No round may begin before the prior round has an exact-head green CI result and 
 6. **Round 5 — Exit verification**: O001–O005/O019/O020, full suite, deterministic harness, lint, production build, real DB/E2E, final exact-head Gatekeeper.
 7. **Freeze**: user-controlled PR merge, post-merge CI, final archive. Phase 8F remains blocked until this is complete.
 
-## 13. Blocking Decision Register
+## 13. Decision Register and Remaining Admission Gate
 
-### D1 — Reward policy carrier and exact v1 amounts — USER DECISION REQUIRED
+### D1 — Reward policy carrier and exact v1 amounts — RESOLVED BY USER
 
-Recommended carrier: immutable versioned PostgreSQL function (`reward-v1`) with no fifth Phase 8E table. Exact credits for Season, eligible Quest tiers, and M6/M8/M10 are not frozen and must be supplied or explicitly approved by the user.
+Decision date: 2026-09-30. Use immutable versioned PostgreSQL function `reward-v1`, with no fifth Phase 8E table. Frozen amounts are Season 150; Quest Major 100, Epic 150, Main or Boss 200; Mastery M6/M8/M10 100/150/250.
 
-### D2 — Deterministic Artifact eligibility — USER DECISION REQUIRED
+### D2 — Deterministic Artifact eligibility — RESOLVED BY USER
 
-The current Artifact model has no independently verified “high-order” flag or frozen threshold. Choose one before admission:
-
-- defer `ARTIFACT` EARN until a separately governed verification contract exists; or
-- approve an exact deterministic predicate using existing immutable/verified Artifact provenance fields.
-
-User-controlled lifecycle status, title/type, or reusability score alone is insufficient.
+Decision date: 2026-09-30. Defer `ARTIFACT` EARN until a separately governed deterministic verification contract exists. Phase 8E must reject it without ledger mutation. User-controlled lifecycle status, title/type, or reusability score alone is insufficient.
 
 ### D3 — Frozen-spec sequencing interpretation — GATEKEEPER MUST ACCEPT
 
@@ -324,7 +334,7 @@ Admission review must explicitly accept both narrow interpretations: `REAL_WORLD
 
 Phase 8E is complete only when:
 
-- D1–D3 are resolved and recorded without silent constants;
+- D1 and D2 remain implemented exactly as the recorded user decisions, and admission Gatekeeper explicitly accepts D3;
 - all four tables and nine RPCs match this authority contract;
 - every account cache equals deterministic ledger fold;
 - direct and cross-tenant writes fail closed;

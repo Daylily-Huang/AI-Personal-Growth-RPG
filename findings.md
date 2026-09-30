@@ -235,3 +235,5 @@
 - 只对 PRIMARY 建唯一索引会在 reserve 后允许第二个 PRIMARY；必须对 `status IN ('PRIMARY','RESERVED')` 建合并 partial unique index。
 - `cooldown_until` 若只写在已兑换 Wish 而 reserve RPC 不查询，则 cooldown 无实际效果；草案要求 reserve 时检查任一未过期 redeemed cooldown。
 - Phase 8E 控制草案的独立审查未发现 P0/P1/P2；但“文档无缺陷”不等于 admission GO。D1/D2 用户决策和 D3 后续 exact-head Gatekeeper 接受仍是正式前置条件。
+- D1 已由用户冻结：`reward-v1` 为不可变版本化 SQL 函数；Season=150，Quest Major/Epic/Main-or-Boss=100/150/200，Mastery M6/M8/M10=100/150/250。Quest 多重命中只取最高档。
+- D2 已由用户冻结：Phase 8E 不实现 Artifact EARN；`ARTIFACT` 与 `REAL_WORLD_VERIFIED` 均以 `SOURCE_CLASS_NOT_YET_AVAILABLE` fail closed，不得产生 ledger row。

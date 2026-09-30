@@ -1,10 +1,10 @@
 # AI Personal Growth RPG — 项目总体计划与当前状态 (Task Plan)
 
 > **权威状态主文档**：请统一参阅 [`docs/MASTER_PROJECT_HANDOFF.md`](docs/MASTER_PROJECT_HANDOFF.md)。  
-> **当前里程碑**: Phase 8C — Journal + State（FINAL FROZEN）；Phase 8D — Strategy + Personal Playbook（**FINAL FROZEN**）
-> **当前主分支基线 (main)**: `b93273cd87d39e04a66ed0ebfd76fa95ebd2e643`
+> **当前里程碑**: Phase 8D — Strategy + Personal Playbook（FINAL FROZEN）；Phase 8E — Reward Economy + Wishes（**ADMISSION CANDIDATE / production BLOCKED**）
+> **当前主分支基线 (main)**: `a1da765e492b8d93e6350ac32865d8e0018faa91`
 > **最新状态**: Phase 8C **FINAL FROZEN**；Phase 8D admission 与 Round 1–5 全部通过。Round 5 corrective implementation exact head `8b33cca8e994ba45862194d5588642e9e76626ba` 的 CI Run `36590521018` 双绿，fresh independent Gatekeeper `P0=0 / P1=0 / P2=0 + GO`；PR #37 已由用户合入 `main`（merge `b93273cd87d39e04a66ed0ebfd76fa95ebd2e643`），post-merge main CI Run `36593720889` 双绿。**Phase 8D = FINAL FROZEN**（归档 `docs/Phase8/19_PHASE8D_GATEKEEPER_REREVIEW_AND_FINAL_FREEZE.md`）。
-> **Phase 8E 当前状态**: PRE-ADMISSION DRAFT；controlling document 为 `docs/Phase8/21_PHASE8E_REWARD_WISHES_IMPLEMENTATION_CONTROLLING.md`。D1 奖励数值/策略载体与 D2 Artifact 资格规则待用户决策，生产实现 **BLOCKED**。
+> **Phase 8E 当前状态**: ADMISSION CANDIDATE；D1 已冻结 `reward-v1` SQL 函数与精确额度，D2 已决定 Artifact EARN 延后。生产实现仍在 fresh exact-head Gatekeeper `P0=0 / P1=0 / P2=0 + GO` 前 **BLOCKED**。
 
 ---
 
@@ -52,7 +52,7 @@
   - [complete] PR #33 已合入 main：merge `0e4bec5f26411669f7031af4523b6d4fca747f96`；post-merge main CI Run `35315613393` 全绿，DoD 最终 merge gate 已满足
 - [complete] **Phase 8C: Journal + State** ✅ FINAL FROZEN — PR #35；final reviewed exact head `f2f4d2b2d0a857348b6282dfdbfb3cfd08f4a06d`；Exact-Head CI `35381923343` success；merge `9aa76e7ce36b20b9f99e28d6cbd08eeb7bc55b85`；post-merge main CI `35432361509` success
 - [complete] **Phase 8D: Strategy + Personal Playbook** ✅ FINAL FROZEN — PR #37 已合入 `main`（merge `b93273cd87d39e04a66ed0ebfd76fa95ebd2e643`，post-merge main CI Run `36593720889` 双绿）；final reviewed implementation exact head `8b33cca8e994ba45862194d5588642e9e76626ba`，Gatekeeper `P0=0 / P1=0 / P2=0 + GO`。
-- [in_progress] **Phase 8E: Reward Economy + Wishes admission** — controlling draft 已建立；生产 migration/RPC/API/UI 在用户决策与独立 admission GO 前保持 BLOCKED。
+- [in_progress] **Phase 8E: Reward Economy + Wishes admission** — D1/D2 用户决策已写入 controlling candidate；等待本地 exact-head Gatekeeper，生产 migration/RPC/API/UI 保持 BLOCKED。
 
 ### 2026-09-29 — Round 4 Playbook UI
 

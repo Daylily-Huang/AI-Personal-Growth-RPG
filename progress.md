@@ -283,3 +283,9 @@
 - 两项承重政策保持 blocker：D1 奖励策略载体/精确数值，D2 Artifact 确定性资格。未获用户决策与 fresh exact-head Gatekeeper GO 前生产实现不授权。
 - 本地治理定向验证通过：`visual-foundation`、`supabase-schema`、`governance-delta-guard` 共 3 files / 92 tests passed；WSL 因现有 Windows node_modules 缺 Linux rolldown native binding 未执行，结果来自 Windows Vitest。
 - Fresh 独立只读对抗审查：`P0=0 / P1=0 / P2=0`，三条承重命题均通过；因 D1–D3 尚未解除，阶段总判保持非缺陷性 `NO-GO`。
+
+## 2026-09-30 — Phase 8E D1/D2 user decisions
+
+- 用户明确批准 D1：采用 immutable versioned PostgreSQL function `reward-v1`；额度冻结为 Season 150，Quest Major/Epic/Main-or-Boss 为 100/150/200，Mastery M6/M8/M10 为 100/150/250。
+- 用户明确批准 D2：Phase 8E 延后 Artifact EARN，等待独立、确定性的验证标准；当前必须 fail closed 且零 ledger mutation。
+- 控制文档已从 PRE-ADMISSION DRAFT 更新为 ADMISSION CANDIDATE；生产实现仍需 fresh exact-head Gatekeeper 接受 D3 并返回 `P0=0 / P1=0 / P2=0 + GO`。
