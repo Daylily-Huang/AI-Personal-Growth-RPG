@@ -4,7 +4,7 @@
 > **当前里程碑**: Phase 8D — Strategy + Personal Playbook（FINAL FROZEN）；Phase 8E — Reward Economy + Wishes（**ADMISSION CANDIDATE / production BLOCKED**）
 > **当前主分支基线 (main)**: `a1da765e492b8d93e6350ac32865d8e0018faa91`
 > **最新状态**: Phase 8C **FINAL FROZEN**；Phase 8D admission 与 Round 1–5 全部通过。Round 5 corrective implementation exact head `8b33cca8e994ba45862194d5588642e9e76626ba` 的 CI Run `36590521018` 双绿，fresh independent Gatekeeper `P0=0 / P1=0 / P2=0 + GO`；PR #37 已由用户合入 `main`（merge `b93273cd87d39e04a66ed0ebfd76fa95ebd2e643`），post-merge main CI Run `36593720889` 双绿。**Phase 8D = FINAL FROZEN**（归档 `docs/Phase8/19_PHASE8D_GATEKEEPER_REREVIEW_AND_FINAL_FREEZE.md`）。
-> **Phase 8E 当前状态**: ADMISSION CANDIDATE 已获 D3 接受；**Round 1 (`0048` 四表 foundation) 已在真实 PostgreSQL 上验证完毕**（本机 dev DB 应用 `0048` 后定向 6/6、全量 `1174 passed / 1 failed / 0 skipped`，唯一失败为本机历史数据导致的 `stage5b` case 1）。真实 DB 阻塞系上一轮误判（实为 Windows CLI 的 Docker Desktop 管道问题，测试仅由 `XP_RPG_TEST_DB_URL` 开关），并在真实执行中发现并修复了 `wishes_owner_update` 的静默 0 行缺陷。生产 RPC/API/UI 与 Round 2 (`0049`) 仍需 fresh exact-head Gatekeeper `P0=0 / P1=0 / P2=0 + GO` 后才解锁。
+> **Phase 8E 当前状态**: ADMISSION CANDIDATE 已获 D3 接受；**Round 1 (`0048` 四表 foundation) 已在真实 PostgreSQL 上验证完毕**（本机 dev DB 应用 `0048` 后定向 6/6、全量 `1174 passed / 1 failed / 0 skipped`，唯一失败为本机历史数据导致的 `stage5b` case 1）。真实 DB 阻塞系上一轮误判（实为 Windows CLI 的 Docker Desktop 管道问题，测试仅由 `XP_RPG_TEST_DB_URL` 开关），并在真实执行中发现并修复了 `wishes_owner_update` 的静默 0 行缺陷。生产 RPC/API/UI 与 Round 2 (`0049`) 仍需 fresh exact-head Gatekeeper `P0=0 / P1=0 / P2=0 + GO`。两个 fresh 独立 Gatekeeper 已对 `62035a4` 给出 **P0=0 / P1=0 + Round 1 GO**（修复真实、无新权限漏洞、空库可复现），但依 controlling §12 因 P2≠0 不解除 Round 2；4 项 P2（空库证据引用、四表跨租户覆盖、系统时间戳覆盖、`credit_cost` NULL 前置条件）已在后继证据型提交中关闭，尚待推送→PR→exact-head CI 双绿→fresh Gatekeeper `P2=0 + GO`。
 
 ---
 

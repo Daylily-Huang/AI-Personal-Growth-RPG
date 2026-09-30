@@ -201,6 +201,33 @@ describe.skipIf(!DATABASE_URL)("Phase 8E Round 1 — Reward/Wish DB foundation",
       status: "ACTIVE",
     });
 
+    // System timestamps are never client-writable, including in the otherwise
+    // editable ACTIVE state, so the denial cannot be attributed to lifecycle.
+    for (const column of ["created_at", "updated_at"]) {
+      await expectDbFailure(
+        () => asUser(USER_A, () =>
+          pg.query(`update public.wishes set ${column} = clock_timestamp() where id = $1`, [wish.id])),
+        "42501",
+      );
+    }
+
+    // Known Round 2 precondition, recorded rather than endorsed: the frozen
+    // contract allows exact credit_cost edits while IDEA/ACTIVE and the column is
+    // nullable, so an owner can currently clear the cost on an ACTIVE Wish.
+    // rpc_reserve_wish_credits / rpc_set_primary_wish must fail closed on a NULL
+    // credit_cost instead of assuming "ACTIVE implies a positive cost".
+    await asUser(USER_A, () =>
+      pg.query("update public.wishes set credit_cost = null where id = $1", [wish.id]),
+    );
+    const clearedCost = await pg.query(
+      "select credit_cost, status from public.wishes where id = $1",
+      [wish.id],
+    );
+    expect(clearedCost.rows[0]).toEqual({ credit_cost: null, status: "ACTIVE" });
+    await asUser(USER_A, () =>
+      pg.query("update public.wishes set credit_cost = 150 where id = $1", [wish.id]),
+    );
+
     // Past ACTIVE the same statement must fail loudly (SQLSTATE 42501) instead of
     // silently matching zero rows through the RLS USING clause, which would leave
     // the field-authority trigger unreachable and hand clients a no-op success.
@@ -247,6 +274,15 @@ describe.skipIf(!DATABASE_URL)("Phase 8E Round 1 — Reward/Wish DB foundation",
        values ($1, $2, 'REDEEM', 100, 'WISH', $3, 'authority-fixture-redeem')
        returning id`,
       [account.id, USER_A, wish.id],
+    );
+    // Isolation fixture: an owner-side receipt must exist before the cross-tenant
+    // read assertions below, otherwise "USER_B sees nothing" would be vacuous.
+    const redemption = await pg.query<{ id: string }>(
+      `insert into public.reward_redemptions
+         (user_id, wish_id, transaction_id, credits_spent, celebration_note)
+       values ($1, $2, $3, 100, 'isolation fixture')
+       returning id`,
+      [USER_A, wish.id, redeem.rows[0]!.id],
     );
 
     const countRows = async (): Promise<Record<string, number>> => {
@@ -315,6 +351,24 @@ describe.skipIf(!DATABASE_URL)("Phase 8E Round 1 — Reward/Wish DB foundation",
         params: write.params,
       });
     }
+    // Controlling §11 requires "RLS and explicit cross-tenant guards for all four
+    // tables", so prove the isolation on the ledger and receipt tables too, not
+    // only on the Wish read asserted at the top of this test.
+    const crossTenantReads = [
+      { table: "reward_accounts", sql: "select id from public.reward_accounts where id = $1", params: [account.id] },
+      { table: "reward_transactions", sql: "select id from public.reward_transactions where id = $1", params: [redeem.rows[0]!.id] },
+      { table: "wishes", sql: "select id from public.wishes where id = $1", params: [wish.id] },
+      { table: "reward_redemptions", sql: "select id from public.reward_redemptions where id = $1", params: [redemption.rows[0]!.id] },
+    ];
+    for (const read of crossTenantReads) {
+      // Positive control first: without it, "USER_B sees nothing" could pass
+      // vacuously if the projection itself were broken.
+      const ownRows = await asUser(USER_A, () => pg.query(read.sql, read.params));
+      expect({ table: read.table, ownRows: ownRows.rows.length }).toEqual({ table: read.table, ownRows: 1 });
+      const rows = await asUser(USER_B, () => pg.query(read.sql, read.params));
+      expect({ table: read.table, visibleRows: rows.rows }).toEqual({ table: read.table, visibleRows: [] });
+    }
+
     expect(await countRows()).toEqual(before);
   });
 
