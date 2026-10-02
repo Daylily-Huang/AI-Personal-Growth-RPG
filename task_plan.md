@@ -1,10 +1,10 @@
 # AI Personal Growth RPG — 项目总体计划与当前状态 (Task Plan)
 
 > **权威状态主文档**：请统一参阅 [`docs/MASTER_PROJECT_HANDOFF.md`](docs/MASTER_PROJECT_HANDOFF.md)。  
-> **当前里程碑**: Phase 8D — Strategy + Personal Playbook（FINAL FROZEN）；Phase 8E — Reward Economy + Wishes（**ADMISSION CANDIDATE；Round 1 `0048` 已通过真实 PostgreSQL 验证，生产 RPC/API/UI BLOCKED**）
+> **当前里程碑**: Phase 8D — Strategy + Personal Playbook（FINAL FROZEN）；Phase 8E — Reward Economy + Wishes（**Round 2 `0049` 本地实现/真实 PostgreSQL/独立 corrective Gatekeeper 已通过；等待 exact-head CI，API/UI BLOCKED**）
 > **当前主分支基线 (main)**: `be949deb67f62269d58a0e21865580d0e67204e0`
 > **最新状态**: Phase 8C **FINAL FROZEN**；Phase 8D admission 与 Round 1–5 全部通过。Round 5 corrective implementation exact head `8b33cca8e994ba45862194d5588642e9e76626ba` 的 CI Run `36590521018` 双绿，fresh independent Gatekeeper `P0=0 / P1=0 / P2=0 + GO`；PR #37 已由用户合入 `main`（merge `b93273cd87d39e04a66ed0ebfd76fa95ebd2e643`），post-merge main CI Run `36593720889` 双绿。**Phase 8D = FINAL FROZEN**（归档 `docs/Phase8/19_PHASE8D_GATEKEEPER_REREVIEW_AND_FINAL_FREEZE.md`）。
-> **Phase 8E 当前状态**: ADMISSION CANDIDATE 已获 D3 接受；**Round 1 (`0048` 四表 foundation) 已完成真实 PostgreSQL 验证**：dev 栈定向 `6/6`、全量 `1174 passed / 1 failed / 0 skipped`（唯一失败是本机 `demo_player` 域名 UUID 历史数据碰撞），**一次性 disposable 栈（独立 project_id / 端口 5532x / 独立卷）按 CI 顺序复刻 `supabase-integration` → `76/76` 文件、`1175/1175` 用例全过、`0 skipped`**，`harness:deterministic` 11/11、`test:e2e` 10/10，`tsc`/`eslint`/`next build` 均通过。真实 DB 阻塞系上一轮误判（实为 Windows CLI 的 Docker Desktop 管道问题，套件仅由 `XP_RPG_TEST_DB_URL` 开关），并在真实执行中发现并修复 `wishes_owner_update` 的静默 0 行缺陷。4 位互不相同的 fresh 独立 Gatekeeper 复核后，最终在 `59a45f5` 给出 `P0=0 / P1=0 / P2=0 + GO`。PR #40 当前 head `958829c` 的 GitHub CI Run `36713825255` 双绿；corrective gate 正在关闭公开可复核的 DB 门禁步骤与文档一致性。Round 2 仅包含 `0049`、十个 RPC、proposal settlement extension 和真实 DB/并发测试，**不包含 API/UI**；取得新 exact-head CI 双绿与 fresh Gatekeeper `P0=0 / P1=0 / P2=0 + GO` 前仍保持 BLOCKED。
+> **Phase 8E 当前状态**: Round 1 (`0048`) 已由 PR #40 corrective exact head `11fbb7a` 的 CI Run `36730784334` 双绿及 fresh Gatekeeper `P0=0 / P1=0 / P2=0 + GO` 正式解锁 Round 2。Round 2 已实现 `0049`、十个 authenticated-only RPC、`WISH_COST_SUGGESTION` proposal settlement 与真实 DB/并发测试；本机真实 PostgreSQL 聚焦 `89/89`、全量 `1191 passed / 2 skipped (1193)`，deterministic `11/11`，TypeScript/ESLint/build/diff-check 全绿。首轮独立审查的 4 个 P1（PRIMARY 归档、set-primary 锁序、ledger→audit→cache 顺序、十 RPC 并发矩阵）已修复，fresh corrective Gatekeeper 返回 `P0=0 / P1=0 / P2=0 + GO`。当前仅等待本轮提交后的 exact-head CI；**不包含且不授权 API/UI/Round 3**。
 
 ---
 
@@ -52,7 +52,7 @@
   - [complete] PR #33 已合入 main：merge `0e4bec5f26411669f7031af4523b6d4fca747f96`；post-merge main CI Run `35315613393` 全绿，DoD 最终 merge gate 已满足
 - [complete] **Phase 8C: Journal + State** ✅ FINAL FROZEN — PR #35；final reviewed exact head `f2f4d2b2d0a857348b6282dfdbfb3cfd08f4a06d`；Exact-Head CI `35381923343` success；merge `9aa76e7ce36b20b9f99e28d6cbd08eeb7bc55b85`；post-merge main CI `35432361509` success
 - [complete] **Phase 8D: Strategy + Personal Playbook** ✅ FINAL FROZEN — PR #37 已合入 `main`（merge `b93273cd87d39e04a66ed0ebfd76fa95ebd2e643`，post-merge main CI Run `36593720889` 双绿）；final reviewed implementation exact head `8b33cca8e994ba45862194d5588642e9e76626ba`，Gatekeeper `P0=0 / P1=0 / P2=0 + GO`。
-- [in_progress] **Phase 8E: Reward Economy + Wishes admission** — D1/D2 用户决策已写入 controlling candidate，D3 已获 fresh Gatekeeper 接受（`cd24254`，`P0=0 / P1=0 / P2=0 + GO`）。Round 1 (`0048`) 生产 SQL/纯 fold 已实现，并已在**真实 PostgreSQL**上跑通（定向 6/6、一次性干净栈全量 1175/1175、0 skipped）；期间修复 `wishes_owner_update` RLS `USING` 静默 0 行缺陷。PR #40 head `958829c` 的 CI Run `36713825255` 双绿；当前 corrective gate 只关闭 DB 门禁可复核性与治理文档一致性。Round 2 仅为 `0049` RPC authority + proposal settlement + 真实 DB/并发测试，**无 API/UI**，在新 exact-head Gatekeeper GO 前保持 BLOCKED。
+- [in_progress] **Phase 8E: Reward Economy + Wishes** — Round 1 已闭环。Round 2 `0049` RPC authority、十 RPC、proposal settlement 和真实 DB/并发测试已本地完成，并获 corrective Gatekeeper `P0=0 / P1=0 / P2=0 + GO`；等待 exact-head CI 后冻结本轮。API/UI 属 Round 3/4，继续 BLOCKED。
 
 ### 2026-09-29 — Round 4 Playbook UI
 

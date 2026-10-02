@@ -354,3 +354,12 @@
 - PR #40 当前 exact head `958829c215626df165640a3f33279d28d4b05c9b`，base `be949deb67f62269d58a0e21865580d0e67204e0`，GitHub 显示 `mergeable=true / mergeable_state=clean`。Actions Run `36713825255` 的 `check` 与 `supabase-integration` 均 success。
 - 公开 Jobs API 可复核 `supabase-integration` 的 `Export local Supabase credentials` 与 `Run database-backed tests` 两个步骤均 success；`scripts/export-supabase-ci-env.cjs` 在 `DB_URL` 缺失时 exit 1，并把非空值写入 `XP_RPG_TEST_DB_URL`；`tests/phase8e-db-foundation.test.ts` 唯一 skip 条件正是该变量缺失。因此该 exact-head 的 Phase 8E DB suite 不可能以缺少 DB URL 的 skip 路径得到成功。为让后续审查无需下载受限 job log，在 integration workflow 中新增独立的 `Verify database test gate is active` 步骤，缺少变量即失败。
 - Fresh 独立 Gatekeeper 对 `958829c` 返回 `P0=0 / P1=2 / P2=0 + NO-GO`：P1-01 为公开 job log 下载受限导致 0-skip 证据不可直接复核；P1-02 为 `task_plan.md` 将 Round 2 错写成含 API/UI，且 Master handoff 保留了“尚未创建 0048”的过时 admission 待办。本次仅修复 CI 证据可见性与上述文档矛盾；不创建 `0049`，Round 2 继续 BLOCKED，等待 corrective exact-head CI 与新的 fresh Gatekeeper。
+
+## 2026-10-02 — Phase 8E Round 2：0049 RPC authority 本地闭环
+
+- Round 1 corrective exact head `11fbb7aad0c8d5fb4d0a501b77199c186a828533` 的 CI Run `36730784334` 中 `check` 与 `supabase-integration` 均 success，fresh Gatekeeper `P0=0 / P1=0 / P2=0 + GO`，仅授权 Round 2 `0049`，不授权 API/UI。
+- Docker Desktop 已从 4.87.0 升级至 4.93.0；绕过损坏的 `docker-secrets-engine/engine.sock` 后，本地 Supabase API 恢复 HTTP 200。清理已使用更新缓存 857,245,819 bytes，并删除 5 个无人引用的历史验证 volume（约 210 MiB）；当前 12 个 Supabase 容器、全部在用镜像及 3 个当前 volume 保留，build cache 为 0。
+- 新增 `0049_phase8e_reward_wishes_rpc_authority.sql`：冻结 D1 `reward-v1` 数值，D2 Artifact/REAL_WORLD_VERIFIED fail closed；实现十个 authenticated-only RPC、append-only ledger/correction、account fold/cache parity、Wish 生命周期/预留/兑换/退款、统一 caller+key replay authority，以及 `WISH_COST_SUGGESTION` proposal wrapper。
+- 真实 PostgreSQL 首轮本地验证全绿后，独立 Gatekeeper 报 4 个 P1：缺 PRIMARY→ARCHIVED、set-primary 未按 account-first 锁序、六金融 RPC 顺序非 ledger→audit→cache、十 RPC 并发矩阵不足。已全部修复，并加入 projected account snapshot + audit-before-cache apply 及十 RPC same-key replay/conflict 双连接矩阵。
+- 修复后证据：聚焦 `3 files / 89 tests` 全过；完整真实 DB 套件 `77 files passed`、`1191 passed / 2 skipped (1193)`；deterministic `11/11`、TypeScript、ESLint、production build、`git diff --check` 全绿。fresh corrective Gatekeeper：`P0=0 / P1=0 / P2=0 + GO`，只接受 Round 2，不授权 Round 3。
+- 当前待办：只提交本轮 0049/测试/治理与状态文件并推送 PR #40，取得新 exact-head CI 双绿后冻结 Round 2；并行出现的 login/auth/端口同步修改不属于本轮，不纳入提交。

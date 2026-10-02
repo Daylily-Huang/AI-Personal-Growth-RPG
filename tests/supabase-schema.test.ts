@@ -71,6 +71,7 @@ const EXPECTED_ORDER = [
   "0046_phase8d_strategy_database_foundation",
   "0047_phase8d_strategy_rpc_authority",
   "0048_phase8e_reward_wishes_foundation",
+  "0049_phase8e_reward_wishes_rpc_authority",
 ];
 
 
@@ -625,5 +626,100 @@ describe("Phase 8E Round 1 — Reward/Wish schema authority", () => {
     expect(reward).toContain("NEW.user_id IS DISTINCT FROM v_transaction_user_id");
     expect(reward).toContain("OLD.status NOT IN ('IDEA', 'ACTIVE')");
     expect(reward).toContain("NEW.status IS DISTINCT FROM OLD.status");
+  });
+});
+
+describe("Phase 8E Round 2 — Reward/Wish RPC authority", () => {
+  const migrations = readMigrations();
+  const rpc = migrations.get("0049_phase8e_reward_wishes_rpc_authority") ?? "";
+
+  test("0049 exposes exactly the ten authorized Reward/Wish mutation RPCs", () => {
+    for (const name of [
+      "rpc_grant_reward_credit",
+      "rpc_correct_reward_transaction",
+      "rpc_activate_wish",
+      "rpc_set_primary_wish",
+      "rpc_reserve_wish_credits",
+      "rpc_unreserve_wish_credits",
+      "rpc_redeem_wish",
+      "rpc_refund_wish_redemption",
+      "rpc_archive_wish",
+      "rpc_cancel_wish",
+    ]) {
+      expect(rpc).toContain(`CREATE OR REPLACE FUNCTION public.${name}`);
+      expect(rpc).toMatch(new RegExp(`GRANT EXECUTE ON FUNCTION public\\.${name}\\(`));
+    }
+    expect(rpc).not.toContain("xp_transactions");
+    expect(rpc).not.toContain("mastery_events (");
+  });
+
+  test("reward-v1 values and source boundaries are immutable in PostgreSQL", () => {
+    expect(rpc).toContain("CREATE OR REPLACE FUNCTION public.calculate_reward_grant_v1");
+    expect(rpc).toContain("IMMUTABLE");
+    for (const amount of ["RETURN 100", "RETURN 150", "RETURN 200", "RETURN 250"]) {
+      expect(rpc).toContain(amount);
+    }
+    expect(rpc).toContain("p_policy_version IS DISTINCT FROM 'reward-v1'");
+    expect(rpc).toContain("'ARTIFACT', 'REAL_WORLD_VERIFIED'");
+    expect(rpc).toContain("'SOURCE_CLASS_NOT_YET_AVAILABLE'");
+  });
+
+  test("cross-RPC replay locks the caller/key before target or account lookup", () => {
+    const begin = rpc.slice(
+      rpc.indexOf("CREATE OR REPLACE FUNCTION public.phase8e_begin_request"),
+      rpc.indexOf("CREATE OR REPLACE FUNCTION public.phase8e_write_audit"),
+    );
+    expect(begin).toContain("pg_advisory_xact_lock");
+    expect(begin).toContain("canonical_request_fingerprint");
+    expect(begin).toContain("IDEMPOTENCY_KEY_REUSED");
+    expect(begin.indexOf("pg_advisory_xact_lock")).toBeLessThan(
+      begin.indexOf("FROM public.outer_loop_audit_events"),
+    );
+    const grant = rpc.slice(
+      rpc.indexOf("CREATE OR REPLACE FUNCTION public.rpc_grant_reward_credit"),
+      rpc.indexOf("CREATE OR REPLACE FUNCTION public.rpc_correct_reward_transaction"),
+    );
+    expect(grant.indexOf("phase8e_begin_request")).toBeLessThan(
+      grant.indexOf("phase8e_lock_reward_account"),
+    );
+  });
+
+  test("helpers stay private while proposal settlement remains proposal-only", () => {
+    for (const helper of [
+      "calculate_reward_grant_v1(text, jsonb)",
+      "phase8e_lock_reward_account(uuid)",
+      "phase8e_fold_reward_ledger(uuid)",
+      "phase8e_preview_reward_account(uuid, uuid, timestamptz)",
+      "phase8e_apply_reward_account(uuid, uuid, timestamptz)",
+      "phase8e_verified_reward_amount(uuid, text, text, text)",
+    ]) {
+      expect(rpc).toContain(`REVOKE ALL ON FUNCTION public.${helper} FROM PUBLIC, anon, authenticated, service_role;`);
+    }
+    expect(rpc).toContain("RENAME TO phase8d_review_outer_loop_proposal");
+    expect(rpc).toContain("v_proposal.proposal_type <> 'WISH_COST_SUGGESTION'");
+    expect(rpc).toContain("v_wish.status NOT IN ('IDEA', 'ACTIVE')");
+  });
+
+  test("financial RPCs audit the projected result before applying the account cache", () => {
+    const names = [
+      "rpc_grant_reward_credit",
+      "rpc_correct_reward_transaction",
+      "rpc_reserve_wish_credits",
+      "rpc_unreserve_wish_credits",
+      "rpc_redeem_wish",
+      "rpc_refund_wish_redemption",
+    ];
+    for (let index = 0; index < names.length; index += 1) {
+      const start = rpc.indexOf(`CREATE OR REPLACE FUNCTION public.${names[index]}`);
+      const next = index + 1 < names.length
+        ? rpc.indexOf(`CREATE OR REPLACE FUNCTION public.${names[index + 1]}`, start)
+        : rpc.indexOf("CREATE OR REPLACE FUNCTION public.rpc_archive_wish", start);
+      const body = rpc.slice(start, next);
+      const finalPreview = body.lastIndexOf("phase8e_preview_reward_account");
+      const settlementAudit = body.indexOf("phase8e_write_audit", finalPreview);
+      expect(finalPreview).toBeGreaterThan(-1);
+      expect(settlementAudit).toBeGreaterThan(finalPreview);
+      expect(body.indexOf("phase8e_apply_reward_account")).toBeGreaterThan(settlementAudit);
+    }
   });
 });
