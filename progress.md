@@ -1,5 +1,20 @@
 # 项目历史工作进度 (Progress Log)
 
+## 2026-10-03 — 续作恢复 / corrective gate
+
+- 用户恢复“继续”；HEAD 仍为 `bc64ce51551c95066ee1b019d29fb66761eb05e8`，奖励 Round 3 与 0050 均未提交，既有并行 login/auth/package/launcher 改动保留。
+- 继续使用 planning-with-files 恢复；session-catchup 无新增报告。已联系在途独立 reviewer Ohm，等待最终判决及迁移期间旧 RPC body 恢复写入的竞态验证；未宣称 GO，Round 4 仍 gated。
+- 本轮先完成 corrective schema/test 审查，再按精确文件清单提交、验证 exact-head CI 与独立 Gatekeeper。`.data/phase8e-pre-0050.dump` 为恢复备份，不作缓存删除。
+- Ohm 独立复审为 `P0=0/P1=0/P2=1 + NO-GO`：SQL 6/6、HTTP 17/17 通过，但大写 URL UUID 导致 JSON proposal 关联漏查。现规范化路由 UUID，并对 payload UUID 使用无通配符的大小写不敏感匹配，补真实 HTTP 双方向反例。
+- 旧 0049 grant body 在回滚事务内复现第一条非标准 EARN 仍可成功（新增测试先红）；0050 加 canonical EARN CHECK 并仅同步该约束后，SQL/fold 四文件 37/37 通过。此测试模拟旧函数体，不宣称已复现真实在线升级调度。历史迁移、账本、registry 和备份未改写。
+- 续作自检 API/static 115/115、目标 ESLint 通过。一次误写 `tests/phase8e-ledger.test.ts` 未命中文件，实际 fold 文件为 `tests/reward-ledger-fold.test.ts`，已在上述 37/37 中执行；读取不存在的 `src/lib/reward/ledger.ts` 已改以实际文件为准。
+- 当前 API/static/fold 为 127/127，目标 ESLint 通过。重建首次因新增 HTTP 测试直接读取未声明的 `Payload.proposals` 失败，已改用精确结构断言并重新构建；未放宽 TypeScript 配置。
+- 修正后 production build 成功（37 静态页面，11 个 reward API 路由）；deterministic harness 11/11。实时 GitHub 核验 PR #40 仍 open/unmerged，head=bc64ce5、base=be949deb；未提前推送。Jason 全新独立复审已获最新 build，可执行真实 HTTP 回归。
+- Jason 独立复审 `P0=0/P1=0/P2=1 + NO-GO`：SQL 20/20，HTTP 16/17；新增 uppercase payload 夹具错误地 UPDATE 不可变 proposal，正确触发 `23514`。已改成新增独立 proposal 并覆盖两条发现/审批，不禁用任何保护；production 无新变动。Jason 前后 36 表及函数/约束摘要一致、0 禁用触发器，未留测试残留。
+- 改正夹具后真实 HTTP 17/17、API 67/67（合计 84/84）通过，包括大小写 URL/payload 的发现与两条 proposal 的真实审批；正在取得全新独立 corrective 判决。
+- 全新 Turing corrective Gatekeeper `01a0fda5-ee25-72a0-be9b-bbe4c5c4f49e` 最终为 `P0=0/P1=0/P2=0 + GO`，仅接受本轮未提交候选：独立 SQL 20/20 + HTTP 17/17，无跳过；额外验证旧规范历史升级重放、七天冷却、35 表/函数/约束摘要前后相同、0 禁用触发器，0048/0049 原样。既有 James/Ohm/Jason findings 均关闭；不是在线升级调度复现或 Round 4 放行。
+- 准备仅提交 26 个本轮文件并推送 PR #40：五份文档/计划、迁移登记测试、奖励五层/11 路由、0050、三个新测试。原有 login/auth/package/launcher 等全部排除，恢复备份保留。后续必须绑定新 SHA 的 CI 与 fresh exact-head Gatekeeper。
+
 ## 2026-09-29 — Phase 8D 独立审查落盘（PR #38 归档闭环）
 
 - PR #38（`docs(phase8d): final freeze archive and status sync`）已由用户合入 `main`：merge commit `a1da765e492b8d93e6350ac32865d8e0018faa91`（parents `b93273cd` + `597e3f8`）。PR head `597e3f8` 的 CI Run `36596794622` 双 job success。
@@ -376,3 +391,17 @@
 - 修复：新增 private `phase8e_lock_reward_account_key`，金融 account helper 与 `set_primary` 共用同一 user-account transaction advisory lock；只有金融 helper 随后创建/锁账户行，`set_primary` 不再写账户缓存。并发矩阵现在读取第二连接 backend PID，通过第三连接轮询 `pg_stat_activity`，确认 `wait_event_type='Lock' / wait_event='advisory'` 后才提交首事务；每个 RPC 均前后核对 account/ledger/redemption/audit 数量与 Wish 终态。
 - 本地验证：聚焦真实 DB `3 files / 89 tests`；deterministic `11/11`；TypeScript、ESLint（0 error，6 个 warning 均来自未提交 login 修改）、`git diff --check` 通过。全量真实 DB 为 `76 files passed / 1 failed`、`1192 passed / 1 failed (1193)`；唯一失败是并行未提交 `src/app/login/page.tsx` 改变了旧 `/login` loading mock 调用路径，所有数据库/RPC/HTTP 集成组均通过。该 login 改动不属于 Round 2，未修改、未暂存。
 - Round 2 仍为 NO-GO，等待 corrective 审查、提交、exact-head CI 双绿和最终 fresh Gatekeeper；Round 3/API/UI 继续未授权。
+
+## 2026-10-03 — Round 2 accepted / 全站持续推进
+
+- 实时复核 PR #40 head `bc64ce51551c95066ee1b019d29fb66761eb05e8`，open / unmerged / clean；CI Run `37004408985` success。上一轮 fresh 独立 Faraday Gatekeeper 为 `P0=0 / P1=0 / P2=0 + GO`，只接受 Round 2。以上取代上方仍为 NO-GO 的历史快照。
+- 用户授权持续推进全站；保持逐轮门禁与用户手动 merge 边界。已冻结 controlling §15 的 Round 3 API 清单，更新主交接和任务计划；当前进入服务端实现，不修改 0048/0049，不创建 UI。
+- WSL 原生 Docker 的 12 个 Supabase 容器正在运行。并行未提交 login/auth/package/launcher/port-sync 文件保留，奖励提交不夹带。
+
+### Round 3 implementation and corrective gate
+
+- Implemented frozen §15 inventory: account/ledger/receipt reads, paginated source/Wish/proposal discovery, exact-field metadata edits, ten RPC adapters. New routes use authenticated user client, no-store responses, fail-closed parsing, stable domain error mapping and no prefetch before mutation replay.
+- Initial validation: adapter 66/66; real HTTP 16/16; combined Phase8E 5 files / 112 tests; deterministic 11/11; TSC/targeted ESLint/build passed. First HTTP run 15/16 exposed only a UUID/text fixture parameter inference issue, fixed by using separate slug parameter.
+- Independent James review nevertheless returned P1 / NO-GO for UUID alias double mint in prior 0049. It independently reproduced lowercase/uppercase/compact source IDs -> 3 EARN / 300 credits and rolled back all proof data. This invalidates progression to Round 4 until repaired.
+- Added narrowly governed 0050 corrective authority migration (§16); 0048/0049 untouched. Before application the new QUEST alias regression failed as expected. Backed up local DB to `.data/phase8e-pre-0050.dump` (911,221 bytes), applied 0050 + migration registry insert atomically, then six SQL corrective cases passed. Await full suites, fresh independent corrective review, commit and exact-head CI/gate.
+- Corrective combined DB run: canonical SQL 6 + real HTTP 17 + existing RPC 13 = 36/36, no skips. Full workspace run: 80 files, 1280 passed / 2 failed / 0 skipped (1282), 442.45s. Failures: (a) preexisting dirty login loading mock; (b) static migration allowlist omitted newly added 0050. Added the exact filename (not a relaxed guard) and reran that suite 49/49; deterministic 11/11, TypeScript and targeted ESLint pass. Whole-project lint exits 0 with six warnings exclusively in the untouched dirty login page. Final committed-head CI must independently prove the selected delta without those unrelated working-tree changes.

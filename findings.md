@@ -1,5 +1,20 @@
 # 调查发现与核心架构决策 (Findings)
 
+
+## 2026-10-03 — Round 3 boundary decisions
+
+- 已接受的数据库 authority 结果为 snake_case snapshots；HTTP 直接保留该形状与 replay 结果，不在服务层重算奖励金额，也不先读取目标导致改变 RPC replay 优先级。
+- 读取不存在的 reward account 应返回 null + 空账本的零余额，不能为了显示页面隐式创建账户。
+- Round 3 补充 paginated source candidates 和 Wish proposal reads，供后续 UI 使用；候选只辅助选择，Season FINAL review / verified Mastery / canonical duplicate 等始终由现有 RPC 重验。
+- 全站未定义统一工作量分母，撤销无依据的 70%–75% 完成度表达，改按功能、门禁、合并与部署分别记录。
+
+### Newly reproduced authority defect and narrow repair
+
+- Independent James audit: `P0=0 / P1=1 / P2=0 + NO-GO`. Raw text identity in 0049 allows uppercase/compact UUID aliases to bypass the 0048 source uniqueness constraint: one Major Quest -> 3 EARN / 300 credits. Transaction rollback and zero fixture residue verified.
+- `0050_phase8e_reward_canonical_source_fix.sql` normalizes supported source IDs before replay fingerprint derivation, installs normalized uniqueness, and refuses preexisting noncanonical EARN history rather than rewriting immutable rows/audit snapshots. Frozen reward-v1 amounts and D2 exclusions are unchanged.
+- New `phase8e-canonical-source` QUEST regression failed before applying 0050 (uppercase canonical ID persisted), then all six corrective SQL tests passed after transactional installation. Local backup `.data/phase8e-pre-0050.dump` is 911,221 bytes; do not remove it as disposable cache before phase acceptance.
+- The normalized unique index does not prevent a *first* noncanonical EARN from a stale 0049 function body. A rollback-only exact historical-body regression initially minted 100, then failed closed with zero financial/audit residue after adding `ck_reward_tx_canonical_earn_source`. This models the old-body hazard, not a reproduced deployment interleaving.
+- Independent Ohm found a separate P2: UUID columns match uppercase URLs, JSON text equality does not. Reward route UUIDs now normalize case; proposal matching is case-insensitive for validated wildcard-free UUIDs and tests include both uppercase URL and uppercase payload. No prior proposal payload is rewritten.
 ## 2026-09-29 Round 4 Playbook UI
 
 - 控制文档 §9 要求 Strategy 列表/详情、用户创建、测试状态、正反证、显式晋升、情境化/退役、版本、两类 AI 提案审核。§11 将 Round 4 限定为 `/journey/playbook` 与 Journey 导航，消费已接受 HTTP/domain surfaces。

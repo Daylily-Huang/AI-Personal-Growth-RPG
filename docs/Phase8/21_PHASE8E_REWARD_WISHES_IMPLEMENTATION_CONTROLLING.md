@@ -2,14 +2,14 @@
 
 ## 1. Governance Boundary
 
-Status: **ADMISSION CANDIDATE — production implementation remains BLOCKED pending fresh exact-head Gatekeeper GO**
+Status: **Round 2 accepted; Round 3 server boundary in progress (2026-10-03).**
 
 Baseline:
 
 - Immutable main baseline: `a1da765e492b8d93e6350ac32865d8e0018faa91`.
 - Phase 8D is FINAL FROZEN. This document cannot reopen or modify its schema, RPC, API, UI, tests, or evidence.
-- This document does not authorize migrations, RPCs, server routes, UI, or reward settlement.
-- User decisions D1 and D2 in §13 are frozen as of 2026-09-30. Admission still requires a committed exact head, green deterministic documentation/governance checks, and a fresh independent Gatekeeper verdict `P0=0 / P1=0 / P2=0 + GO` explicitly accepting D3.
+- Admission and Round 1 gates have passed. Round 2 exact head `bc64ce51551c95066ee1b019d29fb66761eb05e8` passed CI Run `37004408985` and fresh independent Gatekeeper `P0=0 / P1=0 / P2=0 + GO`. This is not Phase 8E final freeze or PR merge authorization.
+- User decisions D1 and D2 in §13 remain frozen. The user's 2026-10-03 instruction authorizes continued implementation subject to §12 gates. Round 3 adds the inventory in §15; Round 4 UI waits for Round 3 acceptance.
 
 The following frozen documents remain controlling unless this document explicitly identifies a contradiction and records the proposed narrow resolution:
 
@@ -368,3 +368,41 @@ Phase 8E is complete only when:
 - independent final Gatekeeper returns `P0=0 / P1=0 / P2=0 + GO` on the exact implementation head;
 - the user manually merges the accepted PR and post-merge main CI is green;
 - a final freeze archive records exact head, CI run, Gatekeeper verdict, merge SHA, residual risks, and Phase 8F remains separately gated.
+
+## 15. Round 3 Frozen HTTP Inventory (2026-10-03)
+
+All new reward endpoints use a request-scoped authenticated Supabase client and RLS, authenticate before parsing, and return `Cache-Control: private, no-store`. No demo/admin fallback. Request metadata uses camelCase; database authority result snapshots retain snake_case. No Growth Core write or UI in this round. The sole SQL exception is the independently reproduced correctness repair in §16.
+
+| Method / path | Contract |
+| --- | --- |
+| GET `/api/rewards/account` | `{account, balance}`; missing account returns null plus zero fold without creating a row |
+| GET `/api/rewards/transactions` | `{transactions, nextOffset}`; immutable ledger, newest first with id tie-break |
+| GET `/api/rewards/redemptions` | `{redemptions, nextOffset}`; immutable receipts plus derived `refunded` flag from REFUND events |
+| GET `/api/rewards/sources` | Require `sourceType=SEASON/QUEST/MASTERY`; paginated owned source candidates, no grant and no client-authoritative amount; RPC revalidates all eligibility |
+| GET / POST `/api/rewards/wishes` | List `{wishes,nextOffset}` / create IDEA using only `title`, optional `description`, `creditCost` |
+| GET / PATCH `/api/rewards/wishes/[id]` | Read / edit only title, description, creditCost under DB field authority; missing or foreign ID is 404 |
+| GET `/api/rewards/wishes/[id]/proposals` | Owned WISH_COST_SUGGESTION proposals targeting this owned wish; no AI call or proposal creation |
+| POST `/api/rewards/wishes/[id]/[action]` | Closed action set: `activate`, `set-primary`, `reserve`, `unreserve`, `redeem`, `archive`, `cancel`; maps one-to-one to the existing seven Wish RPCs |
+| POST `/api/rewards/grants` | `sourceType`, `sourceId`, `policyVersion`, `requestIdempotencyKey`; no amount or user override |
+| POST `/api/rewards/transactions/[id]/correct` | `note` required plus `requestIdempotencyKey`; existing correction RPC |
+| POST `/api/rewards/redemptions/[id]/refund` | `note` required plus `requestIdempotencyKey`; existing refund RPC |
+| POST `/api/outer-loop/proposals/[id]/review` (existing) | Reuse unchanged proposal review path; no duplicate reward review endpoint |
+
+- Wish actions accept only `requestIdempotencyKey`; `redeem` also accepts optional nullable `celebrationNote`. Unknown fields, null/non-object bodies, invalid identifiers, malformed JSON, invalid integer costs, and invalid pagination fail 400 before any repository mutation. Unknown action is 404.
+- Lists use explicit offset pagination (default 50, maximum 100; operational bounds, not reward policy), deterministic timestamp/id ordering and `nextOffset`. Source candidates are explicitly non-authoritative. Season candidates are completed seasons; Quest candidates are completed major/epic/main or boss quests; Mastery candidates are verified M6/M8/M10 records. Only the grant RPC decides eligibility, amount and duplicate identity.
+- Do not prefetch targets before a mutation RPC: its caller+key replay/conflict check must win before ownership/current-state checks.
+- Stored grant business rejection returns HTTP 400 for `FARMING_SOURCE_REJECTED`, 422 for `SOURCE_CLASS_NOT_YET_AVAILABLE`, preserving `ok:false`, code and replay snapshot. Identical rejected retry has the same status. SQL errors map to 401 auth, 404 absent/foreign, 409 key/duplicate/lifecycle conflict, 422 eligibility/insufficient credits/cooldown, 400 malformed input. Internal errors never expose SQL/details/hints.
+- Acceptance burdens: (1) every read/write is authenticated and tenant-bound with forged authority fields rejected; (2) all ten HTTP actions preserve RPC replay, conflict, append-only accounting and zero failed-write residue; (3) source discovery/proposal review cannot bypass frozen D1 amounts, D2 exclusions, seven-day cooldown or immutable receipt/XP boundaries. Use real Next + real Auth + real PostgreSQL, not only mocked handlers.
+
+## 16. Corrective Authority Exception — Canonical Source Identity
+
+Independent Round 3 candidate review reproduced a P1 in accepted `0049`: one owned completed Major Quest minted three EARN rows / 300 credits using lowercase, uppercase and compact UUID spellings with different request keys. All proof data was rolled back. Prior Round 2 GO is historical evidence, not a waiver of this newly demonstrated invariant violation.
+
+The user's ongoing instruction to complete and repair the site permits this narrow bug repair; it changes no L0/L1 reward policy. `0050_phase8e_reward_canonical_source_fix.sql` may add one private immutable canonical-source helper, one canonical EARN CHECK constraint, one normalized uniqueness index, and replace only `rpc_grant_reward_credit` to normalize identity before its existing caller/key replay check. `0048` and `0049` remain byte-identical. No new table, public RPC, source class, amount, or automatic settlement is allowed.
+
+- Valid SEASON/QUEST UUID inputs map through PostgreSQL UUID output; MASTERY retains its existing accepted grammar and normalizes the skill UUID portion, retaining `:M6/:M8/:M10`.
+- Normalization uses input only, without domain reads. Invalid source identifiers remain a bound request value so an existing conflicting key still wins before a first-seen missing-source error.
+- Equal semantic source + same key replays the stored snapshot; a distinct key for any equivalent source spelling fails 409 with no account/ledger/audit residue.
+- The canonical EARN CHECK also rejects a first noncanonical insert attempted by a stale pre-upgrade grant body; rejection rolls back its account/ledger/audit writes. A rollback-only regression executes the exact 0049 body against the new constraint, without claiming to reproduce live deployment scheduling.
+- Installation locks ledger writes and refuses noncanonical historical EARN rows with `NONCANONICAL_REWARD_HISTORY_REQUIRES_REVIEW`. It neither deletes nor rewrites ledger/audit history. If that guard fires, stop and develop a separately reviewed data-recovery plan before retrying; do not disable it or auto-correct balances.
+- Required extra gates: real SQL and HTTP spelling-variant cases, unchanged D1/D2, private helper grants, normalized-index enforcement, migration guard preserves legacy bytes, local backup and transactional application, fresh independent corrective review and exact-head CI. Round 4 stays gated until these pass.
