@@ -363,3 +363,9 @@
 - 真实 PostgreSQL 首轮本地验证全绿后，独立 Gatekeeper 报 4 个 P1：缺 PRIMARY→ARCHIVED、set-primary 未按 account-first 锁序、六金融 RPC 顺序非 ledger→audit→cache、十 RPC 并发矩阵不足。已全部修复，并加入 projected account snapshot + audit-before-cache apply 及十 RPC same-key replay/conflict 双连接矩阵。
 - 修复后证据：聚焦 `3 files / 89 tests` 全过；完整真实 DB 套件 `77 files passed`、`1191 passed / 2 skipped (1193)`；deterministic `11/11`、TypeScript、ESLint、production build、`git diff --check` 全绿。fresh corrective Gatekeeper：`P0=0 / P1=0 / P2=0 + GO`，只接受 Round 2，不授权 Round 3。
 - 当前待办：只提交本轮 0049/测试/治理与状态文件并推送 PR #40，取得新 exact-head CI 双绿后冻结 Round 2；并行出现的 login/auth/端口同步修改不属于本轮，不纳入提交。
+
+## 2026-10-02 — Phase 8E Round 2：PR #40 首轮 CI 复验
+
+- 用户授权后已把 Round 2 提交 `80604f582e34efc32c9e153a63dd9096caf69278` 推送到 PR #40；GitHub Run `36977055841` 的 `check` job 成功，`supabase-integration` 在 `Run database-backed tests` 步骤 exit 1（构建与 DB variable gate 均成功）。公开接口无法下载该 job 的逐行日志，因此未把未知失败归因于 0049。
+- 在当前真实 PostgreSQL 栈上把 `tests/phase8e-rpc-authority.test.ts` 连续运行 10 次，全部通过；再从 git archive 导出的 exact `80604f5` 源码运行全套 Vitest，数据库/RPC 与静态部分 `71 files / 1092 tests` 全过，另 6 个生产 HTTP suites 因隔离目录没有 `.next` 而跳过。尝试在 DrvFS + 共享 `node_modules` 的隔离目录补构建时，Turbopack 卡在 PostCSS worker，Webpack 卡在持续磁盘 I/O，均由本轮主动终止；这两项属于本机隔离构建限制，不计为代码通过或失败。
+- 当前没有复现 Round 2 代码缺陷。后续以仅含本证据记录的后继提交触发新 CI；必须等新 exact-head `check` + `supabase-integration` 双绿，并取得 fresh exact-head Gatekeeper `P0=0 / P1=0 / P2=0 + GO`，才可冻结 Round 2。Round 3/API/UI 仍未授权。
