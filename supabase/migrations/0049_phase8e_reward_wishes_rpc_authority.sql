@@ -148,6 +148,19 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION public.phase8e_lock_reward_account_key(p_user_id uuid)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+  PERFORM pg_advisory_xact_lock(
+    hashtextextended('phase8e-reward-account' || E'\x1f' || p_user_id::text, 0)
+  );
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION public.phase8e_lock_reward_account(p_user_id uuid)
 RETURNS uuid
 LANGUAGE plpgsql
@@ -156,6 +169,8 @@ SET search_path = public, pg_temp
 AS $$
 DECLARE v_id uuid;
 BEGIN
+  PERFORM public.phase8e_lock_reward_account_key(p_user_id);
+
   INSERT INTO public.reward_accounts (user_id)
   VALUES (p_user_id)
   ON CONFLICT (user_id) DO NOTHING;
@@ -562,12 +577,14 @@ RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_tem
 AS $$
 DECLARE
   v_user_id uuid := auth.uid(); v_begin jsonb; v_result jsonb;
-  v_wish public.wishes%ROWTYPE; v_other uuid; v_account_id uuid;
+  v_wish public.wishes%ROWTYPE; v_other uuid;
 BEGIN
   v_begin := public.phase8e_begin_request(v_user_id, 'rpc_set_primary_wish',
     'wishes', p_wish_id::text, '{}'::jsonb, p_request_idempotency_key);
   IF (v_begin->>'replayed')::boolean THEN RETURN (v_begin->'result') || jsonb_build_object('replayed', true); END IF;
-  v_account_id := public.phase8e_lock_reward_account(v_user_id);
+  -- Serialize selection against financial account-first flows without creating
+  -- or mutating the reward_accounts cache from this non-ledger lifecycle RPC.
+  PERFORM public.phase8e_lock_reward_account_key(v_user_id);
   SELECT * INTO v_wish FROM public.wishes WHERE id = p_wish_id AND user_id = v_user_id FOR UPDATE;
   IF NOT FOUND THEN RAISE EXCEPTION 'WISH_NOT_FOUND' USING ERRCODE = 'P0002'; END IF;
   IF v_wish.status <> 'ACTIVE' THEN RAISE EXCEPTION 'INVALID_WISH_TRANSITION' USING ERRCODE = '23514'; END IF;
@@ -922,6 +939,7 @@ REVOKE ALL ON FUNCTION public.calculate_reward_grant_v1(text, jsonb) FROM PUBLIC
 REVOKE ALL ON FUNCTION public.phase8e_begin_request(uuid, text, text, text, jsonb, text) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.phase8e_write_audit(uuid, text, text, uuid, text, text, text, text, jsonb, text, jsonb) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.phase8e_lock_reward_account(uuid) FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.phase8e_lock_reward_account_key(uuid) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.phase8e_fold_reward_ledger(uuid) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.phase8e_preview_reward_account(uuid, uuid, timestamptz) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.phase8e_apply_reward_account(uuid, uuid, timestamptz) FROM PUBLIC, anon, authenticated, service_role;

@@ -369,3 +369,10 @@
 - 用户授权后已把 Round 2 提交 `80604f582e34efc32c9e153a63dd9096caf69278` 推送到 PR #40；GitHub Run `36977055841` 的 `check` job 成功，`supabase-integration` 在 `Run database-backed tests` 步骤 exit 1（构建与 DB variable gate 均成功）。公开接口无法下载该 job 的逐行日志，因此未把未知失败归因于 0049。
 - 在当前真实 PostgreSQL 栈上把 `tests/phase8e-rpc-authority.test.ts` 连续运行 10 次，全部通过；再从 git archive 导出的 exact `80604f5` 源码运行全套 Vitest，数据库/RPC 与静态部分 `71 files / 1092 tests` 全过，另 6 个生产 HTTP suites 因隔离目录没有 `.next` 而跳过。尝试在 DrvFS + 共享 `node_modules` 的隔离目录补构建时，Turbopack 卡在 PostCSS worker，Webpack 卡在持续磁盘 I/O，均由本轮主动终止；这两项属于本机隔离构建限制，不计为代码通过或失败。
 - 当前没有复现 Round 2 代码缺陷。后续以仅含本证据记录的后继提交触发新 CI；必须等新 exact-head `check` + `supabase-integration` 双绿，并取得 fresh exact-head Gatekeeper `P0=0 / P1=0 / P2=0 + GO`，才可冻结 Round 2。Round 3/API/UI 仍未授权。
+
+## 2026-10-02 — Phase 8E Round 2：双绿后的 corrective P1 修复
+
+- Evidence head `3f3bcf4bde130843dc62516b9cb589069ac8717a` 的 GitHub Run `36981311919` 已双绿，但 fresh exact-head Gatekeeper 返回 `P0=0 / P1=2 / P2=0 + NO-GO`：`rpc_set_primary_wish` 经 account helper 在账户缺失时隐式创建 `reward_accounts`，违反四个非 ledger RPC 不改账户；十 RPC 并发矩阵仅固定等待 40ms，未确定性证明第二连接已阻塞，也未逐 RPC 核对业务 mutation cardinality。
+- 修复：新增 private `phase8e_lock_reward_account_key`，金融 account helper 与 `set_primary` 共用同一 user-account transaction advisory lock；只有金融 helper 随后创建/锁账户行，`set_primary` 不再写账户缓存。并发矩阵现在读取第二连接 backend PID，通过第三连接轮询 `pg_stat_activity`，确认 `wait_event_type='Lock' / wait_event='advisory'` 后才提交首事务；每个 RPC 均前后核对 account/ledger/redemption/audit 数量与 Wish 终态。
+- 本地验证：聚焦真实 DB `3 files / 89 tests`；deterministic `11/11`；TypeScript、ESLint（0 error，6 个 warning 均来自未提交 login 修改）、`git diff --check` 通过。全量真实 DB 为 `76 files passed / 1 failed`、`1192 passed / 1 failed (1193)`；唯一失败是并行未提交 `src/app/login/page.tsx` 改变了旧 `/login` loading mock 调用路径，所有数据库/RPC/HTTP 集成组均通过。该 login 改动不属于 Round 2，未修改、未暂存。
+- Round 2 仍为 NO-GO，等待 corrective 审查、提交、exact-head CI 双绿和最终 fresh Gatekeeper；Round 3/API/UI 继续未授权。

@@ -175,7 +175,14 @@ type RpcMatrixKind =
 async function setupRpcMatrixFixture(
   client: Client,
   kind: RpcMatrixKind,
-): Promise<{ userId: string; targetId: string; sql: string; params: (targetId: string, key: string) => unknown[] }> {
+): Promise<{
+  kind: RpcMatrixKind;
+  userId: string;
+  targetId: string;
+  wishId?: string;
+  sql: string;
+  params: (targetId: string, key: string) => unknown[];
+}> {
   const userId = randomUUID();
   const targetId = randomUUID();
   const accountId = randomUUID();
@@ -191,7 +198,7 @@ async function setupRpcMatrixFixture(
       [targetId, userId],
     );
     return {
-      userId, targetId,
+      kind, userId, targetId,
       sql: "select public.rpc_grant_reward_credit('QUEST', $1, 'reward-v1', $2) as result",
       params: (target, key) => [target, key],
     };
@@ -200,7 +207,7 @@ async function setupRpcMatrixFixture(
   if (kind === "correct") {
     await seedFinancialFixture(client, { userId, email: `unused-${userId}@example.test`, accountId, earnTxId });
     return {
-      userId, targetId: earnTxId,
+      kind, userId, targetId: earnTxId,
       sql: "select public.rpc_correct_reward_transaction($1, null, $2) as result",
       params: (target, key) => [target, key],
     };
@@ -236,11 +243,82 @@ async function setupRpcMatrixFixture(
   };
   const spec = specs[kind as Exclude<RpcMatrixKind, "grant" | "correct">];
   return {
+    kind,
     userId,
     targetId: spec.receipt ? targetId : wishId,
+    wishId,
     sql: spec.sql,
     params: (target, key) => [target, key],
   };
+}
+
+type RpcMutationSnapshot = {
+  accounts: number;
+  transactions: number;
+  redemptions: number;
+  audits: number;
+  wish_status: string | null;
+};
+
+async function rpcMutationSnapshot(
+  client: Client,
+  fixture: Awaited<ReturnType<typeof setupRpcMatrixFixture>>,
+  key: string,
+): Promise<RpcMutationSnapshot> {
+  const result = await client.query<RpcMutationSnapshot>(
+    `select
+       (select count(*)::int from public.reward_accounts where user_id = $1) as accounts,
+       (select count(*)::int from public.reward_transactions where user_id = $1) as transactions,
+       (select count(*)::int from public.reward_redemptions where user_id = $1) as redemptions,
+       (select count(*)::int from public.outer_loop_audit_events
+        where user_id = $1 and request_idempotency_key = $2) as audits,
+       (select status::text from public.wishes where id = $3) as wish_status`,
+    [fixture.userId, key, fixture.wishId ?? null],
+  );
+  return result.rows[0]!;
+}
+
+async function waitForAdvisoryLockWait(observer: Client, backendPid: number): Promise<void> {
+  const deadline = Date.now() + 5_000;
+  while (Date.now() < deadline) {
+    const result = await observer.query<{ waiting: boolean }>(
+      `select exists (
+         select 1 from pg_catalog.pg_stat_activity
+         where pid = $1 and state = 'active'
+           and wait_event_type = 'Lock' and wait_event = 'advisory'
+       ) as waiting`,
+      [backendPid],
+    );
+    if (result.rows[0]?.waiting) return;
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+  throw new Error(`backend ${backendPid} never reached the advisory-lock wait`);
+}
+
+function expectSingleRpcMutation(
+  kind: RpcMatrixKind,
+  before: RpcMutationSnapshot,
+  after: RpcMutationSnapshot,
+): void {
+  const transactionDelta = ["grant", "correct", "reserve", "unreserve", "redeem", "refund"].includes(kind) ? 1 : 0;
+  const accountDelta = kind === "grant" ? 1 : 0;
+  const redemptionDelta = kind === "redeem" ? 1 : 0;
+  const expectedStatus: Partial<Record<RpcMatrixKind, string>> = {
+    activate: "ACTIVE",
+    primary: "PRIMARY",
+    reserve: "RESERVED",
+    unreserve: "PRIMARY",
+    redeem: "REDEEMED",
+    refund: "REDEEMED",
+    archive: "ARCHIVED",
+    cancel: "CANCELLED",
+  };
+
+  expect(after.accounts).toBe(before.accounts + accountDelta);
+  expect(after.transactions).toBe(before.transactions + transactionDelta);
+  expect(after.redemptions).toBe(before.redemptions + redemptionDelta);
+  expect(after.audits).toBe(1);
+  if (expectedStatus[kind]) expect(after.wish_status).toBe(expectedStatus[kind]);
 }
 
 async function runSameKeyConcurrency(
@@ -251,8 +329,12 @@ async function runSameKeyConcurrency(
 ): Promise<void> {
   const first = new Client({ connectionString });
   const second = new Client({ connectionString });
-  await Promise.all([first.connect(), second.connect()]);
+  const observer = new Client({ connectionString });
+  let before: RpcMutationSnapshot | undefined;
+  await Promise.all([first.connect(), second.connect(), observer.connect()]);
   try {
+    before = await rpcMutationSnapshot(observer, fixture, key);
+    const secondPid = Number((await second.query<{ pid: number }>("select pg_backend_pid() as pid")).rows[0]?.pid);
     await first.query("begin");
     await second.query("begin");
     await setAuthenticated(first, fixture.userId);
@@ -262,7 +344,7 @@ async function runSameKeyConcurrency(
       fixture.sql,
       fixture.params(alternateTarget ?? fixture.targetId, key),
     );
-    await new Promise((resolve) => setTimeout(resolve, 40));
+    await waitForAdvisoryLockWait(observer, secondPid);
     await first.query("commit");
     expect((firstResult.rows[0]?.result as { replayed: boolean }).replayed).toBe(false);
     if (alternateTarget) {
@@ -276,23 +358,16 @@ async function runSameKeyConcurrency(
   } finally {
     await first.query("rollback").catch(() => undefined);
     await second.query("rollback").catch(() => undefined);
-    await Promise.all([first.end(), second.end()]);
+    await Promise.all([first.end(), second.end(), observer.end()]);
   }
-  const audit = await clientAuditCount(connectionString, fixture.userId, key);
-  expect(audit).toBe("1");
-}
-
-async function clientAuditCount(connectionString: string, userId: string, key: string): Promise<string> {
-  const client = new Client({ connectionString });
-  await client.connect();
+  const verifier = new Client({ connectionString });
+  await verifier.connect();
   try {
-    const result = await client.query<{ count: string }>(
-      "select count(*)::text as count from public.outer_loop_audit_events where user_id = $1 and request_idempotency_key = $2",
-      [userId, key],
-    );
-    return result.rows[0]!.count;
+    const after = await rpcMutationSnapshot(verifier, fixture, key);
+    expect(before).toBeDefined();
+    expectSingleRpcMutation(fixture.kind, before!, after);
   } finally {
-    await client.end();
+    await verifier.end();
   }
 }
 

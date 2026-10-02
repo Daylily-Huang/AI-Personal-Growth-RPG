@@ -687,6 +687,7 @@ describe("Phase 8E Round 2 — Reward/Wish RPC authority", () => {
   test("helpers stay private while proposal settlement remains proposal-only", () => {
     for (const helper of [
       "calculate_reward_grant_v1(text, jsonb)",
+      "phase8e_lock_reward_account_key(uuid)",
       "phase8e_lock_reward_account(uuid)",
       "phase8e_fold_reward_ledger(uuid)",
       "phase8e_preview_reward_account(uuid, uuid, timestamptz)",
