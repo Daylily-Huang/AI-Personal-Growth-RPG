@@ -2,7 +2,7 @@
 
 ## 1. Governance Boundary
 
-Status: **Round 2 accepted; Round 3 server boundary in progress (2026-10-03).**
+Status: **Round 3 accepted; Round 4 Wishes UI in progress (2026-10-03).**
 
 Baseline:
 
@@ -406,3 +406,15 @@ The user's ongoing instruction to complete and repair the site permits this narr
 - The canonical EARN CHECK also rejects a first noncanonical insert attempted by a stale pre-upgrade grant body; rejection rolls back its account/ledger/audit writes. A rollback-only regression executes the exact 0049 body against the new constraint, without claiming to reproduce live deployment scheduling.
 - Installation locks ledger writes and refuses noncanonical historical EARN rows with `NONCANONICAL_REWARD_HISTORY_REQUIRES_REVIEW`. It neither deletes nor rewrites ledger/audit history. If that guard fires, stop and develop a separately reviewed data-recovery plan before retrying; do not disable it or auto-correct balances.
 - Required extra gates: real SQL and HTTP spelling-variant cases, unchanged D1/D2, private helper grants, normalized-index enforcement, migration guard preserves legacy bytes, local backup and transactional application, fresh independent corrective review and exact-head CI. Round 4 stays gated until these pass.
+
+## 17. Round 4 UI and Narrow Navigation Integration
+
+Round 3 and §16 corrective authority are accepted at exact head `de08a89be28a58c471b6417f94504030d5cde145`: CI Run `37041522823` has both jobs and all steps green; fresh independent Huygens Gatekeeper returned `P0=0/P1=0/P2=0 + GO`, independently running 104 tests without skips. This unlocks Round 4 only; PR #40 remains unmerged.
+
+- Implement `/rewards/wishes` with its own nested rewards layout (like Journey), reward-local components and tests. Consume only §15 HTTP endpoints; no browser Supabase/RPC, SQL change, new policy or grant amount calculation.
+- Render all five §10.3 balances separately, backlog/lifecycle, selected/reserved wish, source candidates, immutable ledger and redemption history, refund-derived status, cooldown and correction deficit explanations. Paginate every collection; do not silently cap history at the first page.
+- Require an explicit confirmation for each financial action and informed cost-proposal accept/edit/reject. Show target, effect and source/receipt identity; correction/refund require reasons. Show proposal original payload, source references, expiration and resulting entity; acceptance changes cost only, never grants/XP.
+- Keep one request key and an identical submitted payload across uncertain retries. Do not turn a successful mutation followed by a failed read refresh into a new mutation. Disable duplicate submission; preserve errors, draft input and retry visibility.
+- Narrow additive navigation exception: only `src/components/layout/AppSidebar.tsx` and `src/components/layout/MobileNav.tsx` may add Journey/Rewards destinations, section-active matching and the minimum mobile spacing needed for seven accessible targets. Do not restyle shared primitives, change AppShell/auth/Core authority or add Phase 8F pages.
+- Existing governance tests may recognize exact accepted Phase 8E backend paths under this controlling document and this narrow navigation surface. No directory-wide backend exception. Negative tests must reject an absent controlling document, an unknown backend path or other layout changes; tests must compare the accepted backend bytes against `de08a89`.
+- Verify loading/empty/error/401, keyboard/focus, reduced motion, long text and responsive views with component tests and a real browser. Exact-head CI and a fresh independent Gatekeeper remain required before Round 5.

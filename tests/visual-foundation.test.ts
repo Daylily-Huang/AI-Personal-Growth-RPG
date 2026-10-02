@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import { compile } from 'tailwindcss';
-import { resolveGovernanceChangedFiles } from './helpers/governance-delta';
+import { resolveGovernanceChangedFiles, PHASE8E_ACCEPTED_BACKEND } from './helpers/governance-delta';
 
 export const FROZEN_BACKEND_DENYLIST = [
   'src/app/api/',
@@ -153,7 +153,7 @@ export function validateVisualMigrationDelta(changedFiles: string[]): VisualMigr
     }
   }
   if (changedFiles.includes(PHASE8E_REWARD_WISHES_CONTROL_DOCUMENT)) {
-    for (const file of PHASE8E_ROUND2_AUTHORIZED_BACKEND) {
+    for (const file of PHASE8E_ACCEPTED_BACKEND) {
       authorizedBackend.add(file);
     }
   }

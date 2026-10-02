@@ -1,7 +1,29 @@
 # 项目历史工作进度 (Progress Log)
 
+## 2026-10-03 — Round 3 accepted / Round 4 kickoff
+
+- Fresh Nietzsche 最终候选 `P0=0/P1=0/P2=0 + GO`：154/154及额外分页反例通过；bounded helper原样独立运行62584因过早同步查“重新读取”exit1，审查员仅在内存改为await findByRole，50651 exit0，全部焦点/无重复写/过期审核断言保留并通过。磁盘本地helper随后同步该等待修正；生产代码未再变。即将只提交20个本轮文件、推送PR#40，仍须exact-head CI与全新最终审查，不提前进入Round5。
+
+- Nietzsche 首次完成154/154及两个额外分页反例，但焦点/过期独立inline探针数次exit1无输出，未签GO。取回完整探针后，主执行方将同样两场景保存到忽略目录，增加45s超时、512MB堆上限、分段日志和DOM安全的布尔断言；复跑exit0，连续两次保存/读取失败不重复写且焦点稳定、过期接受/编辑/拒绝都禁用。原无输出退出原因仍未证实；交回原fresh reviewer独立核验该探针适配，未修改生产代码、未绕过判决。
+
+- Corrective UI 35 + governance 4 = 39/39，targeted lint 与重新构建通过；实际 Chrome 在320/375/768/1440无横向溢出，键盘焦点/成功状态和完整长标题弹窗通过。真实 correction 响应被刻意丢弃后，相同body/key重试为replayed，后续只读账本核实只有1条-100修正（详见22号证据文档，含helper URL环境错误披露）。
+- 收尾时宿主终端暂时无响应，WSL两发行版随后读为Stopped，原因未确认；未发出shutdown/reset/重装。普通Ubuntu查询成功后原Docker容器自行启动。待pg_isready通过，精确清理本轮browser fixture用户及所属行，remaining=0；命名浏览器与临时Windows转发已关闭。正式用户/数据库卷/迁移前dump保留。
+
+- Round 4 首轮本机全套：82 文件，1313 passed / 1 failed / 0 skipped；唯一失败仍为并行未提交 login 改动导致旧 browser-auth mock 未调用，不计作通过、不修改旧断言。奖励 HTTP 17/17、SQL/并发全部通过。UI/治理扩充后 37/37、tsc、harness 11/11 通过；lint 0 errors/6 个既有 login warnings；生产构建通过。
+- 实际 Chrome + 独立测试账号完成领取100、建愿75、激活/选择/预留/兑换/退款：余额依次100→25+75预留→25/0预留/75兑换→100/0兑换，XP仍0，原凭证及七天冷却保留。Windows/WSL端口不互通时仅使用临时进程级127.0.0.1:3018转发，没有修改代理/防火墙/既有3000进程。320px实测无横向溢出，7个导航触点均44×46px。
+- Ramanujan 独立候选审查 `01a0fdd6-212f-75c1-8b3d-a2b8ebad8c7f` 给 `P0=0/P1=0/P2=3 + NO-GO`：A→B→A 复用字符串 tag 导致旧更多页混入；成功刷新卸载原按钮后焦点丢失；过期 proposal 拒绝按钮未禁用。正在修复为代次对象身份、稳定完成状态焦点、过期审核全部禁用，并补独立反例。修复须全新审查，不进入 Round 5。
+
+- Huygens final exact-head Gatekeeper 对 `de08a89be28a58c471b6417f94504030d5cde145` 给 `P0=0/P1=0/P2=0 + GO`：独立 104/104 无跳过，GitHub API 自行核实 CI Run 37041522823 两 job/全部 steps success；额外探针回滚后 35 表及函数/约束不变、0 测试用户残留、0 禁用触发器。Round 4 解锁；PR #40 未合并，8E 未完成。
+- 已读取本地 Next layouts/pages、Server/Client 指南与既有布局/模态框/按钮；Round 4 按 §17 只消费 HTTP。计划新增奖励 nested layout/client 页面，并手术式增加 AppSidebar/MobileNav 两个导航入口；相应治理例外为精确路径且绑定已接受 backend 字节，不降低冻结门禁。
+- Playwright 工具替代路径：Windows Codex bundled Node + WSL 缓存 CLI 的 UNC 入口，进程级 `NO_UPDATE_NOTIFIER=1` 后版本检查 exit=0（v24.19.0 / CLI 0.1.19）。此前 Windows CLI 退出时的 libuv assertion 不再复现；未升级/安装工具，实际浏览器启动仍待验证。
+- 已实现 rewards nested layout、WishesClient、分页/错误/当前目标读取、metadata editor、稳定请求快照确认框、定价提案审阅组件；AppSidebar/MobileNav 只新增旅程/心愿入口和窄幅适配。已添加 UI 交互测试与 exact-backend-blob/精确导航治理测试，正在运行；未改任何已接受 API/SQL。
+- 初次 UI lint 指出 render 内 `Date.now()` 不纯，已改为 lazy state + effect timer，保留提案过期提示与服务器最终校验。一次猜测 `PlaybookWorkspace.tsx` 不存在，已改用 rg 定位的实际 `PlaybookClient.tsx`，不再猜路径。
+
 ## 2026-10-03 — 续作恢复 / corrective gate
 
+- 最新提交 `de08a89be28a58c471b6417f94504030d5cde145` 已推送 origin 的 PR #40 分支（26 文件；不含并行登录/auth/package 改动）。暂存完整新文件时发现 0050 尾部多余空行，已仅删空行，`git diff --cached --check` 通过后提交。等待该 exact-head 的 CI 与 fresh Gatekeeper，尚未进入 UI。
+- CI Run `37041522823` 已绑定该 head：`check` completed/success；`supabase-integration` 已成功启动隔离栈并构建，当前正在跑 database-backed tests。最终审查员 Huygens (`01a0fdae-9513-7031-882f-f61331966e6d`) 正独立核查；此条为中间快照，不是接受结论。
+- 随后 CI Run `37041522823` completed/success，head 精确为 `de08a89`；`check` 与 `supabase-integration` 双绿，startup、production build、DB gate-active、database-backed tests、deterministic harness、E2E 每一项均 success。等待 Huygens 最终 exact-head 判决；不以 CI 替代独立 GO。
 - 用户恢复“继续”；HEAD 仍为 `bc64ce51551c95066ee1b019d29fb66761eb05e8`，奖励 Round 3 与 0050 均未提交，既有并行 login/auth/package/launcher 改动保留。
 - 继续使用 planning-with-files 恢复；session-catchup 无新增报告。已联系在途独立 reviewer Ohm，等待最终判决及迁移期间旧 RPC body 恢复写入的竞态验证；未宣称 GO，Round 4 仍 gated。
 - 本轮先完成 corrective schema/test 审查，再按精确文件清单提交、验证 exact-head CI 与独立 Gatekeeper。`.data/phase8e-pre-0050.dump` 为恢复备份，不作缓存删除。

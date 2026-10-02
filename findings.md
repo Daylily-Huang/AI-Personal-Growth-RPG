@@ -1,5 +1,13 @@
 # 调查发现与核心架构决策 (Findings)
 
+## 2026-10-03 — Round 4 corrective UI findings
+
+- A URL/revision string is not a request-generation identity: A→B→A can admit an old load-more response. Use per-generation object identity and generation-scoped locks so old success/failure cannot replace new data or release a newer lock.
+- Closing a modal does not suffice for keyboard focus when a successful refresh removes its opener. Focus a stable completion status after commit; preserve ordinary Escape restoration when cancelling.
+- The existing proposal RPC rejects every review decision after expiry, including REJECTED. UI disables both acceptance and rejection; it does not create a new backend exception.
+- Real Chrome works via Windows bundled Node + cached WSL CLI UNC path and process-only `NO_UPDATE_NOTIFIER=1`. CLI request-context reads require absolute URLs; obtain the origin from browser `page.evaluate`, because the run-code sandbox has no global `URL`.
+- A temporary terminal outage coincided with both WSL distributions reporting Stopped; cause unverified. A normal subsequent Ubuntu probe succeeded and the existing Docker containers restarted automatically. No WSL shutdown, factory reset or Docker reinstall was issued by this work.
+
 
 ## 2026-10-03 — Round 3 boundary decisions
 
@@ -15,6 +23,7 @@
 - New `phase8e-canonical-source` QUEST regression failed before applying 0050 (uppercase canonical ID persisted), then all six corrective SQL tests passed after transactional installation. Local backup `.data/phase8e-pre-0050.dump` is 911,221 bytes; do not remove it as disposable cache before phase acceptance.
 - The normalized unique index does not prevent a *first* noncanonical EARN from a stale 0049 function body. A rollback-only exact historical-body regression initially minted 100, then failed closed with zero financial/audit residue after adding `ck_reward_tx_canonical_earn_source`. This models the old-body hazard, not a reproduced deployment interleaving.
 - Independent Ohm found a separate P2: UUID columns match uppercase URLs, JSON text equality does not. Reward route UUIDs now normalize case; proposal matching is case-insensitive for validated wildcard-free UUIDs and tests include both uppercase URL and uppercase payload. No prior proposal payload is rewritten.
+- Browser-tool preflight only (no Round 4 UI edits yet): WSL has Node/npx and cached `@playwright/cli` 0.1.19 (`npm exec --offline --package @playwright/cli -- playwright-cli --help` works); Windows `where npx/playwright-cli` finds neither in PATH, but Chrome and ms-playwright cache exist. The bundled skill shell wrapper fails on CRLF `pipefail\r`; use the same cached CLI directly, not a global tool rewrite/upgrade. Actual browser launch remains unverified.
 ## 2026-09-29 Round 4 Playbook UI
 
 - 控制文档 §9 要求 Strategy 列表/详情、用户创建、测试状态、正反证、显式晋升、情境化/退役、版本、两类 AI 提案审核。§11 将 Round 4 限定为 `/journey/playbook` 与 Journey 导航，消费已接受 HTTP/domain surfaces。
