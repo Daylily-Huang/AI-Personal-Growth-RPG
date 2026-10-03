@@ -1,15 +1,15 @@
 # AI Personal Growth RPG — 项目全景交接与治理主文档 (Master Project Handoff)
 
 > **文档版本**: 2.2 (Master Comprehensive Handoff — Phase 8E Implementation FINAL FROZEN)
-> **更新时间**: 2026-10-03
+> **更新时间**: 2026-10-04
 > **适用对象**: 后续所有接手的 AI 工程师、独立审查 AI、项目协作者  
 > **Phase 7 终局冻结合并基线 (historical)**: `653fe018f6cee38b2263fbcca19dffbf624d4c18`
 > **Phase 8B 终局冻结合并基线 (main)**: `0e4bec5f26411669f7031af4523b6d4fca747f96`
 > **Phase 8C 终局冻结合并基线 (main)**: `9aa76e7ce36b20b9f99e28d6cbd08eeb7bc55b85`
 > **Phase 8D implementation 冻结合并基线 (main)**: `b93273cd87d39e04a66ed0ebfd76fa95ebd2e643`
 > **Phase 8D 归档+审查记录 最终合并基线 (main)**: `a1da765e492b8d93e6350ac32865d8e0018faa91`
-> **当前 main 基线 (PR #40 实施合并)**: `b6af5a84fa3e13cdba729d4d00059e3d9b30fc84`
-> **当前所处里程碑**: Phase 8E 实施 FINAL FROZEN：用户已合并 PR #40，post-merge CI 37109984608 全绿；24号冻结归档分支待独立复核/CI/用户合并，尚未在 main。8F 仅可进入独立准入流程，未获生产实现授权。
+> **当前 main 基线 (PR #41 冻结归档合并)**: `7a671bb2cf750fd8958135812026a0f2e1dbad91`
+> **当前所处里程碑**: Phase 8E 实施与归档 FINAL FROZEN：PR #40及归档PR #41均由用户合并，各自post-merge CI全绿（37109984608、37128640371）。8F基线已锁定，用户2026-10-04明确Artifact成就认定也延期；25号本地草案仍NOT ADMITTED，正式exact-head准入待完成，未获8F生产实现授权。登录安全遗留另行修复/复验，不混入8F提交。
 > **代码仓库**: `Daylily-Huang/AI-Personal-Growth-RPG`  
 > **核心工作区路径**: `d:\AI_Personal_Growth_RPG`（WSL 挂载路径：`/mnt/d/AI_Personal_Growth_RPG`）
 
@@ -267,11 +267,13 @@ wsl -d Ubuntu -- bash -lc "cd /mnt/d/AI_Personal_Growth_RPG && pnpm build"
 
 ## 8. 接手 AI 极速上手与后续路线图推进指引 (Next Actions)
 
+以下长段为截至PR #40实施闭环的历史汇总；其归档待办已由本文件顶部及24号§6的PR #41合并/CI证据完成更新。8F当前状态以25号草案为准，不沿用历史段的待合并状态。
+
 当前状态：Phase 1~7 的既有冻结边界保持有效；Phase 8A 架构冻结已完成；Phase 8B 已 FINAL FROZEN；**Phase 8C: Journal + State FINAL FROZEN**。Phase 8D admission 已通过；Round 1 exact head `400cf1536e86412e6183e45289d87cb21bd56ba1` 的 CI Run `36338180207` 双绿且 Gatekeeper GO。Round 2 exact head `1910af870fc82ffde35bf76da93d4bac50a5effb` 的 CI Run `36438563584` 双绿且独立 Gatekeeper GO。Round 3 implementation exact head `2b0796e66fc900344a1571f39ebd771fe64abe47` 的 CI Run `36452011311` 双绿、独立 Gatekeeper `P0=0 / P1=0 / P2=0 + GO`；文档同步 head `789569372af37e9f9e43fe4492ad914408a10125` 亦通过 exact-head CI/Gatekeeper。Round 4 implementation exact head `6fea360adffc4f7d9cde7a159797d246ca55f592` 的 CI Run `36559214448` 双绿、独立 Gatekeeper `P0=0 / P1=0 / P2=0 + GO`。Round 5 exit verification 的 corrective implementation exact head `8b33cca8e994ba45862194d5588642e9e76626ba` 的 CI Run `36590521018` 双绿，fresh independent Gatekeeper `P0=0 / P1=0 / P2=0 + GO`。PR #37 已由用户合入 `main`，merge commit `b93273cd87d39e04a66ed0ebfd76fa95ebd2e643`；对应 post-merge main CI Run `36593720889` 双 job success。PR #38（最终归档+状态同步）亦已合入，merge commit `a1da765e492b8d93e6350ac32865d8e0018faa91`。**Phase 8D = FINAL FROZEN**（归档：`docs/Phase8/19_PHASE8D_GATEKEEPER_REREVIEW_AND_FINAL_FREEZE.md`；独立审查落盘：`docs/Phase8/20_PHASE8D_INDEPENDENT_REVIEW_RECORD.md`）。Phase 8E Round 1–2 已闭环：最终 head `bc64ce51551c95066ee1b019d29fb66761eb05e8`，CI Run `37004408985` 双绿、fresh independent Gatekeeper `P0=0 / P1=0 / P2=0 + GO`。用户于 2026-10-03 授权持续推进；随后 Round 3 exact head `de08a89be28a58c471b6417f94504030d5cde145` 由 CI `37041522823` 双绿与 fresh Huygens `P0=0/P1=0/P2=0 + GO` 接受。Round 4 exact head `a2614d23e0c0fd2f23d28aee8096a46dd25aee92` 的 CI `37051182337` 全绿，fresh Avicenna `P0=0/P1=0/P2=0 + GO`（独立154/154及反例），随后Round 5 `ff36ac72d0f0f2c3f58054835e07f5d769740ce7` 通过CI `37106817366`和fresh Ampere `P0=0/P1=0/P2=0 + GO`（独立96/96及48项检查），PR #40已由用户合并到 `b6af5a84fa3e13cdba729d4d00059e3d9b30fc84`，post-merge CI `37109984608` 全部31步骤成功；实施终局冻结见 `24_PHASE8E_GATEKEEPER_REREVIEW_AND_FINAL_FREEZE.md`，归档分支仍待独立审查/CI/用户合并，8F须独立准入；前序证据见 `docs/Phase8/22_PHASE8E_ROUND4_UI_VERIFICATION.md` 与 `23_PHASE8E_EXIT_VERIFICATION.md`。
 
 当前权威主分支基线：
 ```text
-b6af5a84fa3e13cdba729d4d00059e3d9b30fc84
+7a671bb2cf750fd8958135812026a0f2e1dbad91
 ```
 
 ### Phase 6 — Knowledge Graph Canvas Modernization（FINAL FROZEN）
@@ -345,9 +347,9 @@ b6af5a84fa3e13cdba729d4d00059e3d9b30fc84
 
 ### 下一阶段推进指引 (Next Actions)
 
-Phase 8E 实施已 FINAL FROZEN；保留 Phase 1–8D 冻结边界。最终 implementation head `ff36ac72d0f0f2c3f58054835e07f5d769740ce7` 通过 CI `37106817366` 与 fresh Ampere `P0=0/P1=0/P2=0 + GO`；用户合并 PR #40 为 `b6af5a84fa3e13cdba729d4d00059e3d9b30fc84`，树与 reviewed head 完全相同，post-merge CI `37109984608` 全绿。冻结归档与独立审查依据见 `docs/Phase8/24_PHASE8E_GATEKEEPER_REREVIEW_AND_FINAL_FREEZE.md`；本次纯文档归档的独立审查、CI和用户合并仍单独办理，不能声称归档已在 main。8F 生产仍 gated。
+Phase 8E 实施与归档均已 FINAL FROZEN；保留 Phase 1–8D 冻结边界。implementation head `ff36ac72d0f0f2c3f58054835e07f5d769740ce7` 的独立GO、CI、PR40用户合并和post-merge证据保持不变。归档PR #41 exact head `8a0444f` 通过自身CI与fresh Popper终审后，由用户合并为 `7a671bb2cf750fd8958135812026a0f2e1dbad91`；文件树相同，post-merge CI `37128640371` 的31步骤均success。详细绑定见 `docs/Phase8/24_PHASE8E_GATEKEEPER_REREVIEW_AND_FINAL_FREEZE.md` §6。这只完成8F前置基线，不是8F正式准入；生产仍gated。
 
 后续建议执行顺序：
-1. **归档发布与下一阶段准入**：复核并发布纯文档冻结归档，仍由用户手动合并；用户于2026-10-03决定8F先完成成就记录、现有Core来源的防重复奖励及撤销闭环，现实成就只记录不发积分、Artifact继续延后。下一步据此起草8F独立控制文件并通过准入，不把自述/链接当验证。保留的 login/auth 未提交工作另行修复/集成，不混入冻结归档。全站发布与部署验收尚未完成，8G 是可选扩展。
+1. **8F独立准入**：读取 `docs/Phase8/25_PHASE8F_MILESTONES_IMPLEMENTATION_CONTROLLING_DRAFT.md`，基线已锁定7a671bb。既定范围为成就记录、现有Core来源防重复奖励及撤销；现实成就零积分、Artifact奖励延期。用户2026-10-04明确Artifact“已验证成就”认定也延期，已记录R1；随后对独立候选提交完成自身CI和fresh exact-head Gatekeeper，未获GO不得写0051或生产代码。保留的login/auth工作另行修复/集成。全站发布与部署验收尚未完成，8G可选。
 2. **可选 backlog（需迁移，非门禁项）**：已合格 `CONTEXTUAL` 上 `rpc_evaluate_strategy_status(confirm=true)` 的错误码命名 `INSUFFICIENT_SUPPORT_FOR_PROMOTION` 不够精确（行为本身 fail-closed 且已有测试 pin）。
 3. **继续保持可审计性**：后续 PR 继续绑定 exact head、CI run、独立审查结论与 merge SHA；不得把历史失败改写为成功，也不得把 skipped/local-only 结果替代真实 database-backed CI 证据。

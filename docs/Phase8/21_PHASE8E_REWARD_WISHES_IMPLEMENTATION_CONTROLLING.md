@@ -2,7 +2,7 @@
 
 ## 1. Governance Boundary
 
-Status: **Implementation FINAL FROZEN (2026-10-03).** User merged PR #40 as `b6af5a84fa3e13cdba729d4d00059e3d9b30fc84`; post-merge CI `37109984608` has all 31 steps successful. Archive `24_PHASE8E_GATEKEEPER_REREVIEW_AND_FINAL_FREEZE.md` binds the accepted implementation to the merge. This separate documentation branch still needs its own review/CI/user merge; Phase 8F production remains gated.
+Status: **Implementation and archive FINAL FROZEN (2026-10-03).** User merged PR #40 as `b6af5a84fa3e13cdba729d4d00059e3d9b30fc84`; post-merge CI `37109984608` has all 31 steps successful. Archive PR #41 at reviewed `8a0444f` passed its own CI/fresh final GO and was user-merged as `7a671bb2cf750fd8958135812026a0f2e1dbad91`; its post-merge CI `37128640371` also has all 31 steps successful. Exact evidence and limits are in `24_PHASE8E_GATEKEEPER_REREVIEW_AND_FINAL_FREEZE.md` §6. Phase 8F production remains separately gated.
 
 Baseline:
 
