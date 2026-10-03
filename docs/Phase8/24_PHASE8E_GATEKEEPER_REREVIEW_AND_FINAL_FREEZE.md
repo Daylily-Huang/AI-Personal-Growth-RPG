@@ -2,7 +2,7 @@
 
 Date: 2026-10-03 (Asia/Shanghai). Implementation state: **FINAL FROZEN**.
 
-This archive binds the already accepted implementation to the user's merge and the successful post-merge CI. Publication of this documentation branch has its own review/CI/manual-merge gate; it does not change the implementation or authorize Phase 8F production.
+This archive binds the accepted implementation to the user's merge and successful post-merge CI. The documentation publication gate subsequently completed through PR #41 and its post-merge CI (see §6); this changes no implementation and does not authorize Phase 8F production.
 
 ## 1. Exact implementation and merge evidence
 
@@ -53,7 +53,7 @@ Ampere independently checked exact head/diff and CI; it did not independently re
 
 ## 4. Definition of Done and residual boundaries
 
-Controller §14 is satisfied for the implementation: frozen D1/D2 and accepted D3 sequencing; four tables/ten RPCs; fold parity and fail-closed authority; named exit coverage plus unskipped real database CI; exact-head final independent GO; user-controlled merge; successful post-merge CI; this archive binding heads, review, merge and limits. **Phase 8E implementation is FINAL FROZEN.** The documentation branch still requires its own publication review and user merge; do not claim it is already on main.
+Controller §14 is satisfied for the implementation: frozen D1/D2 and accepted D3 sequencing; four tables/ten RPCs; fold parity and fail-closed authority; named exit coverage plus unskipped real database CI; exact-head final independent GO; user-controlled merge; successful post-merge CI; this archive binding heads, review, merge and limits. **Phase 8E implementation is FINAL FROZEN.** The separate documentation publication gate is also complete, with exact bindings in §6.
 
 - Preserved parallel login/auth/package/launcher changes are **not** in PR #40. The prior local full suite reported **1331 passed / 1 failed / 0 skipped**, not green: `tests/phase7-round3-evidence.test.tsx:736` expected the previous browser-login mock. Login integration/security and its tests need a separate governed fix; do not silently fold those changes into this archive.
 - Phase 7's carry-forward limits remain: VoiceOver, NVDA, JAWS and physical touch hardware are unverified. Responsive emulation does not prove physical-device acceptance.
@@ -68,3 +68,12 @@ Read-only checks: compare the merge parents and full Git trees; query the linked
 On the existing provisioned local stack, `CI=true` plus the configured Supabase credentials and `XP_RPG_TEST_DB_URL` are required for unskipped database evidence. Re-run `pnpm exec vitest run tests/phase8e-exit-verification.test.ts tests/phase8e-http-live.test.ts` as documented in record 23. SQL fixtures rollback; HTTP fixtures clean only their own generated users. Do not print keys, disable triggers, reapply migrations, or delete real users to obtain a green result.
 
 This archive's commit is limited to this record, controller/exit status, master handoff and the three existing planning files. It must have **zero committed production, migration, test, workflow or dependency delta** against `b6af5a8`. Record the archive's exact-head review/CI in the handoff after they actually complete; do not use the implementation's CI as evidence that later documentation was tested.
+
+## 6. PR #41 publication closure — verified after user merge
+
+- Archive exact head: `8a0444ff69affeabfbdc4e478e59a289ce19fd85`, seven documentation files only. Fresh Popper `01a10105-8819-7bf2-b922-89647753c697` returned **P0=0/P1=0/P2=0 + GO**; its independent evidence and same-provider limitations are preserved in `progress.md` under the PR #41 final exact-head entry. This was archive review, not 8F admission.
+- Archive CI: [37111895573](https://github.com/Daylily-Huang/AI-Personal-Growth-RPG/actions/runs/37111895573), exact `8a0444f`, completed/success; check `111171258841` 12/12 and integration `111171258655` 19/19 steps success.
+- User merge: [PR #41](https://github.com/Daylily-Huang/AI-Personal-Growth-RPG/pull/41), merged 2026-10-03T14:09:14Z as **`7a671bb2cf750fd8958135812026a0f2e1dbad91`**, parents `b6af5a84fa3e13cdba729d4d00059e3d9b30fc84` and `8a0444ff69affeabfbdc4e478e59a289ce19fd85`. Reviewed/merge trees both equal `829bf6859821a6558f31eebaf8b69fe907c7685a`; full tree diff is empty.
+- Post-merge push/main CI: [37128640371](https://github.com/Daylily-Huang/AI-Personal-Growth-RPG/actions/runs/37128640371), exact merge SHA, completed/success; check `111219060513` 12/12 and integration `111219060684` 19/19 steps success, including active DB gate, database-backed tests, deterministic harness and E2E.
+- The above results were read from the live PR/run/jobs API and verified against fetched Git objects. This closure update is later local documentation, not part of either cited CI tree. No production, migration, test, workflow or dependency change was introduced by this update.
+- Phase 8F can now use the pinned archive merge as its baseline. The user resolved the Artifact recognition scope on 2026-10-04: defer recognition as well as rewards. The 25 draft remains **NOT ADMITTED** until its own exact-head CI and fresh independent admission review complete. Do not reuse PR41's GO as an 8F GO.
