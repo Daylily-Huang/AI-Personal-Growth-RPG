@@ -12,6 +12,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Shield,
+  Compass,
+  Gift,
 } from "lucide-react";
 
 export interface NavItem {
@@ -20,6 +22,12 @@ export interface NavItem {
   icon: React.ComponentType<{ className?: string }>;
   disabled?: boolean;
   badge?: string;
+  activePrefix?: string;
+  mobileLabel?: string;
+}
+
+export function isNavItemActive(pathname: string, item: NavItem): boolean {
+  return pathname === item.href || Boolean(item.activePrefix && (pathname === item.activePrefix || pathname.startsWith(`${item.activePrefix}/`)));
 }
 
 export const NAV_ITEMS: NavItem[] = [
@@ -48,6 +56,8 @@ export const NAV_ITEMS: NavItem[] = [
     label: "产出台",
     icon: FolderGit2,
   },
+  { href: "/journey/seasons", activePrefix: "/journey", label: "成长旅程", mobileLabel: "旅程", icon: Compass },
+  { href: "/rewards/wishes", activePrefix: "/rewards", label: "心愿", icon: Gift },
 ];
 
 export interface AppSidebarProps {
@@ -134,7 +144,7 @@ export function AppSidebar({
       <nav className="flex-1 py-4 px-2 space-y-1 overflow-y-auto" aria-label="侧边栏导航">
         {NAV_ITEMS.map((item) => {
           const Icon = item.icon;
-          const isActive = pathname === item.href;
+          const isActive = isNavItemActive(pathname, item);
 
           if (item.disabled) {
             return (

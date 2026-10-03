@@ -1,9 +1,23 @@
 # AI Personal Growth RPG — 项目总体计划与当前状态 (Task Plan)
 
 > **权威状态主文档**：请统一参阅 [`docs/MASTER_PROJECT_HANDOFF.md`](docs/MASTER_PROJECT_HANDOFF.md)。  
-> **当前里程碑**: Phase 8C — Journal + State（FINAL FROZEN）；Phase 8D — Strategy + Personal Playbook（**FINAL FROZEN**）
-> **当前主分支基线 (main)**: `a1da765e492b8d93e6350ac32865d8e0018faa91`
+> **当前里程碑**: Phase 8D FINAL FROZEN；Phase 8E Round 4 已接受（a2614d2 / CI 37051182337 / fresh GO），Round 5 最终退出验收实施中（2026-10-03）。
+> **当前主分支基线 (main)**: `be949deb67f62269d58a0e21865580d0e67204e0`
 > **最新状态**: Phase 8C **FINAL FROZEN**；Phase 8D admission 与 Round 1–5 全部通过。Round 5 corrective implementation exact head `8b33cca8e994ba45862194d5588642e9e76626ba` 的 CI Run `36590521018` 双绿，fresh independent Gatekeeper `P0=0 / P1=0 / P2=0 + GO`；PR #37 已由用户合入 `main`（merge `b93273cd87d39e04a66ed0ebfd76fa95ebd2e643`），post-merge main CI Run `36593720889` 双绿。**Phase 8D = FINAL FROZEN**（归档 `docs/Phase8/19_PHASE8D_GATEKEEPER_REREVIEW_AND_FINAL_FREEZE.md`）。
+> **Phase 8E 当前状态**: Round 4 最终 head `a2614d23e0c0fd2f23d28aee8096a46dd25aee92`，CI Run `37051182337` 双绿，fresh Avicenna Gatekeeper `P0=0 / P1=0 / P2=0 + GO`（独立154/154无跳过及额外反例）。Round 5 仅测试/证据文档，不修改已接受生产实现。PR #40 仍 open / 未合并；Phase 8E 整体尚未完成。
+
+## 2026-10-03 持续推进计划（优先于下方历史记录）
+
+- [complete] 实时复核 Round 2 exact head、PR、CI、WSL PostgreSQL；保留并行 login/auth/package/launcher 改动。
+- [complete] Round 3：de08a89 的 CI 37041522823 双绿；Huygens fresh exact-head `P0=0/P1=0/P2=0 + GO`，独立 104/104 无跳过。0048/0049 未改，0050 corrective 接受。
+- [complete] Round 4：`/rewards/wishes` 与窄范围导航、交互、无障碍和响应式验证；controller §17 与后端原样。a2614d2 exact-head CI双绿、全新独立GO。
+- [in_progress] Round 5：O001–O005/O019/O020 命名退出测试；完整测试/真实 DB/E2E/harness/lint/build；生产零差异断言、最终独立审查；形成可合并 PR #40。
+  - [complete] 本地验证与独立候选GO：真实DB全量1331通过/1个既有login失败/0跳过；tsc/lint/harness/build完成，McClintock独立57/57及反例通过（详见23号记录）。
+  - [pending] 仅提交本轮9个测试/文档文件；新exact-head双CI及全新最终Gatekeeper。不可将候选GO视作发布放行。
+- [pending] 用户手动 merge → post-merge CI → 8E FINAL FROZEN；之后按独立 admission 实施 8F，再处理 8G 可选扩展及部署验收。
+- [pending] 单独核查并行登录改动的遗留测试失败；不要把别人的未提交工作混入奖励阶段提交。
+- [complete] Round 3 corrective local gate：0050 规范化/CHECK/唯一索引/历史拒绝 guard 及大小写 UUID 提案发现修复；Turing fresh candidate Gatekeeper `P0=0/P1=0/P2=0 + GO`（真实 SQL/HTTP 37/37），历史 0048/0049 不变。随后 exact-head CI/Huygens GO 已完成，见上方记录。
+- 全站完成按功能与部署验收项计，不使用无工作量分母的百分比。不可越过人工 merge、未决规则或必要托管授权。
 
 ---
 
@@ -51,6 +65,7 @@
   - [complete] PR #33 已合入 main：merge `0e4bec5f26411669f7031af4523b6d4fca747f96`；post-merge main CI Run `35315613393` 全绿，DoD 最终 merge gate 已满足
 - [complete] **Phase 8C: Journal + State** ✅ FINAL FROZEN — PR #35；final reviewed exact head `f2f4d2b2d0a857348b6282dfdbfb3cfd08f4a06d`；Exact-Head CI `35381923343` success；merge `9aa76e7ce36b20b9f99e28d6cbd08eeb7bc55b85`；post-merge main CI `35432361509` success
 - [complete] **Phase 8D: Strategy + Personal Playbook** ✅ FINAL FROZEN — PR #37 已合入 `main`（merge `b93273cd87d39e04a66ed0ebfd76fa95ebd2e643`，post-merge main CI Run `36593720889` 双绿）；final reviewed implementation exact head `8b33cca8e994ba45862194d5588642e9e76626ba`，Gatekeeper `P0=0 / P1=0 / P2=0 + GO`。
+- [in_progress] **Phase 8E: Reward Economy + Wishes** — Round 1–4 已通过 exact-head CI/Gatekeeper，最新接受 `a2614d2`；Round 5 退出验收进行中。PR #40 未合并，整体未冻结。
 
 ### 2026-09-29 — Round 4 Playbook UI
 

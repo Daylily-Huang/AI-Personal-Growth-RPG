@@ -359,6 +359,7 @@ export const GLOBAL_APPSHELL_POLICY: ScopedPolicy = {
   forbiddenPrefixes: [
     "src/app/api/",
     "supabase/",
+    "src/lib/reward/",
     "src/lib/store/",
     "src/lib/ai/",
     "src/lib/growth-engine/",
@@ -373,4 +374,27 @@ export const GLOBAL_APPSHELL_POLICY: ScopedPolicy = {
   ],
   authorizedExceptions: COMMON_AUTHORIZED_CORE_BUGFIXES,
 };
+
+// Phase 8E §17: accepted backend identities, not a directory-wide permission.
+export const PHASE8E_CONTROL = "docs/Phase8/21_PHASE8E_REWARD_WISHES_IMPLEMENTATION_CONTROLLING.md";
+export const PHASE8E_ACCEPTED_HEAD = "de08a89be28a58c471b6417f94504030d5cde145";
+export const PHASE8E_ACCEPTED_BACKEND = [
+  "src/lib/reward/fold.ts", "src/lib/reward/types.ts", "src/lib/reward/http.ts",
+  "src/lib/reward/repository.ts", "src/lib/reward/request.ts", "src/lib/reward/service.ts",
+  "src/app/api/rewards/account/route.ts", "src/app/api/rewards/grants/route.ts",
+  "src/app/api/rewards/redemptions/route.ts", "src/app/api/rewards/redemptions/[id]/refund/route.ts",
+  "src/app/api/rewards/sources/route.ts", "src/app/api/rewards/transactions/route.ts",
+  "src/app/api/rewards/transactions/[id]/correct/route.ts", "src/app/api/rewards/wishes/route.ts",
+  "src/app/api/rewards/wishes/[id]/route.ts", "src/app/api/rewards/wishes/[id]/[action]/route.ts",
+  "src/app/api/rewards/wishes/[id]/proposals/route.ts",
+  "supabase/migrations/0048_phase8e_reward_wishes_foundation.sql",
+  "supabase/migrations/0049_phase8e_reward_wishes_rpc_authority.sql",
+  "supabase/migrations/0050_phase8e_reward_canonical_source_fix.sql",
+] as const;
+export function phase8eNavigationPolicy(files: readonly string[]): ScopedPolicy {
+  const navOnly = files.filter(file => file.startsWith("src/components/layout/"))
+    .every(file => ["src/components/layout/AppSidebar.tsx", "src/components/layout/MobileNav.tsx"].includes(file));
+  if (!navOnly || !files.includes(PHASE8E_CONTROL) || !files.includes("src/app/rewards/wishes/page.tsx")) return GLOBAL_APPSHELL_POLICY;
+  return { ...GLOBAL_APPSHELL_POLICY, authorizedExceptions: [...(GLOBAL_APPSHELL_POLICY.authorizedExceptions ?? []), ...PHASE8E_ACCEPTED_BACKEND] };
+}
 

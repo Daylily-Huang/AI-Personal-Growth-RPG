@@ -26,6 +26,7 @@ import {
   evaluateScopedPolicy,
   resolveGovernanceChangedFiles,
   GLOBAL_APPSHELL_POLICY,
+  phase8eNavigationPolicy,
 } from "./helpers/governance-delta";
 
 // Mock next/navigation
@@ -617,7 +618,7 @@ describe("Global App Shell — Phase 2 Architecture & Component Verification", (
     const delta = resolveGovernanceChangedFiles();
     expect(delta.files.length).toBeGreaterThan(0);
 
-    const result = evaluateScopedPolicy(delta.files, GLOBAL_APPSHELL_POLICY);
+    const result = evaluateScopedPolicy(delta.files, phase8eNavigationPolicy(delta.files));
     if (result.applicable) {
       expect(result.violations).toEqual([]);
     } else {

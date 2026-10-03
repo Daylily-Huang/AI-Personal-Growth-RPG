@@ -1,5 +1,61 @@
 # 项目历史工作进度 (Progress Log)
 
+## 2026-10-03 — Round 5 local verification / independent review retry
+
+- Fresh McClintock `01a100a8-1fe0-7ce0-b635-43d37009adb2` 候选判决 **P0=0/P1=0/P2=0 + GO**：独立57/57无跳过；额外deficit150→50→0、七天冷却、四表跨租户RLS、11非法INSERT+2历史DELETE、6692合法/2117非法fold前缀与4数值边界通过；临时用户/禁用触发器0。完整限制和两测试hash见23号记录。现在准备只提交9个本轮测试/文档文件，后续仍必须exact-head CI及fresh final GO。
+
+- 新增六个真实 PostgreSQL 退出场景与 O020 纯 fold 场景；已有 HTTP suite 新增同/异键并发兑换两例。UUID/text 测试 fixture 参数冲突修复后定向通过；未修改生产代码。
+- 当前最终测试文件的全量实跑：83 files，1331 passed / 1 failed / 0 skipped，382.81s，exit 1。唯一失败为保留的未提交 login 改动引起 `phase7-round3-evidence.test.tsx:736` mock 期待不匹配；不是 Round 5 引入。真实 HTTP19/19、exit7/7、既有 RLS/RPC/Core/E2E 套件通过。全量前 typecheck 和定向 ESLint 通过。
+- Pauli (`01a0fe14-1428-7ee2-8a73-c7fdc5499876`) 因工具报告用量限制未执行审查，没有 verdict；已关闭。用户再次要求继续后启动全新 McClintock (`01a100a8-1fe0-7ce0-b635-43d37009adb2`) 只读候选审查；尚无 GO，禁止提交/推送或进入下一阶段。
+- `planning-with-files` 保留既有计划历史，新增 `23_PHASE8E_EXIT_VERIFICATION.md` 记录命名用例矩阵与限制；8F/最终发布/人工 merge 门禁不变。
+- 全项目lint0errors/6个既有loginwarnings、harness11/11、production build（compile/TypeScript/38静态页）通过。只读DB follow-up：exit/http两类测试用户0，disabled public triggers0。独立审查现可运行DB/HTTP；主执行不并行重建或执行数据库套件。
+
+## 2026-10-03 — Round 4 accepted / Round 5 kickoff
+
+- Avicenna 最终 exact-head `a2614d23e0c0fd2f23d28aee8096a46dd25aee92` 审查 `P0=0/P1=0/P2=0 + GO`：独立CI核实check12/12、supabase-integration19/19 steps全success；独立154/154无跳过、两个A→B→A成功/失败锁反例、焦点/读取失败/过期探针通过。20个后端blob原样；浏览器由主执行方执行、审查员核对截图/hash而未重跑，历史静默退出不计通过。
+- Round 5现解锁，仅新增命名退出测试与证据文档，生产实现固定a2614d2；最终PR仍由用户手动merge，8F未解锁。
+
+## 2026-10-03 — Round 3 accepted / Round 4 kickoff
+
+- `a2614d2` 的 CI `37051182337` completed/success，check与supabase-integration双绿；正在等待Avicenna最终exact-head判决，尚未以CI代替GO。提交后的完整PR delta治理119/119通过（不再只是未提交候选的模拟边界）。
+
+- Round 4 已提交并推送 `a2614d23e0c0fd2f23d28aee8096a46dd25aee92`（20文件，966 insertions/20 deletions），不含既有login/auth/package/launcher改动。PR#40仍open未合并，exact-head CI Run `37051182337` 已启动；全新Avicenna `01a0fdfd-8769-7402-a6f7-9936af247ce5` 正做最终提交级审查。Round5仍gated，不以候选GO代替该门禁。
+
+- Fresh Nietzsche 最终候选 `P0=0/P1=0/P2=0 + GO`：154/154及额外分页反例通过；bounded helper原样独立运行62584因过早同步查“重新读取”exit1，审查员仅在内存改为await findByRole，50651 exit0，全部焦点/无重复写/过期审核断言保留并通过。磁盘本地helper随后同步该等待修正；生产代码未再变。即将只提交20个本轮文件、推送PR#40，仍须exact-head CI与全新最终审查，不提前进入Round5。
+
+- Nietzsche 首次完成154/154及两个额外分页反例，但焦点/过期独立inline探针数次exit1无输出，未签GO。取回完整探针后，主执行方将同样两场景保存到忽略目录，增加45s超时、512MB堆上限、分段日志和DOM安全的布尔断言；复跑exit0，连续两次保存/读取失败不重复写且焦点稳定、过期接受/编辑/拒绝都禁用。原无输出退出原因仍未证实；交回原fresh reviewer独立核验该探针适配，未修改生产代码、未绕过判决。
+
+- Corrective UI 35 + governance 4 = 39/39，targeted lint 与重新构建通过；实际 Chrome 在320/375/768/1440无横向溢出，键盘焦点/成功状态和完整长标题弹窗通过。真实 correction 响应被刻意丢弃后，相同body/key重试为replayed，后续只读账本核实只有1条-100修正（详见22号证据文档，含helper URL环境错误披露）。
+- 收尾时宿主终端暂时无响应，WSL两发行版随后读为Stopped，原因未确认；未发出shutdown/reset/重装。普通Ubuntu查询成功后原Docker容器自行启动。待pg_isready通过，精确清理本轮browser fixture用户及所属行，remaining=0；命名浏览器与临时Windows转发已关闭。正式用户/数据库卷/迁移前dump保留。
+
+- Round 4 首轮本机全套：82 文件，1313 passed / 1 failed / 0 skipped；唯一失败仍为并行未提交 login 改动导致旧 browser-auth mock 未调用，不计作通过、不修改旧断言。奖励 HTTP 17/17、SQL/并发全部通过。UI/治理扩充后 37/37、tsc、harness 11/11 通过；lint 0 errors/6 个既有 login warnings；生产构建通过。
+- 实际 Chrome + 独立测试账号完成领取100、建愿75、激活/选择/预留/兑换/退款：余额依次100→25+75预留→25/0预留/75兑换→100/0兑换，XP仍0，原凭证及七天冷却保留。Windows/WSL端口不互通时仅使用临时进程级127.0.0.1:3018转发，没有修改代理/防火墙/既有3000进程。320px实测无横向溢出，7个导航触点均44×46px。
+- Ramanujan 独立候选审查 `01a0fdd6-212f-75c1-8b3d-a2b8ebad8c7f` 给 `P0=0/P1=0/P2=3 + NO-GO`：A→B→A 复用字符串 tag 导致旧更多页混入；成功刷新卸载原按钮后焦点丢失；过期 proposal 拒绝按钮未禁用。正在修复为代次对象身份、稳定完成状态焦点、过期审核全部禁用，并补独立反例。修复须全新审查，不进入 Round 5。
+
+- Huygens final exact-head Gatekeeper 对 `de08a89be28a58c471b6417f94504030d5cde145` 给 `P0=0/P1=0/P2=0 + GO`：独立 104/104 无跳过，GitHub API 自行核实 CI Run 37041522823 两 job/全部 steps success；额外探针回滚后 35 表及函数/约束不变、0 测试用户残留、0 禁用触发器。Round 4 解锁；PR #40 未合并，8E 未完成。
+- 已读取本地 Next layouts/pages、Server/Client 指南与既有布局/模态框/按钮；Round 4 按 §17 只消费 HTTP。计划新增奖励 nested layout/client 页面，并手术式增加 AppSidebar/MobileNav 两个导航入口；相应治理例外为精确路径且绑定已接受 backend 字节，不降低冻结门禁。
+- Playwright 工具替代路径：Windows Codex bundled Node + WSL 缓存 CLI 的 UNC 入口，进程级 `NO_UPDATE_NOTIFIER=1` 后版本检查 exit=0（v24.19.0 / CLI 0.1.19）。此前 Windows CLI 退出时的 libuv assertion 不再复现；未升级/安装工具，实际浏览器启动仍待验证。
+- 已实现 rewards nested layout、WishesClient、分页/错误/当前目标读取、metadata editor、稳定请求快照确认框、定价提案审阅组件；AppSidebar/MobileNav 只新增旅程/心愿入口和窄幅适配。已添加 UI 交互测试与 exact-backend-blob/精确导航治理测试，正在运行；未改任何已接受 API/SQL。
+- 初次 UI lint 指出 render 内 `Date.now()` 不纯，已改为 lazy state + effect timer，保留提案过期提示与服务器最终校验。一次猜测 `PlaybookWorkspace.tsx` 不存在，已改用 rg 定位的实际 `PlaybookClient.tsx`，不再猜路径。
+
+## 2026-10-03 — 续作恢复 / corrective gate
+
+- 最新提交 `de08a89be28a58c471b6417f94504030d5cde145` 已推送 origin 的 PR #40 分支（26 文件；不含并行登录/auth/package 改动）。暂存完整新文件时发现 0050 尾部多余空行，已仅删空行，`git diff --cached --check` 通过后提交。等待该 exact-head 的 CI 与 fresh Gatekeeper，尚未进入 UI。
+- CI Run `37041522823` 已绑定该 head：`check` completed/success；`supabase-integration` 已成功启动隔离栈并构建，当前正在跑 database-backed tests。最终审查员 Huygens (`01a0fdae-9513-7031-882f-f61331966e6d`) 正独立核查；此条为中间快照，不是接受结论。
+- 随后 CI Run `37041522823` completed/success，head 精确为 `de08a89`；`check` 与 `supabase-integration` 双绿，startup、production build、DB gate-active、database-backed tests、deterministic harness、E2E 每一项均 success。等待 Huygens 最终 exact-head 判决；不以 CI 替代独立 GO。
+- 用户恢复“继续”；HEAD 仍为 `bc64ce51551c95066ee1b019d29fb66761eb05e8`，奖励 Round 3 与 0050 均未提交，既有并行 login/auth/package/launcher 改动保留。
+- 继续使用 planning-with-files 恢复；session-catchup 无新增报告。已联系在途独立 reviewer Ohm，等待最终判决及迁移期间旧 RPC body 恢复写入的竞态验证；未宣称 GO，Round 4 仍 gated。
+- 本轮先完成 corrective schema/test 审查，再按精确文件清单提交、验证 exact-head CI 与独立 Gatekeeper。`.data/phase8e-pre-0050.dump` 为恢复备份，不作缓存删除。
+- Ohm 独立复审为 `P0=0/P1=0/P2=1 + NO-GO`：SQL 6/6、HTTP 17/17 通过，但大写 URL UUID 导致 JSON proposal 关联漏查。现规范化路由 UUID，并对 payload UUID 使用无通配符的大小写不敏感匹配，补真实 HTTP 双方向反例。
+- 旧 0049 grant body 在回滚事务内复现第一条非标准 EARN 仍可成功（新增测试先红）；0050 加 canonical EARN CHECK 并仅同步该约束后，SQL/fold 四文件 37/37 通过。此测试模拟旧函数体，不宣称已复现真实在线升级调度。历史迁移、账本、registry 和备份未改写。
+- 续作自检 API/static 115/115、目标 ESLint 通过。一次误写 `tests/phase8e-ledger.test.ts` 未命中文件，实际 fold 文件为 `tests/reward-ledger-fold.test.ts`，已在上述 37/37 中执行；读取不存在的 `src/lib/reward/ledger.ts` 已改以实际文件为准。
+- 当前 API/static/fold 为 127/127，目标 ESLint 通过。重建首次因新增 HTTP 测试直接读取未声明的 `Payload.proposals` 失败，已改用精确结构断言并重新构建；未放宽 TypeScript 配置。
+- 修正后 production build 成功（37 静态页面，11 个 reward API 路由）；deterministic harness 11/11。实时 GitHub 核验 PR #40 仍 open/unmerged，head=bc64ce5、base=be949deb；未提前推送。Jason 全新独立复审已获最新 build，可执行真实 HTTP 回归。
+- Jason 独立复审 `P0=0/P1=0/P2=1 + NO-GO`：SQL 20/20，HTTP 16/17；新增 uppercase payload 夹具错误地 UPDATE 不可变 proposal，正确触发 `23514`。已改成新增独立 proposal 并覆盖两条发现/审批，不禁用任何保护；production 无新变动。Jason 前后 36 表及函数/约束摘要一致、0 禁用触发器，未留测试残留。
+- 改正夹具后真实 HTTP 17/17、API 67/67（合计 84/84）通过，包括大小写 URL/payload 的发现与两条 proposal 的真实审批；正在取得全新独立 corrective 判决。
+- 全新 Turing corrective Gatekeeper `01a0fda5-ee25-72a0-be9b-bbe4c5c4f49e` 最终为 `P0=0/P1=0/P2=0 + GO`，仅接受本轮未提交候选：独立 SQL 20/20 + HTTP 17/17，无跳过；额外验证旧规范历史升级重放、七天冷却、35 表/函数/约束摘要前后相同、0 禁用触发器，0048/0049 原样。既有 James/Ohm/Jason findings 均关闭；不是在线升级调度复现或 Round 4 放行。
+- 准备仅提交 26 个本轮文件并推送 PR #40：五份文档/计划、迁移登记测试、奖励五层/11 路由、0050、三个新测试。原有 login/auth/package/launcher 等全部排除，恢复备份保留。后续必须绑定新 SHA 的 CI 与 fresh exact-head Gatekeeper。
+
 ## 2026-09-29 — Phase 8D 独立审查落盘（PR #38 归档闭环）
 
 - PR #38（`docs(phase8d): final freeze archive and status sync`）已由用户合入 `main`：merge commit `a1da765e492b8d93e6350ac32865d8e0018faa91`（parents `b93273cd` + `597e3f8`）。PR head `597e3f8` 的 CI Run `36596794622` 双 job success。
@@ -282,3 +338,111 @@
 - Corrective exact head `fca284249dcdaf141cfe0dfd1515013a41f6f480` 的 CI Run `36450973097` 双 job success；integration 日志明确显示 test 11 执行并通过，71 files / 1118 tests passed。独立审查撤回真实 HTTP P1，但给两个 P2：test 11 依赖早期用例建用户；外租户来源 404 后未核验 B support 零写入。现改为 test 内独立注册 A/B、并在拒绝后 GET B supports 断言 count=0；本地类型/ESLint 通过，真实执行待新 CI。
 - Final Round 3 implementation exact head `2b0796e66fc900344a1571f39ebd771fe64abe47` 的 CI Run `36452011311` 双 job success；integration 原始日志确认 Strategy RPC 12 tests 与真实 HTTP Strategy test 11 执行通过、71 files / 1118 tests passed，deterministic harness 和单独 E2E 步骤 success。独立 Gatekeeper 最终 `P0=0 / P1=0 / P2=0 + GO`；PR #37 head 同 SHA，仍 open/unmerged。Round 4 可作为下一阶段开始，但本次尚未写 UI。
 - 文档-only 状态同步提交 `1949e1f` 的独立复审发现 `task_plan.md` 顶部“当前”摘要仍停在 Round 2，与新增 Round 3 GO 记录冲突（P2）。已只更新当前摘要与阶段总览，保留历史过程行；需对此新文档 SHA 重新做 CI/复审。
+
+## 2026-09-30 — Phase 8E pre-admission draft
+
+- 从 `origin/main` baseline `a1da765e492b8d93e6350ac32865d8e0018faa91` 切出 `codex/phase8e-reward-wishes-admission`；原有未跟踪 `.pnpm-store/`、两份 docs 与 `launcher/` 保留不动。
+- 新增 `docs/Phase8/21_PHASE8E_REWARD_WISHES_IMPLEMENTATION_CONTROLLING.md`，状态为 PRE-ADMISSION DRAFT；没有创建 migration、RPC、API 或 UI。
+- 已明确 `REAL_WORLD_VERIFIED` 依赖 Phase 8F、O005 在 8E 只验 correction primitive、单一 selected Wish 覆盖 PRIMARY+RESERVED、循环 FK migration 顺序、cooldown 实际 enforcement 与 `credit_cost` 字段统一。
+- 两项承重政策保持 blocker：D1 奖励策略载体/精确数值，D2 Artifact 确定性资格。未获用户决策与 fresh exact-head Gatekeeper GO 前生产实现不授权。
+- 本地治理定向验证通过：`visual-foundation`、`supabase-schema`、`governance-delta-guard` 共 3 files / 92 tests passed；WSL 因现有 Windows node_modules 缺 Linux rolldown native binding 未执行，结果来自 Windows Vitest。
+- Fresh 独立只读对抗审查：`P0=0 / P1=0 / P2=0`，三条承重命题均通过；因 D1–D3 尚未解除，阶段总判保持非缺陷性 `NO-GO`。
+
+## 2026-09-30 — Phase 8E D1/D2 user decisions
+
+- 用户明确批准 D1：采用 immutable versioned PostgreSQL function `reward-v1`；额度冻结为 Season 150，Quest Major/Epic/Main-or-Boss 为 100/150/200，Mastery M6/M8/M10 为 100/150/250。
+- 用户明确批准 D2：Phase 8E 延后 Artifact EARN，等待独立、确定性的验证标准；当前必须 fail closed 且零 ledger mutation。
+- 控制文档已从 PRE-ADMISSION DRAFT 更新为 ADMISSION CANDIDATE；生产实现仍需 fresh exact-head Gatekeeper 接受 D3 并返回 `P0=0 / P1=0 / P2=0 + GO`。
+- Admission exact head `080accd5b49088ba8e62686bb2a54dcdc189c515` 已获 fresh independent Gatekeeper `P0=0 / P1=0 / P2=0 + GO`；D3 明确接受，Phase 8E 仅获准进入 Round 1。
+- Round 1 范围锁定：`0048` 四表 foundation、RLS/tenant/field-authority/immutability guards、纯 `foldRewardLedger` 与测试；`0049` RPC、API、UI 继续 gated。
+- Round 1 写入前发现 admission contract 的新 P1：`IDEA -> ACTIVE` 生命周期没有合法 authority path；直接客户端状态更新被禁止，原九 RPC 也无 activate。生产写入继续暂停，先补 `rpc_activate_wish` 控制契约并重新送 Gatekeeper。
+- Exact head `4bbe3d1...` 的 fresh Gatekeeper 返回 `P0=0 / P1=2 / P2=0 + NO-GO`：通用 RPC 规则误要求 activation 写 ledger/account；activation 幂等 key 未绑定 RPC/target/payload。现拆分通用与六个财务 RPC 规则，并定义 audit-backed SHA-256 fingerprint、stored result snapshot 与 `IDEMPOTENCY_KEY_REUSED` 冲突。
+- Corrective head `f4adc14...` 已关闭前两项 P1，但 fresh Gatekeeper 新发现 1 个 P1：总不变量“Every mutation RPC-only”与 Wish 草稿 INSERT / IDEA-ACTIVE metadata field grants 冲突。现收窄为 financial mutation + lifecycle transition RPC-only，草稿内容编辑仍受字段级 grant/RLS/trigger 限制。
+- Exact head `b23696d...` 的 Gatekeeper 返回 `P0=0 / P1=2 / P2=0 + NO-GO`：验收条款仍无条件拒绝 authenticated direct writes；全部 10 RPC 缺同 key 跨 target 并发串行化。现改为精确正/负 direct-write matrix，并冻结 `(user,key)` transaction advisory lock -> audit replay check -> domain locks 的顺序及失败零残留。
+- Exact head `bf0229e...` 的 fresh Gatekeeper 返回 `P0=0 / P1=2 / P2=0 + NO-GO`：ownership 校验仍排在 key replay 前；D2 rejection audit 与“任何失败零审计残留”冲突。现冻结 auth -> normalized tuple -> `(user,key)` lock -> existing replay -> first-seen ownership 的优先级，并区分可提交的确定性业务拒绝与必须全回滚的事务失败。
+- Corrective exact head `cd24254...` 已获 fresh Gatekeeper `P0=0 / P1=0 / P2=0 + GO`，只授权 Phase 8E Round 1 DB foundation；Round 2 RPC/API/UI 仍未授权。
+- Phase 8E Round 1 已实现 `0048` 四表/RLS/field authority/immutable guards、纯 `foldRewardLedger` 与静态/可选真实 DB 测试。定向测试 82 passed、全量测试 818 passed、TypeScript/ESLint、Next production build 均通过。真实 DB 测试未验证：Supabase CLI 2.114.0 可用，但 Docker Desktop Linux engine 未建立 `dockerDesktopLinuxEngine` 管道。
+- Round 1 exact head `ac7c27a...` 的独立 Gatekeeper 返回 `P0=0 / P1=2 / P2=1 + NO-GO`：WISH ledger tenant、exact correction/refund guards 不完整；`src/lib/reward/` 未纳入 visual backend freeze。现补齐永久账本关联守卫、反例测试与精确 `fold.ts` allowlist；真实 DB 未运行继续作为未验证 P2，不进入 Round 2。
+- Corrective head `b898bc9...` 的 fresh Gatekeeper 返回 `P0=0 / P1=1 / P2=1 + NO-GO`：生产 SQL 两项 P1 已关闭，但 direct-write 测试使用不完整载荷，可能因 NOT NULL 而错误通过。现改为完整可落库载荷、精确 SQLSTATE `42501` 与四表前后行数不变断言；真实 DB P2 仍未验证。
+- Corrective head `d7d7a75...` 的 fresh Gatekeeper 返回 `P0=0 / P1=1 / P2=1 + NO-GO`：完整载荷已关闭前项，但 `SET ROLE` 自身的 42501 仍可能冒充 INSERT 拒绝。现将角色/JWT/current_user/auth.uid 核验移到捕获范围外，仅捕获目标 INSERT，并保留 SQLSTATE 与零副作用断言。
+- Exact head `6f8dfdd640f41b24fc8ae3d58443c94f477e4753` 的 fresh Gatekeeper 返回 `P0=0 / P1=0 / P2=1 + Round 1 GO`。Round 1 代码/静态门禁通过；Round 2 继续 BLOCKED，必须先在该 HEAD 或仅补验证证据的后继 HEAD 上跑通真实 PostgreSQL 套件。
+- 本机真实 DB 阻塞已独立诊断：Supabase CLI 2.114.0 可用；WSL2/Ubuntu 正常；Docker Desktop backend 因 `C:\Users\Administrator\AppData\Local\Docker\run\sailor-ingest.sock` 返回 Error 1920 而崩溃，停止服务后 Move/Remove/fsutil 仍无法访问；Ubuntu 侧未发现 `psql/postgres/initdb/pg_ctl`。未删除 socket、镜像、容器或 volume，Docker 服务恢复为原先的 stopped 状态。
+
+## 2026-09-30 — Phase 8E Round 1 真实 PostgreSQL 验证（纠正阻塞误判 + 修复真实缺陷）
+
+- 上一轮的“Docker 损坏导致真实 DB 无法运行”结论被证伪：本机 Supabase 跑在 **WSL 原生 Docker daemon**（`docker context default`，`unix:///var/run/docker.sock`；`supabase_*_AI_Personal_Growth_RPG` 全部 healthy，`54321` 返回 200、`54322` 开放），只有 **Windows** 的 `supabase` CLI 2.114.0 因绑定 `desktop-linux` 管道而不可用。DB 套件的唯一开关是 `XP_RPG_TEST_DB_URL`：此前是「未设置被 skip」，不是「被阻塞」。未删除任何 socket/镜像/容器/volume，未改动 Windows Docker 服务状态。
+- 应用 `0048` 到本机 dev DB 前先做备份 `.data/phase8e-pre-0048.dump`（`docker exec supabase_db_... pg_dump -Fc`），再以单事务 `psql -v ON_ERROR_STOP=1 -1 -f -` 应用 migration 并写入 `supabase_migrations.schema_migrations('0048','phase8e_reward_wishes_foundation')`。
+- `XP_RPG_TEST_DB_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres` 下首跑 `tests/phase8e-db-foundation.test.ts`：**5 passed / 1 failed**。失败用例「authenticated metadata edits are narrow and stop after ACTIVE」暴露真实缺陷：`wishes_owner_update` 的 `USING (auth.uid() = user_id AND status IN ('IDEA','ACTIVE'))` 会把越权 UPDATE 过滤成 **0 行**而非报错，导致 `trg_enforce_wish_field_authority` 对 `PRIMARY` 等状态完全不可达，客户端拿到静默成功。已改为 ownership-only `USING`（拒绝由触发器 `42501` 负责，`WITH CHECK` 作为纵深防御），并补契约要求的第二条正向路径（`ACTIVE` 期间仍可改 title/description/credit_cost）、拒绝后行内容不变断言、cooldown 与 DELETE 的 `42501` 断言。
+- 全量真实 DB 套件（`.data/run-tests.cjs`，只注入 `.env.local` 的 Supabase 凭据 + `XP_RPG_TEST_DB_URL`，`CI=true`）：修复前 `1173 passed / 2 failed / 0 skipped (1175)`，修复后 `1174 passed / 1 failed / 0 skipped (1175)`；唯一剩余失败是本机历史数据导致的 `tests/stage5b-db-repository.test.ts` case 1（`d1111111-1111-4000-a000-000000000001` 已被 `demo_player@growth-rpg.dev` 占用 + `on conflict (id) do nothing`），与 8E 无关、CI 干净库不复现。
+- 曾把 `.env.local` 整份注入测试进程，导致 `AI_BASE_URL` 指向已下线的 `127.0.0.1:3099` 桥接、mock AI 未启动，产生 3 个 e2e + 1 个 stage5d 假失败（超时/502）；改为白名单注入后全部通过。`tsc --noEmit`、`eslint`、`next build` 均 exit 0。
+- 空库可复现性由本轮自查的独立 scratch DB 证明（**不是** `empty-db-migration.smoke`）：Gatekeeper 指出该 smoke 在 `public.activities` 已存在时会跳过整个 migration 循环（`tests/empty-db-migration.smoke.test.ts:52-59`），本机即为此情形，故原引用无效。实际做法：`create database gk8e_owner_verify` + 最小 `auth` shim（`auth.users`、`auth.uid()`），以 `psql -v ON_ERROR_STOP=1 -1 -f -` 应用 corrective head `5e0d449003a88da98c3659cd7adbae64ef951046` 的 `0048` blob → 0 error（4 张表、5 个触发器、6 条 policy），随后 `drop database`。指纹命令如下（dev DB 与 scratch DB 各执行一次，输出完全相同）：
+
+`select md5(string_agg(polname || '|' || pg_get_expr(polqual, polrelid) || '|' || coalesce(pg_get_expr(polwithcheck, polrelid), '-'), E'\n' order by polname)) from pg_policy where polrelid in ('public.wishes'::regclass, 'public.reward_accounts'::regclass, 'public.reward_transactions'::regclass, 'public.reward_redemptions'::regclass);`
+
+两边结果均为 `7881dbec1a794d84ecf5e631e72d0364`。（此前只写了摘要值未附命令，第三位 Gatekeeper 因此无法复算；该值本身可复现。）
+- 测试残留已清理：删除 27 个时间戳/`phase8d-*` 测试账号（事务内先禁用 public 触发器、按 `auth.users` 外键循环删子表、再启用触发器），本机 dev DB 回到基线 `users=10`、`activities=2`、禁用触发器 0、孤儿行 0；`wishes/reward_accounts/reward_transactions/reward_redemptions` 全为 0。
+- 本轮为 corrective exact head，Round 1 已重新送 fresh 独立 Gatekeeper（见下一节）。
+
+## 2026-09-30 — Phase 8E Round 1：两个 fresh 独立 Gatekeeper 复核与 P2 关闭
+
+- 对 exact head `62035a4db2199c57bdb48f3b225f984a0f76f21e` 跑了**两个互不相同的 fresh 只读对抗 Gatekeeper**（一个后台、一个阻塞式，均未继承本会话上下文），两者独立复现了：修复前后两个方向、~75 条越权语句无新漏洞（含 MERGE/upsert/COPY/DDL、`service_role` 无 grant 故 BYPASSRLS 无用、`authenticated` 无角色继承）、空库指纹一致、Docker 环境结论、`6/6` 与 `1174/1175` 计数、`stage5b` 为历史数据碰撞（非 8E 回归）。两者终判一致：**P0=0 / P1=0，Round 1 GO**；按 controlling §12 仍以 `P2≠0` 为由**不解除 Round 2**。
+- P2 关闭（本次证据型后继提交）：
+  1. 纠正 `progress.md` 中 `empty-db-migration.smoke` 的空库证据引用（该 smoke 在本机为空转），改为上一条的 scratch DB 指纹证据。
+  2. 补 §11 要求的**四表**跨租户隔离断言：`tests/phase8e-db-foundation.test.ts` 现对 `reward_accounts`/`reward_transactions`/`wishes`/`reward_redemptions` 各做「属主可见 1 行 + USER_B 可见 0 行」双向断言（含正向控制，避免空转通过）。
+  3. 补系统时间戳直接写拒绝断言：`authenticated` 改 `created_at`/`updated_at` 均 `42501`，且在可编辑的 `ACTIVE` 状态下断言，排除「因生命周期被拒」的错误归因。
+  4. 记录（非认可）Round 2 前置条件：契约允许 `IDEA/ACTIVE` 期间改 `credit_cost` 且该列可为 NULL，属主当前可把 `ACTIVE` Wish 的 `credit_cost` 清空（测试已固化该行为），因此 `rpc_reserve_wish_credits` / `rpc_set_primary_wish` 必须对 NULL cost fail closed，不能假设「ACTIVE ⇒ 有正数 cost」。
+- 残留清理：两位 Gatekeeper 的全量跑又留下 18 个时间戳/`phase8d-*` 账号（其中一位因 `trg_prevent_strategy_version_mutation` 拒绝直接删除而保留），已按既定「事务内禁用 public 触发器 + 按 `auth.users` 外键循环删子表」流程清空；dev DB 回到 `users=10`、残留 0、禁用触发器 0。
+- 第三位 fresh Gatekeeper 复核 P2 关闭提交 `5e0d449003a88da98c3659cd7adbae64ef951046`：`P0=0 / P1=0 / P2=1 + GO`。唯一 P2 是 `progress.md` 只记录指纹摘要值、未附复算命令（已在上一节补全命令）；另指出送出任务书时的 head 全 SHA 写错（真实值如上，已核对 `git cat-file`）。它同时做了**变异测试**证明新断言可失败：把四张表的 owner_select policy 依次改成 `USING (true)` 会让对应那张表的断言分别失败；把 `wishes_owner_select` 改成 `auth.uid() <> user_id` 会让 6/6 全败；把 `credit_cost` 改成 `NOT NULL` 会让 metadata 用例失败——均随后回滚/恢复为 6/6。
+- 待办：`5e0d449` 已推送 origin；等用户创建 PR → exact-head CI 双绿（DB/concurrency 套件不得 skip）→ 再跑一次 fresh Gatekeeper 取得 `P2=0 + GO`，方可解锁 Round 2 (`0049`)。
+
+## 2026-09-30 — Phase 8E Round 1：一次性实例 CI 等价复现 + 合并 main 解冲突
+
+- 为补齐三位 Gatekeeper 唯一共同标注的「无法验证」项（一次性 disposable 实例上 DB/并发套件不得 skip），在 WSL 内下载 **Linux supabase CLI 2.114.0**（`.data/ci/supabase`，gitignored），用独立工作目录 `.data/ci/stack`（`project_id = ai_growth_rpg_ci_scratch`、端口整体 +1000：API 55321 / DB 55322、独立卷与网络）起了一个全新栈，**未触碰用户现有 dev 栈**。
+- 严格按 `.github/workflows/ci.yml` 的 `supabase-integration` 顺序复刻：`supabase start`（48 个 migration 全量应用、`users=0`）→ `supabase status -o env` 导出与 CI 完全相同的四个变量（`NEXT_PUBLIC_SUPABASE_URL`、`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`、`SUPABASE_SECRET_KEY`、`XP_RPG_TEST_DB_URL`）→ `next build` → `vitest run` → `harness:deterministic` → `test:e2e`。
+- 结果：`Test Files 76 passed (76)`、**`Tests 1175 passed (1175)`、0 skipped、0 failed**；`harness:deterministic` 11/11；`test:e2e` 10/10；`tsc --noEmit`、`eslint`、`next build` 均 exit 0。这同时证明 dev 栈上 `stage5b` 的那 1 个失败纯属本机历史数据（干净栈上通过）。
+- CI `check` job 等价复现（不设 `XP_RPG_TEST_DB_URL`）：`Test Files 50 passed | 26 skipped (76)`、`818 passed | 357 skipped (1175)`——这正是上一轮报告里「818 passed / 357 skipped」的真实来源，即 DB 套件当时被整批 skip。
+- 过程中修掉两个**本机复现环境**的坑（非被测代码缺陷）：① `.env.local` 白名单在覆盖文件之后执行，把 `NEXT_PUBLIC_SUPABASE_URL` 写回 dev 的 54321，导致「pg 写一次性栈 / PostgREST 读 dev 栈」混用，出现 4 个假失败；② 本机 `.next` 是早先用 dev 凭据构建的，而 CI 是在导出一次性栈凭据**之后**才 build（`NEXT_PUBLIC_*` 会内联进产物），导致进程内起 Next 的 HTTP/E2E 套件全部 401，按 CI 顺序重建后全绿。
+- 环境已完整还原：一次性栈 `supabase stop --no-backup` 后残留容器 0、dev 栈 11 个容器与 `54321`/`54322` 正常；dev DB 清回基线 `users=10 / activities=2 / 8E 四表全 0 / 禁用触发器 0`（混用期间被写脏的 13 个测试账号已按「禁用 public 触发器 + 按外键循环删子表」流程清除）；`.next` 已用 dev 凭据重建；仓库 tracked 文件未被环境操作改动。
+- PR **#40** 已由用户创建（base `main` @ `be949deb`，head `59a45f5`），创建时状态为 conflict（`dirty`）且未触发任何 CI run。已把 `origin/main` 合并进分支并解决 `docs/MASTER_PROJECT_HANDOFF.md`、`task_plan.md` 的冲突（保留 main 的 8D FINAL FROZEN + 文档 20 叙述，并追加 Phase 8E Round 1 状态），`progress.md` 自动合并成功。
+
+## 2026-09-30 — Phase 8E Round 1：PR #40 exact-head CI 与 corrective gate
+
+- PR #40 当前 exact head `958829c215626df165640a3f33279d28d4b05c9b`，base `be949deb67f62269d58a0e21865580d0e67204e0`，GitHub 显示 `mergeable=true / mergeable_state=clean`。Actions Run `36713825255` 的 `check` 与 `supabase-integration` 均 success。
+- 公开 Jobs API 可复核 `supabase-integration` 的 `Export local Supabase credentials` 与 `Run database-backed tests` 两个步骤均 success；`scripts/export-supabase-ci-env.cjs` 在 `DB_URL` 缺失时 exit 1，并把非空值写入 `XP_RPG_TEST_DB_URL`；`tests/phase8e-db-foundation.test.ts` 唯一 skip 条件正是该变量缺失。因此该 exact-head 的 Phase 8E DB suite 不可能以缺少 DB URL 的 skip 路径得到成功。为让后续审查无需下载受限 job log，在 integration workflow 中新增独立的 `Verify database test gate is active` 步骤，缺少变量即失败。
+- Fresh 独立 Gatekeeper 对 `958829c` 返回 `P0=0 / P1=2 / P2=0 + NO-GO`：P1-01 为公开 job log 下载受限导致 0-skip 证据不可直接复核；P1-02 为 `task_plan.md` 将 Round 2 错写成含 API/UI，且 Master handoff 保留了“尚未创建 0048”的过时 admission 待办。本次仅修复 CI 证据可见性与上述文档矛盾；不创建 `0049`，Round 2 继续 BLOCKED，等待 corrective exact-head CI 与新的 fresh Gatekeeper。
+
+## 2026-10-02 — Phase 8E Round 2：0049 RPC authority 本地闭环
+
+- Round 1 corrective exact head `11fbb7aad0c8d5fb4d0a501b77199c186a828533` 的 CI Run `36730784334` 中 `check` 与 `supabase-integration` 均 success，fresh Gatekeeper `P0=0 / P1=0 / P2=0 + GO`，仅授权 Round 2 `0049`，不授权 API/UI。
+- Docker Desktop 已从 4.87.0 升级至 4.93.0；绕过损坏的 `docker-secrets-engine/engine.sock` 后，本地 Supabase API 恢复 HTTP 200。清理已使用更新缓存 857,245,819 bytes，并删除 5 个无人引用的历史验证 volume（约 210 MiB）；当前 12 个 Supabase 容器、全部在用镜像及 3 个当前 volume 保留，build cache 为 0。
+- 新增 `0049_phase8e_reward_wishes_rpc_authority.sql`：冻结 D1 `reward-v1` 数值，D2 Artifact/REAL_WORLD_VERIFIED fail closed；实现十个 authenticated-only RPC、append-only ledger/correction、account fold/cache parity、Wish 生命周期/预留/兑换/退款、统一 caller+key replay authority，以及 `WISH_COST_SUGGESTION` proposal wrapper。
+- 真实 PostgreSQL 首轮本地验证全绿后，独立 Gatekeeper 报 4 个 P1：缺 PRIMARY→ARCHIVED、set-primary 未按 account-first 锁序、六金融 RPC 顺序非 ledger→audit→cache、十 RPC 并发矩阵不足。已全部修复，并加入 projected account snapshot + audit-before-cache apply 及十 RPC same-key replay/conflict 双连接矩阵。
+- 修复后证据：聚焦 `3 files / 89 tests` 全过；完整真实 DB 套件 `77 files passed`、`1191 passed / 2 skipped (1193)`；deterministic `11/11`、TypeScript、ESLint、production build、`git diff --check` 全绿。fresh corrective Gatekeeper：`P0=0 / P1=0 / P2=0 + GO`，只接受 Round 2，不授权 Round 3。
+- 当前待办：只提交本轮 0049/测试/治理与状态文件并推送 PR #40，取得新 exact-head CI 双绿后冻结 Round 2；并行出现的 login/auth/端口同步修改不属于本轮，不纳入提交。
+
+## 2026-10-02 — Phase 8E Round 2：PR #40 首轮 CI 复验
+
+- 用户授权后已把 Round 2 提交 `80604f582e34efc32c9e153a63dd9096caf69278` 推送到 PR #40；GitHub Run `36977055841` 的 `check` job 成功，`supabase-integration` 在 `Run database-backed tests` 步骤 exit 1（构建与 DB variable gate 均成功）。公开接口无法下载该 job 的逐行日志，因此未把未知失败归因于 0049。
+- 在当前真实 PostgreSQL 栈上把 `tests/phase8e-rpc-authority.test.ts` 连续运行 10 次，全部通过；再从 git archive 导出的 exact `80604f5` 源码运行全套 Vitest，数据库/RPC 与静态部分 `71 files / 1092 tests` 全过，另 6 个生产 HTTP suites 因隔离目录没有 `.next` 而跳过。尝试在 DrvFS + 共享 `node_modules` 的隔离目录补构建时，Turbopack 卡在 PostCSS worker，Webpack 卡在持续磁盘 I/O，均由本轮主动终止；这两项属于本机隔离构建限制，不计为代码通过或失败。
+- 当前没有复现 Round 2 代码缺陷。后续以仅含本证据记录的后继提交触发新 CI；必须等新 exact-head `check` + `supabase-integration` 双绿，并取得 fresh exact-head Gatekeeper `P0=0 / P1=0 / P2=0 + GO`，才可冻结 Round 2。Round 3/API/UI 仍未授权。
+
+## 2026-10-02 — Phase 8E Round 2：双绿后的 corrective P1 修复
+
+- Evidence head `3f3bcf4bde130843dc62516b9cb589069ac8717a` 的 GitHub Run `36981311919` 已双绿，但 fresh exact-head Gatekeeper 返回 `P0=0 / P1=2 / P2=0 + NO-GO`：`rpc_set_primary_wish` 经 account helper 在账户缺失时隐式创建 `reward_accounts`，违反四个非 ledger RPC 不改账户；十 RPC 并发矩阵仅固定等待 40ms，未确定性证明第二连接已阻塞，也未逐 RPC 核对业务 mutation cardinality。
+- 修复：新增 private `phase8e_lock_reward_account_key`，金融 account helper 与 `set_primary` 共用同一 user-account transaction advisory lock；只有金融 helper 随后创建/锁账户行，`set_primary` 不再写账户缓存。并发矩阵现在读取第二连接 backend PID，通过第三连接轮询 `pg_stat_activity`，确认 `wait_event_type='Lock' / wait_event='advisory'` 后才提交首事务；每个 RPC 均前后核对 account/ledger/redemption/audit 数量与 Wish 终态。
+- 本地验证：聚焦真实 DB `3 files / 89 tests`；deterministic `11/11`；TypeScript、ESLint（0 error，6 个 warning 均来自未提交 login 修改）、`git diff --check` 通过。全量真实 DB 为 `76 files passed / 1 failed`、`1192 passed / 1 failed (1193)`；唯一失败是并行未提交 `src/app/login/page.tsx` 改变了旧 `/login` loading mock 调用路径，所有数据库/RPC/HTTP 集成组均通过。该 login 改动不属于 Round 2，未修改、未暂存。
+- Round 2 仍为 NO-GO，等待 corrective 审查、提交、exact-head CI 双绿和最终 fresh Gatekeeper；Round 3/API/UI 继续未授权。
+
+## 2026-10-03 — Round 2 accepted / 全站持续推进
+
+- 实时复核 PR #40 head `bc64ce51551c95066ee1b019d29fb66761eb05e8`，open / unmerged / clean；CI Run `37004408985` success。上一轮 fresh 独立 Faraday Gatekeeper 为 `P0=0 / P1=0 / P2=0 + GO`，只接受 Round 2。以上取代上方仍为 NO-GO 的历史快照。
+- 用户授权持续推进全站；保持逐轮门禁与用户手动 merge 边界。已冻结 controlling §15 的 Round 3 API 清单，更新主交接和任务计划；当前进入服务端实现，不修改 0048/0049，不创建 UI。
+- WSL 原生 Docker 的 12 个 Supabase 容器正在运行。并行未提交 login/auth/package/launcher/port-sync 文件保留，奖励提交不夹带。
+
+### Round 3 implementation and corrective gate
+
+- Implemented frozen §15 inventory: account/ledger/receipt reads, paginated source/Wish/proposal discovery, exact-field metadata edits, ten RPC adapters. New routes use authenticated user client, no-store responses, fail-closed parsing, stable domain error mapping and no prefetch before mutation replay.
+- Initial validation: adapter 66/66; real HTTP 16/16; combined Phase8E 5 files / 112 tests; deterministic 11/11; TSC/targeted ESLint/build passed. First HTTP run 15/16 exposed only a UUID/text fixture parameter inference issue, fixed by using separate slug parameter.
+- Independent James review nevertheless returned P1 / NO-GO for UUID alias double mint in prior 0049. It independently reproduced lowercase/uppercase/compact source IDs -> 3 EARN / 300 credits and rolled back all proof data. This invalidates progression to Round 4 until repaired.
+- Added narrowly governed 0050 corrective authority migration (§16); 0048/0049 untouched. Before application the new QUEST alias regression failed as expected. Backed up local DB to `.data/phase8e-pre-0050.dump` (911,221 bytes), applied 0050 + migration registry insert atomically, then six SQL corrective cases passed. Await full suites, fresh independent corrective review, commit and exact-head CI/gate.
+- Corrective combined DB run: canonical SQL 6 + real HTTP 17 + existing RPC 13 = 36/36, no skips. Full workspace run: 80 files, 1280 passed / 2 failed / 0 skipped (1282), 442.45s. Failures: (a) preexisting dirty login loading mock; (b) static migration allowlist omitted newly added 0050. Added the exact filename (not a relaxed guard) and reran that suite 49/49; deterministic 11/11, TypeScript and targeted ESLint pass. Whole-project lint exits 0 with six warnings exclusively in the untouched dirty login page. Final committed-head CI must independently prove the selected delta without those unrelated working-tree changes.

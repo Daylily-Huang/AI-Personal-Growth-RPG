@@ -1,5 +1,36 @@
 # 调查发现与核心架构决策 (Findings)
 
+## 2026-10-03 — Round 5 exit contract reconciliation
+
+- Canonical O001–O005/O019/O020 identifiers are retained. Accepted controller §15 determines actual HTTP errors; older catalogue symbolic names are not a reason to change production error contracts.
+- O020's -50 pure-fold example remains valid arithmetic, while v1 correction RPC reverses the exact full EARN. Test both without silently adding partial correction authority. O005 milestone integration remains 8F-gated; 8E tests only the accepted correction primitive.
+- New SQL tests seed 500 XP plus seven populated Core tables in rollback-only transactions. One UUID/text fixture parameter initially caused six setup failures; separate typed parameters fixed setup, after which the six real DB scenarios passed. No production defect was found in that run.
+- Round 5 zero-production-delta is a release inspection command against `a2614d2`, not an unconditional permanent test preventing all future authorized website changes. Existing exact reward backend blob guards remain unchanged.
+
+## 2026-10-03 — Round 4 corrective UI findings
+
+- A URL/revision string is not a request-generation identity: A→B→A can admit an old load-more response. Use per-generation object identity and generation-scoped locks so old success/failure cannot replace new data or release a newer lock.
+- Closing a modal does not suffice for keyboard focus when a successful refresh removes its opener. Focus a stable completion status after commit; preserve ordinary Escape restoration when cancelling.
+- The existing proposal RPC rejects every review decision after expiry, including REJECTED. UI disables both acceptance and rejection; it does not create a new backend exception.
+- Real Chrome works via Windows bundled Node + cached WSL CLI UNC path and process-only `NO_UPDATE_NOTIFIER=1`. CLI request-context reads require absolute URLs; obtain the origin from browser `page.evaluate`, because the run-code sandbox has no global `URL`.
+- A temporary terminal outage coincided with both WSL distributions reporting Stopped; cause unverified. A normal subsequent Ubuntu probe succeeded and the existing Docker containers restarted automatically. No WSL shutdown, factory reset or Docker reinstall was issued by this work.
+
+
+## 2026-10-03 — Round 3 boundary decisions
+
+- 已接受的数据库 authority 结果为 snake_case snapshots；HTTP 直接保留该形状与 replay 结果，不在服务层重算奖励金额，也不先读取目标导致改变 RPC replay 优先级。
+- 读取不存在的 reward account 应返回 null + 空账本的零余额，不能为了显示页面隐式创建账户。
+- Round 3 补充 paginated source candidates 和 Wish proposal reads，供后续 UI 使用；候选只辅助选择，Season FINAL review / verified Mastery / canonical duplicate 等始终由现有 RPC 重验。
+- 全站未定义统一工作量分母，撤销无依据的 70%–75% 完成度表达，改按功能、门禁、合并与部署分别记录。
+
+### Newly reproduced authority defect and narrow repair
+
+- Independent James audit: `P0=0 / P1=1 / P2=0 + NO-GO`. Raw text identity in 0049 allows uppercase/compact UUID aliases to bypass the 0048 source uniqueness constraint: one Major Quest -> 3 EARN / 300 credits. Transaction rollback and zero fixture residue verified.
+- `0050_phase8e_reward_canonical_source_fix.sql` normalizes supported source IDs before replay fingerprint derivation, installs normalized uniqueness, and refuses preexisting noncanonical EARN history rather than rewriting immutable rows/audit snapshots. Frozen reward-v1 amounts and D2 exclusions are unchanged.
+- New `phase8e-canonical-source` QUEST regression failed before applying 0050 (uppercase canonical ID persisted), then all six corrective SQL tests passed after transactional installation. Local backup `.data/phase8e-pre-0050.dump` is 911,221 bytes; do not remove it as disposable cache before phase acceptance.
+- The normalized unique index does not prevent a *first* noncanonical EARN from a stale 0049 function body. A rollback-only exact historical-body regression initially minted 100, then failed closed with zero financial/audit residue after adding `ck_reward_tx_canonical_earn_source`. This models the old-body hazard, not a reproduced deployment interleaving.
+- Independent Ohm found a separate P2: UUID columns match uppercase URLs, JSON text equality does not. Reward route UUIDs now normalize case; proposal matching is case-insensitive for validated wildcard-free UUIDs and tests include both uppercase URL and uppercase payload. No prior proposal payload is rewritten.
+- Browser-tool preflight only (no Round 4 UI edits yet): WSL has Node/npx and cached `@playwright/cli` 0.1.19 (`npm exec --offline --package @playwright/cli -- playwright-cli --help` works); Windows `where npx/playwright-cli` finds neither in PATH, but Chrome and ms-playwright cache exist. The bundled skill shell wrapper fails on CRLF `pipefail\r`; use the same cached CLI directly, not a global tool rewrite/upgrade. Actual browser launch remains unverified.
 ## 2026-09-29 Round 4 Playbook UI
 
 - 控制文档 §9 要求 Strategy 列表/详情、用户创建、测试状态、正反证、显式晋升、情境化/退役、版本、两类 AI 提案审核。§11 将 Round 4 限定为 `/journey/playbook` 与 Journey 导航，消费已接受 HTTP/domain surfaces。
@@ -225,3 +256,40 @@
 - 既有 `docs/MASTER_PROJECT_HANDOFF.md` 里 Round 2 状态滞后于 exact-head GO，更新须与 Round 3 candidate 一起明确区分状态与历史快照。
 - `94a1208` 的单元 HTTP adapter 测试模拟了认证仓储与 RPC；它们不能证明真实 cookie/session、Next 路由与 RLS/SQL 错误贯通。Gatekeeper 的 Round 3 P1 指向这类运行时证据缺口，故新增用现成 live Next + Supabase Auth E2E fixture 的跨租户、时间戳、重放和版本排除反例。
 - `fca2842` CI 真实 E2E 已通过，但测试完整运行时可依赖早期用户 fixture；对单测可定位性，应在 Strategy test 内独立注册用户。外租户拒绝还需在 HTTP 层复查 support count=0，不能只看错误状态码。
+
+## 2026-09-30 — Phase 8E architecture gaps
+
+- 冻结规范要求“versioned deterministic server policy table”，但授权表清单只有四张 Reward/Wish 表且没有 policy 表；精确 grant amounts 也未冻结。控制文档推荐 immutable versioned SQL function，但将载体与数值保留为 D1 用户决策。
+- `ARTIFACT` earning source 的“significant verified”没有映射到现有 Artifact 的确定性、不可伪造字段；生命周期与 reusability 分数均不足以单独作为铸币依据，故列为 D2 blocker。
+- `REAL_WORLD_VERIFIED` 依赖尚未实现的 Phase 8F milestone authority；在 8E 提前实现会违反冻结阶段顺序。
+- schema plan 的 `cost_credits_estimate` 与 RPC plan 的 `wish.credit_cost` 不一致；控制草案统一为 positive nullable `credit_cost`，并禁止 PRIMARY/RESERVED/REDEEMED 后直接改价。
+- 只对 PRIMARY 建唯一索引会在 reserve 后允许第二个 PRIMARY；必须对 `status IN ('PRIMARY','RESERVED')` 建合并 partial unique index。
+- `cooldown_until` 若只写在已兑换 Wish 而 reserve RPC 不查询，则 cooldown 无实际效果；草案要求 reserve 时检查任一未过期 redeemed cooldown。
+- Phase 8E 控制草案的独立审查未发现 P0/P1/P2；但“文档无缺陷”不等于 admission GO。D1/D2 用户决策和 D3 后续 exact-head Gatekeeper 接受仍是正式前置条件。
+- D1 已由用户冻结：`reward-v1` 为不可变版本化 SQL 函数；Season=150，Quest Major/Epic/Main-or-Boss=100/150/200，Mastery M6/M8/M10=100/150/250。Quest 多重命中只取最高档。
+- D2 已由用户冻结：Phase 8E 不实现 Artifact EARN；`ARTIFACT` 与 `REAL_WORLD_VERIFIED` 均以 `SOURCE_CLASS_NOT_YET_AVAILABLE` fail closed，不得产生 ledger row。
+- Admission Gatekeeper 已在 exact head `080accd...` 接受 D3 并给 GO。现有 migration chain 到 `0047`，Round 1 foundation 编号为 `0048`。
+- 现有 visual/governance delta guard 只绑定到 Phase 8D；Phase 8E 必须新增精确控制文档绑定与 exact path allowlist，不能授权整个 `src/lib`、`tests` 或 migrations 目录。
+- Frozen Wish lifecycle 要求 `IDEA -> ACTIVE`，但 schema plan 又把直接 UPDATE 限于内容字段，既有 RPC inventory 没有 activation。若不补 authority，IDEA 是死状态；最小修复是新增无 ledger side effect、带审计和幂等的 `rpc_activate_wish`，RPC 总数从 9 改为 10。
+- Activation 是 non-ledger lifecycle RPC，不能继承财务 RPC 的 account lock/fold 义务。所有 RPC 共用认证、归属、bound replay 与审计规则；只有 grant/correct/reserve/unreserve/redeem/refund 六个 RPC 写 ledger/account。
+- Lifecycle RPC 的 request key 必须绑定 user + rpc + target + canonical payload fingerprint；相同 tuple 返回审计中保存的 result snapshot，不同 tuple 复用同 key 必须在状态检查前返回 `409 IDEMPOTENCY_KEY_REUSED`。
+- Authority wording must distinguish ledger/lifecycle mutation from user-authored draft metadata. Financial changes and status transitions are RPC-only; Wish INSERT and title/description/credit_cost edits in IDEA/ACTIVE may be direct only through exact column grants, RLS, and field-authority triggers.
+- `outer_loop_audit_events` already has durable `UNIQUE(user_id, request_idempotency_key)`, but uniqueness alone does not serialize same key on different Wish rows before audit insert. All RPCs must first take a transaction advisory lock derived from `(user,key)`, then resolve audit replay, then acquire domain/account locks; transaction rollback guarantees no pending-key residue.
+- Replay precedence must be explicit: after authentication, derive the normalized tuple, lock `(user,key)`, and resolve any caller-owned audit record before target ownership lookup. Existing-key tuple conflicts return 409 without probing the supplied target; first-seen cross-tenant targets return 404 with no audit row.
+- A deterministic unsupported-source decision is a committed business rejection, not a failed SQL transaction: it persists only the replayable audit rejection snapshot and leaves ledger/account/domain state untouched. Validation exceptions and database/transaction failures persist nothing.
+- Phase 8E Round 1 can preserve the four-table boundary while resolving the refund cycle by creating `reward_transactions.refund_for_redemption_id` without an FK, creating `reward_redemptions`, then adding the FK via `ALTER TABLE`; no deferred-constraint bypass is needed.
+- Wish direct authority is enforceable as exact column grants (`INSERT user_id/title/description/credit_cost`, `UPDATE title/description/credit_cost`) plus owner RLS and a trigger that pins creation to `IDEA` and blocks authenticated metadata edits outside `IDEA/ACTIVE`. Ledger/account/receipt tables remain SELECT-only for authenticated users.
+- Ledger table CHECK constraints are insufficient for text-backed Wish references and compensating events. The insert trigger must resolve WISH canonical IDs to owned rows, bind v1 CORRECTION to the original EARN's exact negative amount/source/policy/account, and bind REFUND to the immutable receipt's exact credits/account/Wish.
+- Negative authority tests must use otherwise-valid rows and assert the expected SQLSTATE plus zero side effects. An incomplete INSERT with a generic “any error” assertion can remain green after an accidental grant because NOT NULL, FK, or shape checks fail later for the wrong reason.
+- Role setup must also sit outside the expected-failure capture boundary. Otherwise a test connection lacking `SET ROLE` authority can return the same `42501` expected from table/RLS denial without ever executing the target write; assert `current_user` and `auth.uid()` before opening the write savepoint.
+- Round 1 may receive a code/static GO while real-DB execution remains P2, but that P2 must explicitly block Round 2. On this machine Docker 4.87.0 crashes while removing an inaccessible stale AF_UNIX ReparsePoint (`sailor-ingest.sock`, Error 1920); normal stop/move/remove/fsutil paths could not repair it, and Ubuntu has no standalone PostgreSQL fallback.
+- Correction to the previous finding: the "real DB is blocked by Docker" diagnosis was wrong. This project's local Supabase stack runs in the **WSL-native Docker daemon** (`docker context default`, `unix:///var/run/docker.sock`; containers `supabase_*_AI_Personal_Growth_RPG` up and healthy, `54321` returns HTTP 200, `54322` open). Only the **Windows** `supabase` CLI 2.114.0 is unusable because it resolves the `desktop-linux` context (`npipe:////./pipe/dockerDesktopLinuxEngine`), whose pipe is absent. The DB-backed suites are gated by nothing but `XP_RPG_TEST_DB_URL`; they were skipped, not blocked. Migrations can be applied with `{ cat <migration>.sql; echo "insert into supabase_migrations.schema_migrations (version, name) values (...);"; } | docker exec -i supabase_db_AI_Personal_Growth_RPG psql -U postgres -d postgres -v ON_ERROR_STOP=1 -1 -f -`.
+- Running the previously-skipped real-DB suite immediately exposed a genuine Round 1 defect: `wishes_owner_update` used `USING (auth.uid() = user_id AND status IN ('IDEA','ACTIVE'))`. A failing `USING` predicate filters rows instead of raising, so an authenticated metadata edit on a Wish past `ACTIVE` matched **zero rows** and reported success, leaving `trg_enforce_wish_field_authority` unreachable for exactly the states it guards. Denial must be the trigger's `42501`; the RLS `WITH CHECK` remains as defence in depth. Corrected to ownership-only `USING`, and the test now also proves the contract's second positive path (metadata edits while `ACTIVE`) plus the unchanged-row assertion after denial.
+- Static gates cannot see that defect class: TypeScript, ESLint, the production build and every earlier Round 1 review were green while the live database silently accepted the edit as a no-op.
+- Local full-suite recipe (`.data/run-tests.cjs`, gitignored): inject **only** the Supabase credentials from `.env.local` plus `XP_RPG_TEST_DB_URL`. Injecting the whole file sets `AI_BASE_URL=http://127.0.0.1:3099/v1`; the HTTP/E2E and Stage 5D suites start their deterministic mock AI server only when `AI_BASE_URL`/`OPENAI_BASE_URL` are both unset, and Next's `loadEnvConfig` does not override variables already present in the process, so the real (currently unreachable) bridge gets called and those suites fail with timeouts/502 for purely environmental reasons.
+- `tests/stage5b-db-repository.test.ts` case 1 fails only against this machine's pre-existing data: `d1111111-1111-4000-a000-000000000001` is already owned by `demo_player@growth-rpg.dev` (`0e106ebc-fef6-4640-bfe2-c6e1121bce75`) and the test inserts it with `on conflict (id) do nothing`, so only one of its two domains lands. Unrelated to Phase 8E and not reproducible on a clean CI database.
+- `tests/empty-db-migration.smoke.test.ts` is NOT evidence of fresh-database applicability on this machine: it skips its whole migration loop when `public.activities` already exists (`:52-59`), which is the case on the dev DB, so it passes vacuously. Fresh-database proof must be produced against a scratch database (`create database` + minimal `auth` shim with `auth.users`/`auth.uid()`, apply the migration blob with `psql -v ON_ERROR_STOP=1 -1 -f -`, compare policy fingerprints, then drop).
+- An `RLS` `USING` predicate and a "must fail" trigger are not interchangeable: `USING` silently filters rows, so any state the predicate excludes turns a forbidden write into a successful no-op and makes the trigger unreachable for exactly those states. Cross-tenant tests must therefore always pair a negative assertion with a positive control (owner sees 1 row, other tenant sees 0), otherwise a broken projection passes for the wrong reason.
+- Phase 8E Round 1 residual precondition for Round 2: `wishes.credit_cost` is nullable and the frozen contract allows exact `credit_cost` edits while `IDEA`/`ACTIVE`, so an owner can clear it on an `ACTIVE` Wish (now pinned by a test in `tests/phase8e-db-foundation.test.ts`). `rpc_reserve_wish_credits` and `rpc_set_primary_wish` must fail closed on a NULL cost rather than assuming `ACTIVE` implies a positive cost. This is a recorded contract-consistent behaviour, not an endorsed one.
+
+
