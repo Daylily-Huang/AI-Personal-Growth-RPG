@@ -130,6 +130,16 @@ export interface VisualMigrationValidationResult {
   violations: string[];
 }
 
+// Isolated login corrective scope, not a general auth/backend exemption.
+export const AUTH_ENTRYPOINT_CONTROL = 'docs/Check/AUTH_ENTRYPOINT_HARDENING_20261004.md';
+export const AUTH_ENTRYPOINT_BACKEND = [
+  'src/app/api/auth/login/route.ts',
+  'src/app/api/auth/demo-login/route.ts',
+  'src/lib/auth/dev-demo.ts',
+  'src/lib/auth/login-http.ts',
+  'src/lib/supabase/middleware.ts',
+] as const;
+
 export function validateVisualMigrationDelta(changedFiles: string[]): VisualMigrationValidationResult {
   const isVisualPR = changedFiles.some((f) => isVisualMigrationPath(f));
   if (!isVisualPR) {
@@ -137,6 +147,11 @@ export function validateVisualMigrationDelta(changedFiles: string[]): VisualMigr
   }
 
   const authorizedBackend = new Set(AUTHORIZED_CORE_BUGFIX_ALLOWLIST);
+  if (changedFiles.includes(AUTH_ENTRYPOINT_CONTROL) &&
+      changedFiles.includes('src/app/login/page.tsx') &&
+      changedFiles.filter(isVisualMigrationPath).every((file) => file === 'src/app/login/page.tsx')) {
+    for (const file of AUTH_ENTRYPOINT_BACKEND) authorizedBackend.add(file);
+  }
   if (changedFiles.includes(PHASE8B_SEASON_REVIEW_CONTROL_DOCUMENT)) {
     for (const file of PHASE8B_SEASON_REVIEW_AUTHORIZED_BACKEND) {
       authorizedBackend.add(file);
@@ -612,5 +627,35 @@ describe('Visual Foundation & Design Tokens Runtime Verification', () => {
       'src/lib/reward/rpc.ts',
     ]);
     expect(unapprovedRewardBackend.violations).toEqual(['src/lib/reward/rpc.ts']);
+  });
+
+  it('28. binds the isolated login correction to its exact documented backend paths', () => {
+    const control = fs.readFileSync(path.join(rootDir, AUTH_ENTRYPOINT_CONTROL), 'utf8');
+    for (const file of AUTH_ENTRYPOINT_BACKEND) expect(control).toContain('`' + file + '`');
+    expect(validateVisualMigrationDelta([
+      AUTH_ENTRYPOINT_CONTROL, 'src/app/login/page.tsx', ...AUTH_ENTRYPOINT_BACKEND,
+    ])).toEqual({ isVisualPR: true, violations: [] });
+  });
+
+  it('29. rejects login backend changes without the exact controller or when mixed with other presentation work', () => {
+    for (const binding of [
+      ['src/app/login/page.tsx'],
+      ['docs/Check/UNRELATED.md', 'src/app/login/page.tsx'],
+      [AUTH_ENTRYPOINT_CONTROL, 'src/app/dashboard/page.tsx'],
+      [AUTH_ENTRYPOINT_CONTROL, 'src/app/login/page.tsx', 'src/components/ui/Button.tsx'],
+    ]) {
+      expect(validateVisualMigrationDelta([...binding, ...AUTH_ENTRYPOINT_BACKEND]).violations).toEqual(AUTH_ENTRYPOINT_BACKEND);
+    }
+  });
+
+  it('30. keeps adjacent auth routes, SSR helpers, proxy, migrations and growth authority fail-closed', () => {
+    const unrelated = [
+      'src/app/api/auth/reset/route.ts', 'src/app/api/auth/login/child/route.ts',
+      'src/lib/auth/demo-login.ts', 'src/lib/auth/new-helper.ts', 'src/lib/supabase/server.ts',
+      'src/proxy.ts', 'supabase/migrations/0051_unrelated.sql', 'src/lib/growth-engine/xp.ts',
+    ];
+    expect(validateVisualMigrationDelta([
+      AUTH_ENTRYPOINT_CONTROL, 'src/app/login/page.tsx', ...AUTH_ENTRYPOINT_BACKEND, ...unrelated,
+    ]).violations).toEqual(unrelated);
   });
 });

@@ -3,9 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Sparkles, KeyRound, Mail, ArrowRight, Loader2, UserCheck, ShieldCheck } from "lucide-react";
-import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
-import { isSupabaseConfigured } from "@/lib/supabase/env";
-import { performQuickDemoLogin } from "@/lib/auth/demo-login";
+import { isDevDemoEnabled } from "@/lib/auth/dev-demo";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -16,10 +14,7 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
-  const isConfigured = isSupabaseConfigured();
-  const isDevDemoEnabled =
-    process.env.NODE_ENV !== "production" &&
-    process.env.NEXT_PUBLIC_ENABLE_DEV_DEMO_ACCOUNT === "true";
+  const demoEnabled = isDevDemoEnabled();
 
   async function handleAuth(e: React.FormEvent) {
     e.preventDefault();
@@ -30,34 +25,25 @@ export default function LoginPage() {
     setMessage(null);
 
     try {
-      if (!isConfigured) {
-        // Fallback for unconfigured demo environment
-        router.push("/dashboard");
-        return;
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, isSignUp }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || data.error || data.success !== true || typeof data.hasSession !== "boolean") {
+        throw new Error(data.error || "认证失败，请重试");
       }
 
-      const client = getSupabaseBrowserClient();
-      if (isSignUp) {
-        const { data, error: signUpError } = await client.auth.signUp({
-          email,
-          password,
-        });
-        if (signUpError) throw signUpError;
-        if (data.session) {
-          router.push("/dashboard");
-          router.refresh();
-        } else {
-          setMessage("注册成功！如果需要邮箱确认，请查收邮件；或者尝试直接登录。");
-          setIsSignUp(false);
-        }
-      } else {
-        const { error: signInError } = await client.auth.signInWithPassword({
-          email,
-          password,
-        });
-        if (signInError) throw signInError;
+      if (isSignUp && !data.hasSession) {
+        setMessage("注册成功！如果需要邮箱确认，请查收邮件；或者尝试直接登录。");
+        setIsSignUp(false);
+      } else if (data.hasSession) {
         router.push("/dashboard");
         router.refresh();
+      } else {
+        throw new Error("未建立登录会话，请重试");
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "认证失败，请重试");
@@ -67,18 +53,21 @@ export default function LoginPage() {
   }
 
   async function handleQuickDemoLogin() {
+    if (loading || !demoEnabled) return;
     setLoading(true);
     setError(null);
     setMessage(null);
 
     try {
-      if (!isConfigured) {
-        router.push("/dashboard");
-        return;
-      }
+      const res = await fetch("/api/auth/demo-login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
 
-      const client = getSupabaseBrowserClient();
-      await performQuickDemoLogin(client);
+      const data = await res.json();
+      if (!res.ok || data.error || data.success !== true || data.hasSession !== true) {
+        throw new Error(data.error || "快速登录失败");
+      }
 
       router.push("/dashboard");
       router.refresh();
@@ -108,9 +97,33 @@ export default function LoginPage() {
         </div>
 
         <div className="rounded-2xl border border-white/10 bg-[#0d1320] p-6 sm:p-8 shadow-2xl space-y-6">
+          {demoEnabled ? (
+            <div className="space-y-4">
+              <button
+                type="button"
+                onClick={handleQuickDemoLogin}
+                disabled={loading}
+                className="min-h-[var(--touch-target-min)] w-full flex items-center justify-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500/15 px-4 py-3 text-sm font-semibold text-emerald-300 hover:bg-emerald-500/25 hover:text-emerald-100 disabled:opacity-50 cursor-pointer transition-all shadow-lg shadow-emerald-950/30"
+              >
+                <UserCheck className="h-5 w-5 text-emerald-400" aria-hidden="true" />
+                一键体验测试玩家账号（免输账号密码）
+              </button>
+
+              <div className="relative flex items-center justify-center py-1">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-white/10" />
+                </div>
+                <span className="relative bg-[#0d1320] px-3 text-[11px] uppercase tracking-wider text-zinc-500">
+                  或者使用已有账号登录
+                </span>
+              </div>
+            </div>
+          ) : null}
+
           <div className="flex border-b border-white/10 pb-4">
             <button
               type="button"
+              disabled={loading}
               onClick={() => {
                 setIsSignUp(false);
                 setError(null);
@@ -126,6 +139,7 @@ export default function LoginPage() {
             </button>
             <button
               type="button"
+              disabled={loading}
               onClick={() => {
                 setIsSignUp(true);
                 setError(null);
@@ -161,6 +175,7 @@ export default function LoginPage() {
                  <input
                    id="login-email"
                   type="email"
+                  autoComplete="email"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -177,6 +192,7 @@ export default function LoginPage() {
                  <input
                    id="login-password"
                   type="password"
+                  autoComplete={isSignUp ? "new-password" : "current-password"}
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -202,29 +218,6 @@ export default function LoginPage() {
               )}
             </button>
           </form>
-
-          {isDevDemoEnabled ? (
-            <>
-              <div className="relative flex items-center justify-center py-2">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-white/10" />
-                </div>
-                <span className="relative bg-[#0d1320] px-3 text-[11px] uppercase tracking-wider text-zinc-500">
-                  开发环境快速开始
-                </span>
-              </div>
-
-              <button
-                type="button"
-                onClick={handleQuickDemoLogin}
-                disabled={loading}
-                className="min-h-[var(--touch-target-min)] w-full flex items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-medium text-zinc-200 hover:bg-white/10 hover:text-white disabled:opacity-50 cursor-pointer transition-colors"
-              >
-                 <UserCheck className="h-4 w-4 text-emerald-400" aria-hidden="true" />
-                一键体验测试玩家账号（本地开发）
-              </button>
-            </>
-          ) : null}
         </div>
 
         <div className="flex items-center justify-center gap-2 text-xs text-zinc-500 text-center">

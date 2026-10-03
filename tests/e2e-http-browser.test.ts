@@ -2,7 +2,7 @@ import http from "node:http";
 import next from "next";
 import { describe, expect, test, beforeAll, afterAll } from "vitest";
 import { startDeterministicMockAiServer, type MockAiServerHandle } from "./helpers/mock-ai-server";
-import { createServerClient } from "@supabase/ssr";
+import { combineChunks, createChunks, createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
 
@@ -114,21 +114,88 @@ describe.skipIf(!DATABASE_URL)("Stage 3.1 — Full Real HTTP / Browser Auth E2E 
     expect(body.error).toContain("authenticated Supabase session is required");
   });
 
+  test("2a. Production auth rejects cross-site and demo requests without setting a session", async () => {
+    const crossSite = await fetch(`${BASE_URL}/api/auth/login`, {
+      method: "POST",
+      headers: { Origin: "https://attacker.invalid", "Content-Type": "application/json" },
+      body: JSON.stringify({ email: userAEmail, password: testPassword, isSignUp: true }),
+    });
+    expect(crossSite.status).toBe(403);
+    expect(crossSite.headers.getSetCookie()).toEqual([]);
+    expect(crossSite.headers.get("cache-control")).toContain("no-store");
+    const demo = await fetch(`${BASE_URL}/api/auth/demo-login`, {
+      method: "POST", headers: { Origin: BASE_URL, "Content-Type": "application/json" },
+    });
+    expect(demo.status).toBe(404);
+    expect(demo.headers.getSetCookie()).toEqual([]);
+    expect(demo.headers.get("cache-control")).toContain("no-store");
+  });
+
   test("3. Real Player A signs up, authenticates, and completes full Activity -> Assess -> Settle journey over HTTP", async () => {
     const jarA = createCookieJar();
 
-    // Sign up User A via Supabase Auth
-    const { data: authData, error: authErr } = await jarA.client.auth.signUp({
-      email: userAEmail,
-      password: testPassword,
+    // Exercise the website entrypoint, not a direct provider bypass.
+    const authRes = await fetch(`${BASE_URL}/api/auth/login`, {
+      method: "POST",
+      headers: { Origin: BASE_URL, "Content-Type": "application/json" },
+      body: JSON.stringify({ email: userAEmail, password: testPassword, isSignUp: true }),
     });
-    expect(authErr).toBeNull();
-    if (!authData?.session) {
-      const { error: signErr } = await jarA.client.auth.signInWithPassword({
-        email: userAEmail,
-        password: testPassword,
+    expect(authRes.status).toBe(200);
+    expect(await authRes.json()).toEqual({ success: true, hasSession: true });
+    expect(authRes.headers.get("cache-control")).toContain("no-store");
+    const signupJar = createCookieJar();
+    signupJar.mergeFromResponse(authRes);
+    expect(signupJar.getCookieHeader()).toBeTruthy();
+    const signupDashboard = await fetch(`${BASE_URL}/api/dashboard`, {
+      headers: { Cookie: signupJar.getCookieHeader() },
+    });
+    expect(signupDashboard.status).toBe(200);
+    expect((await signupDashboard.json()).dashboard.player.totalXp).toBe(0);
+    // Verify password login sets cookies independently of signup's response.
+    const loginRes = await fetch(`${BASE_URL}/api/auth/login`, {
+      method: "POST",
+      headers: { Origin: BASE_URL, "Content-Type": "application/json" },
+      body: JSON.stringify({ email: userAEmail, password: testPassword, isSignUp: false }),
+    });
+    expect(loginRes.status).toBe(200);
+    expect(await loginRes.json()).toEqual({ success: true, hasSession: true });
+    expect(loginRes.headers.get("cache-control")).toContain("no-store");
+    jarA.mergeFromResponse(loginRes);
+
+    // A valid refresh token with an expired cookie clock must not be rotated
+    // before a rejected login request reaches the route's validation guards.
+    const authKey = [...jarA.store.keys()].find((name) => /-auth-token(?:\.\d+)?$/.test(name))?.replace(/\.\d+$/, "");
+    expect(authKey).toBeTruthy();
+    const encoded = await combineChunks(authKey!, (name) => jarA.store.get(name));
+    expect(encoded?.startsWith("base64-")).toBe(true);
+    const expired = JSON.parse(Buffer.from(encoded!.slice(7), "base64url").toString("utf8"));
+    expired.expires_at = Math.floor(Date.now() / 1000) - 3600;
+    const expiredCookies = createChunks(authKey!, `base64-${Buffer.from(JSON.stringify(expired)).toString("base64url")}`)
+      .map(({ name, value }) => `${name}=${value}`).join("; ");
+    for (const [origin, body, status] of [
+      ["https://attacker.invalid", "{}", 403], [BASE_URL, "{", 400],
+      [BASE_URL, '{"email":false,"password":"x"}', 400],
+    ] as const) {
+      const rejected = await fetch(`${BASE_URL}/api/auth/login`, {
+        method: "POST", headers: { Origin: origin, "Content-Type": "application/json", Cookie: expiredCookies }, body,
       });
-      expect(signErr).toBeNull();
+      expect(rejected.status).toBe(status);
+      expect(rejected.headers.getSetCookie()).toEqual([]);
+    }
+    const closedDemo = await fetch(`${BASE_URL}/api/auth/demo-login`, {
+      method: "POST", headers: { Origin: BASE_URL, "Content-Type": "application/json", Cookie: expiredCookies },
+    });
+    expect(closedDemo.status).toBe(404);
+    expect(closedDemo.headers.getSetCookie()).toEqual([]);
+    for (const path of ["/api/auth/%6cogin", "/api%2Fauth%2flogin", "/api/auth/demo%2dlogin"]) {
+      const alias = await fetch(`${BASE_URL}${path}`, {
+        method: "POST", headers: { Origin: "https://attacker.invalid", "Content-Type": "application/json", Cookie: expiredCookies },
+        body: "{", redirect: "manual",
+      });
+      // Next may reject an alias after filesystem matching. Either way, no
+      // credential refresh may have been emitted before that denial.
+      expect([403, 404]).toContain(alias.status);
+      expect(alias.headers.getSetCookie()).toEqual([]);
     }
 
     const cookieHeader = jarA.getCookieHeader();
