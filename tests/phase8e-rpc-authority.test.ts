@@ -156,10 +156,14 @@ async function raceDifferentKeys(
     await setAuthenticated(first, userId);
     await setAuthenticated(second, userId);
     await first.query(sql, firstParams);
-    const loser = second.query(sql, secondParams);
+    // Observe rejection immediately; the database may answer before commit's
+    // promise resumes this test. Keep the outcome for the assertion below.
+    const loser = Promise.allSettled([second.query(sql, secondParams)]);
     await new Promise((resolve) => setTimeout(resolve, 75));
     await first.query("commit");
-    await expect(loser).rejects.toMatchObject({ code: expect.stringMatching(/23505|23514/) });
+    expect(await loser).toMatchObject([
+      { status: "rejected", reason: { code: expect.stringMatching(/23505|23514/) } },
+    ]);
     await second.query("rollback");
   } finally {
     await first.query("rollback").catch(() => undefined);
@@ -340,18 +344,23 @@ async function runSameKeyConcurrency(
     await setAuthenticated(first, fixture.userId);
     await setAuthenticated(second, fixture.userId);
     const firstResult = await first.query(fixture.sql, fixture.params(fixture.targetId, key));
-    const secondPending = second.query(
+    const secondPending = Promise.allSettled([second.query(
       fixture.sql,
       fixture.params(alternateTarget ?? fixture.targetId, key),
-    );
+    )]);
     await waitForAdvisoryLockWait(observer, secondPid);
     await first.query("commit");
     expect((firstResult.rows[0]?.result as { replayed: boolean }).replayed).toBe(false);
+    const [secondOutcome] = await secondPending;
     if (alternateTarget) {
-      await expect(secondPending).rejects.toMatchObject({ code: "23505", message: expect.stringMatching(/IDEMPOTENCY_KEY_REUSED/) });
+      expect(secondOutcome).toMatchObject({
+        status: "rejected",
+        reason: { code: "23505", message: expect.stringMatching(/IDEMPOTENCY_KEY_REUSED/) },
+      });
       await second.query("rollback");
     } else {
-      const secondResult = await secondPending;
+      if (secondOutcome.status !== "fulfilled") throw secondOutcome.reason;
+      const secondResult = secondOutcome.value;
       await second.query("commit");
       expect((secondResult.rows[0]?.result as { replayed: boolean }).replayed).toBe(true);
     }
@@ -746,14 +755,14 @@ describe.skipIf(!DATABASE_URL)("Phase 8E Round 2 — Reward/Wish RPC authority",
         "select public.rpc_grant_reward_credit('QUEST', $1, 'reward-v1', 'concurrent-grant-a') as result",
         [QUEST_CONCURRENT],
       );
-      const secondPending = second.query(
+      const secondPending = Promise.allSettled([second.query(
         "select public.rpc_grant_reward_credit('QUEST', $1, 'reward-v1', 'concurrent-grant-b') as result",
         [QUEST_CONCURRENT],
-      );
+      )]);
       await new Promise((resolve) => setTimeout(resolve, 75));
       await first.query("commit");
       expect((firstResult.rows[0]?.result as { replayed: boolean }).replayed).toBe(false);
-      await expect(secondPending).rejects.toMatchObject({ code: "23505" });
+      expect(await secondPending).toMatchObject([{ status: "rejected", reason: { code: "23505" } }]);
       await second.query("rollback");
       const check = await pg.query<{ earns: string; failed_audit: string }>(
         `select
@@ -784,11 +793,13 @@ describe.skipIf(!DATABASE_URL)("Phase 8E Round 2 — Reward/Wish RPC authority",
       await setAuthenticated(second, USER_A);
       const firstResult = await first.query(
         "select public.rpc_activate_wish($1, 'concurrent-activate') as result", [WISH_CONCURRENT]);
-      const secondPending = second.query(
-        "select public.rpc_activate_wish($1, 'concurrent-activate') as result", [WISH_CONCURRENT]);
+      const secondPending = Promise.allSettled([second.query(
+        "select public.rpc_activate_wish($1, 'concurrent-activate') as result", [WISH_CONCURRENT])]);
       await new Promise((resolve) => setTimeout(resolve, 75));
       await first.query("commit");
-      const secondResult = await secondPending;
+      const [secondOutcome] = await secondPending;
+      if (secondOutcome.status !== "fulfilled") throw secondOutcome.reason;
+      const secondResult = secondOutcome.value;
       await second.query("commit");
       expect((firstResult.rows[0]?.result as { replayed: boolean }).replayed).toBe(false);
       expect((secondResult.rows[0]?.result as { replayed: boolean }).replayed).toBe(true);
