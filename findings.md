@@ -1,5 +1,12 @@
 # 调查发现与核心架构决策 (Findings)
 
+## 2026-10-03 — Round 5 exit contract reconciliation
+
+- Canonical O001–O005/O019/O020 identifiers are retained. Accepted controller §15 determines actual HTTP errors; older catalogue symbolic names are not a reason to change production error contracts.
+- O020's -50 pure-fold example remains valid arithmetic, while v1 correction RPC reverses the exact full EARN. Test both without silently adding partial correction authority. O005 milestone integration remains 8F-gated; 8E tests only the accepted correction primitive.
+- New SQL tests seed 500 XP plus seven populated Core tables in rollback-only transactions. One UUID/text fixture parameter initially caused six setup failures; separate typed parameters fixed setup, after which the six real DB scenarios passed. No production defect was found in that run.
+- Round 5 zero-production-delta is a release inspection command against `a2614d2`, not an unconditional permanent test preventing all future authorized website changes. Existing exact reward backend blob guards remain unchanged.
+
 ## 2026-10-03 — Round 4 corrective UI findings
 
 - A URL/revision string is not a request-generation identity: A→B→A can admit an old load-more response. Use per-generation object identity and generation-scoped locks so old success/failure cannot replace new data or release a newer lock.

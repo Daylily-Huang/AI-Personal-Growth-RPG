@@ -1,6 +1,25 @@
 # 项目历史工作进度 (Progress Log)
 
+## 2026-10-03 — Round 5 local verification / independent review retry
+
+- Fresh McClintock `01a100a8-1fe0-7ce0-b635-43d37009adb2` 候选判决 **P0=0/P1=0/P2=0 + GO**：独立57/57无跳过；额外deficit150→50→0、七天冷却、四表跨租户RLS、11非法INSERT+2历史DELETE、6692合法/2117非法fold前缀与4数值边界通过；临时用户/禁用触发器0。完整限制和两测试hash见23号记录。现在准备只提交9个本轮测试/文档文件，后续仍必须exact-head CI及fresh final GO。
+
+- 新增六个真实 PostgreSQL 退出场景与 O020 纯 fold 场景；已有 HTTP suite 新增同/异键并发兑换两例。UUID/text 测试 fixture 参数冲突修复后定向通过；未修改生产代码。
+- 当前最终测试文件的全量实跑：83 files，1331 passed / 1 failed / 0 skipped，382.81s，exit 1。唯一失败为保留的未提交 login 改动引起 `phase7-round3-evidence.test.tsx:736` mock 期待不匹配；不是 Round 5 引入。真实 HTTP19/19、exit7/7、既有 RLS/RPC/Core/E2E 套件通过。全量前 typecheck 和定向 ESLint 通过。
+- Pauli (`01a0fe14-1428-7ee2-8a73-c7fdc5499876`) 因工具报告用量限制未执行审查，没有 verdict；已关闭。用户再次要求继续后启动全新 McClintock (`01a100a8-1fe0-7ce0-b635-43d37009adb2`) 只读候选审查；尚无 GO，禁止提交/推送或进入下一阶段。
+- `planning-with-files` 保留既有计划历史，新增 `23_PHASE8E_EXIT_VERIFICATION.md` 记录命名用例矩阵与限制；8F/最终发布/人工 merge 门禁不变。
+- 全项目lint0errors/6个既有loginwarnings、harness11/11、production build（compile/TypeScript/38静态页）通过。只读DB follow-up：exit/http两类测试用户0，disabled public triggers0。独立审查现可运行DB/HTTP；主执行不并行重建或执行数据库套件。
+
+## 2026-10-03 — Round 4 accepted / Round 5 kickoff
+
+- Avicenna 最终 exact-head `a2614d23e0c0fd2f23d28aee8096a46dd25aee92` 审查 `P0=0/P1=0/P2=0 + GO`：独立CI核实check12/12、supabase-integration19/19 steps全success；独立154/154无跳过、两个A→B→A成功/失败锁反例、焦点/读取失败/过期探针通过。20个后端blob原样；浏览器由主执行方执行、审查员核对截图/hash而未重跑，历史静默退出不计通过。
+- Round 5现解锁，仅新增命名退出测试与证据文档，生产实现固定a2614d2；最终PR仍由用户手动merge，8F未解锁。
+
 ## 2026-10-03 — Round 3 accepted / Round 4 kickoff
+
+- `a2614d2` 的 CI `37051182337` completed/success，check与supabase-integration双绿；正在等待Avicenna最终exact-head判决，尚未以CI代替GO。提交后的完整PR delta治理119/119通过（不再只是未提交候选的模拟边界）。
+
+- Round 4 已提交并推送 `a2614d23e0c0fd2f23d28aee8096a46dd25aee92`（20文件，966 insertions/20 deletions），不含既有login/auth/package/launcher改动。PR#40仍open未合并，exact-head CI Run `37051182337` 已启动；全新Avicenna `01a0fdfd-8769-7402-a6f7-9936af247ce5` 正做最终提交级审查。Round5仍gated，不以候选GO代替该门禁。
 
 - Fresh Nietzsche 最终候选 `P0=0/P1=0/P2=0 + GO`：154/154及额外分页反例通过；bounded helper原样独立运行62584因过早同步查“重新读取”exit1，审查员仅在内存改为await findByRole，50651 exit0，全部焦点/无重复写/过期审核断言保留并通过。磁盘本地helper随后同步该等待修正；生产代码未再变。即将只提交20个本轮文件、推送PR#40，仍须exact-head CI与全新最终审查，不提前进入Round5。
 

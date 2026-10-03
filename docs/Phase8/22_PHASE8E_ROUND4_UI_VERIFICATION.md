@@ -1,6 +1,6 @@
 # Phase 8E Round 4 — Wishes UI Verification
 
-Date: 2026-10-03 (Asia/Shanghai). Status: independently accepted corrective candidate; exact-head CI/final review pending, not Phase 8E final acceptance.
+Date: 2026-10-03 (Asia/Shanghai). Status: Round 4 accepted at `a2614d2`; Round 5 and final merge gates remain, not Phase 8E final acceptance.
 
 ## Scope and frozen baseline
 
@@ -48,4 +48,10 @@ Screenshots remain local at `output/playwright/phase8e-round4/`, not portable CI
 - Fresh Nietzsche (`01a0fde4-81f2-75c3-a365-d0a19ba7d8d7`) independently passed 154 tests and extra late-success/late-failure pagination lock probes. Initial completion was interrupted by host/WSL unavailability; **no GO was issued at that point**. A bounded helper reproduced its focus/expiry scenarios with safe DOM diagnostics. Its original synchronous lookup of the retry button failed once while balance was still loading (session `62584`, exit 1); the reviewer independently changed only that lookup to await `findByRole` in memory, verified the helper hash, and retained every focus/write-count/expiry assertion. Session `50651` exited 0 with both focus checks, failed-read/no-repeat-write and expired accept/edit/reject checks passing. Final candidate verdict: **P0=0/P1=0/P2=0 + GO**. The original silent exits remain unexplained; they are not counted as passing evidence. No further production change was needed.
 - These are independent execution sessions of the same provider/model family, not external third-party certification. Browser results above were run by the implementing agent, not independently repeated.
 - Cleanup completed after PostgreSQL recovered: ownership-checked temporary user `f2ba5d1d-5a64-4529-a6c7-c6a0503c49b9` and only its fixture rows removed; remaining auth user count for that ID is 0. Named browser closed, temporary loopback process stopped. Existing project users, database volumes, migration backups and port-3000 service preserved.
-- Final verdict, exact-head CI and Round 5 remain separate required gates. PR #40 stays unmerged; user-controlled merge and post-merge CI are still required before Phase 8E FINAL FROZEN / Phase 8F admission.
+- At candidate review, final verdict and exact-head CI remained separate required gates. Their subsequent completion is recorded below; user-controlled merge and post-merge CI are still required before Phase 8E FINAL FROZEN / Phase 8F admission.
+
+## Final exact-head Round 4 acceptance
+
+- Head: `a2614d23e0c0fd2f23d28aee8096a46dd25aee92`, PR #40. CI Run `37051182337` completed/success: `check` job `110984690962` (12/12 steps success), `supabase-integration` job `110984690660` (19/19 success), including real database-backed full tests, deterministic harness and E2E.
+- Fresh Avicenna (`01a0fdfd-8769-7402-a6f7-9936af247ce5`) independently verified exact CI/head binding, ran 154/154 tests without skips, two extra stale A→B→A success/failure probes and the bounded focus/read-failure/expiry probes. Twenty accepted backend blobs remained identical. Verdict: **P0=0/P1=0/P2=0 + GO**.
+- Screenshots and hashes were inspected, not independently captured again. This acceptance unlocks Round 5 only, not PR merge, Phase 8E freeze or Phase 8F implementation.

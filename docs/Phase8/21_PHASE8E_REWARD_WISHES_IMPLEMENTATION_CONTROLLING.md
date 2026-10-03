@@ -2,14 +2,14 @@
 
 ## 1. Governance Boundary
 
-Status: **Round 3 accepted; Round 4 Wishes UI in progress (2026-10-03).**
+Status: **Round 4 accepted; Round 5 exit verification in progress (2026-10-03).**
 
 Baseline:
 
 - Immutable main baseline: `a1da765e492b8d93e6350ac32865d8e0018faa91`.
 - Phase 8D is FINAL FROZEN. This document cannot reopen or modify its schema, RPC, API, UI, tests, or evidence.
 - Admission and Round 1 gates have passed. Round 2 exact head `bc64ce51551c95066ee1b019d29fb66761eb05e8` passed CI Run `37004408985` and fresh independent Gatekeeper `P0=0 / P1=0 / P2=0 + GO`. This is not Phase 8E final freeze or PR merge authorization.
-- User decisions D1 and D2 in §13 remain frozen. The user's 2026-10-03 instruction authorizes continued implementation subject to §12 gates. Round 3 adds the inventory in §15; Round 4 UI waits for Round 3 acceptance.
+- User decisions D1 and D2 in §13 remain frozen. The user's 2026-10-03 instruction authorizes continued implementation subject to §12 gates. Round 3 inventory (§15–16) and Round 4 UI (§17) are accepted; Round 5 is limited by §18 and still requires its own gates.
 
 The following frozen documents remain controlling unless this document explicitly identifies a contradiction and records the proposed narrow resolution:
 
@@ -418,3 +418,13 @@ Round 3 and §16 corrective authority are accepted at exact head `de08a89be28a58
 - Narrow additive navigation exception: only `src/components/layout/AppSidebar.tsx` and `src/components/layout/MobileNav.tsx` may add Journey/Rewards destinations, section-active matching and the minimum mobile spacing needed for seven accessible targets. Do not restyle shared primitives, change AppShell/auth/Core authority or add Phase 8F pages.
 - Existing governance tests may recognize exact accepted Phase 8E backend paths under this controlling document and this narrow navigation surface. No directory-wide backend exception. Negative tests must reject an absent controlling document, an unknown backend path or other layout changes; tests must compare the accepted backend bytes against `de08a89`.
 - Verify loading/empty/error/401, keyboard/focus, reduced motion, long text and responsive views with component tests and a real browser. Exact-head CI and a fresh independent Gatekeeper remain required before Round 5.
+
+## 18. Round 5 Exit Verification Scope
+
+Round 4 is accepted at `a2614d23e0c0fd2f23d28aee8096a46dd25aee92`: CI `37051182337` all steps green; fresh Avicenna exact-head `P0=0/P1=0/P2=0 + GO`, independent 154/154 plus race/focus/expiry probes. Runtime evidence and its limitations are recorded in `22_PHASE8E_ROUND4_UI_VERIFICATION.md`.
+
+Round 5 changes tests and evidence/status documents only. Production `src/` and `supabase/` must remain identical to that accepted head in the committed delta. Add named canonical exit coverage, including actual concurrent HTTP redemption with same and different keys, while retaining all earlier real DB/RLS/concurrency/HTTP/UI tests.
+
+The catalogue's scenario identifiers remain stable; detailed accepted contracts govern execution: O003 uses HTTP 400 `FARMING_SOURCE_REJECTED`; O004 uses 409 `REWARD_SOURCE_ALREADY_GRANTED`; O019's losing fresh key uses 409 `INVALID_WISH_TRANSITION`. O005 proves the correction primitive, not deferred Phase 8F milestone revocation. O020 retains the catalogue's -50 arithmetic as a pure-fold fixture, while the public v1 RPC follows §5.1's exact full-EARN reversal and proves the corresponding real deficit and recovery without creating a partial-correction authority.
+
+New SQL exit fixtures must rollback; real HTTP fixtures must clean only their own random users. No formal user data cleanup, trigger weakening, new source/policy, schema extension or Phase 8F implementation. Existing unrelated uncommitted login work remains excluded and its local test failure must be disclosed. Final exact-head CI/Gatekeeper, user manual merge and post-merge green CI remain mandatory.

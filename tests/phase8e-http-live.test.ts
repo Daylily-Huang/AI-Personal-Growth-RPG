@@ -346,6 +346,36 @@ describe.skipIf(!databaseUrl)("Phase 8E Round 3 — real Next/Auth/PostgreSQL HT
     for (const table of ["reward_accounts", "reward_transactions", "reward_redemptions", "xp_transactions", "player_states"]) expect(after[table]).toEqual(before[table]);
   });
 
+  test.each([false, true])("O019_WISH_REDEEM_IS_IDEMPOTENT_ATOMIC: concurrent HTTP shared key=%s", async sameKey => {
+    await earn(a);
+    const reserved = await prepareWish(a, "RESERVED");
+    const path = `/api/rewards/wishes/${reserved.wish!.id}/redeem`;
+    const key = randomUUID();
+    const bodies = [
+      { requestIdempotencyKey: key, celebrationNote: "Concurrent receipt" },
+      { requestIdempotencyKey: sameKey ? key : randomUUID(), celebrationNote: "Concurrent receipt" },
+    ];
+    const before = await snapshot(a);
+    const results = await Promise.all(bodies.map(body => call(a, path, body)));
+    expect(results.map(result => result.status).sort()).toEqual(sameKey ? [200, 200] : [200, 409]);
+    const winner = results.findIndex(result => result.status === 200 && !result.body.replayed);
+    expect(winner).toBeGreaterThanOrEqual(0);
+    if (sameKey) {
+      expect(results.filter(result => result.body.replayed)).toHaveLength(1);
+      expect(results[1 - winner].body).toEqual({ ...results[winner].body, replayed: true });
+    } else expect(results[1 - winner].body.code).toBe("INVALID_WISH_TRANSITION");
+    const after = await snapshot(a);
+    expect((after.reward_transactions as RewardTransaction[]).filter(row => row.event_kind === "REDEEM")).toHaveLength(1);
+    expect(after.reward_redemptions).toHaveLength(1);
+    expect((after.outer_loop_audit_events as unknown[]).length).toBe((before.outer_loop_audit_events as unknown[]).length + 1);
+    for (const table of ["xp_transactions", "player_states"]) expect(after[table]).toEqual(before[table]);
+    const replay = await call(a, path, bodies[winner]);
+    expect(replay.status).toBe(200); expect(replay.body).toEqual({ ...results[winner].body, replayed: true });
+    expect(await snapshot(a)).toEqual(after);
+    expect((await call(a, "/api/rewards/account")).body.balance).toMatchObject({ current_available: 50, current_reserved: 0, lifetime_redeemed: 50 });
+    await parity(a);
+  });
+
   test("equivalent UUID source spellings cannot mint twice and replay the same normalized request", async () => {
     const sourceId = await quest(a);
     const body = { sourceType: "QUEST", sourceId, policyVersion: "reward-v1", requestIdempotencyKey: randomUUID() };
