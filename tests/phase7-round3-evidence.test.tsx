@@ -726,14 +726,20 @@ describe("Round 3 §18.4 — loading indicators across the six loading routes", 
     fireEvent.change(screen.getByLabelText("电子邮箱"), { target: { value: "user@example.com" } });
     fireEvent.change(screen.getByLabelText("密码"), { target: { value: "secret" } });
 
-    // The configured branch parks on signInWithPassword(), which this suite
-    // holds unsettled. loading=true therefore stays committed, making the
+    // The same-origin login request stays unsettled. loading=true remains
+    // committed through the real form handler, making the
     // reduced-motion loader contract directly observable in the DOM.
+    const loginFetch = vi.fn(() => new Promise<Response>(() => undefined));
+    vi.stubGlobal("fetch", loginFetch);
     await act(async () => {
       fireEvent.submit(form as HTMLFormElement);
     });
 
-    expect(mocks.signInWithPassword).toHaveBeenCalledTimes(1);
+    expect(loginFetch).toHaveBeenCalledExactlyOnceWith("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "user@example.com", password: "secret", isSignUp: false }),
+    });
     const button = screen.getByLabelText("正在登录");
     expect(button.hasAttribute("disabled")).toBe(true);
 

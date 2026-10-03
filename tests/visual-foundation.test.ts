@@ -130,12 +130,35 @@ export interface VisualMigrationValidationResult {
   violations: string[];
 }
 
+// Isolated login corrective scope, not a general auth/backend exemption.
+export const AUTH_ENTRYPOINT_CONTROL = 'docs/Check/AUTH_ENTRYPOINT_HARDENING_20261004.md';
+export const AUTH_ENTRYPOINT_BACKEND = [
+  'src/app/api/auth/login/route.ts',
+  'src/app/api/auth/demo-login/route.ts',
+  'src/lib/auth/dev-demo.ts',
+  'src/lib/auth/login-http.ts',
+  'src/lib/supabase/middleware.ts',
+] as const;
+
 export function validateVisualMigrationDelta(changedFiles: string[]): VisualMigrationValidationResult {
   const isVisualPR = changedFiles.some((f) => isVisualMigrationPath(f));
   if (!isVisualPR) {
     return { isVisualPR: false, violations: [] };
   }
 
+  if (changedFiles.includes(AUTH_ENTRYPOINT_CONTROL) &&
+      changedFiles.includes('src/app/login/page.tsx') &&
+      changedFiles.filter(isVisualMigrationPath).every((file) => file === 'src/app/login/page.tsx')) {
+    // This corrective scope must not inherit historical core or phase grants.
+    const authProduction = new Set<string>(['src/app/login/page.tsx', ...AUTH_ENTRYPOINT_BACKEND]);
+    const violations = changedFiles.filter((file) =>
+      !authProduction.has(file) && (
+        ['src/', 'public/', 'supabase/'].some((prefix) => file.startsWith(prefix)) ||
+        FROZEN_BACKEND_DENYLIST.some((prefix) => file.startsWith(prefix) || file.includes(prefix))
+      ),
+    );
+    return { isVisualPR: true, violations };
+  }
   const authorizedBackend = new Set(AUTHORIZED_CORE_BUGFIX_ALLOWLIST);
   if (changedFiles.includes(PHASE8B_SEASON_REVIEW_CONTROL_DOCUMENT)) {
     for (const file of PHASE8B_SEASON_REVIEW_AUTHORIZED_BACKEND) {
@@ -612,5 +635,60 @@ describe('Visual Foundation & Design Tokens Runtime Verification', () => {
       'src/lib/reward/rpc.ts',
     ]);
     expect(unapprovedRewardBackend.violations).toEqual(['src/lib/reward/rpc.ts']);
+  });
+
+  it('28. binds the isolated login correction to its exact documented backend paths', () => {
+    const control = fs.readFileSync(path.join(rootDir, AUTH_ENTRYPOINT_CONTROL), 'utf8');
+    for (const file of AUTH_ENTRYPOINT_BACKEND) expect(control).toContain('`' + file + '`');
+    expect(validateVisualMigrationDelta([
+      AUTH_ENTRYPOINT_CONTROL, 'src/app/login/page.tsx', ...AUTH_ENTRYPOINT_BACKEND,
+    ])).toEqual({ isVisualPR: true, violations: [] });
+  });
+
+  it('29. rejects login backend changes without the exact controller or when mixed with other presentation work', () => {
+    for (const binding of [
+      ['src/app/login/page.tsx'],
+      ['docs/Check/UNRELATED.md', 'src/app/login/page.tsx'],
+      [AUTH_ENTRYPOINT_CONTROL, 'src/app/dashboard/page.tsx'],
+      [AUTH_ENTRYPOINT_CONTROL, 'src/app/login/page.tsx', 'src/components/ui/Button.tsx'],
+    ]) {
+      expect(validateVisualMigrationDelta([...binding, ...AUTH_ENTRYPOINT_BACKEND]).violations).toEqual(AUTH_ENTRYPOINT_BACKEND);
+    }
+  });
+
+  it('30. keeps adjacent auth routes, SSR helpers, proxy, migrations and growth authority fail-closed', () => {
+    const unrelated = [
+      'src/app/api/auth/reset/route.ts', 'src/app/api/auth/login/child/route.ts',
+      'src/lib/auth/demo-login.ts', 'src/lib/auth/new-helper.ts', 'src/lib/supabase/server.ts',
+      'src/proxy.ts', 'supabase/migrations/0051_unrelated.sql', 'src/lib/growth-engine/xp.ts',
+    ];
+    expect(validateVisualMigrationDelta([
+      AUTH_ENTRYPOINT_CONTROL, 'src/app/login/page.tsx', ...AUTH_ENTRYPOINT_BACKEND, ...unrelated,
+    ]).violations).toEqual(unrelated);
+  });
+
+  it('31. does not compose isolated auth authorization with historical core or phase exemptions', () => {
+    const binding = [AUTH_ENTRYPOINT_CONTROL, 'src/app/login/page.tsx', ...AUTH_ENTRYPOINT_BACKEND];
+    for (const file of AUTHORIZED_CORE_BUGFIX_ALLOWLIST) {
+      expect(validateVisualMigrationDelta([...binding, file]).violations).toEqual([file]);
+    }
+    for (const [control, files] of [
+      [PHASE8B_SEASON_REVIEW_CONTROL_DOCUMENT, PHASE8B_SEASON_REVIEW_AUTHORIZED_BACKEND],
+      [PHASE8C_JOURNAL_STATE_CONTROL_DOCUMENT, PHASE8C_JOURNAL_STATE_AUTHORIZED_BACKEND],
+      [PHASE8D_STRATEGY_PLAYBOOK_CONTROL_DOCUMENT, PHASE8D_STRATEGY_AUTHORIZED_BACKEND],
+      [PHASE8E_REWARD_WISHES_CONTROL_DOCUMENT, PHASE8E_ACCEPTED_BACKEND],
+    ] as const) {
+      expect(validateVisualMigrationDelta([...binding, control, ...files]).violations).toEqual(files);
+    }
+  });
+
+  it('32. keeps public assets and unclassified source paths outside the auth-only grant', () => {
+    const binding = [AUTH_ENTRYPOINT_CONTROL, 'src/app/login/page.tsx', ...AUTH_ENTRYPOINT_BACKEND];
+    for (const file of [
+      'public/file.svg', 'public/avatar.png', 'public/manifest.webmanifest',
+      'src/assets/login-mark.svg', 'src/lib/format-avatar.ts',
+    ]) {
+      expect(validateVisualMigrationDelta([...binding, file]).violations).toEqual([file]);
+    }
   });
 });
