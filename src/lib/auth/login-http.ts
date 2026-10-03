@@ -47,7 +47,14 @@ export async function readLoginBody(request: Request, allowEmpty = false): Promi
       text += decoder.decode(value, { stream: true });
     }
     if (bytes === 0 && allowEmpty) return undefined;
-    return JSON.parse(text + decoder.decode());
+    const parsed: unknown = JSON.parse(text + decoder.decode());
+    // Zod skips this own key while checking unknown object fields. Reject it
+    // before schema validation, including its JSON unicode-escaped spelling.
+    if (parsed !== null && typeof parsed === "object" &&
+        Object.prototype.hasOwnProperty.call(parsed, "__proto__")) {
+      throw new SyntaxError("Unsupported JSON field");
+    }
+    return parsed;
   } finally {
     reader.releaseLock();
   }

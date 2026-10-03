@@ -175,6 +175,8 @@ describe.skipIf(!DATABASE_URL)("Stage 3.1 — Full Real HTTP / Browser Auth E2E 
     for (const [origin, body, status] of [
       ["https://attacker.invalid", "{}", 403], [BASE_URL, "{", 400],
       [BASE_URL, '{"email":false,"password":"x"}', 400],
+      [BASE_URL, JSON.stringify({ email: userAEmail, password: testPassword }).slice(0, -1) + ',"__proto__":{}}', 400],
+      [BASE_URL, JSON.stringify({ email: userAEmail, password: testPassword }).slice(0, -1) + ',"\\u005f_proto__":{}}', 400],
     ] as const) {
       const rejected = await fetch(`${BASE_URL}/api/auth/login`, {
         method: "POST", headers: { Origin: origin, "Content-Type": "application/json", Cookie: expiredCookies }, body,

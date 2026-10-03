@@ -52,6 +52,7 @@ test("real SSR pipeline never refreshes a rejected auth request carrying an expi
     ["https://attacker.invalid", "{}", 403],
     ["http://localhost:3000", "{", 400],
     ["http://localhost:3000", '{"email":false,"password":"x"}', 400],
+    ["http://localhost:3000", '{"email":"player@example.com","password":"x","__proto__":{}}', 400],
   ] as const) {
     const req = expiredRequest("/api/auth/login", origin, body);
     expect((await proxy(req)).headers.get("set-cookie")).toBeNull();
@@ -79,7 +80,7 @@ test.each(["/api/auth/%6cogin", "/api/auth/log%69n/", "/api%2Fauth%2flogin", "/a
 test("enabled development demo rejects bad bodies before expired-session refresh or route auth", async () => {
   vi.stubEnv("NODE_ENV", "development");
   vi.stubEnv("NEXT_PUBLIC_ENABLE_DEV_DEMO_ACCOUNT", "true");
-  for (const body of ["{", "null", "[]", '{"extra":true}', "x".repeat(MAX_LOGIN_BODY_BYTES + 1)]) {
+  for (const body of ["{", "null", "[]", '{"extra":true}', '{"__proto__":{}}', "x".repeat(MAX_LOGIN_BODY_BYTES + 1)]) {
     const req = expiredRequest("/api/auth/demo-login", "http://localhost:3000", body);
     expect((await proxy(req)).headers.get("set-cookie")).toBeNull();
     expect((await demo(req)).status).toBe(body.length > MAX_LOGIN_BODY_BYTES ? 413 : 400);

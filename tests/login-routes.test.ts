@@ -121,6 +121,16 @@ describe("same-origin login and opt-in development demo routes", () => {
     expect((await login(request("x".repeat(MAX_LOGIN_BODY_BYTES + 1), { "Content-Length": "1" }, true))).status).toBe(413);
     expect(mocks.client).not.toHaveBeenCalled();
   });
+  test.each([login, demo])("rejects reserved own JSON keys before creating an auth client", async (post) => {
+    for (const reserved of ['"__proto__"', '"\\u005f_proto__"', '"constructor"', '"prototype"']) {
+      const fields = post === login ? '"email":"player@example.com","password":"valid-password",' : '';
+      const res = await post(request(`{${fields}${reserved}:{"x":1}}`, {}, true));
+      expect(res.status).toBe(400);
+      expect(res.headers.get("set-cookie")).toBeNull();
+    }
+    expect(mocks.client).not.toHaveBeenCalled();
+    expect(mocks.demo).not.toHaveBeenCalled();
+  });
   test.each([null, [], "text", { email: "player@example.com" }])("demo rejects unexpected arguments %# before auth", async (body) => {
     expect((await demo(request(body))).status).toBe(400);
     expect(mocks.client).not.toHaveBeenCalled();

@@ -1,6 +1,6 @@
 # Login entrypoint hardening — isolated corrective candidate
 
-Status: **LOCALLY VALIDATED CANDIDATE / READY FOR OWN CI AND EXACT-HEAD REVIEW / NOT RELEASED**.
+Status: **PR43 FRESH FINAL REVIEW NO-GO / P2 CORRECTIONS UNDER VALIDATION / NOT RELEASED**.
 
 ## Scope and authority
 
@@ -51,3 +51,24 @@ The 16KiB streamed request-body limit is an application resource bound, not a cl
 
 - Isolate these exact13 files on a separate auth branch and commit/push for user-controlled PR creation. Its own CI and fresh exact-head final review must precede user manual merge and post-merge CI. Candidate reviews and local results do not constitute final release GO.
 - User explicitly deferred Artifact recognition on 2026-10-04; 8F admission remains pending independently. No 8F production authority follows from this repair.
+
+## PR43 final-review correction (2026-10-04, supersedes the historical gates above)
+
+- PR43 head `065298ea872d0025a02ca1df1823eb6ae76a057c`, base main `05192283da58afe346fb40dd2c440373cf876b31`, own CI `37140903666`: both jobs, all31 steps successful. PR42's admission documents were separately merged, but main CI `37140889037` failed the 8E concurrency test harness. Neither fact authorizes 8F implementation now.
+- Fresh risk2 Peirce `01a102da-5763-78c0-9832-184315de2926`: **P0=0/P1=0/P2=2, NO-GO**. P2: Zod silently ignores an own JSON `__proto__` field, allowing non-empty demo bodies (and unknown ordinary-login fields). P2: the exact auth governance registration combined with old core and other-phase exemptions, allowing unrelated frozen backend paths. No demonstrated prototype pollution or production demo enablement is claimed.
+- Corrections are confined to the existing controller, `src/lib/auth/login-http.ts`, `tests/login-routes.test.ts`, `tests/login-refresh-isolation.test.ts`, `tests/e2e-http-browser.test.ts`, and `tests/visual-foundation.test.ts`. Reject the reserved own key after JSON decoding and before schema/client creation; return auth-only frozen-path validation without inheriting historical exceptions. Other phase policies outside the bound auth scope remain unchanged. The existing live-HTTP negative matrix also covers literal/escaped reserved keys with otherwise valid credentials and an expired session cookie.
+- Regression-first evidence: three files, 81 pass / 5 fail against the reviewed head. After corrections the same three files pass **86/86**. Reserved-key checks include JSON unicode spelling, constructor/prototype unknown fields, and expired-cookie no-refresh behavior. Scope checks exercise all six historical core exemptions and all four other-phase registrations.
+- Full rebuilt local validation and a fresh independent candidate review remain required. Then commit/push only the corrective allowlist, require new exact-head CI and fresh final GO; user manual merge remains a separate gate. The earlier CI and candidate reviews do not cover these corrections.
+
+## Stable post-Peirce local validation
+
+- Rebuilt production app and `tsc --noEmit` / lint passed, exit0. Stable full real-PostgreSQL/HTTP suite **86 files / 1405 tests passed / zero failed / zero skipped**, exit0; `.data/auth-peirce-corrected-20261004.json`, `success=true`. The included real HTTP suite passed11/11 with the two new literal/escaped-key and expired-cookie checks. Deterministic harness11/11 also passed.
+- Restored the existing local preview on port3000 after the controlled rebuild; login GET200. Four additional real HTTP rejection probes passed: literal/escaped own key400, cross-origin403, production demo404; all returned no cookie and no-store. No browser UI or physical assistive-device rerun is claimed for this non-visual correction.
+- Main CI concurrency repair is a separate three-file branch, not included here. Its local1342 result is not used as auth evidence. Fresh independent candidate verdict remains pending; no release or merge authorization is inferred from local results.
+
+## Scope-guard follow-up after Hubble review
+
+- Fresh risk2 Hubble `01a102f6-4c50-74a1-b44b-beb2eb35914b` ended **candidate NO-GO**: P0/P1/P2=0 confirmed findings, but one unresolved load-bearing claim about unclassified public assets; its provisional GO was withdrawn. Reported independent115 target tests and1112 real-SDK/mocked-network checks passed; DB/HTTP full results were read-only evidence checks, not independent reruns. Do not count the incomplete scope claim as accepted.
+- Main-agent regression reproduced `auth binding + public/file.svg` returning no violation: 31 passed / 1 failed. The auth-only grant now restricts all `src/`, `public/` and `supabase/` paths to the existing six production files, as well as retaining the frozen denylist. This covers public assets and unclassified source helpers without changing historical non-auth policy. Missing binding / other classified visual surfaces still reject the auth backend grant.
+- Only the existing governance test/controller changed after the1405 run; runtime auth code, route tests and real-HTTP tests remain identical. A new targeted/full run and fresh independent risk2 review are required before committing. No new assets, production features, dependency changes, or 8F authority were added.
+- After that scope correction: targeted87/87, `tsc --noEmit` and lint exit0. Stable real-PostgreSQL/HTTP full suite **86 files / 1407 tests passed / zero failed / zero skipped**, exit0; `.data/auth-scope-corrected-20261004.json`, `success=true`. Included HTTP11/11 and separately run deterministic harness11/11 passed. The production build above is unchanged because only test/controller files changed in this follow-up. Fresh candidate and committed-head release gates still apply.

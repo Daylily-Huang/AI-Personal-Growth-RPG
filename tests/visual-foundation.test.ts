@@ -146,12 +146,20 @@ export function validateVisualMigrationDelta(changedFiles: string[]): VisualMigr
     return { isVisualPR: false, violations: [] };
   }
 
-  const authorizedBackend = new Set(AUTHORIZED_CORE_BUGFIX_ALLOWLIST);
   if (changedFiles.includes(AUTH_ENTRYPOINT_CONTROL) &&
       changedFiles.includes('src/app/login/page.tsx') &&
       changedFiles.filter(isVisualMigrationPath).every((file) => file === 'src/app/login/page.tsx')) {
-    for (const file of AUTH_ENTRYPOINT_BACKEND) authorizedBackend.add(file);
+    // This corrective scope must not inherit historical core or phase grants.
+    const authProduction = new Set<string>(['src/app/login/page.tsx', ...AUTH_ENTRYPOINT_BACKEND]);
+    const violations = changedFiles.filter((file) =>
+      !authProduction.has(file) && (
+        ['src/', 'public/', 'supabase/'].some((prefix) => file.startsWith(prefix)) ||
+        FROZEN_BACKEND_DENYLIST.some((prefix) => file.startsWith(prefix) || file.includes(prefix))
+      ),
+    );
+    return { isVisualPR: true, violations };
   }
+  const authorizedBackend = new Set(AUTHORIZED_CORE_BUGFIX_ALLOWLIST);
   if (changedFiles.includes(PHASE8B_SEASON_REVIEW_CONTROL_DOCUMENT)) {
     for (const file of PHASE8B_SEASON_REVIEW_AUTHORIZED_BACKEND) {
       authorizedBackend.add(file);
@@ -657,5 +665,30 @@ describe('Visual Foundation & Design Tokens Runtime Verification', () => {
     expect(validateVisualMigrationDelta([
       AUTH_ENTRYPOINT_CONTROL, 'src/app/login/page.tsx', ...AUTH_ENTRYPOINT_BACKEND, ...unrelated,
     ]).violations).toEqual(unrelated);
+  });
+
+  it('31. does not compose isolated auth authorization with historical core or phase exemptions', () => {
+    const binding = [AUTH_ENTRYPOINT_CONTROL, 'src/app/login/page.tsx', ...AUTH_ENTRYPOINT_BACKEND];
+    for (const file of AUTHORIZED_CORE_BUGFIX_ALLOWLIST) {
+      expect(validateVisualMigrationDelta([...binding, file]).violations).toEqual([file]);
+    }
+    for (const [control, files] of [
+      [PHASE8B_SEASON_REVIEW_CONTROL_DOCUMENT, PHASE8B_SEASON_REVIEW_AUTHORIZED_BACKEND],
+      [PHASE8C_JOURNAL_STATE_CONTROL_DOCUMENT, PHASE8C_JOURNAL_STATE_AUTHORIZED_BACKEND],
+      [PHASE8D_STRATEGY_PLAYBOOK_CONTROL_DOCUMENT, PHASE8D_STRATEGY_AUTHORIZED_BACKEND],
+      [PHASE8E_REWARD_WISHES_CONTROL_DOCUMENT, PHASE8E_ACCEPTED_BACKEND],
+    ] as const) {
+      expect(validateVisualMigrationDelta([...binding, control, ...files]).violations).toEqual(files);
+    }
+  });
+
+  it('32. keeps public assets and unclassified source paths outside the auth-only grant', () => {
+    const binding = [AUTH_ENTRYPOINT_CONTROL, 'src/app/login/page.tsx', ...AUTH_ENTRYPOINT_BACKEND];
+    for (const file of [
+      'public/file.svg', 'public/avatar.png', 'public/manifest.webmanifest',
+      'src/assets/login-mark.svg', 'src/lib/format-avatar.ts',
+    ]) {
+      expect(validateVisualMigrationDelta([...binding, file]).violations).toEqual([file]);
+    }
   });
 });
