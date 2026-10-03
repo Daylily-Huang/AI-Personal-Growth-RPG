@@ -1,6 +1,6 @@
 # Phase 8E Round 5 — Exit Verification
 
-Date: 2026-10-03 (Asia/Shanghai). Status: independently accepted candidate; exact-head CI/final review pending, not Phase 8E FINAL FROZEN.
+Date: 2026-10-03 (Asia/Shanghai). Current status: Round 5 accepted at `ff36ac7`, PR #40 merged by the user as `b6af5a8`, post-merge CI `37109984608` all steps success. Implementation FINAL FROZEN; archive and limits in `24_PHASE8E_GATEKEEPER_REREVIEW_AND_FINAL_FREEZE.md`. Archive publication is a separate review/CI/user-merge gate, not already completed by PR #40.
 
 ## Scope and acceptance baseline
 
@@ -39,3 +39,17 @@ Catalogue names remain stable; accepted runtime errors are O003 `FARMING_SOURCE_
 - The dirty-worktree full suite has a known login test mismatch from separate server-auth work, excluded from this round. Clean exact-head CI must independently validate the submitted tree; local failures/skips cannot be called green.
 - Independent reviewers are separate execution contexts in the same provider/model family, not external third-party certification. Record their actual reproduction and limitations.
 - Required sequence: candidate GO → selected commit/push → exact-head CI and fresh final GO → **user manual merge** → post-merge CI → final freeze archive. Phase 8F, optional 8G and any public deployment remain separate gates.
+
+## Final exact-head acceptance (historical pre-merge handoff)
+
+This section records results obtained after the reviewed commit; it is not included in that commit's CI tree and is intentionally left for the subsequent freeze/archive workflow. No test or production code changed after the reviewed head.
+
+- Exact head: `ff36ac72d0f0f2c3f58054835e07f5d769740ce7`; nine tests/docs files, 304 insertions/13 deletions; `src/` and `supabase/` delta against accepted `a2614d2` is zero.
+- CI Run `37106817366` completed/success: check `111156857282` 12/12 steps, supabase-integration `111156857110` 19/19 steps, all success. Real DB full-suite, deterministic harness and E2E steps ran successfully. Separate post-commit local governance/navigation/visual set: 119/119.
+- Fresh Ampere (`01a100b0-d142-7e32-b873-c2e661d09e17`) independently checked head/diff and GitHub CI, ran seven files / 96 tests without skips (46.45s), and constructed rollback probes with 48 checks including 14 rejections. D1, deficit recovery, seven-day cooldown, RLS and immutable history passed; thirteen table fingerprints matched before/after, temporary users and disabled triggers were zero. Final verdict: **P0=0/P1=0/P2=0 + GO**, only for user-controlled merge candidacy.
+- Final reviewer did not independently rerun full-suite/lint/tsc/harness/build or browser acceptance; local HTTP used the existing dirty-login build. Earlier GO and implementing-agent evidence were not used as substitutes for independent execution. Clean committed-head CI is separately bound above.
+- PR #40 remains unmerged at handoff. Do not implement 8F or label 8E frozen until user merge, post-merge CI and archive are complete. Dirty login/auth work remains a separate pending integration/fix.
+
+## Post-merge closure
+
+The preceding unmerged status is the historical Round 5 handoff, superseded on 2026-10-03. User merge `b6af5a84fa3e13cdba729d4d00059e3d9b30fc84` has parents `be949deb67f62269d58a0e21865580d0e67204e0` and reviewed `ff36ac72d0f0f2c3f58054835e07f5d769740ce7`; `git diff ff36ac7 b6af5a8` is empty. Main push CI `37109984608` completed/success, check job `111165834063` 12/12 and integration job `111165834214` 19/19 steps success. The freeze archive binds these independently queryable facts to the prior exact-head GO without reclassifying the dirty local full-suite failure as a pass. No Phase 8F implementation, public deployment or archive-branch merge is asserted.

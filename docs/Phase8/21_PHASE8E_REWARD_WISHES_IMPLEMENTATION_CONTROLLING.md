@@ -2,7 +2,7 @@
 
 ## 1. Governance Boundary
 
-Status: **Round 4 accepted; Round 5 exit verification in progress (2026-10-03).**
+Status: **Implementation FINAL FROZEN (2026-10-03).** User merged PR #40 as `b6af5a84fa3e13cdba729d4d00059e3d9b30fc84`; post-merge CI `37109984608` has all 31 steps successful. Archive `24_PHASE8E_GATEKEEPER_REREVIEW_AND_FINAL_FREEZE.md` binds the accepted implementation to the merge. This separate documentation branch still needs its own review/CI/user merge; Phase 8F production remains gated.
 
 Baseline:
 
@@ -428,3 +428,5 @@ Round 5 changes tests and evidence/status documents only. Production `src/` and 
 The catalogue's scenario identifiers remain stable; detailed accepted contracts govern execution: O003 uses HTTP 400 `FARMING_SOURCE_REJECTED`; O004 uses 409 `REWARD_SOURCE_ALREADY_GRANTED`; O019's losing fresh key uses 409 `INVALID_WISH_TRANSITION`. O005 proves the correction primitive, not deferred Phase 8F milestone revocation. O020 retains the catalogue's -50 arithmetic as a pure-fold fixture, while the public v1 RPC follows §5.1's exact full-EARN reversal and proves the corresponding real deficit and recovery without creating a partial-correction authority.
 
 New SQL exit fixtures must rollback; real HTTP fixtures must clean only their own random users. No formal user data cleanup, trigger weakening, new source/policy, schema extension or Phase 8F implementation. Existing unrelated uncommitted login work remains excluded and its local test failure must be disclosed. Final exact-head CI/Gatekeeper, user manual merge and post-merge green CI remain mandatory.
+
+Final acceptance record: Round 5 exact head `ff36ac72d0f0f2c3f58054835e07f5d769740ce7`, CI `37106817366` all steps success, fresh Ampere `P0=0/P1=0/P2=0 + GO` (independent 96/96 plus 48 rollback checks). User merged PR #40 at `b6af5a84fa3e13cdba729d4d00059e3d9b30fc84`, with an identical tree and successful post-merge CI `37109984608`. Details/limits: `23_PHASE8E_EXIT_VERIFICATION.md` and freeze archive `24_PHASE8E_GATEKEEPER_REREVIEW_AND_FINAL_FREEZE.md`. This status sync changes no reviewed implementation and admits no Phase 8F production. Earlier round-specific statements about an unmerged PR are historical snapshots.

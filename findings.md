@@ -1,5 +1,12 @@
 # 调查发现与核心架构决策 (Findings)
 
+## 2026-10-03 — Post-merge freeze boundary
+
+- PR #40 implementation merge `b6af5a8` is tree-identical to reviewed `ff36ac7`, and its own main-push CI `37109984608` ran all 31 steps successfully. Thus implementation merge acceptance is complete; the subsequent documentation branch has a distinct review/CI/manual-merge gate.
+- `07_MILESTONE_ACHIEVEMENT_SPEC.md` separates user-confirmed recognition from independently verified reward eligibility. It names external credentials/URLs but does not by itself define an executable independent verifier or a `REAL_WORLD_VERIFIED` amount. Neither milestone admission nor an existing URL can silently extend immutable `reward-v1`; D2 Artifact remains deferred.
+- Subsequent user decision (2026-10-03): implement milestone recognition, existing Core-source anti-double-mint settlement and revocation first; real-world achievements are recognition-only with zero credits, Artifact remains deferred. Future independent external verification/reward policy is out of this initial 8F scope; the new controller still requires admission.
+- Keep the dirty login/auth integration and its known local test failure outside the reward freeze archive. A clean main CI pass proves the merged tree, not uncommitted files or production hosting.
+
 ## 2026-10-03 — Round 5 exit contract reconciliation
 
 - Canonical O001–O005/O019/O020 identifiers are retained. Accepted controller §15 determines actual HTTP errors; older catalogue symbolic names are not a reason to change production error contracts.

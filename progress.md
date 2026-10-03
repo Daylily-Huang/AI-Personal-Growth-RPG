@@ -1,5 +1,29 @@
 # 项目历史工作进度 (Progress Log)
 
+## 2026-10-03 — PR #40 user merge / post-merge closure / archive candidate
+
+- 用户明确“合并了”；实时 GitHub API 与 git fetch 核实 PR #40 merged=true，2026-10-03T08:31:17Z 合并为 `b6af5a84fa3e13cdba729d4d00059e3d9b30fc84`，parents `be949deb67f62269d58a0e21865580d0e67204e0` / `ff36ac72d0f0f2c3f58054835e07f5d769740ce7`。完整 reviewed/merge tree diff 为空。
+- Main push CI `37109984608` completed/success；check `111165834063` 12/12，supabase-integration `111165834214` 19/19，所有步骤 success，包括真实 DB、harness、E2E。不是用旧分支CI推定主分支通过。
+- 从 origin/main 创建 `codex/phase8e-final-freeze`，保留原有未提交文件；新增24号最终冻结/独立审查记录，手术式同步MASTER、controller、23号记录和三个计划文件。无生产、迁移、测试、依赖或工作流变更；其他AI的login/auth/package/launcher原样排除。
+- 实施终局证据齐备；归档候选按风险2送全新只读对抗审查，未声称此归档已经通过自身CI或已经合并。历史local全量1331通过/1失败/0跳过及review限制保留。
+- 已只读检查8F里程碑规格：自述可作recognition，不等于独立验证/奖励；未明确的验证标准与金额需要独立准入/用户决策，不自行补定。未创建8F生产文件或改变reward-v1/D2。
+- 两次过大的文件读取输出被截断，改按文件/相关段落读取；一次旧归档文件名拼错（实际20号为INDEPENDENT_REVIEW_RECORD）已纠正。PowerShell短暂只读读取延迟时使用Windows Node读取回退，未改系统设置或重启WSL。
+- 归档本地自检：`git diff --check` 通过；治理差异守卫、奖励UI冻结边界、纯账本fold 三文件 **41/41**，0跳过，5.32s，exit 0。此为文档候选的定向自检，不冒充本轮重跑真实DB或全站验收。
+- 用户随后明确选择“先完成成就系统，现实成就暂不发积分”：下一阶段先实现成就记录、现有Core来源的防重复奖励及撤销闭环，现实成就仅recognition、Artifact继续延后。该产品决定不等于8F控制文件已通过独立准入，也不改变reward-v1。
+
+## 2026-10-03 — Round 5 accepted; user manual merge required
+
+- Fresh Ampere `01a100b0-d142-7e32-b873-c2e661d09e17` 最终绑定 `ff36ac72d0f0f2c3f58054835e07f5d769740ce7` 给 **P0=0/P1=0/P2=0 + GO**：独立核实9文件且生产零差异、CI `37106817366` 双job全部31步骤成功；独立96/96无跳过及48项回滚反例（14次拒绝）通过，13表前后指纹一致、测试用户/禁用触发器0。未声称独立重跑完整suite/build/浏览器；限制见23号记录。
+- Round 5实施/验证/分支推送已完成，PR #40可交用户手动合并；**未自动合并，8E尚未FINAL FROZEN，8F未放行**。下一步必须用户merge → post-merge CI → 冻结归档。登录/auth既有未提交工作仍单独待修复/集成。
+- 本地23号验收记录、controller、MASTER与task_plan同步上述最终状态，作为提交后交接，未再次提交/推送；这些状态文字不是CI所测代码变化。
+
+## 2026-10-03 — Round 5 committed CI (final review pending)
+
+- 已提交并推送 `ff36ac72d0f0f2c3f58054835e07f5d769740ce7`，9个测试/文档文件、304 insertions/13 deletions；相对accepted Round4 `a2614d2` 的 `src/`、`supabase/` committed diff为0。既有login/auth/package/launcher未纳入。
+- Exact-head CI Run `37106817366` completed/success：check job `111156857282` 12/12 steps success，supabase-integration `111156857110` 19/19 success，实际DB全量、harness、E2E均通过。提交后本机119/119治理/导航/视觉测试通过。
+- Fresh Ampere `01a100b0-d142-7e32-b873-c2e661d09e17` 正在最终exact-head独立审查；当前不把CI绿替代最终GO。PR #40仍未合并，8E尚未FINAL FROZEN，8F未放行。
+- 本段是提交后的本地运行交接记录，尚未再次提交，不属于上述CI测试的代码差异。
+
 ## 2026-10-03 — Round 5 local verification / independent review retry
 
 - Fresh McClintock `01a100a8-1fe0-7ce0-b635-43d37009adb2` 候选判决 **P0=0/P1=0/P2=0 + GO**：独立57/57无跳过；额外deficit150→50→0、七天冷却、四表跨租户RLS、11非法INSERT+2历史DELETE、6692合法/2117非法fold前缀与4数值边界通过；临时用户/禁用触发器0。完整限制和两测试hash见23号记录。现在准备只提交9个本轮测试/文档文件，后续仍必须exact-head CI及fresh final GO。
