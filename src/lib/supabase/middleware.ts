@@ -36,6 +36,18 @@ export function createRedirectWithSession(
  * - Redirects authenticated users from /login to /dashboard
  */
 export async function updateSession(request: NextRequest) {
+  // These cookie-writing entrypoints validate origin, payload and enablement
+  // before creating their request-scoped Auth client. Refreshing here would
+  // rotate an expired session even for a request the route subsequently rejects.
+  const path = request.nextUrl.pathname;
+  // Next's filesystem matcher also checks a once-decoded path variant.
+  // Never recursively decode; malformed escapes retain their original path.
+  let decodedPath = path;
+  try { decodedPath = decodeURIComponent(path); } catch { /* non-fatal, like Next */ }
+  const authPath = decodedPath.replace(/\/+$/, "");
+  if (authPath === "/api/auth/login" || authPath === "/api/auth/demo-login") {
+    return NextResponse.next({ request });
+  }
   if (!isSupabaseConfigured()) {
     return NextResponse.next({ request });
   }
@@ -73,7 +85,6 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const path = request.nextUrl.pathname;
   const isProtectedPage = PROTECTED_PREFIXES.some((prefix) => path.startsWith(prefix));
   const isAuthPage = AUTH_PREFIXES.some((prefix) => path.startsWith(prefix));
 
