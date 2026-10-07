@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { beforeEach, describe, expect, test, vi } from "vitest";
-import type { SupabaseClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 vi.mock("@/lib/supabase/server", () => ({ getSupabaseServerClient: vi.fn() }));
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getMilestoneRepository } from "@/lib/milestone/request";
@@ -85,6 +85,29 @@ describe("8F request-scoped authentication and read projections", () => {
     expect(c.chains[0].range).toHaveBeenCalledWith(1000,1001);
     expect(c.chains[0].order.mock.calls).toEqual([["created_at",{ascending:false}],["id",{ascending:false}]]);
     expect(c.chains[1].in).toHaveBeenCalledWith("canonical_source_id",[source]);
+  });
+  test.each([
+    {schema_version:2,status:"PROPOSED",metadata:{model:"fixture-model",prompt_contract:"milestone-v2",temperature:0.3,trace:{ids:["original"]}}},
+    {schema_version:1,status:"PROPOSED",metadata:{model:"legacy-model",prompt_contract:"milestone-v1",temperature:0}},
+    {schema_version:2,status:"ACCEPTED",metadata:{}},
+  ])("actual SDK proposal projection preserves full model provenance: %j", async ({schema_version,status,metadata}) => {
+    const row: Record<string, unknown>={id,proposal_type:"MILESTONE_CANDIDATE",schema_version,status,
+      payload:{title:"Original"},source_refs:[{type:"Quest",id:source}],model_metadata:metadata,
+      expires_at:"2099-01-01T00:00:00Z",created_at:"2026-01-01T00:00:00Z"};
+    let requested: URL | undefined;
+    const transport=vi.fn(async (input: RequestInfo | URL) => {
+      requested=new URL(input instanceof Request ? input.url : String(input));
+      const columns=requested.searchParams.get("select")!.split(",");
+      return Response.json([Object.fromEntries(columns.map(column=>[column,row[column]]))]);
+    });
+    const db=createClient("http://127.0.0.1:54331","fixture-key",{auth:{persistSession:false,autoRefreshToken:false},global:{fetch:transport}});
+    const result=await new MilestoneRepository(db,"owner").proposals({limit:1,offset:0});
+    expect(result.items[0]).toMatchObject({payload:row.payload,source_refs:row.source_refs,model_metadata:metadata,schema_version,status});
+    expect(requested!.pathname).toBe("/rest/v1/outer_loop_proposals");
+    expect(requested!.searchParams.get("select")!.split(",")).toContain("model_metadata");
+    expect(requested!.searchParams.get("user_id")).toBe("eq.owner");
+    expect(requested!.searchParams.get("proposal_type")).toBe("eq.MILESTONE_CANDIDATE");
+    expect(transport).toHaveBeenCalledTimes(1);
   });
 });
 

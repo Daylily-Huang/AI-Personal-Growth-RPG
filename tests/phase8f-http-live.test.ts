@@ -71,10 +71,12 @@ describe.skipIf(!databaseUrl)("8F Round3 real Next/Auth/PostgreSQL HTTP (disposa
     const response = await call(who ?? a, "/api/milestones", confirmation(sourceId, more));
     expect(response.status, JSON.stringify(response.body)).toBe(200); return response.body;
   }
+  const modelMetadata = {model:"fixture-model",prompt_contract:"fixture-milestone",temperature:0.3,trace:{ids:["immutable-origin"]}};
   async function proposal(payload: Json, version = 2, expired = false, type = "MILESTONE_CANDIDATE") {
     const id = randomUUID();
-    await pg.query(`insert into outer_loop_proposals(id,user_id,proposal_type,schema_version,payload,created_at,expires_at)
-      values($1,$2,$3,$4,$5,clock_timestamp()-interval '2 days',clock_timestamp()+$6::interval)`, [id,a.id,type,version,payload,expired ? "-1 day" : "1 day"]);
+    await pg.query(`insert into outer_loop_proposals(id,user_id,proposal_type,schema_version,payload,created_at,expires_at,model_metadata,source_refs)
+      values($1,$2,$3,$4,$5,clock_timestamp()-interval '2 days',clock_timestamp()+$6::interval,$7,$8)`,
+      [id,a.id,type,version,payload,expired ? "-1 day" : "1 day",modelMetadata,JSON.stringify([{type:"Quest",id:payload.source_id}])]);
     return id;
   }
   const proposalPayload = (id: string) => ({ milestone_key: "epic", title: "Candidate", description: null,
@@ -303,6 +305,9 @@ describe.skipIf(!databaseUrl)("8F Round3 real Next/Auth/PostgreSQL HTTP (disposa
     const edit=await call(a,`/api/outer-loop/proposals/${edited}/review`,{decision:"EDITED",editedPayload:{...original,title:"Edited"},reviewRequestIdempotencyKey:randomUUID()});
     expect(edit.status).toBe(200); expect(edit.body.result.milestone).toMatchObject({title:"Edited",granted_reward_credit:false});
     expect((await pg.query("select payload->>'title' as title from outer_loop_proposals where id=$1",[edited])).rows[0].title).toBe("Original");
+    const history=(await call(a,"/api/milestones/proposals?limit=100")).body.proposals;
+    expect(history.find(row=>row.id===edited)).toMatchObject({status:"EDITED",payload:{...original,title:"Original"},model_metadata:modelMetadata});
+    expect(history.find(row=>row.id===legacy)).toMatchObject({status:"REJECTED",schema_version:1,model_metadata:modelMetadata});
   });
   test("proposal concurrency and reads preserve full payload/version, history and tenant isolation", async () => {
     const source=await quest(); const payload=proposalPayload(source); const id=await proposal(payload);
@@ -319,6 +324,12 @@ describe.skipIf(!databaseUrl)("8F Round3 real Next/Auth/PostgreSQL HTTP (disposa
     expect(page.body.proposals.find(p=>p.id===legacy)).toMatchObject({supportedSchema:false,availableDecisions:["REJECTED"]});
     expect(page.body.proposals.find(p=>p.id===expired)).toMatchObject({availableDecisions:[]});
     expect(page.body.proposals.find(p=>p.id===fresh)).toMatchObject({supportedSchema:true,availableDecisions:["ACCEPTED","EDITED","REJECTED"]});
+    for (const proposalId of [id,legacy,expired,fresh]) {
+      const row=page.body.proposals.find(p=>p.id===proposalId)!;
+      expect(row.model_metadata).toEqual(modelMetadata);
+      expect(row.source_refs).toEqual([{type:"Quest",id:source}]);
+      expect((await pg.query("select model_metadata from outer_loop_proposals where id=$1",[proposalId])).rows[0].model_metadata).toEqual(modelMetadata);
+    }
     expect((await call(b,"/api/milestones/proposals")).body.proposals).toEqual([]);
   });
   test("eligible discovery excludes ordinary Major and incomplete quests; Boss exception stays", async () => {
@@ -377,9 +388,11 @@ describe.skipIf(!databaseUrl)("8F Round3 real Next/Auth/PostgreSQL HTTP (disposa
     await pg.query(`insert into outer_loop_proposals(user_id,proposal_type,schema_version,payload)
       select $1,'MILESTONE_CANDIDATE',2,$2::jsonb from generate_series(1,1005)`,[a.id,proposalPayload(randomUUID())]);
     const expectedProposals=Number((await pg.query("select count(*) from outer_loop_proposals where user_id=$1 and proposal_type='MILESTONE_CANDIDATE'",[a.id])).rows[0].count);
+    const expectedMetadata=new Map((await pg.query("select id,model_metadata from outer_loop_proposals where user_id=$1 and proposal_type='MILESTONE_CANDIDATE'",[a.id])).rows.map(row=>[row.id,row.model_metadata]));
     const proposalIds:string[]=[]; offset=0;
     const before=await snapshot(financeTables);
     do { const response=await call(a,`/api/milestones/proposals?limit=100&offset=${offset}`); expect(response.status).toBe(200);
+      for (const row of response.body.proposals) expect(row.model_metadata).toEqual(expectedMetadata.get(row.id));
       proposalIds.push(...response.body.proposals.map(row=>row.id)); offset=response.body.nextOffset;
       expect(proposalIds.length).toBeLessThanOrEqual(expectedProposals);
     } while(offset!==null);

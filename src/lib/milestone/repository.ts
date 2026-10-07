@@ -103,7 +103,7 @@ export class MilestoneRepository {
     }) };
   }
   async proposals(p: Pagination, status?: ProposalStatus): Promise<Page<MilestoneProposal>> {
-    let query = this.db.from("outer_loop_proposals").select("id,proposal_type,schema_version,status,payload,source_refs,expires_at,created_at,reviewed_at,decision,rejection_reason,resulting_entity_type,resulting_entity_id")
+    let query = this.db.from("outer_loop_proposals").select("id,proposal_type,schema_version,status,payload,source_refs,model_metadata,expires_at,created_at,reviewed_at,decision,rejection_reason,resulting_entity_type,resulting_entity_id")
       .eq("user_id", this.userId).eq("proposal_type", "MILESTONE_CANDIDATE");
     if (status) query = query.eq("status", status);
     const response = await query.order("created_at", { ascending: false }).order("id", { ascending: false }).range(p.offset, p.offset + p.limit);

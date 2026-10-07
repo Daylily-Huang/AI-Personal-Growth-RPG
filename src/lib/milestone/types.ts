@@ -44,7 +44,7 @@ export type ProposalStatus = "PROPOSED" | "ACCEPTED" | "EDITED" | "REJECTED";
 export type ProposalDecision = Exclude<ProposalStatus, "PROPOSED">;
 export interface MilestoneProposal {
   id: string; schema_version: number; proposal_type: "MILESTONE_CANDIDATE"; status: ProposalStatus;
-  payload: Record<string, unknown>; source_refs: unknown; expires_at: string; created_at: string;
+  payload: Record<string, unknown>; source_refs: unknown; model_metadata: Record<string, unknown>; expires_at: string; created_at: string;
   reviewed_at: string | null; decision: string | null; rejection_reason: string | null;
   resulting_entity_type: string | null; resulting_entity_id: string | null;
   supportedSchema: boolean; availableDecisions: ProposalDecision[];
