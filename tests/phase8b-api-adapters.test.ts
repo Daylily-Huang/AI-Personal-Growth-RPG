@@ -231,7 +231,7 @@ describe("Phase 8B Round 3 — HTTP adapters", () => {
   test("proposal review route preserves proposal-only authority and delegates user decision", async () => {
     const proposalId = randomUUID();
     const review = vi.fn().mockResolvedValue({ proposal: { id: proposalId, status: "EDITED" } });
-    vi.mocked(getPhase8BRepository).mockResolvedValue({ reviewProposal: review } as never);
+    vi.mocked(getPhase8BRepository).mockResolvedValue({ isMilestoneProposal: vi.fn().mockResolvedValue(false), reviewProposal: review } as never);
 
     const response = await reviewProposal(jsonRequest(`http://localhost/api/outer-loop/proposals/${proposalId}/review`, "POST", {
       decision: "EDITED",
@@ -253,6 +253,7 @@ describe("Phase 8B Round 3 — HTTP adapters", () => {
     const proposalId = randomUUID();
     const reviewProposalError = new Phase8BRepositoryError({ message: "PROPOSAL_EXPIRED", code: "22023" });
     vi.mocked(getPhase8BRepository).mockResolvedValue({
+      isMilestoneProposal: vi.fn().mockResolvedValue(false),
       reviewProposal: vi.fn().mockRejectedValue(reviewProposalError),
     } as never);
 
