@@ -336,6 +336,14 @@ export class Phase8BRepository {
     return (data ?? []).map(mapActivity);
   }
 
+  // Controller25: nonlocking owned-type routing only; never a source/authority precheck.
+  async isMilestoneProposal(id: string): Promise<boolean> {
+    const { data, error } = await this.db.from("outer_loop_proposals").select("proposal_type")
+      .eq("user_id", this.userId).eq("id", id).maybeSingle();
+    throwIfError(error, "Failed to route proposal review");
+    return data?.proposal_type === "MILESTONE_CANDIDATE";
+  }
+
   async reviewProposal(
     proposalId: string,
     decision: ProposalDecision,

@@ -2,14 +2,27 @@ import { NextResponse } from "next/server";
 import { phase8BErrorResponse, readJsonObject, requireNonBlankString, requireUuid } from "@/lib/outer-loop/http";
 import { getPhase8BRepository } from "@/lib/outer-loop/request";
 import type { ProposalDecision } from "@/lib/outer-loop/types";
+import { reviewMilestoneProposal } from "@/lib/milestone/proposal-review";
+import { milestoneErrorResponse } from "@/lib/milestone/http";
 
 const DECISIONS: ProposalDecision[] = ["ACCEPTED", "EDITED", "REJECTED"];
 
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
+  const response = await review(request, context);
+  response.headers.set("Cache-Control", "private, no-store");
+  return response;
+}
+
+async function review(request: Request, context: { params: Promise<{ id: string }> }) {
+  let milestoneBranch = false;
   try {
     const repo = await getPhase8BRepository();
     const { id: rawId } = await context.params;
     const proposalId = requireUuid(rawId, "proposalId");
+    // Routing is a new read, so its failures must not enter the legacy raw-error mapper.
+    try { milestoneBranch = await repo.isMilestoneProposal(proposalId); }
+    catch (error) { return milestoneErrorResponse(error); }
+    if (milestoneBranch) return await reviewMilestoneProposal(request, proposalId, repo);
     const body = await readJsonObject(request);
     const decision = body.decision;
     if (typeof decision !== "string" || !DECISIONS.includes(decision as ProposalDecision)) {
@@ -28,6 +41,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     );
     return NextResponse.json({ result }, { status: 200 });
   } catch (error) {
+    if (milestoneBranch) return milestoneErrorResponse(error);
     return phase8BErrorResponse(error, "Failed to review outer-loop proposal");
   }
 }
