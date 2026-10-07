@@ -100,7 +100,12 @@ export function useMilestonePage<T extends { id: string }>(url: string, field: s
       setState(previous => previous.tag === tag ? {
         tag, items: Array.from(new Map([...previous.items, ...page.items].map(item => [item.id, item])).values()), next: page.next, error: null,
       } : previous);
-    } catch (error) { setState(previous => previous.tag === tag ? { ...previous, error: errorOf(error) } : previous); }
+    } catch (error) {
+      setState(previous => previous.tag !== tag ? previous
+        : error instanceof MilestoneClientError && error.status === 401
+          ? { tag, items: [], next: null, error }
+          : { ...previous, error: errorOf(error) });
+    }
     finally {
       if (moreLock.current === tag) moreLock.current = null;
       setMorePending(previous => previous === tag ? null : previous);

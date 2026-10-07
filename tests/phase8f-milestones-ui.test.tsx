@@ -27,7 +27,7 @@ describe("8F milestone UI: reads, informed commands and durable page-session ret
         const body = JSON.parse(String(init.body));
         return url.pathname.endsWith("/review")
           ? response(reviewReceipt(body, proposals.find(p => url.pathname.includes(p.id)) ?? proposalFixture()))
-          : response(mutationReceipt(url.pathname, body));
+          : response(mutationReceipt(url.pathname, body, false, milestones.find(m => url.pathname.includes(m.id))));
       }
       if (url.pathname === "/api/milestones") return response({ milestones, nextOffset: null });
       if (url.pathname === "/api/milestones/sources") return response({ sources, nextOffset: null, authoritative: false });
@@ -245,6 +245,67 @@ describe("8F milestone UI: reads, informed commands and durable page-session ret
     await waitFor(() => expect(scope.getAllByRole("article")).toHaveLength(2)); expect(scope.queryByRole("button", { name: "加载更多" })).toBeNull();
     expect(fetchMock.mock.calls.filter(([url]) => String(url).startsWith(endpoint) && String(url).includes("offset=1020"))).toHaveLength(2); expect(posts()).toHaveLength(0);
   });
+  test.each(["milestones", "sources", "proposals"])("%s pagination401 clears private rows and continuation, without a POST", async field => {
+    const base = responder;
+    const endpoint = field === "milestones" ? "/api/milestones" : `/api/milestones/${field}`;
+    const item = field === "milestones" ? milestoneFixture() : field === "sources" ? sourceFixture() : proposalFixture();
+    responder = async (url, init) => url.pathname !== endpoint ? base(url, init)
+      : url.searchParams.get("offset") === "0" ? response({ [field]: [item], nextOffset: 20 }) : response({ code: "UNAUTHORIZED" }, 401);
+    render(<MilestonesPage />);
+    const scope = section(field === "milestones" ? "成就记录" : field === "sources" ? "Core 成就候选" : "成就提案与历史");
+    fireEvent.click(await scope.findByRole("button", { name: "加载更多" }));
+    await scope.findByRole("link", { name: "重新登录" });
+    expect(scope.queryAllByRole("article")).toHaveLength(0);
+    expect(scope.queryByRole("button", { name: "加载更多" })).toBeNull(); expect(posts()).toHaveLength(0);
+  });
+  test.each(["settle", "revoke"] as const)("%s preserves every immutable recognition field through uncertain replay", async kind => {
+    // One page session per field; no assertion can pass by retaining a previous field's error.
+    for (const field of ["milestone_key", "title", "description", "recognition_class", "external_evidence_url", "external_credential_id",
+      "confirmation_request_idempotency_key", "recognized_at", "created_at"] as const) {
+      fetchMock.mockClear(); const original = milestoneFixture(); milestones = [original];
+      let count = 0;
+      responder = async (url, init) => {
+        if (init?.method !== "POST") return response({ milestones, sources: [], proposals: [], nextOffset: null });
+        const receipt = mutationReceipt(url.pathname, JSON.parse(String(init.body)), count > 0, original);
+        if (++count === 1) (receipt.milestone as Record<string, unknown>)[field] = "changed-original-field";
+        return response(receipt);
+      };
+      render(<MilestonesPage />); await screen.findByRole("article", { name: `成就 ${original.title}` });
+      await prepare(kind === "settle" ? "结算奖励" : "撤销认定");
+      if (kind === "revoke") fireEvent.change(screen.getByLabelText("操作原因（必填）"), { target: { value: "原始撤销原因" } });
+      submit(); await screen.findByText(/未收到有效成功回执/); expect(screen.queryByText(/操作已完成/)).toBeNull();
+      fireEvent.click(screen.getByRole("button", { name: "暂时关闭" })); fireEvent.click(screen.getByRole("button", { name: "继续核对原请求" }));
+      fireEvent.click(screen.getByRole("button", { name: "重试同一请求" })); await screen.findByText(/操作已完成/);
+      expect(posts()).toHaveLength(2); expect(posts()[1][1].body).toBe(posts()[0][1].body); cleanup();
+    }
+  });
+  test.each(["removed", "replaced", "flag"])("revoke rejects %s known reward linkage and recovers the original receipt", async fault => {
+    const tx = transactionFixture();
+    const original = milestoneFixture({ granted_reward_credit: true, reward_transaction_id: tx.id,
+      reward: { status: "ISSUED", transaction: tx, correction: null, existingSourceReward: null } });
+    milestones = [original]; await ready(); const base = responder; let count = 0;
+    responder = async (url, init) => {
+      if (init?.method !== "POST") return base(url, init);
+      const receipt = mutationReceipt(url.pathname, JSON.parse(String(init.body)), count > 0, original);
+      if (++count === 1) {
+        receipt.milestone.granted_reward_credit = fault === "replaced";
+        receipt.milestone.reward_transaction_id = fault === "removed" ? null : fault === "replaced" ? proposalId : tx.id;
+      }
+      return response(receipt);
+    };
+    await prepare("撤销认定"); fireEvent.change(screen.getByLabelText("操作原因（必填）"), { target: { value: "保留原发放" } });
+    submit(); await screen.findByText(/未收到有效成功回执/); expect(screen.queryByText(/操作已完成/)).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "重试同一请求" })); await screen.findByText(/操作已完成/);
+    expect(posts()[1][1].body).toBe(posts()[0][1].body);
+  });
+  test("revoke accepts a legitimate settlement after the unfunded preview, retaining frozen original fields", async () => {
+    await ready(); const base = responder;
+    responder = async (url, init) => init?.method === "POST"
+      ? response(mutationReceipt(url.pathname, JSON.parse(String(init.body)), true,
+        milestoneFixture({ granted_reward_credit: true, reward_transaction_id: transactionFixture().id }))) : base(url, init);
+    await prepare("撤销认定"); fireEvent.change(screen.getByLabelText("操作原因（必填）"), { target: { value: "并发结算后撤销" } });
+    submit(); await screen.findByText(/操作已完成/); expect(posts()).toHaveLength(1);
+  });
   test("all filters are sent to the server; Mastery exact threshold absent for other sources", async () => {
     await ready(); fireEvent.change(screen.getByLabelText("记录状态"), { target: { value: "REVOKED" } });
     fireEvent.change(screen.getByLabelText("认定类别"), { target: { value: "USER_CONFIRMED_REAL_WORLD" } });
@@ -303,6 +364,42 @@ describe("8F milestone UI: reads, informed commands and durable page-session ret
     fireEvent.click(screen.getByRole("button", { name: "暂时关闭" })); fireEvent.click(screen.getByRole("button", { name: "继续核对原请求" }));
     fireEvent.click(screen.getByRole("button", { name: "重试同一请求" })); await screen.findByText(/操作已完成/);
     expect(posts()).toHaveLength(2); expect(posts()[1][1].body).toBe(posts()[0][1].body);
+  });
+  test.each(["ACCEPTED", "EDITED", "REJECTED"] as const)("review %s preserves all original proposal provenance across same-key recovery", async decision => {
+    for (const field of ["payload", "source_refs", "model_metadata", "created_at", "expires_at"] as const) {
+      fetchMock.mockClear(); const original = proposalFixture(); proposals = [original]; let count = 0;
+      responder = async (_url, init) => {
+        if (init?.method !== "POST") return response({ milestones: [], sources: [], proposals, nextOffset: null });
+        const receipt = reviewReceipt(JSON.parse(String(init.body)), original, count > 0);
+        if (++count === 1) (receipt.result.proposal as Record<string, unknown>)[field] = field.endsWith("_at") ? stamp : { changed: "foreign provenance" };
+        // created_at initially equals stamp, so change that field to an actually different instant.
+        if (count === 1 && field === "created_at") receipt.result.proposal.created_at = "2000-01-01T00:00:00Z";
+        return response(receipt);
+      };
+      render(<MilestonesPage />); await screen.findByRole("button", { name: "接受提案" });
+      await prepare(decision === "ACCEPTED" ? "接受提案" : decision === "EDITED" ? "编辑后接受" : "拒绝提案");
+      if (decision === "EDITED") fireEvent.change(screen.getByLabelText(/完整替换内容/), { target: { value: JSON.stringify({ ...original.payload, title: "替换认定而非原提案" }) } });
+      if (decision === "REJECTED") fireEvent.change(screen.getByLabelText("操作原因（必填）"), { target: { value: "拒绝仍保留来源" } });
+      submit(); await screen.findByText(/未收到有效成功回执/); expect(screen.queryByText(/操作已完成/)).toBeNull();
+      fireEvent.click(screen.getByRole("button", { name: "暂时关闭" })); fireEvent.click(screen.getByRole("button", { name: "继续核对原请求" }));
+      fireEvent.click(screen.getByRole("button", { name: "重试同一请求" })); await screen.findByText(/操作已完成/);
+      expect(posts()[1][1].body).toBe(posts()[0][1].body); cleanup();
+    }
+  });
+  test.each(["ACCEPTED", "EDITED", "REJECTED"] as const)("review %s accepts reordered nested JSON object keys without losing prototype-named provenance", async decision => {
+    const metadata = JSON.parse('{"__proto__":{"constructor":{"a":1,"b":2}},"temperature":0.3,"trace":[{"x":1,"y":2}],"model":"fixture"}');
+    const original = proposalFixture({ model_metadata: metadata }); proposals = [original]; await ready(); const base = responder;
+    const reorder = (value: unknown): unknown => Array.isArray(value) ? value.map(reorder) : value !== null && typeof value === "object"
+      ? Object.fromEntries(Object.entries(value).reverse().map(([key, entry]) => [key, reorder(entry)])) : value;
+    responder = async (url, init) => {
+      if (init?.method !== "POST") return base(url, init);
+      const receipt = reviewReceipt(JSON.parse(String(init.body)), original, true);
+      receipt.result.proposal = reorder(receipt.result.proposal) as typeof receipt.result.proposal;
+      return response(receipt);
+    };
+    await prepare(decision === "ACCEPTED" ? "接受提案" : decision === "EDITED" ? "编辑后接受" : "拒绝提案");
+    if (decision === "REJECTED") fireEvent.change(screen.getByLabelText("操作原因（必填）"), { target: { value: "原文保留" } });
+    submit(); await screen.findByText(/操作已完成/); expect(posts()).toHaveLength(1);
   });
   test.each(["braced", "compact", "grouped", "Mastery"])("review receipt accepts SQL-normalized %s identity without changing submitted payload", async spelling => {
     const canonical = spelling === "Mastery" ? `${sourceId}:M10` : sourceId;

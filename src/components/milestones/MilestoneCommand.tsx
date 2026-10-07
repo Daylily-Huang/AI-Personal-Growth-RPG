@@ -46,8 +46,15 @@ function validMutationReceipt(result: Record<string, unknown>, intent: Exclude<M
         ["external_evidence_url", "externalEvidenceUrl"], ["external_credential_id", "externalCredentialId"]]
         .every(([field, input]) => m[field] === body[input]);
   }
-  if (m.id !== intent.milestone.id || m.user_id !== intent.milestone.user_id ||
-    m.source_type !== intent.milestone.source_type || m.source_id !== intent.milestone.source_id) return false;
+  const original = intent.milestone;
+  const immutableFields = ["id", "user_id", "milestone_key", "title", "description", "recognition_class", "source_type", "source_id",
+    "external_evidence_url", "external_credential_id", "confirmation_request_idempotency_key", "recognized_at", "created_at"] as const;
+  if (!immutableFields.every(field => m[field] === original[field])) return false;
+  // A different session may settle after the preview; an already known link can never disappear/change.
+  const rewardShape = m.granted_reward_credit === false ? m.reward_transaction_id === null
+    : m.granted_reward_credit === true && m.recognition_class === "CORE_VERIFIED" && typeof m.reward_transaction_id === "string" && Boolean(m.reward_transaction_id.trim());
+  if (!rewardShape || (original.granted_reward_credit &&
+    (m.granted_reward_credit !== true || m.reward_transaction_id !== original.reward_transaction_id))) return false;
   if (intent.kind === "revoke") return m.status === "REVOKED" &&
     typeof m.revoked_at === "string" && Number.isFinite(Date.parse(m.revoked_at)) &&
     m.revocation_request_idempotency_key === intent.id && m.revocation_reason === body.revocationReason;
@@ -85,11 +92,21 @@ function receiptPayload(value: unknown): Record<string, unknown> | null {
   }
   return normalized;
 }
+/** JSONB object order is immaterial; array order, own keys and every nested value are not. */
+function sameJson(left: unknown, right: unknown): boolean {
+  if (left === right) return true;
+  if (Array.isArray(left)) return Array.isArray(right) && left.length === right.length && left.every((value, index) => sameJson(value, right[index]));
+  if (!isObject(left) || !isObject(right)) return false;
+  const keys = Object.keys(left);
+  return keys.length === Object.keys(right).length && keys.every(key => Object.hasOwn(right, key) && sameJson(left[key], right[key]));
+}
 function validReviewReceipt(result: Record<string, unknown>, intent: Extract<MilestoneIntent, { kind: "review" }>, body: Record<string, unknown>) {
   const proposal = result.proposal;
   if (!isObject(proposal) || proposal.id !== intent.proposal.id || proposal.status !== intent.decision ||
     proposal.decision !== intent.decision || proposal.proposal_type !== "MILESTONE_CANDIDATE" ||
     proposal.schema_version !== intent.proposal.schema_version || proposal.review_request_idempotency_key !== intent.id ||
+    !["payload", "source_refs", "model_metadata", "created_at", "expires_at"].every(field =>
+      sameJson(proposal[field], intent.proposal[field as keyof MilestoneProposal])) ||
     typeof proposal.reviewed_at !== "string" || !Number.isFinite(Date.parse(proposal.reviewed_at))) return false;
   if (intent.decision === "REJECTED") return proposal.rejection_reason === body.rejectionReason &&
     proposal.resulting_entity_type === null && proposal.resulting_entity_id === null &&

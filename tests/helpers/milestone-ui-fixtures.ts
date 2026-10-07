@@ -19,13 +19,13 @@ export function transactionFixture(patch: Partial<RewardTransaction> = {}): Rewa
     policy_version: "reward-v1", request_idempotency_key: "earn-key", correction_for_id: null, refund_for_redemption_id: null, note: null, created_at: stamp, ...patch };
 }
 /** Match the accepted 0052 mutation receipt, not a generic success-shaped object. */
-export function mutationReceipt(path: string, body: Record<string, unknown>, replayed = false) {
+export function mutationReceipt(path: string, body: Record<string, unknown>, replayed = false, original = milestoneFixture()) {
   if (path.endsWith("/settle")) {
     const transaction = transactionFixture({ request_idempotency_key: String(body.requestIdempotencyKey) });
-    return { ok: true, replayed, milestone: milestoneFixture({ granted_reward_credit: true, reward_transaction_id: transaction.id }), transaction };
+    return { ok: true, replayed, milestone: { ...original, granted_reward_credit: true, reward_transaction_id: transaction.id }, transaction };
   }
-  if (path.endsWith("/revoke")) return { ok: true, replayed, milestone: milestoneFixture({ status: "REVOKED", revoked_at: stamp,
-    revocation_reason: String(body.revocationReason), revocation_request_idempotency_key: String(body.revocationRequestIdempotencyKey) }) };
+  if (path.endsWith("/revoke")) return { ok: true, replayed, milestone: { ...original, status: "REVOKED", revoked_at: stamp,
+    revocation_reason: String(body.revocationReason), revocation_request_idempotency_key: String(body.revocationRequestIdempotencyKey) } };
   return { ok: true, replayed, milestone: milestoneFixture({ milestone_key: String(body.milestoneKey), title: String(body.title),
     description: body.description as string | null, recognition_class: body.recognitionClass as MilestoneView["recognition_class"],
     source_type: body.sourceType as MilestoneView["source_type"], source_id: String(body.sourceId),
