@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync, readdirSync } from "node:fs";
 import { describe, expect, test } from "vitest";
+import { hasSkillBootstrapScope, SKILL_BOOTSTRAP_MARKERS, SKILL_BOOTSTRAP_PRODUCTION } from "./helpers/governance-delta";
 
 const base = "f18855df297fa1a8f42e5fa3574453ef9b67d76b";
 const control = "docs/Phase8/27_PHASE8F_UI_CONTRACT.md";
@@ -13,11 +14,32 @@ function violations(files: string[]) {
   return files.filter(file => /^(src\/|supabase\/|\.github\/)/.test(file) || ["package.json", "pnpm-lock.yaml", "next.config.ts", "tsconfig.json", "vitest.config.ts"].includes(file))
     .filter(file => !files.includes(control) || !uiPaths.has(file));
 }
+function currentScopeViolations(files: string[]) {
+  const historical = violations(files);
+  if (!hasSkillBootstrapScope(files)) return historical;
+  const approved = new Set<string>(SKILL_BOOTSTRAP_PRODUCTION);
+  return historical.filter(file => !approved.has(file));
+}
 describe("8F Round4 exact UI scope under27", () => {
   test("working candidate and eventual full branch retain frozen server, SQL, Core, Wishes and navigation", () => {
     const tracked = execFileSync("git", ["diff", "--name-only", "--no-renames", "-z", base, "--"], { encoding: "utf8" }).split("\0").filter(Boolean);
     const untracked = execFileSync("git", ["ls-files", "--others", "--exclude-standard", "-z"], { encoding: "utf8" }).split("\0").filter(Boolean);
-    expect(violations([...tracked, ...untracked])).toEqual([]);
+    expect(currentScopeViolations([...tracked, ...untracked])).toEqual([]);
+  });
+  test("later approved skill scope requires every marker and exempts only six exact paths", () => {
+    const binding = [control, ...uiPaths, ...SKILL_BOOTSTRAP_MARKERS, ...SKILL_BOOTSTRAP_PRODUCTION];
+    expect(currentScopeViolations(binding)).toEqual([]);
+    for (const marker of SKILL_BOOTSTRAP_MARKERS) {
+      expect(currentScopeViolations(binding.filter(file => file !== marker))).toContain("src/app/api/skills/route.ts");
+    }
+  });
+  test("later skill scope cannot broaden historical milestone, Core, auth or workflow scope", () => {
+    const binding = [control, ...uiPaths, ...SKILL_BOOTSTRAP_MARKERS, ...SKILL_BOOTSTRAP_PRODUCTION];
+    for (const extra of ["src/lib/milestone/repository.ts", "src/lib/skills/unsafe.ts", "src/app/skills/unsafe.tsx",
+      "src/app/api/auth/login/route.ts", "src/lib/growth-engine/engine.ts", "src/lib/store/repository.ts",
+      "supabase/migrations/0052_phase8f_milestones_rpc_authority.sql", ".github/workflows/ci.yml", "package.json", "pnpm-lock.yaml"]) {
+      expect(currentScopeViolations([...binding, extra])).toEqual([extra]);
+    }
   });
   test("exact controller-bound paths only, no blanket milestone/backend exception", () => {
     expect(violations([control, ...uiPaths])).toEqual([]);

@@ -14,6 +14,7 @@ import { resolveFocusTarget } from "./components/controller";
 import SkillGraphCanvas, { type CanvasFocusTarget } from "./components/SkillGraphCanvas";
 import SkillDetailPanel from "./components/SkillDetailPanel";
 import SkillTableView from "./components/SkillTableView";
+import SkillCreateForm from "./components/SkillCreateForm";
 import { InspectorDrawer } from "@/components/layout/InspectorDrawer";
 import type { SkillFlowNodeType } from "./components/SkillNode";
 import { findNextSkillNode, type SkillGraphDirection } from "./components/keyboard-navigation";
@@ -30,6 +31,8 @@ function SkillsPageContent() {
   const [graph, setGraph] = useState<SkillTreeGraphResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createNotice, setCreateNotice] = useState<string | null>(null);
 
   const [selectedSkillId, setSelectedSkillId] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
@@ -194,6 +197,19 @@ function SkillsPageContent() {
     <div className="flex flex-col h-[calc(100dvh-var(--header-height)-var(--mobile-nav-height))] w-full min-h-0 overflow-hidden md:h-[calc(100dvh-var(--header-height))]">
       <h2 className="sr-only">技能图谱能力网络</h2>
 
+      {!loading && !error && graph ? <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-[var(--border-subtle)] bg-[var(--surface-base)] px-3 py-2">
+        <span className="text-xs text-[var(--text-muted)]">可以先建立技能目录，再积累真实成长证据。</span>
+        <button type="button" disabled={createOpen} onClick={() => { setCreateNotice(null); setCreateOpen(true); }}
+          className="min-h-[var(--touch-target-min)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] px-3 py-2 text-sm text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)] disabled:opacity-50">新建技能</button>
+      </div> : null}
+      {createNotice ? <p role="status" className="shrink-0 border-b border-[var(--border-subtle)] px-3 py-2 text-sm text-[var(--text-secondary)]">{createNotice}</p> : null}
+      {createOpen ? <SkillCreateForm onCancel={() => setCreateOpen(false)} onUnauthorized={() => router.push("/login")}
+        onCreated={skill => {
+          setCreateOpen(false); setDomainId(null); setStateFilter("all"); setSearch("");
+          setCreateNotice(`已建立 ${skill.name}（零XP、M0）。如列表未更新，请重试加载，无需再次建档。`);
+          refresh();
+        }} /> : null}
+
       {/* Mobile/Tablet Local Toolbar (below lg) */}
       <div className="flex items-center justify-between gap-2 p-2.5 border-b border-[var(--border-subtle)] bg-[var(--surface-base)] lg:hidden">
         <button
@@ -305,7 +321,7 @@ function SkillsPageContent() {
               </div>
               <h3 className="text-xl font-semibold text-[var(--text-primary)]">还没有技能节点</h3>
               <p className="max-w-md text-sm text-[var(--text-muted)]">
-                完成第一次 Growth Assessment 并确认后，系统会根据真实行为建立技能树。
+                可以先用“新建技能”建立零XP、M0目录；也可以完成第一次 Growth Assessment 并确认后，根据真实行为建立技能树。
               </p>
               <Link
                 href="/dashboard"

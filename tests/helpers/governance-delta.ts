@@ -288,6 +288,22 @@ export const PHASE5_SKILLS_POLICY: ScopedPolicy = {
   forbiddenExactFiles: ["package.json", "pnpm-lock.yaml"],
 };
 
+// User-approved L1 directory bootstrap. No directory-wide or generic bugfix exemptions.
+export const SKILL_BOOTSTRAP_CONTROL = "docs/SiteReadiness/01_ZERO_XP_MANUAL_SKILL_CONTRACT.md";
+export const SKILL_BOOTSTRAP_MIGRATION = "supabase/migrations/0053_zero_xp_manual_skill_authority.sql";
+export const SKILL_BOOTSTRAP_MARKERS = [SKILL_BOOTSTRAP_CONTROL, SKILL_BOOTSTRAP_MIGRATION,
+  "src/app/skills/components/SkillCreateForm.tsx", "src/app/skills/page.tsx"] as const;
+export const SKILL_BOOTSTRAP_PRODUCTION = [SKILL_BOOTSTRAP_MIGRATION, "src/app/api/skills/route.ts",
+  "src/app/skills/page.tsx", "src/app/skills/components/SkillCreateForm.tsx",
+  "src/lib/skills/bootstrap.ts", "src/lib/skills/bootstrap-request.ts"] as const;
+export function hasSkillBootstrapScope(files: readonly string[]): boolean {
+  return SKILL_BOOTSTRAP_MARKERS.every(file => files.includes(file));
+}
+export function skillBootstrapPolicy(files: readonly string[]): ScopedPolicy {
+  if (!hasSkillBootstrapScope(files)) return PHASE5_SKILLS_POLICY;
+  return { ...PHASE5_SKILLS_POLICY, authorizedExceptions: ["src/app/api/skills/route.ts", SKILL_BOOTSTRAP_MIGRATION] };
+}
+
 export const PHASE6_KNOWLEDGE_POLICY: ScopedPolicy = {
   scopeTriggers: [
     "src/app/knowledge/",
