@@ -4,6 +4,8 @@ import path from 'node:path';
 import { compile } from 'tailwindcss';
 import { resolveGovernanceChangedFiles, PHASE8E_ACCEPTED_BACKEND, hasSkillBootstrapScope, SKILL_BOOTSTRAP_MARKERS, SKILL_BOOTSTRAP_PRODUCTION } from './helpers/governance-delta';
 import { hasGraphCanvasScope, graphCanvasScopeViolations } from './helpers/governance-delta';
+import { hasMobileGraphScope, mobileGraphScopeViolations } from './helpers/governance-delta';
+import { hasConnectedFocusScope, graphInteractionScopeViolations } from './helpers/governance-delta';
 
 export const FROZEN_BACKEND_DENYLIST = [
   'src/app/api/',
@@ -147,6 +149,12 @@ export function validateVisualMigrationDelta(changedFiles: string[]): VisualMigr
     return { isVisualPR: false, violations: [] };
   }
 
+  if (hasConnectedFocusScope(changedFiles)) {
+    return { isVisualPR: true, violations: graphInteractionScopeViolations(changedFiles) };
+  }
+  if (hasMobileGraphScope(changedFiles)) {
+    return { isVisualPR: true, violations: mobileGraphScopeViolations(changedFiles) };
+  }
   if (hasGraphCanvasScope(changedFiles)) {
     return { isVisualPR: true, violations: graphCanvasScopeViolations(changedFiles) };
   }

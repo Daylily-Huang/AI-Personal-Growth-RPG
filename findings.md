@@ -1,5 +1,19 @@
 # 调查发现与核心架构决策 (Findings)
 
+## 2026-10-09 — 手机小地图承重
+
+最终运行/清理已经终态：独立190+105、实际React24/helpers64/治理147+1911、readonly8/immutable+strict/0049prosrc/2RLS通过且永久release；主仅owned taskstop136a4f，6edb4e task0/0、dev11/10healthy与clone保持。七docs/19path冻结待独立最后hash verdict，不能以无中间finding提前candidateGO。浏览器tie没有fixture、不冒称之；原f100 helper不改、独立真实helper64含tie覆盖。full2088/browser88+24/tenfacts/清理是主执行，独审不声称第二full/browser/disposal。正式user数据、root7dirty、全部备份与3旧preview仍保留。
+
+最新完整主验105files2088/2088零skip，raw47A247...EDF2C严格逐assertion全passed，不用历史2024补充。本轮主graph/XP/rewards十表不变、browser88+24已终态；Fresh Lagrange指定offline190和147攻击/1911旧比较/7blob/4prod逆向/6failclosed只读通过，尚非candidateGO。已exclusive task grant，主不DB/HTTP至direct release；主Windows npipe库存读失败而WSL native owned检查通过，不能误判Docker需升级或改配置。新用户入口实际仅QuickLog起步，既有CreateQuestModal/MainQuest及零XP skill可复用，下一范围只能当前冻结后单独准入，不混入本19。
+
+主纠正实际190/0skip、新build/TS/lint0/no-warning、真实Chrome连线88(两图normal/reduce×原生四方向/Tab-return/Enter/Space/Escape/table/list)+geometry24已过，原API+DOM独立oracle和十表factequal保证不是fakefocus/删边换green。等距tie不在此四节点browserfixture，不扩大证明，actualhelper/source独审内存覆盖且helper无delta。04/06不可变，旧v1failure保持；fullsuite4120/独审候选尚待，production/tests/.next冻结，无PR或整站完成。
+
+06独立ADMISSION已准确绑定698EDB...5D88A/19scope9markers；actualReact nonce对照关闭复现，治理模型168/9/661与7blob/3failclosed通过但不是实际候选guard绿色。实施保持原mobile/graph函数body，新增独立strict selector、actualvisual/phase6/graphworking+committed入口和8F仅all9精确两pages豁免。三focus新增逆向重建accepted page的新assertion待正确green；没有改nearesthelper/Graph/selection/camera authority。
+
+实际新合成connected浏览器600244发现两图重复请求同keyboardFocusId不会重新运行focus effect：Skills ArrowDown→Tab→ArrowUp、Knowledge ArrowDown→ShiftTab→ArrowRight均停错误节点，独立API+DOM布局oracle支持。当前v1 NO-GO；06补充仅独立keyboardFocusNonce的十九路径待准入，不借camera nonce，04字节保持。24 geometry真实已过、图谱/XP/ledger/reward十表不变；绿色单元/构建不能推翻此失败。
+
+现有md48rem与44px触控目标复用；actual installed MiniMap className传给Panel，所以hide作用于整个面板。只能把单元类名/编译CSS作为必要非充分证据，真实生产CSS和Chrome边界/overlay/连线箭头仍待。旧keyboard仅connected loaded邻居空间最近者，不能伪造关系来得到PASS；task种子必须实际0036/0039 CHECK而非06旧示例（relates_to/prerequisite，verified confidence1）。
+
 ## 2026-10-09 独立反例推翻v3候选
 
 - 最终纠正实测/清理已终态：Ptolemy167/167测试子命令0，实际calculate_reward_grant_v1只读8调用/immutable/skills与knowledge_nodes RLStrue，直接DB_ACCESS_COMPLETE；先前rules_versions/process census及源码顺序比较两验证错误均保留，不当source缺陷或外层成功。主exact-owned栈5177→ca1f0a exit0、44f9fc task容器/卷0，原dev11/10healthy、恢复副本/备份/preview保持。全18与03冻结待独立最后hash裁决；当前仍不是candidateGO/committedFINAL/整站完成。下方pending为历史过程状态。

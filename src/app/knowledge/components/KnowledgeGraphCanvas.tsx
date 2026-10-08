@@ -258,7 +258,7 @@ function CanvasInner({
         pannable
         zoomable
         position="bottom-left"
-        className="!bg-[var(--surface-raised)] !border !border-[var(--border-subtle)]"
+        className="hidden md:block !bg-[var(--surface-raised)] !border !border-[var(--border-subtle)]"
         nodeColor={(n) => {
           const status = (n.data as { verificationStatus?: string }).verificationStatus;
           if (n.type === "cluster") return "var(--surface-ground)";

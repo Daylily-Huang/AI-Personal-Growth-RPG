@@ -1,5 +1,21 @@
 # AI Personal Growth RPG — 项目总体计划与当前状态 (Task Plan)
 
+## 2026-10-09 — 当前手机图谱范围（覆盖后文旧PR52 pending）
+
+- [complete main/independent runtime/disposal; in_progress final candidate binding] Lagrange独立190/React24/helpers64/147+1911/58old/7blobs/9authority/4prod逆向及granted105/SQL8+immutable+strict/0049prosrc/2RLS通过，DIRECT永久DB_ACCESS_COMPLETE；主76355→136a4f精确仅task销毁exit0、6edb4e容器/卷0、dev11/10healthy和clone/预览/备份保持。主2088/105files和browser88+24属主证据。七docs/全19现冻结待独立hash-bound candidate GO，未GO前不commit；04/06/旧failures/source12/.next完全保持。该GO后还必须selected19commit/draftPR/ownCI/不同freshFINAL/ordinarymerge/postCI，不称整站完成。
+
+- [complete main fullsuite; in_progress fresh independent exclusive DB] 4120→33148e full105files2088/2088、零skip/fail/pending/todo/unhandled，02:20:41/541.33s；raw47A247...EDF2C严格重解析。Fresh Lagrange独立offline190/actual攻击暂无finding，现明确独占task54331/54332；主停止DB/HTTP。其targeted/只读8及永久释放后才主精确owned清理、七docs最终冻结与十九manifest candidate GO；未GO前不commit，不以主green替代独审。原source、preview、备份及旧failures保持。
+
+- [complete corrected main narrow gates; in_progress fullsuite/independent candidate] 最新190/190/0skip、newbuild/TS/42pages/7Lq2EG4VC6CsNUhRKCggE、finaltsc/lint0/no-warning、Chrome connected88+geometry24/console0/two-v2图片已验，十表facts/XP/ledger/reward不变。原v1NO-GO/所有首次fixture误判保留；完整liveDB/HTTP4120在跑，四source/八tests/.next冻结，待fresh candidate→独占DBgrant→release/owneddisposal→十九hashbinding，未candidateGO前不commit。
+
+- [complete corrective admission; in_progress corrected tests/build] Mencius06十九路径九markers风险2ADMISSION零findingGO（698EDB...5D88A）后才改两page三处独立键盘nonce与strict successor守卫；新原页回归正确2pass/4red已保留。当前新target/build/lint、原生browser/fullsuite/independent候选尚待，旧v1 NO-GO与全部green作为历史，不是已验收。
+
+- [NO-GO main browser] v1两处class-only164/build/lint/52与24条实际Chrome几何已过，但600244两图Arrow→Tab→返回同目标真实失焦；浏览器已关闭、十表snapshot不变。06补充十九精确路径ADMISSION pending，生产page/旧guard修复必须其fresh Risk2 GO后。历史green不是当前验收，未commit/PR；全站目标active。
+
+- [complete admission only] 新04/十四路径/两生产class-only范围经Harvey独立Risk2 ADMISSION P0/P1/P2=0 GO，controller134E00...56311/basef100/tree4cc70cb绑定，不是候选或merge许可。
+- [in_progress] 两处MiniMap hidden md:block与新strict f100/旧累计audit-only适配已实现。基线新8回归4红4通过保留；新targeted/full-liveDB/build/browser/连线与十表前后snapshot及独立Risk2候选均待。
+- [pending] 精确候选GO后commit/PR/ownCI/不同fresh FINAL/ordinarymerge/postCI及preview，再新用户MainQuest/技能引导与真实AI十三步。持续整站目标active，AI用户稍后提供，不公开部署，不改源库/旧预览/备份。
+
 ## 2026-10-09 纠正门禁（覆盖下方v3状态）
 
 - [complete runtime and disposal; in_progress final binding] 不同fresh Ptolemy completed-build167/167、实际SELECT read-only8/immutable/两RLS通过，直接DB_ACCESS_COMPLETE/全部clients终态；两个外层审查验证错误保留，测试子命令0与最终b567a4 terminal0归属明确。主5177→ca1f0a精确销毁仅本轮合成栈，44f9fc task容器0/卷0、原dev11running/10healthy与恢复副本保持。03/MASTER/全18现冻结待fresh hash-bound candidate verdict；未GO前不commit，不重复运行已销毁栈或复用旧v3绑定。下方pending为时间顺序过程快照，最终状态由本条覆盖。

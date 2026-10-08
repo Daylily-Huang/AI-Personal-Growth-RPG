@@ -5,6 +5,8 @@ import {
   hasGraphCanvasScope, graphCanvasScopeViolations, graphCanvasKnowledgePolicy,
   PHASE6_KNOWLEDGE_POLICY, SKILL_BOOTSTRAP_MARKERS, SKILL_BOOTSTRAP_PRODUCTION,
   evaluateScopedPolicy, resolveGovernanceChangedFiles,
+  hasMobileGraphScope, mobileGraphScopeViolations, MOBILE_GRAPH_BASE, MOBILE_GRAPH_AUDIT_ADDITIONS,
+  hasConnectedFocusScope, graphInteractionScopeViolations, CONNECTED_FOCUS_AUDIT_ADDITIONS,
 } from "./helpers/governance-delta";
 import { validateVisualMigrationDelta } from "./visual-foundation.test";
 import { phase8fCurrentScopeViolations } from "./phase8f-ui-governance.test";
@@ -63,11 +65,25 @@ describe("SiteReadiness02 exact graph-only scope", () => {
   test("binds the entire working candidate, including untracked files, to the accepted base", () => {
     const tracked = execFileSync("git", ["diff", "--name-only", "--no-renames", "-z", base, "--"], { encoding: "utf8" }).split("\0").filter(Boolean);
     const untracked = execFileSync("git", ["ls-files", "--others", "--exclude-standard", "-z"], { encoding: "utf8" }).split("\0").filter(Boolean);
-    expect(graphCanvasScopeViolations([...tracked, ...untracked])).toEqual([]);
+    const files = [...tracked, ...untracked];
+    if (hasConnectedFocusScope(files)) {
+      const newer = execFileSync("git", ["diff", "--name-only", "--no-renames", "-z", MOBILE_GRAPH_BASE, "--"], { encoding: "utf8" }).split("\0").filter(Boolean);
+      expect(graphInteractionScopeViolations([...newer, ...untracked])).toEqual([]);
+      const auditAdditions = new Set<string>(CONNECTED_FOCUS_AUDIT_ADDITIONS);
+      expect(graphCanvasScopeViolations(files.filter(file => !auditAdditions.has(file) && file !== "src/app/knowledge/page.tsx"))).toEqual([]);
+    } else if (hasMobileGraphScope(files)) {
+      const newer = execFileSync("git", ["diff", "--name-only", "--no-renames", "-z", MOBILE_GRAPH_BASE, "--"], { encoding: "utf8" }).split("\0").filter(Boolean);
+      expect(mobileGraphScopeViolations([...newer, ...untracked])).toEqual([]);
+      const auditAdditions = new Set<string>(MOBILE_GRAPH_AUDIT_ADDITIONS);
+      expect(graphCanvasScopeViolations(files.filter(file => !auditAdditions.has(file)))).toEqual([]);
+    } else {
+      expect(graphCanvasScopeViolations(files)).toEqual([]);
+    }
   });
   test("checks the full committed PR or verified current-main first-parent range", () => {
     const delta = resolveGovernanceChangedFiles();
     expect(delta.files.length).toBeGreaterThan(0);
-    if (hasGraphCanvasScope(delta.files)) expect(graphCanvasScopeViolations(delta.files)).toEqual([]);
+    if (hasConnectedFocusScope(delta.files)) expect(graphInteractionScopeViolations(delta.files)).toEqual([]);
+    else if (hasGraphCanvasScope(delta.files)) expect(graphCanvasScopeViolations(delta.files)).toEqual([]);
   });
 });
