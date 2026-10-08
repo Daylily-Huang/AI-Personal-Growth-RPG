@@ -1,5 +1,16 @@
 # 项目历史工作进度 (Progress Log)
 
+## 2026-10-08 — 8F实施闭环及独立归档候选
+
+- 8F准入head7614a517/CI37138706181/Aristotle FINAL GO；随后PR43 auth、PR44并发观测修复独立完成，实施由ea344a05进入。PR45–49的完整SHA、树、CI、独审记录见29；本段取代下方旧8F未准入/8E归档待办作为现行状态。
+- Round1 Mencius01a10b39-367c-7bd1-9bb3-7b15ff32a81d FINAL GO（109+37）；Round2 Cicero01a114f4-5b82-7f91-b5bc-30841c62c1d8 FINAL GO（196+98）；Round3 Linnaeus01a1155f-1a89-7383-bffa-51f2455fd804 FINAL GO（137+SQL8+SDK90/prototype72/legacy36）；Round4 Volta01a115ff-a2d5-7d90-bb3b-4266361b72f8 FINAL GO（289+SQL130/Curie24/actual109/hooks33）。均精确head零P0/P1/P2、不同只读上下文，非人类/跨厂商认证；主fullsuite不冒称各自执行。
+- Round5 main32990 exit0：169+tsc/lint；97573 exit0：build/harness11/full96files1815。Anscombe01a119a0-162e-7163-83a1-cff36ef97635独立187+44，主清理87411后绑定note AC25C286…D7C04/test424013DC…CC64/manifest5AA0DB…D5EC候选GO；提交9d516bc4，创建PR49。
+- 自身CI37726695023全31steps/1815/harness11/E2E11成功；不同fresh Mendel01a119ba-e2c4-73e1-8623-068de919311e独立187+16SQL，ownCI/hash/blob核验，FINAL P0/P1/P2=0 GO。其两次早期SQLfixture错误已回滚不计通过；DB_ACCESS_COMPLETE后主95393二次精确清理，af08cf证实task0/0、dev11running10healthy保持。不是复用第一次清理库存。
+- PR49于2026-10-08T04:29:25Z受托ordinary merge为cce3c3480a9912e9ff4aa89e59843af05b9ab961，整树78a0103与受审head一致。postCI37727725161各31steps全部success，认证日志96files1815/harness11/E2E11；12:34:49闭环、12:38:32再次API验证。旧28 PRECOMMIT状态保留原字节，不改成未来历史。
+- 从cce3c348建立`.data/phase8f-freeze` / `codex/phase8f-final-freeze`；本次仅新29/MASTER/task_plan/findings/progress五文档。2026-10-08本轮会话再次核对十次历史CI API和五对Git树；旧25–28/Check及src/tests/SQL/deps/workflow不修改，没有DB/HTTP/build操作。
+- 恢复时组合读取输出超过预算而截断，已分段补读选定控制文本/MASTER后才编辑；归档初稿26/27链接依据真实文件清单修正，不假定猜测路径有效。下一门禁是最终五文件自检及独立候选审查；截至此快照没有archive候选GO/提交/自身CI/FINAL/merge，不提前记为成功。
+- 自检83af01：链接/diffcheck通过，随后将新checkout的28与原R5磁盘hash直接比较而退出1。cc06f4确认仅Git CRLF转换（新28的69行CRLF、原全LF，规范化逐字一致，clean-filter blob同3e2af35）；不是历史文件编辑。29现明确哈希表属于原R5受审工作树，不把磁盘hash等同Gitblob；新test同样需按clean-filter比对。未改28/test来迎合旧hash。
+
 ## 2026-10-03 — PR #40 user merge / post-merge closure / archive candidate
 
 - 用户明确“合并了”；实时 GitHub API 与 git fetch 核实 PR #40 merged=true，2026-10-03T08:31:17Z 合并为 `b6af5a84fa3e13cdba729d4d00059e3d9b30fc84`，parents `be949deb67f62269d58a0e21865580d0e67204e0` / `ff36ac72d0f0f2c3f58054835e07f5d769740ce7`。完整 reviewed/merge tree diff 为空。
