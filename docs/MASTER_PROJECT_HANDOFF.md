@@ -1,15 +1,16 @@
 # AI Personal Growth RPG — 项目全景交接与治理主文档 (Master Project Handoff)
 
-> **文档版本**: 2.2 (Master Comprehensive Handoff — Phase 8E Implementation FINAL FROZEN)
-> **更新时间**: 2026-10-04
+> **文档版本**: 2.3 (Phase 8F Implementation FINAL FROZEN; archive publication candidate)
+> **更新时间**: 2026-10-08
 > **适用对象**: 后续所有接手的 AI 工程师、独立审查 AI、项目协作者  
 > **Phase 7 终局冻结合并基线 (historical)**: `653fe018f6cee38b2263fbcca19dffbf624d4c18`
 > **Phase 8B 终局冻结合并基线 (main)**: `0e4bec5f26411669f7031af4523b6d4fca747f96`
 > **Phase 8C 终局冻结合并基线 (main)**: `9aa76e7ce36b20b9f99e28d6cbd08eeb7bc55b85`
 > **Phase 8D implementation 冻结合并基线 (main)**: `b93273cd87d39e04a66ed0ebfd76fa95ebd2e643`
 > **Phase 8D 归档+审查记录 最终合并基线 (main)**: `a1da765e492b8d93e6350ac32865d8e0018faa91`
-> **当前 main 基线 (PR #41 冻结归档合并)**: `7a671bb2cf750fd8958135812026a0f2e1dbad91`
-> **当前所处里程碑**: Phase 8E 实施与归档 FINAL FROZEN：PR #40及归档PR #41均由用户合并，各自post-merge CI全绿（37109984608、37128640371）。8F基线已锁定，用户2026-10-04明确Artifact成就认定也延期；25号本地草案仍NOT ADMITTED，正式exact-head准入待完成，未获8F生产实现授权。登录安全遗留另行修复/复验，不混入8F提交。
+> **当前已验 main 基线 (PR #49 退出验收合并)**: `cce3c3480a9912e9ff4aa89e59843af05b9ab961`
+> **当前所处里程碑**: Phase 8F implementation FINAL FROZEN；准入与Round1–5已通过各自exact-head CI、fresh独立FINAL、普通合并及post-CI。最后PR49自身CI37726695023、post-main37727725161全部31步骤/1815测试/harness11/E2E11通过。当前五文档归档仍是publication candidate，须独立候选审查→自身提交CI→不同fresh FINAL→受托普通合并/post-CI，不提前声称已发布。完整链见[29号归档](Phase8/29_PHASE8F_GATEKEEPER_REREVIEW_AND_FINAL_FREEZE.md)。这不是整个网站完成或公开部署。
+> **冻结范围与后续**: 现实成就只记录、零积分；Artifact认定与奖励均延期。旧25/26/27/28及Check证据保留原字节与历史状态；不得因旧DRAFT标题重复准入或篡改旧NO-GO。归档闭环后另行核验整站就绪度/可用本地预览，8G可选，真实数据迁移与公开部署不自动授权。
 > **代码仓库**: `Daylily-Huang/AI-Personal-Growth-RPG`  
 > **核心工作区路径**: `d:\AI_Personal_Growth_RPG`（WSL 挂载路径：`/mnt/d/AI_Personal_Growth_RPG`）
 
@@ -77,7 +78,8 @@
   - 拥有最高质量裁决权。在 GitHub 上独立检出分支，比对 Base SHA、Head SHA，核验 CI 运行状态。
   - 按照 P0（阻断级）、P1（架构/规范违规）、P2（文档/微小瑕疵）标准严格扫描，给出 `GO → APPROVE` 或 `NO-GO → NEED_FIX`。
 - **用户 (User / Relay Operator)**：
-  - 承担中继枢纽职责：在 GitHub Web 端点击对比链接开 PR、转发双方提示词、在获得审查通过后在 GitHub 上点击 Squash and merge。
+  - 保留范围/产品及必要外部授权决定权。用户2026-10-04明确：从PR #44起，检查通过后由执行AI代为创建和合并PR，替代原“用户手动合并”。执行AI必须先获得独立候选GO、提交自身CI及不同fresh exact-head FINAL零finding GO，再普通合并并核验整树/post-CI；不得admin/force/删除分支/公开部署。
+  - 历史人工合并记录不改写为代理执行。当前独立审查使用同provider/model-family不同只读上下文，非外部人类或跨厂商认证；不把candidate、CI或同一执行者自检冒充fresh FINAL。
 
 ---
 
@@ -146,6 +148,9 @@ AI_Personal_Growth_RPG/
 | **Outer Growth Loop 架构** | **Phase 8A** | **Phase 8 总体架构、依赖链、信息架构与控制边界冻结** | **FINAL FROZEN** | **PR #31；merge baseline `0dffb9d706c3c941c46078c89bf3ae6e70d65d5f`；Phase 8B controlling document 以该 SHA 为不可变架构基线** |
 | **Outer Growth Loop** | **Phase 8B** | **Season + Structured Review：五表、九 RPC、RLS、API/Repository、Journey UI、并发/幂等与 Proposal CAS** | **FINAL FROZEN** | **PR #33；Reviewed Exact Head `ae35a63ab15abab6c6e7fafd06fd51281ab6e634`；Exact-Head CI `35310121814` success；merge `0e4bec5f26411669f7031af4523b6d4fca747f96`；post-merge main CI `35315613393` success** |
 | **Outer Growth Loop** | **Phase 8C** | **Journal + State：`journal_entries` authority、RLS/tenant guard、Repository/API、Journey Journal UI、7 个主观状态与 context/archive 生命周期** | **FINAL FROZEN** | **PR #35；Reviewed Exact Head `f2f4d2b2d0a857348b6282dfdbfb3cfd08f4a06d`；Exact-Head CI `35381923343` success；merge `9aa76e7ce36b20b9f99e28d6cbd08eeb7bc55b85`；post-merge main CI `35432361509` success** |
+| **Outer Growth Loop** | **Phase 8D** | **Strategy / Playbook及退出验收** | **FINAL FROZEN** | **PR37实施、PR38归档；19/20号记录** |
+| **Outer Growth Loop** | **Phase 8E** | **独立奖励账本、Wishes、冲正及防重复奖励** | **FINAL FROZEN** | **PR40实施、PR41归档；24号记录** |
+| **Outer Growth Loop** | **Phase 8F** | **成就认定、独立结算/撤销、提案审核、完整UI与退出验收** | **Implementation FINAL FROZEN；本归档发布待独立门禁** | **PR45–49；main cce3c348；29号绑定五轮证据** |
 
 ---
 
@@ -205,13 +210,13 @@ AI_Personal_Growth_RPG/
 
 ### 6.1 WSL Ubuntu 与 Windows 双环境分工
 - **文件系统**: 项目物理路径位于 `d:\AI_Personal_Growth_RPG`，在 WSL 中的挂载路径为 `/mnt/d/AI_Personal_Growth_RPG`。
-- **所有开发、测试、构建命令必须在 WSL 中执行**：
-  Windows PowerShell 环境缺少配置好的 pnpm 与 Node.js 运行时，必须通过统一命令调用 WSL：
+- **开发、测试、构建沿用 WSL 验证环境**：
+  不将早期“Windows缺少运行时”的环境快照当成永久事实；报工具缺失前须实际探测Windows和WSL。WSL使用登录shell加载运行时：
   ```bash
   wsl -d Ubuntu -- bash -lc "cd /mnt/d/AI_Personal_Growth_RPG && <命令>"
   ```
 - **Git Push 必须在 Windows PowerShell 中执行**：
-  WSL 内部的 Git 没有绑定宿主机的交互式凭据管理器，执行 `git push` 会永久挂起阻塞！提交代码后，推送到 GitHub 必须通过宿主 Windows 命令执行：
+  沿用已验证的宿主凭据路径，不以旧环境描述推断WSL永久不可用。提交代码后通过宿主Windows推送；Git所有权信任仅用命令级精确safe.directory，不改global配置：
   ```powershell
   git push origin <branch-name>
   ```
@@ -238,7 +243,7 @@ AI_Personal_Growth_RPG/
 
 ## 7. 质量门禁与验证指令集 (Quality Gates Cheatsheet)
 
-在提交任何改动或向审查 AI 提审之前，必须在 WSL 中依次执行并通过以下所有指令：
+以下是历史实现阶段的本地门禁示例，611测试/19路由等计数不是当前预期值。实现改动仍须执行所涉控制文件要求的完整测试/真实DB/harness/lint/typecheck/build及独审；当前Round5已验96files1815/1815、42页构建。仅本次五文档归档的事实核对不冒称新运行时测试；其独立发布门禁见29号§7，自身CI仍执行完整既有工作流，不禁用DB门禁。复跑DB必须使用有明确所有权的可销毁测试栈，不能直接在真实开发库跑HTTP夹具。
 
 ```bash
 # 1. 运行 Skills 专项测试套件 (82 项全过)
@@ -267,13 +272,13 @@ wsl -d Ubuntu -- bash -lc "cd /mnt/d/AI_Personal_Growth_RPG && pnpm build"
 
 ## 8. 接手 AI 极速上手与后续路线图推进指引 (Next Actions)
 
-以下长段为截至PR #40实施闭环的历史汇总；其归档待办已由本文件顶部及24号§6的PR #41合并/CI证据完成更新。8F当前状态以25号草案为准，不沿用历史段的待合并状态。
+以下长段为截至PR #40实施闭环的历史汇总；其中旧“当前/待办/BLOCKED”仅表示当时快照。2026-10-08的现行状态以本文件顶部及29号归档为准：8F实现五轮已闭环，本归档发布仍须独立门禁。保留25号已准入控制文本及所有旧证据，不沿用旧标题推翻已验收结果。
 
 当前状态：Phase 1~7 的既有冻结边界保持有效；Phase 8A 架构冻结已完成；Phase 8B 已 FINAL FROZEN；**Phase 8C: Journal + State FINAL FROZEN**。Phase 8D admission 已通过；Round 1 exact head `400cf1536e86412e6183e45289d87cb21bd56ba1` 的 CI Run `36338180207` 双绿且 Gatekeeper GO。Round 2 exact head `1910af870fc82ffde35bf76da93d4bac50a5effb` 的 CI Run `36438563584` 双绿且独立 Gatekeeper GO。Round 3 implementation exact head `2b0796e66fc900344a1571f39ebd771fe64abe47` 的 CI Run `36452011311` 双绿、独立 Gatekeeper `P0=0 / P1=0 / P2=0 + GO`；文档同步 head `789569372af37e9f9e43fe4492ad914408a10125` 亦通过 exact-head CI/Gatekeeper。Round 4 implementation exact head `6fea360adffc4f7d9cde7a159797d246ca55f592` 的 CI Run `36559214448` 双绿、独立 Gatekeeper `P0=0 / P1=0 / P2=0 + GO`。Round 5 exit verification 的 corrective implementation exact head `8b33cca8e994ba45862194d5588642e9e76626ba` 的 CI Run `36590521018` 双绿，fresh independent Gatekeeper `P0=0 / P1=0 / P2=0 + GO`。PR #37 已由用户合入 `main`，merge commit `b93273cd87d39e04a66ed0ebfd76fa95ebd2e643`；对应 post-merge main CI Run `36593720889` 双 job success。PR #38（最终归档+状态同步）亦已合入，merge commit `a1da765e492b8d93e6350ac32865d8e0018faa91`。**Phase 8D = FINAL FROZEN**（归档：`docs/Phase8/19_PHASE8D_GATEKEEPER_REREVIEW_AND_FINAL_FREEZE.md`；独立审查落盘：`docs/Phase8/20_PHASE8D_INDEPENDENT_REVIEW_RECORD.md`）。Phase 8E Round 1–2 已闭环：最终 head `bc64ce51551c95066ee1b019d29fb66761eb05e8`，CI Run `37004408985` 双绿、fresh independent Gatekeeper `P0=0 / P1=0 / P2=0 + GO`。用户于 2026-10-03 授权持续推进；随后 Round 3 exact head `de08a89be28a58c471b6417f94504030d5cde145` 由 CI `37041522823` 双绿与 fresh Huygens `P0=0/P1=0/P2=0 + GO` 接受。Round 4 exact head `a2614d23e0c0fd2f23d28aee8096a46dd25aee92` 的 CI `37051182337` 全绿，fresh Avicenna `P0=0/P1=0/P2=0 + GO`（独立154/154及反例），随后Round 5 `ff36ac72d0f0f2c3f58054835e07f5d769740ce7` 通过CI `37106817366`和fresh Ampere `P0=0/P1=0/P2=0 + GO`（独立96/96及48项检查），PR #40已由用户合并到 `b6af5a84fa3e13cdba729d4d00059e3d9b30fc84`，post-merge CI `37109984608` 全部31步骤成功；实施终局冻结见 `24_PHASE8E_GATEKEEPER_REREVIEW_AND_FINAL_FREEZE.md`，归档分支仍待独立审查/CI/用户合并，8F须独立准入；前序证据见 `docs/Phase8/22_PHASE8E_ROUND4_UI_VERIFICATION.md` 与 `23_PHASE8E_EXIT_VERIFICATION.md`。
 
-当前权威主分支基线：
+本归档进入时已验收的主分支基线（不是本归档未来提交）：
 ```text
-7a671bb2cf750fd8958135812026a0f2e1dbad91
+cce3c3480a9912e9ff4aa89e59843af05b9ab961
 ```
 
 ### Phase 6 — Knowledge Graph Canvas Modernization（FINAL FROZEN）
@@ -347,9 +352,10 @@ wsl -d Ubuntu -- bash -lc "cd /mnt/d/AI_Personal_Growth_RPG && pnpm build"
 
 ### 下一阶段推进指引 (Next Actions)
 
-Phase 8E 实施与归档均已 FINAL FROZEN；保留 Phase 1–8D 冻结边界。implementation head `ff36ac72d0f0f2c3f58054835e07f5d769740ce7` 的独立GO、CI、PR40用户合并和post-merge证据保持不变。归档PR #41 exact head `8a0444f` 通过自身CI与fresh Popper终审后，由用户合并为 `7a671bb2cf750fd8958135812026a0f2e1dbad91`；文件树相同，post-merge CI `37128640371` 的31步骤均success。详细绑定见 `docs/Phase8/24_PHASE8E_GATEKEEPER_REREVIEW_AND_FINAL_FREEZE.md` §6。这只完成8F前置基线，不是8F正式准入；生产仍gated。
+Phase 1–8E冻结边界保持。8F已准入并完成Round1–5：PR49受审head `9d516bc4200935dddb9e319d82f28bae7e57d10d` 与merge `cce3c3480a9912e9ff4aa89e59843af05b9ab961` 整树相同，Mendel fresh FINAL零finding GO，自身CI37726695023与post-main37727725161全部通过。28的PRECOMMIT状态是冻结快照；最终事实链记录在29。归档候选自身仍待门禁，不能借用实施GO自动发布。
 
 后续建议执行顺序：
-1. **8F独立准入**：读取 `docs/Phase8/25_PHASE8F_MILESTONES_IMPLEMENTATION_CONTROLLING_DRAFT.md`，基线已锁定7a671bb。既定范围为成就记录、现有Core来源防重复奖励及撤销；现实成就零积分、Artifact奖励延期。用户2026-10-04明确Artifact“已验证成就”认定也延期，已记录R1；随后对独立候选提交完成自身CI和fresh exact-head Gatekeeper，未获GO不得写0051或生产代码。保留的login/auth工作另行修复/集成。全站发布与部署验收尚未完成，8G可选。
+1. **完成本次归档发布**：只限29、MASTER和三计划文件，保留历史25–28/Check、src/tests/SQL/deps/workflow原样；候选独审GO→提交自身CI→不同fresh FINAL→受托普通merge/post-CI。随后另行核验当前main的整站功能与可用本地预览；不得假定localhost3000已是最新树/迁移，不重置真实库。PR43/44已完成独立auth/并发修复，root未提交工作仍独立保留。
 2. **可选 backlog（需迁移，非门禁项）**：已合格 `CONTEXTUAL` 上 `rpc_evaluate_strategy_status(confirm=true)` 的错误码命名 `INSUFFICIENT_SUPPORT_FOR_PROMOTION` 不够精确（行为本身 fail-closed 且已有测试 pin）。
 3. **继续保持可审计性**：后续 PR 继续绑定 exact head、CI run、独立审查结论与 merge SHA；不得把历史失败改写为成功，也不得把 skipped/local-only 结果替代真实 database-backed CI 证据。
+4. **整站交付尚未完成**：现实成就零积分、Artifact双延期、物理辅助技术与触控/liveAI未验证边界继续有效；8G可选；托管、真实数据迁移和公开部署需各自范围/必要授权，不能以阶段冻结代替网站上线。

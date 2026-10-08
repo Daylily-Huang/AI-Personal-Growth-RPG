@@ -1,5 +1,15 @@
 # 调查发现与核心架构决策 (Findings)
 
+## 2026-10-08 — 当前8F归档边界
+
+- 29号汇总已接受的准入/Round1–5，而非篡改25–28或Check投稿快照。五轮head/merge完整树相同，十次own/post CI通过API重新核验：每次completed/success且check12+integration19全部steps成功。最新实施基线cce3c348，不是当前归档自身CI。
+- 现实自述零积分；Artifact认定/奖励双延期。reward-v1的Season150、Quest100/150/200、exactMastery100/150/250是项目决定。Milestone只接受completed epic/main或Boss，普通Major奖励不等于成就准入；Mastery要求确切verified行、Season要求COMPLETED+FINAL。
+- 正确区分独审实际187/196/137/289/109与主fullsuite1815等；解析主JSON不等于独立执行。R3 metadata omission及R4三P2曾在CI绿色时被FINAL否决；历史NO-GO保留，后续纠正与fresh FINAL才关闭。
+- Root `.data/phase8f-round5-targeted.json` / fullsuite报告与runner是本机未跟踪证据，fresh clone不自带；SHA记录在29，另有已提交tests及GitHubCI路径。Git blob相同不等于CRLF磁盘原始字节相同。
+- MASTER的旧8F未准入/人工merge/currentmain/611测试信息已增加当前边界并定向修正；历史正文不扩写。归档不宣称localhost3000可用或已加载新schema；整站预览/liveAI/托管须另行核验。
+- 本次只有文档事实核对，无新DB客户端/构建或套件执行；实现历史通过不能冒充当前文档自身验收。新归档仍须独立候选GO、自身CI、不同fresh FINAL、ordinarymerge/post-CI。
+- 新归档checkout将原R5的28/test转为CRLF，旧受审SHA来自保留的R5 LF磁盘文件。28已验证LF规范化相等、Gitblob不变；29显式限定hash所有权，历史文件不做换行重写。
+
 ## 2026-10-03 — Post-merge freeze boundary
 
 - PR #40 implementation merge `b6af5a8` is tree-identical to reviewed `ff36ac7`, and its own main-push CI `37109984608` ran all 31 steps successfully. Thus implementation merge acceptance is complete; the subsequent documentation branch has a distinct review/CI/manual-merge gate.

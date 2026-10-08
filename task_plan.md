@@ -1,12 +1,22 @@
 # AI Personal Growth RPG — 项目总体计划与当前状态 (Task Plan)
 
 > **权威状态主文档**：请统一参阅 [`docs/MASTER_PROJECT_HANDOFF.md`](docs/MASTER_PROJECT_HANDOFF.md)。  
-> **当前里程碑**: Phase 8E 实施 FINAL FROZEN；PR #40 用户合并与 post-merge CI 已通过，纯文档冻结归档待独立复核/CI/用户合并（2026-10-03）。8F 生产未准入。
-> **当前主分支基线 (main)**: `b6af5a84fa3e13cdba729d4d00059e3d9b30fc84`
-> **最新状态**: Phase 8C **FINAL FROZEN**；Phase 8D admission 与 Round 1–5 全部通过。Round 5 corrective implementation exact head `8b33cca8e994ba45862194d5588642e9e76626ba` 的 CI Run `36590521018` 双绿，fresh independent Gatekeeper `P0=0 / P1=0 / P2=0 + GO`；PR #37 已由用户合入 `main`（merge `b93273cd87d39e04a66ed0ebfd76fa95ebd2e643`），post-merge main CI Run `36593720889` 双绿。**Phase 8D = FINAL FROZEN**（归档 `docs/Phase8/19_PHASE8D_GATEKEEPER_REREVIEW_AND_FINAL_FREEZE.md`）。
-> **Phase 8E 当前状态**: Round 5最终 head `ff36ac72d0f0f2c3f58054835e07f5d769740ce7`，CI `37106817366` 全绿，fresh Ampere `P0=0/P1=0/P2=0 + GO`。用户合并 PR #40 为 `b6af5a8`，与 reviewed head 树完全相同，post-merge CI `37109984608` 全部31步骤成功。24号冻结归档记录实施闭环；归档分支自身尚待审查/CI/用户合并，不冒充已经在 main。
+> **当前里程碑（2026-10-08）**: Phase8F implementation FINAL FROZEN，PR45–49已各自独立FINAL/CI/merge/post-CI闭环；当前五文档归档publication candidate，尚未自身验收/合并。现实成就零积分、Artifact认定与奖励延期；整站交付未完成。
+> **当前已验主分支基线 (main)**: `cce3c3480a9912e9ff4aa89e59843af05b9ab961`
+> **历史冻结摘要（截至2026-10-03）**: Phase 8C **FINAL FROZEN**；Phase 8D admission 与 Round 1–5 全部通过。Round 5 corrective implementation exact head `8b33cca8e994ba45862194d5588642e9e76626ba` 的 CI Run `36590521018` 双绿，fresh independent Gatekeeper `P0=0 / P1=0 / P2=0 + GO`；PR #37 已由用户合入 `main`（merge `b93273cd87d39e04a66ed0ebfd76fa95ebd2e643`），post-merge main CI Run `36593720889` 双绿。**Phase 8D = FINAL FROZEN**（归档 `docs/Phase8/19_PHASE8D_GATEKEEPER_REREVIEW_AND_FINAL_FREEZE.md`）。
+> **Phase 8E 历史快照（2026-10-03；非当前待办）**: Round 5最终 head `ff36ac72d0f0f2c3f58054835e07f5d769740ce7`，CI `37106817366` 全绿，fresh Ampere `P0=0/P1=0/P2=0 + GO`。用户合并 PR #40 为 `b6af5a8`，与 reviewed head 树完全相同，post-merge CI `37109984608` 全部31步骤成功。24号冻结归档记录实施闭环；归档分支自身尚待审查/CI/用户合并，不冒充已经在 main。
 
-## 2026-10-03 持续推进计划（优先于下方历史记录）
+## 2026-10-08 — 当前归档计划（优先于所有下方历史快照）
+
+- [complete] 8F准入及Round1–5实施门禁闭环；最后ownCI37726695023/postCI37727725161均31steps、1815、harness11、E2E11通过，fresh Mendel FINAL零finding GO。Round5两次专属栈清理均在独审释放后执行，开发环境保留。
+- [complete] 隔离`.data/phase8f-freeze` / `codex/phase8f-final-freeze`，只允许29、MASTER和三计划文档；root dirty/已冻结25–28及Check不改。十次历史CI/head/tree重新验证，归档记录旧NO-GO及证据所有权。
+- [in_progress] 五文档自检与独立风险2候选review：范围/链接/hash/完整Git树、奖励8常量和来源谓词、历史与当前状态、实现与归档/部署授权边界。任何finding修复后重新绑定，不带病提交。
+- [pending] selected commit/push/draft PR、自身exact-head CI和不同fresh FINAL零findingGO；按用户自PR44起委托ordinary merge，核验整树与post-CI。禁止admin/force/branchdelete/公开部署。
+- [pending] 归档发布闭环后单独核验整站交付缺口及可用本地预览；保持现有数据库和未提交工作，不自动实施8G/上线/真实数据迁移。全站目标继续active，无臆测百分比。
+
+下方2026-10-03及更早记录仅保留当时过程，其8E归档/8F准入/auth待办已由当前证据链解决；旧手动merge流程已由用户PR44起的明确委托替代，不是现行阻塞。
+
+## 2026-10-03 持续推进计划（历史快照）
 
 - [complete] 实时复核 Round 2 exact head、PR、CI、WSL PostgreSQL；保留并行 login/auth/package/launcher 改动。
 - [complete] Round 3：de08a89 的 CI 37041522823 双绿；Huygens fresh exact-head `P0=0/P1=0/P2=0 + GO`，独立 104/104 无跳过。0048/0049 未改，0050 corrective 接受。
