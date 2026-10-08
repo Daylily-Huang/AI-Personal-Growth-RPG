@@ -1827,3 +1827,11 @@ Next Best Action
 - AI 的 `base_value` 不把 `total_minutes` 计入奖励（同一行为拖 10 小时不应多拿 3 倍 XP）。
 - 时间只经确定性引擎的 `effectiveMinutes → timeFactor` 进入一个**有上限的、很小的**努力参照（1.00–1.15），且只是封顶校验的输入之一。
 - 若以后要让“任务规模”体现工作量，走 Quest Size 或独立 workload scale，而不是塞进 AI 语义 base。
+
+---
+
+# 72. 零XP手动技能目录（2026-10-08 用户明确批准的L1补充）
+
+新用户可在第一次Activity/AI评估前主动建立技能目录，以满足04§13的先建技能步骤。建档固定XP=0、Level=1、Mastery=M0、Confidence=0，不意味着实际能力、Evidence或奖励；真实成长仍仅由确认后的确定性结算产生。
+入口只接受技能名称，服务端认证＋专用零状态RPC生成永久UUID；不开放直接表写、指定租户/成长值或service-role绕过。重复规范名称冲突，不重置已有技能；没有自动重放结算。后续描述/归类沿既有metadata流程。
+详细范围和验收见[零XP契约](../SiteReadiness/01_ZERO_XP_MANUAL_SKILL_CONTRACT.md)。本补充不改变primary-only、Evidence要求、XP/Mastery规则、奖励常量；不代表真实AI/整站验收已经完成。

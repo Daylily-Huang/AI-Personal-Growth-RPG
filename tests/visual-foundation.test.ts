@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import { compile } from 'tailwindcss';
-import { resolveGovernanceChangedFiles, PHASE8E_ACCEPTED_BACKEND } from './helpers/governance-delta';
+import { resolveGovernanceChangedFiles, PHASE8E_ACCEPTED_BACKEND, hasSkillBootstrapScope, SKILL_BOOTSTRAP_MARKERS, SKILL_BOOTSTRAP_PRODUCTION } from './helpers/governance-delta';
 
 export const FROZEN_BACKEND_DENYLIST = [
   'src/app/api/',
@@ -146,6 +146,13 @@ export function validateVisualMigrationDelta(changedFiles: string[]): VisualMigr
     return { isVisualPR: false, violations: [] };
   }
 
+  if (hasSkillBootstrapScope(changedFiles)) {
+    // Standalone user-approved L1 scope; never compose old phase/core grants.
+    const allowed = new Set<string>(SKILL_BOOTSTRAP_PRODUCTION);
+    const violations = changedFiles.filter(file => !allowed.has(file) && !/^(docs\/|tests\/)/.test(file));
+    return { isVisualPR: true, violations };
+  }
+
   if (changedFiles.includes(AUTH_ENTRYPOINT_CONTROL) &&
       changedFiles.includes('src/app/login/page.tsx') &&
       changedFiles.filter(isVisualMigrationPath).every((file) => file === 'src/app/login/page.tsx')) {
@@ -186,6 +193,28 @@ export function validateVisualMigrationDelta(changedFiles: string[]): VisualMigr
   );
   return { isVisualPR: true, violations };
 }
+
+describe('Approved skill bootstrap visual scope is exact and independent', () => {
+  const binding = [...SKILL_BOOTSTRAP_MARKERS, ...SKILL_BOOTSTRAP_PRODUCTION];
+  it('permits only the fully controller-bound six production paths', () => {
+    expect(validateVisualMigrationDelta(binding)).toEqual({ isVisualPR: true, violations: [] });
+  });
+  it('missing any of the four markers leaves the historical rejection active', () => {
+    for (const marker of SKILL_BOOTSTRAP_MARKERS) {
+      const result = validateVisualMigrationDelta(binding.filter(file => file !== marker));
+      expect(result.violations).toContain('src/app/api/skills/route.ts');
+    }
+  });
+  it('does not compose old core/phase grants or permit adjacent source/configuration', () => {
+    for (const extra of [...AUTHORIZED_CORE_BUGFIX_ALLOWLIST, ...PHASE8E_ACCEPTED_BACKEND,
+      'src/app/api/auth/login/route.ts', 'src/lib/skills/unsafe.ts', 'src/app/skills/unsafe.tsx',
+      'src/lib/growth-engine/engine.ts', 'supabase/migrations/0052_phase8f_milestones_rpc_authority.sql',
+      'public/avatar.png', '.github/workflows/ci.yml', 'package.json', 'pnpm-lock.yaml', 'vitest.config.ts',
+      '.env.local', 'eslint.config.mjs', 'package-lock.json', '.npmrc', 'unknown.config.ts']) {
+      expect(validateVisualMigrationDelta([...binding, AUTH_ENTRYPOINT_CONTROL, PHASE8E_REWARD_WISHES_CONTROL_DOCUMENT, extra]).violations).toEqual([extra]);
+    }
+  });
+});
 
 describe('Visual Foundation & Design Tokens Runtime Verification', () => {
   const rootDir = process.cwd();

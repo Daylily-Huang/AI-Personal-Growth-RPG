@@ -256,6 +256,8 @@ $$;
 
 ## 5. Security & RLS Matrix
 
+下表为Stage5冻结基线的历史权限描述，并非已核验的relacl；2026-10-08新增零状态创建及skills ACL收紧见§6。仍不开放客户端直接写入，不能将“写权限不扩大”误写成“ACL字节不改变”。
+
 | 表名 (`Table`) | SELECT 权限 | INSERT 权限 | UPDATE 权限 | DELETE 权限 | 租户外键防护 (Composite FK) |
 |---|---|---|---|---|---|
 | `public.domains` | `auth.uid() = user_id` | `auth.uid() = user_id` | `auth.uid() = user_id` | `auth.uid() = user_id` | `(user_id, parent_id) -> domains(user_id, id) ON DELETE SET NULL (parent_id)` |
@@ -264,3 +266,9 @@ $$;
 | `public.evidence_records` | `auth.uid() = user_id` | **Service Role Only** (RPC 写入) | **Service Role Only** | **Revoked** | `(user_id, skill_id) -> skills(user_id, id) ON DELETE SET NULL (skill_id)` |
 | `public.mastery_events` | `auth.uid() = user_id` | **Service Role Only** (RPC 写入) | **Revoked** | **Revoked** | `evidence_id -> evidence_records(id) ON DELETE SET NULL` |
 | `public.mastery_verifications` | `auth.uid() = user_id` | **Service Role Only** (RPC 写入) | **Service Role / Admin** | **Revoked** | `skill_id -> skills(id)` |
+
+## 6. 手动目录创建补充（2026-10-08）
+
+用户明确批准在第一次确认评估前手动建立零XP技能目录。除原settle_activity创建路径外，新增rpc_create_skill_zero_xp(jsonb)受控入口：只接受name、auth.uid绑定用户、随机UUID、XP0/Level1/M0/Confidence0、未分类且无Evidence/奖励/账本。它不能更新/重置已有技能，不支持客户端租户或成长字段，规范名称重复返回冲突。
+仅authenticated可以EXECUTE，函数内部再次核验角色与UID；PUBLIC/anon/service_role拒绝。旧0028实际上授予table写权限、0037仅撤销authenticated UPDATE，旧直接写靠SELECT-only RLS拒绝，并非ACL全部撤销。新增0053明确撤销skills的anon/authenticated全部table权限，只恢复authenticated SELECT（包括禁止TRUNCATE/TRIGGER/维护权限）；service_role/其他表/现有RLS不变，旧SECURITY DEFINER结算/metadata/派生状态规则不变。本例外不是扩大Core写入权限。
+上位产品补充02§72；完整scope/验收/治理门禁见[零XP契约](../SiteReadiness/01_ZERO_XP_MANUAL_SKILL_CONTRACT.md)。旧冻结迁移不改，追加0053；真实开发库升级仍需新备份/恢复演练和独审。

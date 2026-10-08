@@ -46,6 +46,7 @@ import {
   evaluateScopedPolicy,
   resolveGovernanceChangedFiles,
   PHASE5_SKILLS_POLICY,
+  skillBootstrapPolicy,
 } from "./helpers/governance-delta";
 
 import SkillsPage from "@/app/skills/page";
@@ -478,7 +479,7 @@ describe("Stage 5C-UI Skills Modernization — Governance Audits", () => {
     const delta = resolveGovernanceChangedFiles();
     expect(delta.files.length).toBeGreaterThan(0);
 
-    const result = evaluateScopedPolicy(delta.files, PHASE5_SKILLS_POLICY);
+    const result = evaluateScopedPolicy(delta.files, skillBootstrapPolicy(delta.files));
     if (result.applicable) {
       if (result.violations.length > 0) {
         throw new Error(

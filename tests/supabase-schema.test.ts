@@ -75,6 +75,7 @@ const EXPECTED_ORDER = [
   "0050_phase8e_reward_canonical_source_fix",
   "0051_phase8f_milestones_foundation",
   "0052_phase8f_milestones_rpc_authority",
+  "0053_zero_xp_manual_skill_authority",
 ];
 
 
