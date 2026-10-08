@@ -44,6 +44,7 @@ function SkillsPageContent() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [focusTarget, setFocusTarget] = useState<CanvasFocusTarget | null>(null);
   const [keyboardFocusId, setKeyboardFocusId] = useState<string | null>(null);
+  const [keyboardFocusNonce, setKeyboardFocusNonce] = useState(0);
   const [viewMode, setViewMode] = useState<SkillsViewMode>(() =>
     searchParams.get("view") === "table" ? "table" : "graph",
   );
@@ -133,6 +134,7 @@ function SkillsPageContent() {
       if (!nextId) return;
 
       setKeyboardFocusId(nextId);
+      setKeyboardFocusNonce((value) => value + 1);
       const target = visible.nodes.find((node) => node.id === nextId);
       if (target?.position) {
         setFocusTarget((previous) => ({
@@ -148,7 +150,7 @@ function SkillsPageContent() {
   useEffect(() => {
     if (!keyboardFocusId || viewMode !== "graph") return;
     document.getElementById(`skill-graph-node-${keyboardFocusId}`)?.focus();
-  }, [flowNodes, keyboardFocusId, viewMode]);
+  }, [flowNodes, keyboardFocusId, keyboardFocusNonce, viewMode]);
 
   function updateViewMode(nextMode: SkillsViewMode) {
     setViewMode(nextMode);

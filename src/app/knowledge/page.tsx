@@ -70,6 +70,7 @@ function KnowledgeMapPageContent() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [focusTarget, setFocusTarget] = useState<CanvasFocusTarget | null>(null);
   const [keyboardFocusId, setKeyboardFocusId] = useState<string | null>(null);
+  const [keyboardFocusNonce, setKeyboardFocusNonce] = useState(0);
 
   const doFetchGraph = useCallback(async (): Promise<KnowledgeGraphResponse | null> => {
     const res = await fetchKnowledgeGraph(filters);
@@ -225,6 +226,7 @@ function KnowledgeMapPageContent() {
       if (!nextId) return;
 
       setKeyboardFocusId(nextId);
+      setKeyboardFocusNonce((value) => value + 1);
       const target = layout.nodes.find((node) => node.id === nextId);
       if (target?.position) {
         setFocusTarget((previous) => ({
@@ -240,7 +242,7 @@ function KnowledgeMapPageContent() {
   useEffect(() => {
     if (!keyboardFocusId || viewMode !== "graph") return;
     document.getElementById(`knowledge-graph-node-${keyboardFocusId}`)?.focus();
-  }, [flowNodes, keyboardFocusId, viewMode]);
+  }, [flowNodes, keyboardFocusId, keyboardFocusNonce, viewMode]);
 
   function updateViewMode(nextMode: KnowledgeViewMode) {
     setViewMode(nextMode);

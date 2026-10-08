@@ -174,7 +174,7 @@ function CanvasInner({
         pannable
         zoomable
         position="bottom-left"
-        className="!bg-[var(--surface-base)] !border !border-[var(--border-subtle)] !rounded-[var(--radius-md)] !shadow-[var(--shadow-card)]"
+        className="hidden md:block !bg-[var(--surface-base)] !border !border-[var(--border-subtle)] !rounded-[var(--radius-md)] !shadow-[var(--shadow-card)]"
         nodeColor="var(--border-default)"
         maskColor="rgba(239, 236, 228, 0.70)"
       />

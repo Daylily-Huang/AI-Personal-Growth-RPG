@@ -335,6 +335,63 @@ export function skillBootstrapPolicy(files: readonly string[]): ScopedPolicy {
   return { ...PHASE5_SKILLS_POLICY, authorizedExceptions: ["src/app/api/skills/route.ts", SKILL_BOOTSTRAP_MIGRATION] };
 }
 
+// SiteReadiness04: standalone two-class mobile scope; old policies stay immutable.
+export const MOBILE_GRAPH_BASE = "f100d1fe10583d1b228e5ad23b0e9fded2730b25";
+export const MOBILE_GRAPH_CONTROL = "docs/SiteReadiness/04_GRAPH_MOBILE_OVERLAY_AND_CONNECTED_NAV_CONTRACT.md";
+export const MOBILE_GRAPH_PRODUCTION = [
+  "src/app/skills/components/SkillGraphCanvas.tsx", "src/app/knowledge/components/KnowledgeGraphCanvas.tsx",
+] as const;
+export const MOBILE_GRAPH_MARKERS = [MOBILE_GRAPH_CONTROL, ...MOBILE_GRAPH_PRODUCTION,
+  "tests/graph-mobile-overlay.test.tsx", "tests/graph-mobile-governance.test.ts"] as const;
+export const MOBILE_GRAPH_AUDIT_ADDITIONS = [MOBILE_GRAPH_CONTROL,
+  "docs/SiteReadiness/05_GRAPH_MOBILE_VERIFICATION.md",
+  "tests/graph-mobile-overlay.test.tsx", "tests/graph-mobile-governance.test.ts"] as const;
+export const MOBILE_GRAPH_ALLOWED = [...MOBILE_GRAPH_MARKERS,
+  "docs/SiteReadiness/05_GRAPH_MOBILE_VERIFICATION.md", "docs/MASTER_PROJECT_HANDOFF.md",
+  "task_plan.md", "findings.md", "progress.md", "tests/helpers/governance-delta.ts",
+  "tests/visual-foundation.test.ts", "tests/phase6-knowledge-ui.test.tsx", "tests/graph-canvas-governance.test.ts",
+] as const;
+export function hasMobileGraphScope(files: readonly string[]): boolean {
+  return MOBILE_GRAPH_MARKERS.every(file => files.includes(file));
+}
+export function mobileGraphScopeViolations(files: readonly string[]): string[] {
+  const allowed = new Set<string>(hasMobileGraphScope(files) ? MOBILE_GRAPH_ALLOWED : []);
+  return files.filter(file => !allowed.has(file));
+}
+export function mobileGraphKnowledgePolicy(files: readonly string[]): ScopedPolicy {
+  if (!hasMobileGraphScope(files)) return graphCanvasKnowledgePolicy(files);
+  return { scopeTriggers: MOBILE_GRAPH_PRODUCTION,
+    forbiddenPrefixes: ["src/", "supabase/", "public/", "scripts/", ".github/"],
+    forbiddenExactFiles: ["package.json", "pnpm-lock.yaml", "next.config.ts", "tsconfig.json", "vitest.config.ts"],
+    authorizedExceptions: MOBILE_GRAPH_PRODUCTION };
+}
+
+// SiteReadiness06 successor: old MOBILE_GRAPH/GRAPH_CANVAS policies above stay unchanged.
+export const CONNECTED_FOCUS_CONTROL = "docs/SiteReadiness/06_CONNECTED_KEYBOARD_FOCUS_CORRECTIVE_CONTRACT.md";
+export const CONNECTED_FOCUS_PAGES = ["src/app/skills/page.tsx", "src/app/knowledge/page.tsx"] as const;
+export const CONNECTED_FOCUS_PRODUCTION = [...MOBILE_GRAPH_PRODUCTION, ...CONNECTED_FOCUS_PAGES] as const;
+export const CONNECTED_FOCUS_MARKERS = [...MOBILE_GRAPH_MARKERS, CONNECTED_FOCUS_CONTROL,
+  ...CONNECTED_FOCUS_PAGES, "tests/graph-connected-focus.test.tsx"] as const;
+export const CONNECTED_FOCUS_AUDIT_ADDITIONS = [...MOBILE_GRAPH_AUDIT_ADDITIONS,
+  CONNECTED_FOCUS_CONTROL, "tests/graph-connected-focus.test.tsx"] as const;
+export const CONNECTED_FOCUS_ALLOWED = [...MOBILE_GRAPH_ALLOWED, CONNECTED_FOCUS_CONTROL,
+  ...CONNECTED_FOCUS_PAGES, "tests/graph-connected-focus.test.tsx", "tests/phase8f-ui-governance.test.ts"] as const;
+export function hasConnectedFocusScope(files: readonly string[]): boolean {
+  return CONNECTED_FOCUS_MARKERS.every(file => files.includes(file));
+}
+export function graphInteractionScopeViolations(files: readonly string[]): string[] {
+  if (!hasConnectedFocusScope(files)) return mobileGraphScopeViolations(files);
+  const allowed = new Set<string>(CONNECTED_FOCUS_ALLOWED);
+  return files.filter(file => !allowed.has(file));
+}
+export function graphInteractionKnowledgePolicy(files: readonly string[]): ScopedPolicy {
+  if (!hasConnectedFocusScope(files)) return mobileGraphKnowledgePolicy(files);
+  return { scopeTriggers: CONNECTED_FOCUS_PRODUCTION,
+    forbiddenPrefixes: ["src/", "supabase/", "public/", "scripts/", ".github/"],
+    forbiddenExactFiles: ["package.json", "pnpm-lock.yaml", "next.config.ts", "tsconfig.json", "vitest.config.ts"],
+    authorizedExceptions: CONNECTED_FOCUS_PRODUCTION };
+}
+
 export const PHASE6_KNOWLEDGE_POLICY: ScopedPolicy = {
   scopeTriggers: [
     "src/app/knowledge/",

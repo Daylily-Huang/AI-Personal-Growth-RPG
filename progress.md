@@ -1,5 +1,17 @@
 # 项目历史工作进度 (Progress Log)
 
+- 最终freeze前独立运行及主清理均终态：Lagrange190/105、actualReact24/helper64/scope147/old1911/58assertions/7blob/9authority/4prod inverse通过；76465→a21cdd real105exit0/02:31:21/22.34s，ed2df0 actualBEGIN READONLY/ROLLBACKreward8、immutable+strict/0049prosrc/skills+knowledgeRLStrue、pg.end/taskresidual[]，DIRECT永久release。主b97aaf/76355→136a4f exact taskstop exit0，6edb4e task容器/卷0/dev11running10healthy/clone保持。主raw2088/105files、browser88+24及disposal不是其第二执行。全19/七docs最后冻结待hash-bound候选裁决，不提前commit/PR/FINAL/merge，全部旧失败/正式source/3preview/backup不动。
+
+- 最新full主终态4120→33148e exit0：105files2088/2088、零fail/skip/pending/todo/unhandled，02:20:41/541.33s；126f1b严格rawJSON/hash47A247...EDF2C，包含growth11/E2E11/authority67/concurrency20/HTTP18。200a73主taskclients无、既有Next保持、WSL exact4owned通过（Windows默认npipe库存失败仅该探测错误），显式独占授Lagrange task54331/54332；其offline190/攻击暂无finding，主不DB/HTTP待永久release。七docs最终更新/精确task清理/十九候选binding仍待，无candidateGO/commit/PR/merge，旧failedrun制品保留。
+
+- 最新corrected terminal：54951→9752be9files190/190、02:17:42/86.79s，190含历史import重复非新增；95296→108e3b newbuild/TS/42pages/7Lq2EG4VC6CsNUhRKCggE，19084→3108ff最终tsc/lint0零warn。c20577realChromeconnected88＋c8171fgeometry24及twov2图主vis检；d02ff6console0/close/十表E020...1A7CB完全不变，bc7f15只task3552832/3052 SIGTERM→80720 exit1。84f043/4120新完整liveDB/HTTP执行，source4/tests8/.next冻结，freshcandidate/grant/release/disposal/note+manifest尚待；旧failures不覆盖。
+
+- 06准入终态Mencius P0/P1/P2=0 ADMISSION GO：14calls/8分钟，actualReact/page/helper复现旧bug并验证独立nonce；168extra/mix/9missing/661old/7protected/3Git异常只读通过。controller raw698EDB...5D88A不改，后才两page各3窄点修复与九marker/19scope selector。一次聚合patch因Phase6猜错实际调用context被原子拒绝（61cf23证实零变）；按实际evaluateScopedPolicy调用重新patch成功。new correctedtarget9files/build/lint进行；当前未实施验收/commit/PR，旧failure保持。
+
+- 最新v1 NO-GO：target164/lint/build/TS/42pages/NXgcnfJC83ChQF2qPg9VG及canonical41+harness11=52/52 terminal0，Chrome七宽度等geometry24/desktopmap真实pass；connected原生两图600244同目标repeat失焦。d9d019 browserclose+十表before/after严格一致，原source/预览/备份不动。06补充十九路径ADMISSION pending，未page/旧guard改动、未commit/PR/fullsuite，不把旧green冒作通过。
+
+- 当前手机图谱：Harvey新04准入零findingGO仅ADMISSION（controller134E00...56311）；新overlay8在旧生产字节4red/4pass已保存历史。生产仅两个className新增hidden md:block，旧规则、hook、映射、权限、SQL、AI不改。新十四路径治理和完整f100范围/旧累计ab84仅四audit additions适配、全部主门禁与真实connected browser及fresh independent候选尚待，未commit/PR/merge。
+
 ## 2026-10-09 纠正当前优先状态
 
 - 最终冻结前终态：不同fresh Ptolemy19214→1512c4测试子命令exit0，8files167/167零skip/fail，00:30:29CST91.75s；两outer验证错误与跟进修正保留，b567a4实际BEGIN READ ONLY/ROLLBACK调用奖励8/immutable terminal0、两RLStrue。其直接DB_ACCESS_COMPLETE/all wrappers/HTTP/Next/pg terminal后，主290b29/session5177→ca1f0a exact-owned synthetic stop exit0；44f9fc task容器0/卷0、原dev11running/10healthy、既有恢复副本保持。五记录/全18冻结待独立最终hash-bound verdict，未candidateGO前不commit/PR；旧v3 NO-GO和失败制品、正式source/preview/全部备份不动。下方pending为此前过程快照。
