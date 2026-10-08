@@ -1,5 +1,22 @@
 # 调查发现与核心架构决策 (Findings)
 
+## 2026-10-09 独立反例推翻v3候选
+
+- 最终纠正实测/清理已终态：Ptolemy167/167测试子命令0，实际calculate_reward_grant_v1只读8调用/immutable/skills与knowledge_nodes RLStrue，直接DB_ACCESS_COMPLETE；先前rules_versions/process census及源码顺序比较两验证错误均保留，不当source缺陷或外层成功。主exact-owned栈5177→ca1f0a exit0、44f9fc task容器/卷0，原dev11/10healthy、恢复副本/备份/preview保持。全18与03冻结待独立最后hash裁决；当前仍不是candidateGO/committedFINAL/整站完成。下方pending为历史过程状态。
+- 当前纠正主验全终态：115/newbuild/TS/lint/realbrowser19/full102files2024/0skip/harness11，raw7176...11A2D和browser60E520...DDEC保存；不是复用v3绿色。不同fresh Ptolemy实际hook15/Canvas+installedstore26/治理96、offline115关闭三反例但尚非候选GO；独占167/read-only8/释放/清理/hash最终绑定待。主所有clients终态且停止DB/HTTP，正式source/preview/备份保持；MiniMap/noedge/AI证明限度不变。
+- 独立realReact实际hook发现可见→全隐藏→相同可见沿用lastFit导致1→1→1；只无visible时reset，不得清临时measurement-null，否则会反转手动camera。actualinstalled store证明builtinfitView在部分节点未测量时已有自动setViewport，必须移除两Canvas自动prop；保留Controls手动fit及storemin/maxzoom。可选clusters默认[]破坏memo，页面传clusters不消除组件API缺陷，私有stable空数组解决。
+- 四新回归对旧字节均失败（cb369a：27pass/4fail），支持finding而不是为通过改弱断言。旧111/163/2020/build/browser为对应历史，03/current顶段明确NO-GO，新runtime/独审/hash待。全部旧源/记录/数据保留，未commit/GH/正式source写入。
+
+## 当前图谱修复证据与限制（2026-10-08）
+
+- accepted ab84/PR51/source0053/livepreview3011已另轮闭环，后文旧8F归档和技能候选是历史；本轮不写正式source，不重跑升级、不清理备份。
+- 两图desktop→mobile基线0/8而cold8/8，只证明resize缺陷。实际安装ReactFlow12.11.3 controlled节点可有measured但默认nodesInitialized长期false；使用实际nodeLookup正/有限测量与viewportready，不靠固定timeout。Knowledge inline mapping对象重建会清空实测，等价useMemo保持节点事实/identity。Skills canvas原100%额外吃工具栏高度导致真实祖先clip，改flex剩余高度而非硬编码61。
+- 独立Hume仅ADMISSION GO后精确4生产/7markers/18文件守卫适配；旧policy/拒绝/保护blob不弱化，新6guard组和原41import重复执行如实区分。v3主实际102files2020/2020零skip原JSON6487...9476C4，旧v2 1971/1973原JSON保持；任何早期绿色不冒充最终字节。
+- 主realChrome13d39f单条exit0，clip/全部44px控件/resize/cold/filter/layout/list/table/zoom/nativeTabEnter通过，两v3c图主直接查看。MiniMap现有overlay盖部分节点保持，无edge只验证ArrowDown不跳和nativeTab/Enter，connected-edge真实箭头未测；原键盘组件断言在完整suite保持。E2E AI为受控mock，不等于项目真实AI。
+- 18文件fresh候选审查/独占163+read-only8及释放/精确清理/最终hash绑定尚待，不提前写GO或commit。详见docs/SiteReadiness/03_GRAPH_CANVAS_READINESS_VERIFICATION.md；现有3011和正式source/备份保留，整站13步/真实AI/公开部署未完成。
+
+以下发现是历史过程，其旧当前状态由上段与MASTER覆盖。
+
 ## 2026-10-08 — 当前8F归档边界
 
 - 29号汇总已接受的准入/Round1–5，而非篡改25–28或Check投稿快照。五轮head/merge完整树相同，十次own/post CI通过API重新核验：每次completed/success且check12+integration19全部steps成功。最新实施基线cce3c348，不是当前归档自身CI。

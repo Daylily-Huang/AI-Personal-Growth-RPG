@@ -12,6 +12,8 @@ import type { SkillFlowNodeType } from "@/app/skills/components/SkillNode";
 import type { KnowledgeFlowNodeType } from "@/app/knowledge/components/KnowledgeNodeView";
 
 const camera = vi.hoisted(() => ({
+  viewportInitialized: true,
+  missingIds: new Set<string>(),
   setCenter: vi.fn(() => Promise.resolve()),
   fitView: vi.fn(() => Promise.resolve()),
 }));
@@ -19,6 +21,7 @@ const camera = vi.hoisted(() => ({
 const flowSnapshot = vi.hoisted(() => ({
   nodes: [] as unknown[],
   edges: [] as unknown[],
+  automaticFit: undefined as boolean | undefined,
 }));
 
 vi.mock("@xyflow/react", () => ({
@@ -31,17 +34,25 @@ vi.mock("@xyflow/react", () => ({
     children,
     nodes,
     edges,
+    ref,
+    fitView,
   }: {
     children: React.ReactNode;
     nodes?: unknown[];
     edges?: unknown[];
+    ref?: React.Ref<HTMLDivElement>;
+    fitView?: boolean;
   }) => {
     flowSnapshot.nodes = nodes ?? [];
     flowSnapshot.edges = edges ?? [];
-    return <div data-testid="mock-react-flow">{children}</div>;
+    flowSnapshot.automaticFit = fitView;
+    return <div ref={ref} data-testid="mock-react-flow">{children}</div>;
   },
   ReactFlowProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   useReactFlow: () => camera,
+  useStore: (selector: (state: unknown) => unknown) => selector({
+    nodeLookup: { get: (id: string) => camera.missingIds.has(id) ? undefined : ({ measured: { width: 224, height: 112 } }) },
+  }),
 }));
 
 vi.mock("@/app/skills/components/SkillNode", () => ({
@@ -95,6 +106,10 @@ const knowledgeNode = {
 } as unknown as KnowledgeFlowNodeType;
 
 function setMotionPreference(reduced: boolean, duration = "250ms") {
+  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({
+    width: 800, height: 600, x: 0, y: 0, top: 0, left: 0, right: 800, bottom: 600,
+    toJSON: () => ({}),
+  });
   Object.defineProperty(window, "matchMedia", {
     configurable: true,
     writable: true,
@@ -153,8 +168,14 @@ function renderKnowledgeGraph(focusNonce: number, rawEdges: RawGraphEdge[] = [])
 
 beforeEach(() => {
   vi.useFakeTimers();
+  vi.stubGlobal("ResizeObserver", class {
+    observe() {}
+    disconnect() {}
+  });
   camera.setCenter.mockClear();
   camera.fitView.mockClear();
+  camera.missingIds.clear();
+  flowSnapshot.automaticFit = undefined;
   flowSnapshot.nodes = [];
   flowSnapshot.edges = [];
 });
@@ -163,9 +184,70 @@ afterEach(() => {
   cleanup();
   vi.useRealTimers();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe("Phase 7 Round 3 motion and reduced-motion contract", () => {
+  it.each(["Skills", "Knowledge"] as const)("gates initial %s fitting on every visible node measurement", async (kind) => {
+    setMotionPreference(false);
+    const common = { focusTarget: null, fitKey: "loaded" };
+    const skills = {
+      ...common, nodes: [skillNode, { ...skillNode, id: "skill-b" }],
+      rawEdges: [] as SkillFlowEdge[], onSelect: vi.fn(), onNavigate: vi.fn(),
+    };
+    const knowledge = {
+      ...common, nodes: [knowledgeNode, { ...knowledgeNode, id: "knowledge-b", data: { ...knowledgeNode.data, id: "knowledge-b" } }],
+      rawEdges: [] as RawGraphEdge[], selectedEdgeId: null,
+      onSelectNode: vi.fn(), onSelectEdge: vi.fn(), onNavigate: vi.fn(), onClearSelection: vi.fn(),
+    };
+    const graph = () => kind === "Skills" ? <SkillGraphCanvas {...skills} /> : <KnowledgeGraphCanvas {...knowledge} />;
+    camera.missingIds.add(kind === "Skills" ? "skill-b" : "knowledge-b");
+    const view = render(graph()); await flushGraphEffects();
+    expect(flowSnapshot.automaticFit).not.toBe(true);
+    expect(camera.fitView).not.toHaveBeenCalled();
+    camera.missingIds.clear(); view.rerender(graph()); await flushGraphEffects();
+    expect(camera.fitView).toHaveBeenCalledTimes(1);
+    expect(flowSnapshot.automaticFit).not.toBe(true);
+  });
+  it("keeps Knowledge node identities stable when optional clusters are omitted", async () => {
+    setMotionPreference(false);
+    const props = {
+      nodes: [knowledgeNode], rawEdges: [] as RawGraphEdge[], selectedEdgeId: null as string | null,
+      onSelectNode: vi.fn(), onSelectEdge: vi.fn(), onNavigate: vi.fn(), onClearSelection: vi.fn(),
+      focusTarget: null, fitKey: "loaded",
+    };
+    const view = render(<KnowledgeGraphCanvas {...props} />); await flushGraphEffects();
+    const first = flowSnapshot.nodes;
+    view.rerender(<KnowledgeGraphCanvas {...props} selectedEdgeId="edge-a" />); await flushGraphEffects();
+    expect(flowSnapshot.nodes).toBe(first);
+    expect(flowSnapshot.nodes[0]).toBe(first[0]);
+    expect(camera.fitView).toHaveBeenCalledTimes(1);
+  });
+  it("keeps Knowledge node identities stable during camera/store-only rerenders", async () => {
+    setMotionPreference(false);
+    const props = {
+      nodes: [knowledgeNode],
+      clusters: [{ id: "domain-a", label: "科研 · 概念", x: 0, y: 0, width: 640, height: 280, count: 1 }],
+      rawEdges: [] as RawGraphEdge[],
+      selectedEdgeId: null as string | null,
+      onSelectNode: vi.fn(), onSelectEdge: vi.fn(), onNavigate: vi.fn(), onClearSelection: vi.fn(),
+      focusTarget: null, fitKey: "loaded",
+    };
+    const view = render(<KnowledgeGraphCanvas {...props} />);
+    await flushGraphEffects();
+    const first = flowSnapshot.nodes;
+    view.rerender(<KnowledgeGraphCanvas {...props} selectedEdgeId="edge-a" />);
+    await flushGraphEffects();
+    expect(flowSnapshot.nodes).toBe(first);
+    expect(first[0]).toEqual(expect.objectContaining({
+      id: "cluster-domain-a", type: "cluster", position: { x: 0, y: 0 },
+      data: { label: "科研 · 概念", count: 1 },
+      style: { width: 640, height: 280, zIndex: "var(--z-bg-env)", pointerEvents: "none" },
+      selectable: false, focusable: false, draggable: false,
+    }));
+    expect(first[1]).toEqual(expect.objectContaining({ id: knowledgeNode.id, position: knowledgeNode.position }));
+    expect(camera.fitView).toHaveBeenCalledTimes(1);
+  });
   it("uses zero-duration Skills camera movement under reduced motion", async () => {
     setMotionPreference(true);
     renderSkillsGraph(1);

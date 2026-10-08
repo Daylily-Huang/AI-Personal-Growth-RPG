@@ -17,6 +17,7 @@ import type { SkillFlowEdge } from "@/lib/store/types";
 import SkillNodeView, { type SkillFlowNodeType } from "./SkillNode";
 import { getRelationVisual } from "./presentation";
 import type { SkillGraphDirection } from "./keyboard-navigation";
+import { useGraphCameraFit } from "@/components/graph/useGraphCameraFit";
 
 const NODE_TYPES = { skillNode: SkillNodeView };
 
@@ -111,6 +112,7 @@ function CanvasInner({
   fitKey: string;
 }) {
   const rf = useReactFlow();
+  const containerRef = useGraphCameraFit({ nodes, fitKey, padding: 0.2, resolveDuration: resolveGraphCameraDuration });
   const edges = useMemo(() => toFlowEdges(rawEdges), [rawEdges]);
   const interactiveNodes = useMemo(
     () =>
@@ -140,26 +142,16 @@ function CanvasInner({
     });
   }, [focusTarget, rf]);
 
-  useEffect(() => {
-    const reducedMotion =
-      typeof window !== "undefined" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const timer = window.setTimeout(() => {
-      void rf.fitView({ padding: 0.2, duration: resolveGraphCameraDuration(reducedMotion) });
-    }, 60);
-    return () => window.clearTimeout(timer);
-  }, [fitKey, rf]);
-
   return (
     <>
       <style>{`.skills-graph-controls .react-flow__controls-button { min-height: var(--touch-target-min); min-width: var(--touch-target-min); }`}</style>
       <ReactFlow
+      ref={containerRef}
       nodes={interactiveNodes}
       edges={edges}
       nodeTypes={NODE_TYPES}
       onNodeClick={(_, node) => onSelect(node.id)}
       onPaneClick={() => onSelect(null)}
-      fitView
       fitViewOptions={{ padding: 0.2 }}
       minZoom={0.15}
       maxZoom={1.75}

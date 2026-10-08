@@ -8,6 +8,7 @@ import {
   evaluateScopedPolicy,
   resolveGovernanceChangedFiles,
   PHASE6_KNOWLEDGE_POLICY,
+  graphCanvasKnowledgePolicy,
 } from "./helpers/governance-delta";
 import KnowledgeMapPage from "@/app/knowledge/page";
 import LinkedSkillSummary from "@/app/knowledge/components/LinkedSkillSummary";
@@ -274,7 +275,7 @@ describe("Phase 6 scope and token gates", () => {
     const delta = resolveGovernanceChangedFiles();
     expect(delta.files.length).toBeGreaterThan(0);
 
-    const result = evaluateScopedPolicy(delta.files, PHASE6_KNOWLEDGE_POLICY);
+    const result = evaluateScopedPolicy(delta.files, graphCanvasKnowledgePolicy(delta.files));
     if (result.applicable) {
       expect(result.violations).toEqual([]);
     } else {

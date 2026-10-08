@@ -1,5 +1,24 @@
 # AI Personal Growth RPG — 项目总体计划与当前状态 (Task Plan)
 
+## 2026-10-09 纠正门禁（覆盖下方v3状态）
+
+- [complete runtime and disposal; in_progress final binding] 不同fresh Ptolemy completed-build167/167、实际SELECT read-only8/immutable/两RLS通过，直接DB_ACCESS_COMPLETE/全部clients终态；两个外层审查验证错误保留，测试子命令0与最终b567a4 terminal0归属明确。主5177→ca1f0a精确销毁仅本轮合成栈，44f9fc task容器0/卷0、原dev11running/10healthy与恢复副本保持。03/MASTER/全18现冻结待fresh hash-bound candidate verdict；未GO前不commit，不重复运行已销毁栈或复用旧v3绑定。下方pending为时间顺序过程快照，最终状态由本条覆盖。
+- [complete main corrected terminal; fresh candidate in_progress] target115、新build/TS/42pages/_nVxKWA83gF6HIOqusLbm/lint、realChrome19原JSON60E520...DDEC/两v4图、真实full102files2024/2024/0skip raw7176...11A2D、显式harness11均terminal0；源码/tests/.next冻结。Ptolemyfresh同Risk2独立115/realReact15/Canvas-store26/守卫96通过、无新finding，独占task167/read-only8进行；主全部clients释放后不DB/HTTP。待直接release→精确仅task清理→全18note/hashbinding零findingGO，不能先commit，旧v3NO-GO/失败制品保持。
+- [complete finding/reproduction] FeynmanRisk2 NO-GO P1=2/P2=1，独立111/163/read-only8/107均通过仍真实复现三漏洞；DB_ACCESS_COMPLETE/close。主新增4回归在旧源码27pass/4fail准确复现（cb369a），不是测试fixture误判。
+- [in_progress correction validation] 只三生产片段：all-hidden清lastFit、取消两个builtin自动fit、稳定EMPTY_CLUSTERS；临时measurement-null不清，原camera/edge/focus/Controls/业务保持。旧source3/03/NO-GO及runtimeJSON/图保留；target115进行，之后新build/完整suite/browser/同Risk2纠正独审与18-file最终绑定。旧2020/build/browser不证明修正通过。
+- [pending] 无新的候选GO前不commit/PR/FINAL/merge/更新preview；task栈保留仅供纠正，原source/3011/3010/备份不动。全站13步/真实AI仍待。
+
+## 当前图谱就绪度修复候选（2026-10-08，覆盖后文旧待办）
+
+- [complete previous milestones] PR50/51已通过独立candidate/FINAL、自身CI、ordinarymerge/post-CI；当前main/base ab84df35319d08247388051c451be523afe3c7a7。source0053单次正式升级/无损后验及3011匿名preview已单独验收；原数据/全部备份与旧3010保持，不能因后文历史pending重复迁移。
+- [complete admission] 图谱02精确四UI/18全文件范围SHA7129A840...4489E，Hume独立Risk2 ADMISSION ONLY GO/offline139后才适配限定七markers守卫；旧策略、旧拒绝与受保护blob保持。
+- [complete main validation] 实际measured/viewport就绪、ResizeObserver/RAF、Knowledge等价对象memo、Skills剩余高度；v3 lint/TS/42pages/build、harness11、targeted111、真实完整102files2020/2020零skip通过。raw6487FBB8...9476C4与旧失败JSON保留；19条真实browser结果/两手机图片/clip/44px/resize/cold/filter/layout/list/table/zoom/nativeTabEnter通过，MiniMapoverlay与无edge导航证明限度明确，不能冒称手机全部无遮挡。
+- [in_progress] Feynman不同fresh Risk2 PRECOMMIT CANDIDATE：独立实际反例/targeted163/read-only8、最后全18文件及note/MASTER/hash绑定；主客户端释放后给独占task54331/54332，无原dev访问。其释放后精确全栈清理，再冻记录；有finding同档修复重新送验。无candidateGO前不commit。
+- [pending] 通过后只受托普通commit/draft PR→exact-head ownCI→不同fresh committed-head FINAL→ordinary merge/post-main CI；另行构建/独审更新用户preview。没有admin/force/branch删除/公开部署。
+- [pending whole-site active] 04§13全新用户13步、真实项目AI（用户稍后提供配置，不能mock替代）、connected-edge实际浏览器导航/进一步手机可用性与部署边界。Reality0/Artifact认定奖励双延期/八冻结奖励保持；本轮不是整站完成。
+
+以下计划保留为历史投稿状态，其人工merge/旧baseline/pending不得覆盖当前证据。
+
 > **权威状态主文档**：请统一参阅 [`docs/MASTER_PROJECT_HANDOFF.md`](docs/MASTER_PROJECT_HANDOFF.md)。  
 > **当前里程碑（2026-10-08）**: Phase8F implementation FINAL FROZEN，PR45–49已各自独立FINAL/CI/merge/post-CI闭环；当前五文档归档publication candidate，尚未自身验收/合并。现实成就零积分、Artifact认定与奖励延期；整站交付未完成。
 > **当前已验主分支基线 (main)**: `cce3c3480a9912e9ff4aa89e59843af05b9ab961`

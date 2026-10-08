@@ -283,7 +283,7 @@ function SkillsPageContent() {
 
         {/* CENTER — Interactive Canvas */}
         <section
-          className="relative min-w-0 flex-1 h-full"
+          className="relative min-w-0 min-h-0 flex flex-col flex-1 h-full"
           aria-label={viewMode === "table" ? "技能表格视图" : "技能图谱画布"}
         >
           <div className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--border-subtle)] bg-[var(--surface-base)] px-3 py-2 text-xs text-[var(--text-secondary)]">
@@ -297,6 +297,7 @@ function SkillsPageContent() {
               {viewMode === "table" ? "切换图谱" : "切换表格"}
             </button>
           </div>
+          <div className="relative min-h-0 flex-1" data-testid="skills-view-content">
           {loading ? (
             <div className="flex h-full items-center justify-center gap-3 text-[var(--text-muted)]" role="status" aria-busy="true" aria-label="正在加载技能树">
               <Loader2 className="h-8 w-8 animate-spin motion-reduce:animate-none text-[var(--text-muted)]" aria-hidden="true" />
@@ -357,6 +358,7 @@ function SkillsPageContent() {
               fitKey={`${domainId ?? "all"}|${stateFilter}|${graph ? "loaded" : "empty"}|${search === "" ? "q0" : "q1"}`}
             />
           )}
+          </div>
         </section>
 
         {/* RIGHT — Global InspectorDrawer Integration (Responsive single-instance: desktop static column on xl, overlay on < xl: xl:relative xl:w-[var(--drawer-width-desktop)] xl:shrink-0 xl:hidden xl:static) */}

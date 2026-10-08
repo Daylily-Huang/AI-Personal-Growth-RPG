@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { compile } from 'tailwindcss';
 import { resolveGovernanceChangedFiles, PHASE8E_ACCEPTED_BACKEND, hasSkillBootstrapScope, SKILL_BOOTSTRAP_MARKERS, SKILL_BOOTSTRAP_PRODUCTION } from './helpers/governance-delta';
+import { hasGraphCanvasScope, graphCanvasScopeViolations } from './helpers/governance-delta';
 
 export const FROZEN_BACKEND_DENYLIST = [
   'src/app/api/',
@@ -146,6 +147,9 @@ export function validateVisualMigrationDelta(changedFiles: string[]): VisualMigr
     return { isVisualPR: false, violations: [] };
   }
 
+  if (hasGraphCanvasScope(changedFiles)) {
+    return { isVisualPR: true, violations: graphCanvasScopeViolations(changedFiles) };
+  }
   if (hasSkillBootstrapScope(changedFiles)) {
     // Standalone user-approved L1 scope; never compose old phase/core grants.
     const allowed = new Set<string>(SKILL_BOOTSTRAP_PRODUCTION);
