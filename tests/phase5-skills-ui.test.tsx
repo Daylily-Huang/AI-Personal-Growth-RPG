@@ -831,6 +831,13 @@ describe("Stage 5C-UI Skills Modernization — Interactive Components & Workspac
     });
 
     // Select a node to open InspectorDrawer
+    const canvasRegion = screen.getByRole("region", { name: "技能图谱画布" });
+    expect(canvasRegion.classList.contains("flex-col")).toBe(true);
+    expect(canvasRegion.classList.contains("min-h-0")).toBe(true);
+    const viewContent = screen.getByTestId("skills-view-content");
+    expect(viewContent.parentElement).toBe(canvasRegion);
+    expect(viewContent.classList.contains("flex-1")).toBe(true);
+    expect(viewContent.classList.contains("min-h-0")).toBe(true);
     fireEvent.click(screen.getByText("分布式系统设计"));
 
     // InspectorDrawer opens with title

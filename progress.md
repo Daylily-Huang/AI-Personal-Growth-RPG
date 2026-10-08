@@ -1,5 +1,22 @@
 # 项目历史工作进度 (Progress Log)
 
+## 2026-10-09 纠正当前优先状态
+
+- 最终冻结前终态：不同fresh Ptolemy19214→1512c4测试子命令exit0，8files167/167零skip/fail，00:30:29CST91.75s；两outer验证错误与跟进修正保留，b567a4实际BEGIN READ ONLY/ROLLBACK调用奖励8/immutable terminal0、两RLStrue。其直接DB_ACCESS_COMPLETE/all wrappers/HTTP/Next/pg terminal后，主290b29/session5177→ca1f0a exact-owned synthetic stop exit0；44f9fc task容器0/卷0、原dev11running/10healthy、既有恢复副本保持。五记录/全18冻结待独立最终hash-bound verdict，未candidateGO前不commit/PR；旧v3 NO-GO和失败制品、正式source/preview/全部备份不动。下方pending为此前过程快照。
+- 最新主终态：20296→9de952 full102files2024/2024、0fail/skip/pending/todo/unhandled，00:16:10CST597.58s；e057c6严格机器JSON重解析/hash7176EDEC577D0E41D102323C09A374B07C178AEE3B2DCB8E652F01CF28111A2D。84589→0b4777显式harness11/11 exit0、00:26:59/1.74s；新build/TS/lint/target115/browser19/twov4图均已终态见03。a5dd16 main3051/runner/Vitest无，仅3既有Next+4task容器；不同fresh Ptolemy独立115/实际模块15+26/治理96无新finding，已明确独占task DBgrant跑167/read-only8；主零DB/HTTP至directrelease。精确owneddisposal及18note/hashbinding未完成，无candidateGO/commit/PR/merge，旧v3NO-GO与制品保持。
+- Feynman34/40预算内完整Risk2 PRECOMMIT NO-GO P0=0/P1=2/P2=1，三真实反例推翻v3候选，即使自身111/163/107治理/read-only8及主2020已过。DIRECT DB_ACCESS_COMPLETE、全部clients终态/close；真实receiptcanvas-readiness-precommit-no-go-v3.json，旧18manifestD804...B35（reviewer格式SHA+两空格+path），旧03SHA62057...5AD。
+- 主76203→cb369a terminal1，四新用例准确拒绝旧source：2files27pass4fail31，00:08:22CST26.70s。cf480e旧三个source＋03逐字节备份原hash一致；原JSON/图不覆盖。仅hasVisibleNodes空/hidden reset、删除两builtinfitView prop、stableEMPTY_CLUSTERS三窄修，原参数/事实/业务/Controls保持；33501纠正target5files待终态。必须新build/full/browser与freshRisk2同档复审，旧v3全绑定失效，不能提交或宣称整站完成。
+
+## 当前图谱修复候选（2026-10-08，历史过程保持）
+
+- 新隔离base ab84 / codex/site-canvas-readiness-20261008，仅四UI+限定tests/docs共18路径；root dirty/原数据/3011/3010/备份保留。02控制7129A840...4489E经HumeRisk2 ADMISSION GO/独立139后才适配七markers+精确路径守卫；不是candidateGO。
+- 第一期单元绿但browser失败、Knowledge内联节点清空测量、Skills真实祖先clip、v2full1971/1973失败全保留，详情03。当前actual measured hook/同映射memo/实际剩余高度及旧policy/assertions/参数保持。
+- final target5files111/111/f5dc6c，v3build985f35/42pages/TS/BUILD_IDDHl_WThDKbc-3BpykLl6I、lint8e642d、显式harness0d1d43 11/11 terminal0。81214→2bf675 full102files2020/2020、0skip/fail/pending/todo，23:39:44CST613.95s；35c84c主机器JSON重解析/hash6487FBB83A854183EDE61D771CEB30C0D5CD9D9CBC59F9F2647A1DD6519476C4。guard47含6新+旧41重复注册，不虚增新覆盖。
+- 单条browser13d39f terminal0/19结果，18几何与控件＋1交互、真实resize/cold/filter/layout/list/table/zoom/nativeTabEnter/祖先clip/44px/nav/无root横溢出、两v3c手机图片主视检通过。MiniMap原overlay及无edge导航证明限制明确，不声称每像素无遮挡/connected-arrow/browser全站AI。cfdff3console0/0+专用browserclose；63a9f8精确cwd/端口复核、be0065仅SIGTERM3051taskPID3119309，219daa预期stop exit1；e517a6任务客户端无、原Next服务保持。
+- Feynman不同fresh Risk2静态/离线开始，主全客户端释放后明确DB_ACCESS_GRANTED仅task54331/54332；独立163+readonly8/实际反例及最终18hash binding待终态。主此间不访问DB/HTTP；全部释放后精确ownedstack清理、冻结03/MASTER才申请candidateGO。尚无commit/PR/ownCI/FINAL/merge/新preview；用户PR44起普通受托流程和不部署边界保持。
+
+下方日志为已提交历史快照，旧pending/人工merge/基线不覆盖当前记录。
+
 ## 2026-10-08 — 8F实施闭环及独立归档候选
 
 - 8F准入head7614a517/CI37138706181/Aristotle FINAL GO；随后PR43 auth、PR44并发观测修复独立完成，实施由ea344a05进入。PR45–49的完整SHA、树、CI、独审记录见29；本段取代下方旧8F未准入/8E归档待办作为现行状态。

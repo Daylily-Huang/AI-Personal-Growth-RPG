@@ -299,6 +299,37 @@ export const SKILL_BOOTSTRAP_PRODUCTION = [SKILL_BOOTSTRAP_MIGRATION, "src/app/a
 export function hasSkillBootstrapScope(files: readonly string[]): boolean {
   return SKILL_BOOTSTRAP_MARKERS.every(file => files.includes(file));
 }
+
+// SiteReadiness02: standalone UI repair, never composes old Core/backend grants.
+export const GRAPH_CANVAS_CONTROL = "docs/SiteReadiness/02_GRAPH_CANVAS_READINESS_AND_RESIZE_CONTRACT.md";
+export const GRAPH_CANVAS_PRODUCTION = [
+  "src/components/graph/useGraphCameraFit.ts", "src/app/skills/components/SkillGraphCanvas.tsx",
+  "src/app/knowledge/components/KnowledgeGraphCanvas.tsx", "src/app/skills/page.tsx",
+] as const;
+export const GRAPH_CANVAS_MARKERS = [GRAPH_CANVAS_CONTROL, ...GRAPH_CANVAS_PRODUCTION,
+  "tests/graph-camera-fit.test.tsx", "tests/graph-canvas-governance.test.ts"] as const;
+export const GRAPH_CANVAS_ALLOWED = [...GRAPH_CANVAS_MARKERS,
+  "docs/MASTER_PROJECT_HANDOFF.md", "docs/SiteReadiness/03_GRAPH_CANVAS_READINESS_VERIFICATION.md",
+  "task_plan.md", "findings.md", "progress.md", "tests/helpers/governance-delta.ts",
+  "tests/phase5-skills-ui.test.tsx", "tests/phase6-knowledge-ui.test.tsx",
+  "tests/phase7-motion-reduced-motion.test.tsx", "tests/visual-foundation.test.ts",
+  "tests/phase8f-ui-governance.test.ts",
+] as const;
+export function hasGraphCanvasScope(files: readonly string[]): boolean {
+  return GRAPH_CANVAS_MARKERS.every(file => files.includes(file));
+}
+export function graphCanvasScopeViolations(files: readonly string[]): string[] {
+  const allowed = new Set<string>(hasGraphCanvasScope(files) ? GRAPH_CANVAS_ALLOWED : []);
+  return files.filter(file => !allowed.has(file));
+}
+export function graphCanvasKnowledgePolicy(files: readonly string[]): ScopedPolicy {
+  if (!hasGraphCanvasScope(files)) return PHASE6_KNOWLEDGE_POLICY;
+  return { scopeTriggers: GRAPH_CANVAS_PRODUCTION,
+    forbiddenPrefixes: ["src/", "supabase/", "public/", "scripts/", ".github/"],
+    forbiddenExactFiles: ["package.json", "pnpm-lock.yaml", "next.config.ts", "tsconfig.json", "vitest.config.ts"],
+    authorizedExceptions: GRAPH_CANVAS_PRODUCTION };
+}
+
 export function skillBootstrapPolicy(files: readonly string[]): ScopedPolicy {
   if (!hasSkillBootstrapScope(files)) return PHASE5_SKILLS_POLICY;
   return { ...PHASE5_SKILLS_POLICY, authorizedExceptions: ["src/app/api/skills/route.ts", SKILL_BOOTSTRAP_MIGRATION] };

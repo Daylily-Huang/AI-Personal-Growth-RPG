@@ -25,6 +25,9 @@ import type {
   KnowledgeSourceType,
 } from "@/lib/knowledge/types";
 import type { KnowledgeGraphDirection } from "./keyboard-navigation";
+import { useGraphCameraFit } from "@/components/graph/useGraphCameraFit";
+
+const EMPTY_CLUSTERS: KnowledgeCluster[] = [];
 
 const NODE_TYPES = {
   knowledgeNode: KnowledgeNodeView,
@@ -171,7 +174,7 @@ export interface CanvasFocusTarget {
 
 function CanvasInner({
   nodes,
-  clusters = [],
+  clusters = EMPTY_CLUSTERS,
   rawEdges,
   selectedEdgeId,
   onSelectNode,
@@ -193,6 +196,22 @@ function CanvasInner({
   fitKey: string;
 }) {
   const rf = useReactFlow();
+  const interactiveNodes = useMemo(() => [
+    ...clusters.map((cluster): Node => ({
+      id: `cluster-${cluster.id}`, type: "cluster", position: { x: cluster.x, y: cluster.y },
+      data: { label: cluster.label, count: cluster.count },
+      style: { width: cluster.width, height: cluster.height, zIndex: "var(--z-bg-env)", pointerEvents: "none" },
+      selectable: false, focusable: false, draggable: false,
+    })),
+    ...nodes.map((node) => ({
+      ...node,
+      // Keep the semantic node as the sole keyboard target.
+      focusable: false,
+      domAttributes: { tabIndex: -1, role: "presentation" },
+      data: { ...node.data, onSelect: onSelectNode, onNavigate },
+    })),
+  ], [clusters, nodes, onSelectNode, onNavigate]);
+  const containerRef = useGraphCameraFit({ nodes: interactiveNodes, fitKey, padding: 0.25, resolveDuration: resolveGraphCameraDuration });
   const edges = useMemo(
     () => toFlowEdges(rawEdges, selectedEdgeId),
     [rawEdges, selectedEdgeId],
@@ -206,42 +225,17 @@ function CanvasInner({
     });
   }, [focusTarget, rf]);
 
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      void rf.fitView({
-        padding: 0.25,
-        duration: resolveGraphCameraDuration(window.matchMedia("(prefers-reduced-motion: reduce)").matches),
-      });
-    }, 60);
-    return () => window.clearTimeout(timer);
-  }, [fitKey, rf]);
-
   return (
     <>
       <style>{`.knowledge-graph-controls .react-flow__controls-button { min-height: var(--touch-target-min); min-width: var(--touch-target-min); }`}</style>
       <ReactFlow
-      nodes={[
-        ...clusters.map((cluster): Node => ({
-          id: `cluster-${cluster.id}`, type: "cluster", position: { x: cluster.x, y: cluster.y },
-          data: { label: cluster.label, count: cluster.count },
-          style: { width: cluster.width, height: cluster.height, zIndex: "var(--z-bg-env)", pointerEvents: "none" },
-          selectable: false, focusable: false, draggable: false,
-        })),
-         ...nodes.map((node) => ({
-           ...node,
-           // React Flow's wrapper must not compete with the semantic node control
-           // below for keyboard focus; the custom node is the sole graph target.
-           focusable: false,
-           domAttributes: { tabIndex: -1, role: "presentation" },
-           data: { ...node.data, onSelect: onSelectNode, onNavigate },
-         })),
-      ]}
+      ref={containerRef}
+      nodes={interactiveNodes}
       edges={edges}
       nodeTypes={NODE_TYPES}
       onNodeClick={(_, node) => { if (node.type !== "cluster") onSelectNode(node.id); }}
       onEdgeClick={(_, edge) => onSelectEdge(edge.id)}
       onPaneClick={onClearSelection}
-      fitView
       fitViewOptions={{ padding: 0.25 }}
       minZoom={0.1}
       maxZoom={2.0}
