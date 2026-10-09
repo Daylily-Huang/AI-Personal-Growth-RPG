@@ -1,5 +1,32 @@
 # 调查发现与核心架构决策 (Findings)
 
+## 2026-10-09 — 新用户指南当前事实
+
+当前最终证据分层：主durable109/2254actualexit0+主Chrome与private十表；独立153/memory+明确授权340/readonlySQL8/actualboth500Level4ledger500+privatebaseline自行核实，DIRECT永久release；精确task销毁是主e73d9a证据而非独立第二DB会话。extra26 tmpGit越界必须披露排除strictreadonly，不隐去；旧P2/unknownsession保留。七docs/全21冻结待freshhashbound GO，仍无commit/FINAL/merge/sitecomplete。
+
+durable-v3补齐实际exit0/signalnull+109files2254全passed/零skip，14source与nPyk未变；v2未知exit保持历史。独立freshLeibniz已有153/memory+旧scope/constants证据，但extra26 OS tmpGit越出literalreadonly须保留披露/排除strictproof，不把这次工具边界错误造为产品finding或隐去。当前已明确给它独占合成DB、主零DBHTTP，尚未candidateGO。
+
+成功机器报告与进程退出证据不同：v2 CB0B...5FD36确实109/2254全passed/341内部suites，但长任务会话Unknown process id不能证明exit0；当前v3新durablewrapper补完整终态，production/test14未改。McClintock静态零finding但未独立DB/最终freeze整体NO-GO，不冒称原P2全面关闭。
+
+新v2浏览器确为修正构建nPyk与最新coherent fixtureLevel4，原form流程缺AI502不产生assessment/XP；已有XP500/M8目录不重置、真实401清空。14geometry+5nativeTab+safeerror/retry全过，三租户十表A9EE...D78C8A只读严格保持。full66349尚未终态，不能签candidate GO或借旧2254；新同Risk2独审待。
+
+纠正仅newHTTP fixture计算等级及DB parity/group，不改冻结引擎；nPyk新构建/TS/lint与实际九文件340/340零skip完成，四runtime缺失/不同在Next/business dispatch前拒绝。独立P2当前尚待fresh同Risk2关闭，主green不冒充GO；真实AI仍等待用户。
+
+主只读6f8a94发现新HTTPfixture XP500等级2不符合冻结deterministic curve（实际4）；不涉及Guide生产逻辑或现有引擎错误，不能修Core。正确测试准备应复用playerLevelFromXp而非新硬编码数值。运行中full不改源，原当前hash/结果历史保留，修夹具后fresh同风险及全部所需门禁重验。
+
+真实旧流程已主Chrome验证：明确用户点击旧QuickLog会保存Activity再assess，专属AI配置缺失真实502/ai_not_configured、Activity pending、无assessment/XP；guide仍仅按保存记录准备，未偷触发assess。20条七宽度/原生Tab/error拦截+2已成长/real401成立，三owner十表前后CE0739...EAAB4相同；不把Authfixture和原表单写入混为guide自动写。新target实际322/8file而非340/9，原old18名称错滤未执行需最终full补齐。全部浏览器/3053任务Next已精确关闭，fullsuite与不同fresh independentcandidate尚待，主runtimegreen不是GO。
+
+命名纠正独立GO已终态：Avicenna全文07/raw80D9...、原F16A重建、所有常量/21scope无差异，两次四actualIDs/labels/workdir/ports相同。只准入精确ee4，不宽容旧ee48/fallback；配置guard拒绝的首次栈初始化历史保留。主v4机器JSON实际status为519passed/5skipped而非pending；GUI/API阅读源码已确认QuickLog会先保存后显式assess，缺项目AI实际502 ai_not_configured，不走demo/mock、不确认XP。浏览器测试应验证保存识别但不得称真实AI成功。实际PlayerState无id，不用undefined字段冒充租户ID；可按专用合成runUUID和表单结果绑定。
+
+首次任务名与实测CLI标签不一致：ee48 config生成ee4四组件、相同专属workdir与端口；guard真实terminal1正确fail closed。只修精确准入名称并重新独审，不“自动发现任意stack”、不绕过owner检查。尚无业务DB/HTTP；CLI初始化新合成schema不冒称零数据库操作。主v3 329/tsc/全量lint已0，v4终态后才读报告，首次读取未生成报告的null计数无效。
+
+已接受PR53合并/post-mainCI及3013匿名preview；旧MASTER/三plan冻结候选pending为历史。当前07经两NO-GO→freshRisk2准入GO，只限21paths。
+Dashboard fresh在已有quest/skill后关闭，因此增加常驻Header与EmptyState两Link，原按钮/回调/fresh/权威文案不改；新/onboarding不属于AppShell，独立main/h1/返回Dashboard。
+实际requestrepo缺公开config会Demo200/auth0，clientpresence零GET以及build/runtime公开tuple精确绑定必须一起满足，合法UUID/401不是来源证明；旧API和env不改。
+旧graph-mobile working真实入口是第五guard必要适配，先ee48原始strict再filter12→原f100政策；Dashboard旧policy无泛lib/components deny，不扩大第六guard。
+纯准备事实仅exactactiveMain/activecatalog/savedActivity；不由时长/AI/XP/缓存推定、不重置成长；真实AI/十三步仍未过。
+主83首次pure/UI green仅旧字节，lint同步setter与异步卸载夹具三TypeError历史保留并窄修，最终v3/build/完整DB/浏览器/独审仍待。详08。
+
 ## 2026-10-09 — 手机小地图承重
 
 最终运行/清理已经终态：独立190+105、实际React24/helpers64/治理147+1911、readonly8/immutable+strict/0049prosrc/2RLS通过且永久release；主仅owned taskstop136a4f，6edb4e task0/0、dev11/10healthy与clone保持。七docs/19path冻结待独立最后hash verdict，不能以无中间finding提前candidateGO。浏览器tie没有fixture、不冒称之；原f100 helper不改、独立真实helper64含tie覆盖。full2088/browser88+24/tenfacts/清理是主执行，独审不声称第二full/browser/disposal。正式user数据、root7dirty、全部备份与3旧preview仍保留。

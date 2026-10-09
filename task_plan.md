@@ -1,5 +1,37 @@
 # AI Personal Growth RPG — 项目总体计划与当前状态 (Task Plan)
 
+## 2026-10-09 — 新用户指南（当前阶段，历史记录保持）
+
+- [complete main/independent runtimes and exact cleanup; pending final21 hash-bound candidate] 主build/lint/tsc/harness11/340/durable109files2254exit0以及新Chrome/三owner10tables保持过；freshLeibniz自己153/memory/授权340/readonly8+prosrc/2RLS/cacheparity过，永久release。主62ab30→e73d9a精确task4容器1卷→0/receipt124632...ACF3D，正式11/10/备份/旧previews/root四dirty保持。extra26 tmpGit边界失误披露排除strictproof，旧NO-GO/unknownexit/raw均保留。七docs/全21冻结送其最后离线绑定，未candidateGO不commit；之后ownCI/不同freshFINAL/merge/postCI仍待，realAI/十三步/整站未完。
+
+- [complete durable main full; in_progress fresh independent exclusive DB] v3真实terminal0/109files2254全passed/零skip/raw96A815...CD7E6/terminal113EB3...D3C78、14source/.next保持，maincensus[]/QA3053closed后明确freshLeibniz独占grant ONLY指定340及readonlySQL。主停止DBHTTP；其153/memory通过，extra26临时Git边界失误披露排除strictreadonly，待ownDB/release/主清理/final21。未candidateGO不能commit。
+
+- [NO-GO incomplete gate; in_progress durable full replay] McClintock153静态/offline零finding但无DB独验/最终21故NO-GO已close。v2full实际109/2254全passed，但原session回收未知exit不能补0；保留全部raw，只ignoredwrapper新v3/65679捕获durable终态。source14/.next保持，新freshRisk2/full范围与340/SQL8/grant/release/disposal仍待，不commit。
+
+- [complete corrected main browser; in_progress corrected full / fresh Risk2] 新Chrome4flow+20geometry/tab/error+2grown/real401，全新v2fixturecoherentXP500/Level4/M8，三owner十表A9EE...D78C8A实际rollback读前后相同；仅ownQA/3053精确结束，旧preview保持。66349纠正完整livePG/HTTP正在运行，source14/.next冻结，独审先offline、不DB/HTTP到显式grant，未GO不commit。
+
+- [complete corrective narrow gates; in_progress browser/full/fresh Risk2] 新build nPykPa9YZVfieKwMF1QUv/43pages/TS、lint0、actual配置四负例0dispatch、实际九文件340/340零skip（旧HTTP18正确匹配）已过。新3053开始；只测试fixture纠正，production五文件原hash，旧P2 NO-GO与所有历史保持，不能commit。
+
+- [complete first validation; NO-GO historical] 首full109/2254零skip/980B...9885、Averroes153/44/9/16已终态；独立P2 fixtureLevel不一致使候选NO-GO，旧green/14manifest/原HTTP603C/build-v1保存。
+- [in_progress correction] 只newHTTP用现有playerLevelFromXp及双方DB XP/Level parity断言、syntheticfixturegroup；production五路径不变。新build/target/browser/fullsuite/freshRisk2待，不能提前commit。
+
+- [in_progress fixture correction queued after active suite] 冻结等级函数XP500实际4，newHTTP夹具目前写2。Guide只读准备不消费等级，但须补一致fixture；不改正在运行80149的14source/test，终态后仅新HTTP用existing deterministic level helper并重验。所有firstgreen历史保留，Averroes未DBgrant、不签candidateGO，新同档审查后最终绑定。
+
+- [complete main build/live target/browser] newbuild43/TS/实际CkE0QxeLA0RX-dnt764no、final lint0，real八文件322/322零skip；Chrome真实旧注册/MainQuest/zeroXP/rawsave→guide重访、20geometry/tab/safeerror及2grown/real401通过，三owner十表严格CE0739...EAAB4不变。真实AI缺失502未XP/assessment，不称全十三步。QA仅3053精确结束，旧preview保持。
+- [in_progress fullsuite / independent candidate] cd5d46/80149完整livePG/HTTP运行；Averroes不同freshRisk2独立static/offline，noDB/HTTPuntilexplicitgrant。14source/test/.next冻结；七docs待fullterminal/disposal/21manifest；未candidateGO不commit/PR。
+
+- [complete naming ADMISSION; in_progress build] Avicenna6calls/190.85s exact07 80D9...752CF P0/P1/P2=0 ADMISSION GO，只改任务名；原F16A保留。按GO更新精确ee4/runtimehelper，实际四容器receipt记录后e1b03e/78064构建进行；最终lint87763进行。v4 actual519pass+5skipped/15files离线，不称live zero-skip。
+
+- [in_progress corrective ADMISSION] CLI将首次ee48任务名实际归一为ee4，精确owned guard拒绝；仅07命名纠正需fresh Risk2 GO，未业务DB/HTTP/build。原F16A准入/stack-start失败保留，不放宽任意prefix。
+- [complete preliminary local gates] v3九文件329/329、tsc及全量lint终态0；v4更广旧UI/配置gate离线终态0，live五项离线skip不当最终验收。
+
+- [complete] PR53 ordinary merge ee48/tree379aff、own/post-main CI2088/11/11及新3013匿名preview闭环。
+- [complete] 07 independent fresh Risk2 ADMISSION P0/P1/P2=0 GO/F16A...636F0，两个旧NO-GO不覆盖；范围21/5production/4newtests/5guards/7docs，11markers/12new-only。
+- [in_progress] 只读guide、回执解析、两固定入口/五守卫实施。首83green，lint setter修正0；异步卸载fixture80/3保留，当前v3/完整定向待。
+- [pending] final tsc/lint/build、exactnewsynthetic stack真实HTTP/PG/fullsuite、Chrome注册→旧MainQuest/技能/活动→guide重访/七宽度/zeroCore读保持。
+- [pending] fresh candidate独审/grant/release/disposal/21hashGO、commit/ownCI/不同FINAL/ordinarymerge/postCI、随后新acceptedpreview。
+- [pending] 项目真实AI（用户稍后提供）、完整十三步/整站验收；不借mock或公开部署权限。
+
 ## 2026-10-09 — 当前手机图谱范围（覆盖后文旧PR52 pending）
 
 - [complete main/independent runtime/disposal; in_progress final candidate binding] Lagrange独立190/React24/helpers64/147+1911/58old/7blobs/9authority/4prod逆向及granted105/SQL8+immutable+strict/0049prosrc/2RLS通过，DIRECT永久DB_ACCESS_COMPLETE；主76355→136a4f精确仅task销毁exit0、6edb4e容器/卷0、dev11/10healthy和clone/预览/备份保持。主2088/105files和browser88+24属主证据。七docs/全19现冻结待独立hash-bound candidate GO，未GO前不commit；04/06/旧failures/source12/.next完全保持。该GO后还必须selected19commit/draftPR/ownCI/不同freshFINAL/ordinarymerge/postCI，不称整站完成。

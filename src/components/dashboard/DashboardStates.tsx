@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import type { DashboardSnapshot } from "@/lib/store/types";
 import { AlertCircle, RefreshCw, Sparkles, PenLine } from "lucide-react";
 import { GlassPanel, SecondaryButton } from "@/components/ui";
@@ -232,6 +233,7 @@ export function EmptyState({
           <span>立即开始第一次记录</span>
         </button>
       )}
+      <div><Link href="/onboarding" prefetch={false} className="inline-flex min-h-[var(--touch-target-min)] items-center justify-center rounded-xl border border-[var(--border-default)] px-4 py-2 text-xs text-[var(--text-primary)] hover:border-[var(--border-hover-neutral)] focus-visible:outline-[var(--focus-ring-width)] focus-visible:outline-[var(--focus-ring-color)]">查看入门指南</Link></div>
     </GlassPanel>
   );
 }
