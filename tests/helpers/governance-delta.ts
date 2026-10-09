@@ -502,3 +502,58 @@ export function phase8eNavigationPolicy(files: readonly string[]): ScopedPolicy 
   return { ...GLOBAL_APPSHELL_POLICY, authorizedExceptions: [...(GLOBAL_APPSHELL_POLICY.authorizedExceptions ?? []), ...PHASE8E_ACCEPTED_BACKEND] };
 }
 
+// SiteReadiness07: current strict scope, independent of every historical Core grant.
+export const NEW_USER_GUIDE_BASE = "ee48b84ce989f1d2904e94116d300513d77ef3e4";
+export const NEW_USER_GUIDE_CONTROL = "docs/SiteReadiness/07_NEW_USER_GUIDE_CONTRACT.md";
+export const NEW_USER_GUIDE_PRODUCTION = [
+  "src/app/onboarding/page.tsx", "src/components/onboarding/GettingStartedGuide.tsx",
+  "src/lib/onboarding/progress.ts", "src/components/dashboard/DashboardHeader.tsx",
+  "src/components/dashboard/DashboardStates.tsx",
+] as const;
+export const NEW_USER_GUIDE_TESTS = ["tests/onboarding-progress.test.ts", "tests/onboarding-guide.test.tsx",
+  "tests/onboarding-governance.test.ts", "tests/onboarding-http.test.ts"] as const;
+export const NEW_USER_GUIDE_MARKERS = [NEW_USER_GUIDE_CONTROL, "docs/Design ChatGPT/02_PRODUCT_DESIGN.md",
+  ...NEW_USER_GUIDE_PRODUCTION, ...NEW_USER_GUIDE_TESTS] as const;
+export const NEW_USER_GUIDE_ADDITIONS = [...NEW_USER_GUIDE_MARKERS,
+  "docs/SiteReadiness/08_NEW_USER_GUIDE_VERIFICATION.md"] as const;
+export const NEW_USER_GUIDE_ALLOWED = [...NEW_USER_GUIDE_ADDITIONS,
+  "tests/helpers/governance-delta.ts", "tests/visual-foundation.test.ts", "tests/graph-canvas-governance.test.ts",
+  "tests/phase8f-ui-governance.test.ts", "tests/graph-mobile-governance.test.ts",
+  "docs/MASTER_PROJECT_HANDOFF.md", "task_plan.md", "findings.md", "progress.md"] as const;
+export function hasNewUserGuideScope(files: readonly string[]): boolean {
+  return NEW_USER_GUIDE_MARKERS.every(file => files.includes(file));
+}
+export function newUserGuideScopeViolations(files: readonly string[]): string[] {
+  const allowed = new Set<string>(hasNewUserGuideScope(files) ? NEW_USER_GUIDE_ALLOWED : []);
+  return files.filter(file => !allowed.has(file));
+}
+export type NewUserGuideGitOptions = { cwd?: string; execute?: (command: string) => string };
+function newUserGuideGit(options: NewUserGuideGitOptions, args: string): string {
+  try {
+    return options.execute ? options.execute(args) : execSync(`git ${args}`, { encoding: "utf8", cwd: options.cwd });
+  } catch {
+    throw new Error("FAIL-CLOSED: new-user guide Git query failed");
+  }
+}
+export function resolveNewUserGuideWorkingFiles(options: NewUserGuideGitOptions = {}): string[] {
+  const tracked = newUserGuideGit(options, `diff --no-renames --name-only -z ${NEW_USER_GUIDE_BASE} --`).split("\0").filter(Boolean);
+  const untracked = newUserGuideGit(options, "ls-files --others --exclude-standard -z").split("\0").filter(Boolean);
+  return [...tracked, ...untracked];
+}
+/** Positive remote HEAD equality, not the weaker merge-base==HEAD ancestor assumption. */
+export function resolveNewUserGuideChangedFiles(options: NewUserGuideGitOptions = {}): GovernanceDelta {
+  const revision = (command: string) => {
+    const value = newUserGuideGit(options, command).trim();
+    if (!/^[a-f0-9]{40}$/.test(value)) throw new Error("FAIL-CLOSED: invalid new-user guide Git revision");
+    return value;
+  };
+  const head = revision("rev-parse HEAD"), remote = revision("rev-parse origin/main");
+  const mergeBase = revision(`merge-base ${NEW_USER_GUIDE_BASE} HEAD`);
+  if (mergeBase !== NEW_USER_GUIDE_BASE) throw new Error("FAIL-CLOSED: new-user guide accepted base is not an ancestor");
+  const mode = remote === head ? "current-main-push" : "pr-branch";
+  const range = mode === "current-main-push" ? `${revision('rev-parse "HEAD^1"')}..${head}` : `${NEW_USER_GUIDE_BASE}...${head}`;
+  const files = newUserGuideGit(options, `diff --no-renames --name-only -z ${range}`).split("\0").filter(Boolean);
+  if (!files.length) throw new Error("FAIL-CLOSED: empty new-user guide changed-file range");
+  return { mode, range, mergeBase, files };
+}
+

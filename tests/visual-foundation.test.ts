@@ -6,6 +6,7 @@ import { resolveGovernanceChangedFiles, PHASE8E_ACCEPTED_BACKEND, hasSkillBootst
 import { hasGraphCanvasScope, graphCanvasScopeViolations } from './helpers/governance-delta';
 import { hasMobileGraphScope, mobileGraphScopeViolations } from './helpers/governance-delta';
 import { hasConnectedFocusScope, graphInteractionScopeViolations } from './helpers/governance-delta';
+import { hasNewUserGuideScope, newUserGuideScopeViolations } from './helpers/governance-delta';
 
 export const FROZEN_BACKEND_DENYLIST = [
   'src/app/api/',
@@ -149,6 +150,9 @@ export function validateVisualMigrationDelta(changedFiles: string[]): VisualMigr
     return { isVisualPR: false, violations: [] };
   }
 
+  if (hasNewUserGuideScope(changedFiles)) {
+    return { isVisualPR: true, violations: newUserGuideScopeViolations(changedFiles) };
+  }
   if (hasConnectedFocusScope(changedFiles)) {
     return { isVisualPR: true, violations: graphInteractionScopeViolations(changedFiles) };
   }

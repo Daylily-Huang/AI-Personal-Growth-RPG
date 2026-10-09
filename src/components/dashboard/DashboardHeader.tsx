@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import { PenLine } from "lucide-react";
 
 export interface DashboardHeaderProps {
@@ -36,6 +37,7 @@ export function DashboardHeader({
       {/* Right: Action CTA strictly matching behavior */}
       {onQuickLog && (
         <div className="flex items-center gap-3 shrink-0">
+          <Link href="/onboarding" prefetch={false} className="inline-flex min-h-[var(--touch-target-min)] items-center justify-center rounded-xl border border-[var(--border-default)] px-3 py-2 text-xs sm:text-sm text-[var(--text-primary)] hover:border-[var(--border-hover-neutral)] focus-visible:outline-[var(--focus-ring-width)] focus-visible:outline-[var(--focus-ring-color)]">入门指南</Link>
           <button
             type="button"
             onClick={onQuickLog}

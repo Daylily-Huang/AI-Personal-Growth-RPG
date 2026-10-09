@@ -10,6 +10,8 @@ import {
 } from "./helpers/governance-delta";
 import { validateVisualMigrationDelta } from "./visual-foundation.test";
 import { phase8fCurrentScopeViolations } from "./phase8f-ui-governance.test";
+import { hasNewUserGuideScope, newUserGuideScopeViolations, resolveNewUserGuideWorkingFiles,
+  resolveNewUserGuideChangedFiles, NEW_USER_GUIDE_ADDITIONS } from "./helpers/governance-delta";
 
 const base = "ab84df35319d08247388051c451be523afe3c7a7";
 const forbidden = [
@@ -66,7 +68,14 @@ describe("SiteReadiness02 exact graph-only scope", () => {
     const tracked = execFileSync("git", ["diff", "--name-only", "--no-renames", "-z", base, "--"], { encoding: "utf8" }).split("\0").filter(Boolean);
     const untracked = execFileSync("git", ["ls-files", "--others", "--exclude-standard", "-z"], { encoding: "utf8" }).split("\0").filter(Boolean);
     const files = [...tracked, ...untracked];
-    if (hasConnectedFocusScope(files)) {
+    if (hasNewUserGuideScope(files)) {
+      expect(newUserGuideScopeViolations(resolveNewUserGuideWorkingFiles())).toEqual([]);
+      const additions = new Set<string>(NEW_USER_GUIDE_ADDITIONS);
+      const newer = execFileSync("git", ["diff", "--name-only", "--no-renames", "-z", MOBILE_GRAPH_BASE, "--"], { encoding: "utf8" }).split("\0").filter(Boolean);
+      expect(graphInteractionScopeViolations([...newer, ...untracked].filter(file => !additions.has(file)))).toEqual([]);
+      const auditAdditions = new Set<string>(CONNECTED_FOCUS_AUDIT_ADDITIONS);
+      expect(graphCanvasScopeViolations(files.filter(file => !additions.has(file) && !auditAdditions.has(file) && file !== "src/app/knowledge/page.tsx"))).toEqual([]);
+    } else if (hasConnectedFocusScope(files)) {
       const newer = execFileSync("git", ["diff", "--name-only", "--no-renames", "-z", MOBILE_GRAPH_BASE, "--"], { encoding: "utf8" }).split("\0").filter(Boolean);
       expect(graphInteractionScopeViolations([...newer, ...untracked])).toEqual([]);
       const auditAdditions = new Set<string>(CONNECTED_FOCUS_AUDIT_ADDITIONS);
@@ -83,7 +92,8 @@ describe("SiteReadiness02 exact graph-only scope", () => {
   test("checks the full committed PR or verified current-main first-parent range", () => {
     const delta = resolveGovernanceChangedFiles();
     expect(delta.files.length).toBeGreaterThan(0);
-    if (hasConnectedFocusScope(delta.files)) expect(graphInteractionScopeViolations(delta.files)).toEqual([]);
+    if (hasNewUserGuideScope(delta.files)) expect(newUserGuideScopeViolations(resolveNewUserGuideChangedFiles().files)).toEqual([]);
+    else if (hasConnectedFocusScope(delta.files)) expect(graphInteractionScopeViolations(delta.files)).toEqual([]);
     else if (hasGraphCanvasScope(delta.files)) expect(graphCanvasScopeViolations(delta.files)).toEqual([]);
   });
 });

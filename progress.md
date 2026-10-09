@@ -1,5 +1,30 @@
 # 项目历史工作进度 (Progress Log)
 
+- 最终candidate freeze：freshLeibniz独立b4834f/9554→8f136b 9files340unskippedexit0/73.03s，SQL1b767f readonly8/prosrc0049/0050/0053/2RLS/双方500Level4ledger500、主private三owner10tablesA9EE...D78C8A自行核验通过；DIRECT永久release后不DBHTTP。主4a46e3preflight/62ab30/55886→e73d9a精确4containers1volume→0，receipt124632...ACF3D/14:09:50CST，dev11/10/clone/backup/旧preview保持，23eed3 root四dirtyhash同值/diffcheck0。额外26tmpGit只读边界失误披露不计strictproof、原NO-GO与unknownexit保留。七docs/全21待最后rawhashbound GO，未commit/PR/FINAL/merge；后事件用ignoredreceipt不反写frozen candidate。
+
+- Durable v3 65679→e6dc23实际exit0/signalnull/109files2254全pass/raw96A815...CD7E6/terminal113EB3...D3C78，actualtest13:54:22→14:04:39CST/616.565s/341内部suites。8e52b4 main四original IDs/Created/source14/.next/census[]/3053closed，明确独占grant freshLeibniz，主不DBHTTP。其153与memoryguard静态通过，extra225中的26tmpGitfixture边界披露排除strictreadonly；待独立340/SQL8/release/disposal/final21。
+
+- 恢复后5d37dc actualfull-v2严格109/2254全passed/0other/CB0B...5FD36、05:37:08→05:46:44CST/576.489s；session66349已回收未知exit，e017d4无taskclients/3053，不推断exit0。McClintock38/42/~22min153独立offline/static零finding但缺DB/绑定NO-GO已close。ignoreddurablefull-v3 06c40b/65679于13:54:17CST开始，14source/test/.next原hash保持；首次functionsstore回收TypeError整段零落地后明确ID重试成功。待newterminal/freshRisk2。
+
+- Corrected Chromee92984真实form4/23requests，136d5d几何/Tab/error20/17GET，78a222grown/real401 2/4GET；最新Level4由冻结函数准备，主view新390图599b33。只读三owner十表9e79f3→737e13/40e5ab A9EE...D78C8A相同，pgend0。50b7c3仅ownChromeclose，a60022 exact3053Next4054755SIGTERM/14875intentionalexit1；首UNCsandboxMODULE_NOT_FOUND后scoped已有CLI成功，无install。da4b95/66349新full运行，14source/test/.next保持，独审先offline到grant。
+
+- 纠正build6525→d0b7a2/lint21810→3fdc0c终态0，nPykPa9YZVfieKwMF1QUv、五production原raw保持。配置e9e85d四负例/匹配实际模块通过；54520→2fefaf定向340/9files零skip，strict9228d1 rawE8E9F78A...FEA421，正确旧HTTP18。两Git未加safe.directory拒绝后83bb8d仅命令级修正，未global。新3053 wrapper4054385/14875开始合成Chrome复验，旧首轮full/browser/P2 NO-GO保留，待newfull/freshRisk2。
+
+- 首full80149→1168f9终态0，9f15f1严格109file2254/2254/0skip/nonpassed/filemessage空、actualoldHTTP18，raw980B...9885/05:12:24.296→05:21:54.210/569.91s。Averroes25/42/~10min offline153unskip/44receipt/React9/16guard/19oldfunction/full14hash71A017...EC60A，独立P2 fixture level NO-GO，0 DB/HTTP/browser已close。跨source/ignoredscript聚合patchcontext不符原子拒绝后d8a2d7仍603C确认，分开仅newHTTP existing level helper与parity断言成功；生产不变，需新build/target/browser/full/freshsameRisk2。
+
+- 6f8a94 frozenlevels全文实际XP500→Level4，而newHTTPfixture设2；主提前排队测试准备纠正，不在80149运行中改14source/test。现guide只消费名字/active/saved状态，生产无等级delta；将仅复用existing playerLevelFromXp并重跑newbuild/target/browser/full/freshRisk2。Averroes未DBgrant已明确保留boundreview、不要等新全套超预算；当前无candidateGO。77bd1c显式offlineharness11/11 terminal0；2b71c3/9dfad6既有pg8 deprecation及故意Gitnegative stderr属待最终报告分类，不冒称zero warning。
+
+- 主real322/8file全部unskipped终态867c40，5a0382strict解析；原old18 filename错滤未跑（actualphase8f-http-live），不能记9/340。新Chrome0fc363旧显式注册/MainQuest/zeroXP/rawActivity/guide-revisit4records，真实AI缺502无mock/XP；916d83完整20geometry/nativeTab/intercept500+f33447 grown500M8/actual401两records、移动截图主view；console预期502/500/401非零。3owner10tables只读前后两次CE0739...EAAB4不变/pgend，Auth与原表单fixture写入分开。Linuxrg missing仅库存命令outer1，7095ec实际PIDPPID确认；6f0e78关ownChrome和Next3952708，85227debc39intentionalSIGTERMouter1。cd5d46/80149完整fullsuite运行，AverroesfreshRisk2 candidate staticoffline启动，尚无DBgrant/GO；14source/tests/.next冻结，七docs终态待。
+
+- 78064→33733f首次build外层1：Next编译/TS/43pages0后，runner.actualGate每次VM返回对象prototype跨realm导致结构相同deepStrictEqual失败（公钥非private数据）；无receipt/Next启动/业务请求。仅ignoredrunner将已验证公开scalar转宿主plainobject，保留全部source/config对照，复跑完成构建而非绕过gate。最终lint87763→f66d30 terminal0。
+
+- Avicenna命名freshRisk2 ADMISSION仅GO0/0/0、6calls190.85s/raw80D9...752CF，两次四ID与labels/ports完整独立一致，原07/F16A逐字重建；tool sandbox拒绝后read-only escalation，未DB/HTTP。随后更新config/runner精确ee4及go-v4新receipt，不覆盖旧go；聚合Delete+Add同path patch原子拒绝，重新独立新增成功。e1b03e/78064 recordcreation与build进行，ed90e3/87763最新lint进行。额外猜SkillCreateForm/register/dashboard-service/mapper路径ENOENT保留，用rg定位真实src/app/skills/components、login切register模式、store/dashboard.service；no “tool absent”结论。WSL npx沙箱拒绝+Windowswhere无匹配后8e3ee8双环境复核Linuxnpx/Node/pnpm与实际缓存CLI存在，不重复安装。
+
+- v3 d2181e/22847→8d539e九文件329/329 strict/success0fail/pending；tsc15f94d、全量linte4c541终态0。500d1b/61718→c7d062 v4广回归终态0（live五项离线skip，非最终fullsuite）；首次b5b579报告未生成读取失败/null计数排除。新filledHTTPfixture仅代码准备，未执行业务DB。
+- 新stack-start77f7e8/68018→145158 terminal1：CLI实际labels截为ee4，原ee48精确guard拒绝；9cc5de四组件/workdir/54331+32实测与旧dev11/10healthy/restoreclone保持。备份原07/F16A旧GO，仅07精确名字纠正送freshRisk2；未GO前停build/业务DB/HTTP，不以配置猜测扩大权限。Windowsrg文件glob误用/猜旧runner路径ENOENT保留，改rg inventory正确读取；planning聚合输出曾截断不冒称该次完整读。
+
+- 2026-10-09：新guide07 C584...与76C4...两ADMISSION NO-GO保留，第三F16A... freshEuler7/9calls/376.07s（目标超时）P0/P1/P2=0 GO/全文21+actual第五callback模型44/hashscope终态0；先GO才实施。主83/83首target0，lint首1→异步presence/request/router绑定纠正0，v2 target80/3（三mock读取早于fetch的卸载fixture错误）保存，等待GET后仍保留全部abort/no-navigation断言，v3待。新五production/四tests/五guards/七docs精确21；controller不改，真实stack/build/DB/full/browser/candidate/FINAL未开始或未完成，原source/预览/备份保持。
+
 - 最终freeze前独立运行及主清理均终态：Lagrange190/105、actualReact24/helper64/scope147/old1911/58assertions/7blob/9authority/4prod inverse通过；76465→a21cdd real105exit0/02:31:21/22.34s，ed2df0 actualBEGIN READONLY/ROLLBACKreward8、immutable+strict/0049prosrc/skills+knowledgeRLStrue、pg.end/taskresidual[]，DIRECT永久release。主b97aaf/76355→136a4f exact taskstop exit0，6edb4e task容器/卷0/dev11running10healthy/clone保持。主raw2088/105files、browser88+24及disposal不是其第二执行。全19/七docs最后冻结待hash-bound候选裁决，不提前commit/PR/FINAL/merge，全部旧失败/正式source/3preview/backup不动。
 
 - 最新full主终态4120→33148e exit0：105files2088/2088、零fail/skip/pending/todo/unhandled，02:20:41/541.33s；126f1b严格rawJSON/hash47A247...EDF2C，包含growth11/E2E11/authority67/concurrency20/HTTP18。200a73主taskclients无、既有Next保持、WSL exact4owned通过（Windows默认npipe库存失败仅该探测错误），显式独占授Lagrange task54331/54332；其offline190/攻击暂无finding，主不DB/HTTP待永久release。七docs最终更新/精确task清理/十九候选binding仍待，无candidateGO/commit/PR/merge，旧failedrun制品保留。

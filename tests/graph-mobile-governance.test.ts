@@ -13,6 +13,8 @@ import {
 } from "./helpers/governance-delta";
 import { validateVisualMigrationDelta } from "./visual-foundation.test";
 import { phase8fCurrentScopeViolations } from "./phase8f-ui-governance.test";
+import { hasNewUserGuideScope, newUserGuideScopeViolations, resolveNewUserGuideWorkingFiles,
+  NEW_USER_GUIDE_ADDITIONS } from "./helpers/governance-delta";
 
 const forbidden = [
   "src/components/graph/useGraphCameraFit.ts", "src/app/skills/page.tsx", "src/app/knowledge/page.tsx",
@@ -68,6 +70,13 @@ describe("SiteReadiness04 exact two-class graph scope", () => {
     const tracked = execFileSync("git", ["diff", "--name-only", "--no-renames", "-z", MOBILE_GRAPH_BASE, "--"], { encoding: "utf8" }).split("\0").filter(Boolean);
     const untracked = execFileSync("git", ["ls-files", "--others", "--exclude-standard", "-z"], { encoding: "utf8" }).split("\0").filter(Boolean);
     const files = [...tracked, ...untracked];
+    if (hasNewUserGuideScope(files)) {
+      expect(newUserGuideScopeViolations(resolveNewUserGuideWorkingFiles())).toEqual([]);
+      const additions = new Set<string>(NEW_USER_GUIDE_ADDITIONS);
+      const historical = files.filter(file => !additions.has(file));
+      expect(hasMobileGraphScope(historical)).toBe(true); expect(graphInteractionScopeViolations(historical)).toEqual([]);
+      return;
+    }
     expect(hasMobileGraphScope(files)).toBe(true); expect(graphInteractionScopeViolations(files)).toEqual([]);
   });
   test("checks full committed PR or verified current-main first-parent range without swallowing Git errors", () => {
