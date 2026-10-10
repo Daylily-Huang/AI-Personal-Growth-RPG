@@ -6,6 +6,8 @@ import { hasGraphCanvasScope, GRAPH_CANVAS_PRODUCTION } from "./helpers/governan
 import { hasConnectedFocusScope, CONNECTED_FOCUS_PAGES } from "./helpers/governance-delta";
 import { hasNewUserGuideScope, NEW_USER_GUIDE_PRODUCTION } from "./helpers/governance-delta";
 import { hasActivityDetailScope, ACTIVITY_DETAIL_PRODUCTION } from "./helpers/governance-delta";
+import { PROPOSAL_REJECTION_CONTROL, PROPOSAL_REJECTION_PRODUCTION, hasProposalRejectionScope,
+  isProposalRejectionCheckout, assertProposalRejectionActualScope, proposalRejectionHistoricalFiles } from "./helpers/governance-delta";
 
 const base = "f18855df297fa1a8f42e5fa3574453ef9b67d76b";
 const control = "docs/Phase8/27_PHASE8F_UI_CONTRACT.md";
@@ -19,6 +21,10 @@ function violations(files: string[]) {
     .filter(file => !files.includes(control) || !uiPaths.has(file));
 }
 function currentScopeViolations(files: string[]) {
+  if (files.includes(PROPOSAL_REJECTION_CONTROL)) {
+    const approved = new Set<string>(hasProposalRejectionScope(files) ? PROPOSAL_REJECTION_PRODUCTION : []);
+    return violations(files.filter(file => file !== control)).filter(file => !approved.has(file));
+  }
   const historical = violations(files);
   const approved = new Set<string>([
     ...(hasSkillBootstrapScope(files) ? SKILL_BOOTSTRAP_PRODUCTION : []),
@@ -32,6 +38,13 @@ function currentScopeViolations(files: string[]) {
 export { currentScopeViolations as phase8fCurrentScopeViolations };
 describe("8F Round4 exact UI scope under27", () => {
   test("working candidate and eventual full branch retain frozen server, SQL, Core, Wishes and navigation", () => {
+    if (isProposalRejectionCheckout()) {
+      expect(currentScopeViolations(assertProposalRejectionActualScope())).toEqual([]);
+      // The new strict gate owns all current paths; the original frozen 8F proof still runs on its fixed accepted history.
+      const historical = proposalRejectionHistoricalFiles(base);
+      expect(historical.length).toBeGreaterThan(0); expect(currentScopeViolations(historical)).toEqual([]);
+      return;
+    }
     const tracked = execFileSync("git", ["diff", "--name-only", "--no-renames", "-z", base, "--"], { encoding: "utf8" }).split("\0").filter(Boolean);
     const untracked = execFileSync("git", ["ls-files", "--others", "--exclude-standard", "-z"], { encoding: "utf8" }).split("\0").filter(Boolean);
     expect(currentScopeViolations([...tracked, ...untracked])).toEqual([]);

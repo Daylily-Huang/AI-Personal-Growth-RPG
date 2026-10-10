@@ -1,5 +1,13 @@
 # 项目历史工作进度 (Progress Log)
 
+- 2026-10-10冻结前终态：Lovelace自己offline-v2 565、真实5files156、readonly SQL-v2八值/冻结四函数/RLS实际0；直接永久DB/HTTP释放，census三[]。原offline-v1 564/1 failedraw遭同stem覆盖、原因不可恢复，SQL-v1 roles类型fixture失败如实保留12。主72992在13:55:39.650Z原4/1→0终态0，disposal589176159A73BBDA91236D398F4A22B6192FAD0D3A208F961F17C646245F46BE，正式11/10及nonTask全ID/state原样；无第二DB会话。18source/build4/full2780/Chrome保持，七docs冻结待独立全25最终绑定，不签GO/commit/merge/sitecomplete。
+
+- 2026-10-10主full-v1真实0：13:30:51.248Z→13:45:11.523Z，119files2780全passed/零skip/raw6D3A2707D00DAEE62D76E8FE31025E6E1A94CB04DAEF08BA3B332212604094CC，Growth/E2E各11；另Growth11实际0。Chrome注册/primary/finish三个runner0，8geometry44px/4nativeTab+取消/网络fault真重试/持久原文/其它Confirm14XP→514/最后空列表成功过；两次PG精确35表proof0。QA PID2152500仅核后SIGTERM/CLI sessionclose/PGfinally0，普通preflight3旧进程EACCES后root纯读residual[]/established空通过，显式grantLovelace，主不DB/HTTP。v2独立565实际0、旧v1 raw覆盖不配旧terminal历史保留；owned清理/25最终绑定待。
+
+- 2026-10-10 Reject目标v2仍50/1 child1/raw9ECC48...2FC27D，authority14再次通过；port-only首判不能关闭403。实际Next诊断adapter无观测、工具assert1/finally全部关闭，未捕获URL不能充证。新route仅对齐既有login-http浏览器Host策略，四个新反例；新unit5/build4进行，旧所有失败保留，真实目标/full/Chrome/独审/owned清理仍待。
+
+- 2026-10-10 Reject实现：两次历史ADMISSION NO-GO分别2个来源错误和七protected内容重叠；BB98经同Risk2纠正GO后才改4production。主before491=485/6fail、unit-v1解析fail/28servicepasschild1、v2=56/56child0、v3=79/1undefinedfixturefailchild1、v4=82/82child0/rawCF2B13...880B72全保留于rootignored证据；原type unionheadersfixture错误修后type90188/lint83262真实0。八旧guard及六新tests还在实现，需重跑新scope/type/lint。Carver只新authority/http两test离线写入，不授DB/HTTP/build/keys；主治理独占，无提交/PR/新DB/浏览器/AI，3016和正式数据保持。
+
 - 2026-10-10纠正候选冻结：corrected-v1 session43856→1d9fe3实际child0/signalnull/errornull，11:12:26.155Z→11:13:28.309Z、9files491/491零skip/messages[]，raw3DF1847ADD19EC17CB40FE41B19498DF22B270DC818C7270AE81E7EAEEA9E41B。原lint3909→96dd4c/type3171→65c6bb均0；上下文恢复先未从主会话取回ID而重复type68651→89d6f8/lint97083→991cbf均0，不冒称只跑一次。source2、785DC章与15保护内容保持；fresh Gibbs新候选仅只读指定491/反例，无DB/HTTP授权。五docs/全7冻结送最终hash绑定，未candidateGO不得commit；其后ownCI/不同FINAL/普通merge/post-main/accepted预览及再生缓存清理仍待。旧失败、旧3015、正式数据/备份/共享依赖/root四保护保持。
 
 - 2026-10-10 post-main纠正：38046256511 actualfailure已保存；main未改test前29587→e6ab9e exit1/419pass1fail同caller/零skip。Aquinas11只读calls ADMISSION零finding GO绑定最新785DC...14079；声明段hash为BEGIN/END内canonicalLF不含末换行，原09保持canonical21C01，CRLFraw不同已明示。之后仅helper追加和旧actualcaller一个替换/新增回归；selected7准备完整、新offline/type/lint未签。原final捕获器首次拒绝activity-main前缀filename，改用其既有activity-detail安全前缀另存，不弱化捕获器，不把纯解析失败当产品缺陷。

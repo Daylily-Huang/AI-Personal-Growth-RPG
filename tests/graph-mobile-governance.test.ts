@@ -13,6 +13,7 @@ import {
 } from "./helpers/governance-delta";
 import { validateVisualMigrationDelta } from "./visual-foundation.test";
 import { phase8fCurrentScopeViolations } from "./phase8f-ui-governance.test";
+import { isProposalRejectionCheckout, proposalRejectionHistoricalFiles, assertProposalRejectionActualScope } from "./helpers/governance-delta";
 import { hasNewUserGuideScope, newUserGuideScopeViolations, resolveNewUserGuideWorkingFiles,
   NEW_USER_GUIDE_ADDITIONS } from "./helpers/governance-delta";
 import { hasActivityDetailScope, activityDetailScopeViolations, resolveActivityDetailWorkingFiles,
@@ -69,6 +70,14 @@ describe("SiteReadiness04 exact two-class graph scope", () => {
     }
   });
   test("checks the full working-plus-untracked delta against accepted f100", () => {
+    if (isProposalRejectionCheckout()) {
+      assertProposalRejectionActualScope();
+      const files = withoutActivityDetailAdditions(proposalRejectionHistoricalFiles(MOBILE_GRAPH_BASE));
+      expect(newUserGuideScopeViolations(withoutActivityDetailAdditions(proposalRejectionHistoricalFiles("ee48b84ce989f1d2904e94116d300513d77ef3e4")))).toEqual([]);
+      const additions = new Set<string>(NEW_USER_GUIDE_ADDITIONS), historical = files.filter(file => !additions.has(file));
+      expect(hasMobileGraphScope(historical)).toBe(true); expect(graphInteractionScopeViolations(historical)).toEqual([]);
+      return;
+    }
     const tracked = execFileSync("git", ["diff", "--name-only", "--no-renames", "-z", MOBILE_GRAPH_BASE, "--"], { encoding: "utf8" }).split("\0").filter(Boolean);
     const untracked = execFileSync("git", ["ls-files", "--others", "--exclude-standard", "-z"], { encoding: "utf8" }).split("\0").filter(Boolean);
     const entire = [...tracked, ...untracked], detail = hasActivityDetailScope(entire);
@@ -85,6 +94,7 @@ describe("SiteReadiness04 exact two-class graph scope", () => {
     expect(hasMobileGraphScope(files)).toBe(true); expect(graphInteractionScopeViolations(files)).toEqual([]);
   });
   test("checks full committed PR or verified current-main first-parent range without swallowing Git errors", () => {
+    if (isProposalRejectionCheckout()) { assertProposalRejectionActualScope(); return; }
     const delta = resolveGovernanceChangedFiles(); expect(delta.files.length).toBeGreaterThan(0);
     if (delta.files.includes(MOBILE_GRAPH_CONTROL)) {
       expect(hasMobileGraphScope(delta.files)).toBe(true); expect(graphInteractionScopeViolations(delta.files)).toEqual([]);

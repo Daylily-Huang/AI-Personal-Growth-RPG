@@ -1,0 +1,70 @@
+# 12 — Proposal Review Round1 拒绝提案：过程与验收
+
+日期：2026-10-10。状态：主实现/全套/浏览器、独立目标及主精确清理完成，独立最终25文件绑定待；不是候选GO、committed FINAL、合并、发布或整站完成。
+
+## 准入与范围
+
+基线78d2036af19e55ea59f40cdc8a3358c3bab3cae4/tree9a85fff25d2ee36396cda29c7723408d482887eb；branch codex/site-proposal-rejection-20261010。精确25/all12以11合同为唯一来源，全文canonical SHA256 BB98D531957762DFA112FCE6BF8E46D0EA7798710A7CB430C2E9B93C938F69AB。
+
+Pasteur首次合同219DE独立ADMISSION NO-GO P2=2：Dashboard不是Guide marker而是protected blob；assessment仅SELECT策略来自0018+0028而非0021。Bernoulli第二稿6E41独立NO-GO P2=1：旧nonselected15的七个内容断言重叠需明确允许。主仅两次纠正11，保留原final；Bernoulli同Risk2纠正后ADMISSION P0/P1/P2=0/0/0 GO绑定BB98/78d/tree9a85。原文捕获位于root ignored `.data/activity-detail-reject-admission-go.json`，其finals数组最后一条才GO；不可把早先NO-GO删去。
+
+## 当前已执行主证据（不是独立验收）
+
+- 准入前9files491：485pass/6旧actual范围fail，child1；raw A0A74E0A2168BF22F411B50E4A5115223515BCFC9BDD8792D00C4D9953835BBE。
+- unit-v1：APIfixture括号解析失败，child1，28service断言pass不能当整套通过。v2修语法后2files56/56 child0，raw B8E641A6B5CBEF1D11456DA3728E28C60F85091C7FA79F271053B980590E0295。
+- unit-v3：3files79pass/1fixturefail，child1；receipt默认参数把传入undefined替换为合法rejected，并非生产默认状态。直接构造raw对象后v4真实3files82/82零skip，child0/signalnull/errornull；12:42:02.136Z至12:42:21.249Z，raw CF2B13F5F4891BE8B6D4A4A1348C262E0DDF7CA1D16804B75C8F9FBC67880B72。
+- 生产及三tests的type90188、lint83262均实际terminal0；此前测试header union类型错误已仅修fixture。后续guard/新tests变化需重新type/lint，不能沿用此次green。
+
+所有mock/UI结果只证明其覆盖的接口/回执/组件行为，不当真实RLS、行锁/并发、completed-build HTTP或浏览器证据。
+
+## 实际治理与PG/HTTP首轮（保留失败）
+
+新九文件governance-v1真实557pass/4fail child1，raw64A9AC39902C306EB278783A2B329B4CA0395D5DAE725BEE89A1E58F64C54BD9。default reporter定点诊断实际1pass/3fail/268skip（不是最终套件），完整log证明三个均5000ms timeout，七次严格Git/真实历史读取约8.5s；phase5原失败为5.995s。三个旧actual测试仅在Reject checkout使用30000ms，其它checkout仍原5000ms；原所有断言/读取不删、不缓存、不改弱。新七blob测试同30000ms。governance-v2真实9files561/561零skip child0，13:12:51.051Z至13:14:48.614Z，raw5235B7E259337F0192ECBEAA55469ABE6A732E16B8FF02DA657DC9AE418D3A32。
+
+build-v1 I-xRUSvSbfaI9c1jdzOz0与build-v2 MMXoDuxhS9W3ltGajFThD都实际child0；预算/test source变化后不伪改旧receipt，重新真实构建。type26587/lint81087实际0。新专属phase8f_test_reject_20261010_78d四容器/54331+54332已创建并绑定creation、正式11running10healthy保持。
+
+首实际PG/HTTP目标v1共2files51：50pass/1fail，child1，raw2FEA847973CE56E998B480215B8BB9703B950FD01326AB2FCDA54AA547C50EA1；authority14全部通过，含真实锁队列两顺序/双拒绝/sibling和三owner完整快照。HTTP正向Origin一项收到403；主完整读安装Next16.3.1 custom-server guide及next-server.js:1279–1281，确认测试只给hostname而漏实际临时port，Request.url因此不绑定实际同源地址。只修新HTTP夹具为先保留临时port再传Next hostname+port/httpServer，明确保留正向Origin与负例；不改生产CSRF校验/已有测试。QA3056也显式传port。需build-v3与目标完整重跑后才能关闭该失败，尚不宣称HTTP通过。
+
+## 后续纠正与当前门禁（不得预签）
+
+主纠正unit-v5实际3files86/86零skip child0，raw0F0BD80BF55E9DBEFCC1010184129A52B536A39CABB11A4624AABC3E7617C472；build-v4实际child0/BUILD_ID KwxsbCEmj_h6hYEjzgJ1g，lint84564实际0。随后DB/HTTP-v3真实2files51/51零skip，child0/signalnull/errornull，13:30:03.981Z至13:30:36.494Z，rawFB3475DE16E6B1817FE85BA2F277B50DAF4029A83B9BE7C39FA22CEFDFA5B45E。包含原失败正向Origin1024bytes、持久重放、原Activity可读、跨站拒绝和全部14权限并发，先前403故障在当前build已关闭。不是最终全套或独立验收；full-v1正在实际运行，主Chrome和fresh Risk2待。
+
+### 正向Origin失败后续纠正（不覆盖首轮判断）
+
+build-v3 ZRHSkz-n7dALzTeClzNHG实际child0；DB/HTTP-v2仍50pass/1fail，child1/signalnull/errornull，raw9ECC48DA7071A5C65FFAF7F03052197D47EFDFE8039BAA78A41B2896032FC27D。authority14再次全通过，但正向Origin仍403，因此上段“只是漏port，不是生产缺陷”的首轮结论不成立；补齐port并未关闭故障。
+
+主新增ignored诊断以真实Next/合成session复现403，保存origin-probe-v1；安装版adapter的内存hook未观察到bundled请求，observed=[]并真实assert退出1，finally全部客户端关闭。这个工具失败只证明403再现，不证明Request.url内容，不能伪称已经捕获地址。
+
+完整读取冻结login-http.ts实际同源校验后，仅新Reject route对齐其浏览器Host目标策略：内部URL只取协议，Host取实际请求头（缺失时回退URL），忽略forwarded host/proto；auth旧源码不改。新增四个实际POST单元反例覆盖内部bind地址、真实Host、forwarded伪造与不放宽跨站。生产变化使build-v3及其HTTP证据失效，须真实build-v4及重新目标/full/browser/独审，不以绿mock替代实际正向Origin通过。
+
+上文各“尚待”为执行时快照，以下主终态取代当前待办判断，历史失败不删除。仍待fresh Risk2自己的完整承重与最终绑定、永久release后主精确owned清理、最终25manifest/note冻结；没有这些不得提交。
+
+## 主全套与真实浏览器终态（仅主执行）
+
+full-v1实际child0/signalnull/errornull，2026-10-10T13:30:51.248Z至13:45:11.523Z：119个testResults文件、2780 assertions全部passed、零skip/fail，success=true；raw6D3A2707D00DAEE62D76E8FE31025E6E1A94CB04DAEF08BA3B332212604094CC。完整机器报告包含Growth11与既有真实E2E11，两文件均passed；另独立主Growth定点11/11实际0，raw884042A1F8FB5AB7D42F20F6F7FB0EBA30398C606FE3625DB22EF651FA9FA915。不把内部describe suite数当文件数。18 source/test hashes和build-v4全过程相同。全套包含既有治理临时Git夹具测试的正常执行，不能声称本主全套零文件/Git临时写入；候选源码和root用户文件未因此改变。
+
+Chrome实际安装浏览器、隔离QA127.0.0.1:3056、明确主建合成资料（不是AI输出），三CLI runner注册/primary/finish全部实际0：
+
+- primary raw812F0E0B16C6A33D0015680C9532EB725C988E1F0E9D1F08FDA973A80E34CEC8。320/375/768/1280四宽、八个实际按钮bounding box均至少44px/横向不越界，四次原生Tab/Shift+Tab/Enter取消，无POST；一次明确route.abort网络错误保留提案，再原生键盘真实POST200。拒绝后真实Dashboard XP500不变、刷新不重现、原Activity多行CRLF/HTML字面量/Unicode原文逐字可读。
+- finish raw05DD27D10E0254E44E7AF5A2E0AD9B86BAA43E7A786511320067E16619F4AE4D。其它独立提案原Confirm真实200，确定性结算14XP，玩家500→514；最后一项拒绝真实200，pending=0且成功提示仍可见，重载仍空、原活动原文保持。两flow合计记录18条API requests（不是全部网络/资产请求数），pageErrors=[]，AI请求0；合成故障是前端网络abort，不伪称真实服务器500。
+- 主PG中间精确35张owner表/所有字段比对，唯一变化为rejectA assessment.status；proof97E1DA18131D75AC448A81BEA32F67697AB46570B5770BAAB21FB31D2D02F705。最终比对仅两个rejected status及原Confirm已知Activity/assessment/skill/evidence/ledger/player delta，所有其它字段/财务/作品保持、ledger/player一致；proof316A9B49D07AB481029FA3ACCB899EE35531A1A7A8C9FF788FD58F0B12FEE4AD。
+
+真实截图位于root output/playwright/proposal-rejection-320.png、1280.png、empty-success.png，主已逐张实际查看；不代表整站全部页面/物理触屏验收。注册阶段QA stdout留有一次旧dashboard PGRST303“JWT issued at future”；两个最终flow及随后DB证据通过，未声称所有历史GET均零错误，未擅改冻结认证。CLI该session已close，主核PID2152500/cwd/entry后仅SIGTERM关闭自己的QA，wrapper/Next终态0，关闭receipt80B45E74EC86A5B554EC332A2FBCB3010A7AE2EFCAD2D8160B1E1B8C1B822DB8。
+
+主preflight普通身份因三个其它旧进程/proc EACCES fail closed，未kill/假设这些归本轮；切root只读census后residual=[]/unreadable=[]，task API/DB established客户端为空，原四IDs/Created/project/workdir/ports复核通过，才明确授予独立DB_ACCESS_GRANTED。主自此不DB/HTTP，等待独立永久释放。
+
+## 独立候选运行与主清理终态（文件绑定另行裁决）
+
+fresh Lovelace只审exact25/合同承重，已见自己offline-v2九files565/565零skip实际child0，raw177872032352D346BBCC119DC1B799AD2B7C6361A58408DDEADED34448924C59。其旧offline-v1 terminal保存564pass/1nonpass/child1/raw706C84D5C4FE6F10FA2BB21DB2B76E16B141929539E305B6D2AAA7158ACADB79，但主随后读取同名raw已为6842D0E6F13C49A49EFCA327FFDF75AC4FF917501D7329DB15FAD0AB436896ED/success=true，不能把变更后raw绑定旧terminal或作为独立终态通过。reviewer直接披露自己重复同stem执行覆盖了raw，原564/1失败名及原因无法恢复；不猜原因/伪称旧raw保留，不把该失配运行作为通过证据。v2独有stem/terminal单独成立，不抹去v1失败与覆盖事实。
+
+独立新authority14+新completed-build HTTP37+旧8F authority67/concurrency20/HTTP18，真实5files156/156零skip实际child0/signalnull/errornull，rawF31BF12A09176069D17A5AD4F8284673FAAC0DF70F2608739D5086BF4D0D2D8F。独立bounded SQL-v1因pg对roles返回字符串而fixture期望数组，actual1，ROLLBACK/close保持；这不是候选源码缺陷。独有SQL-v2实际0/BEGIN READ ONLY/ROLLBACK/clientClosed，八金额[150,100,150,200,200,100,150,250]及0049/0050/0053四实际函数体对冻结迁移、IMMUTABLE/STRICT/grammar、Activity/assessment两表RLS/SELECT-only均通过；raw451225FE3EB5A0AF988A0ED0DD9CFC8D6ADC735404A77E7650B6BEFA3D17BD14。
+
+Lovelace通过直接completed通知永久DB_ACCESS_COMPLETE PERMANENT，所有自有runner/HTTP/Next/pg/wrapper终态，census residual[]/unreadable[]/established[]（receipt3D8189EEA4548FC05728C0F6E94EC372AB4F37ED933F0EDEDD6D065676B87039）；主捕获release CC95F8A10C0BEE29A14630C0D77BB63883C7F8DE5CA484FB45811169A406D8F9。reviewer此后仅离线全25最终绑定，不再DB/HTTP；当时无已确认候选缺陷不是预签GO。
+
+主72992实际0于2026-10-10T13:55:39.650Z完成精确原四IDs/Created/project/workdir/ports绑定清理，不开第二DB会话、不disable guard、不删不可变正式记录。disposal589176159A73BBDA91236D398F4A22B6192FAD0D3A208F961F17C646245F46BE绑定原creationCC96BD8B0F34AE73186D28D1C4B63A62B0E6922CFCD4B52B7201AC2F78DDDEF7及直接release，task4containers/1volume→0，正式11running10healthy和全部非task IDs/state保持（既有edge退出/clone状态保留）。合成数据随专属卷不可恢复但可重建，不触及正式库/备份/当前3016/用户文件/密钥/共享node_modules/Playwright/系统缓存；不global prune、不声称Docker VHD已经物理缩小。当前.next仍需后续exact-head FINAL构建使用，不提前删除。
+
+离线主binder已核exact25/all12、18source与build/full完全一致、旧helper/02/MASTER完整canonical prefix与三plans旧非空历史顺序、diffcheck0、root四用户文件原hash。七docs据上述终态冻结，25 manifest和note hash由ignored外部receipt记录避免自引用；fresh reviewer重新逐项绑定前不commit。后续候选/committed FINAL/CI/合并事件只写root本地主计划与ignored receipts，不反写本冻结25。
+
+candidate GO后才selected25 commit、own exacthead CI、不同fresh committed FINAL、普通merge/post-main CI和accepted预览。保持3016/正式库/备份/密钥原文件/root四用户文件；清理只限自有无引用再生产物，禁止global prune。
+
+Artifact认定/奖励延期，现实成就零积分，八reward-v1和原成长规则不变。Edit/补证/验证申请/最小AI上下文仍后续待办；本Round1不代表整站完成。

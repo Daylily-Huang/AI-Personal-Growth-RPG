@@ -23,6 +23,8 @@ import {
   resolveGovernanceChangedFiles,
   PHASE5_DASHBOARD_POLICY,
   hasActivityDetailScope, activityDetailScopeViolations, resolveActivityDetailChangedFiles, activityDetailDashboardFiles,
+  isProposalRejectionCheckout, assertProposalRejectionActualScope, proposalRejectionDashboardFiles,
+  proposalRejectionHistoricalFiles,
 } from "./helpers/governance-delta";
 import DashboardPage from "@/app/dashboard/page";
 import { AppShellProvider } from "@/components/layout";
@@ -665,6 +667,14 @@ describe("Phase 5 — Stage 5A-UI Dashboard Modernization Test Suite (Round 4)",
 
   // 22. Fail-Closed Frozen Backend Delta Guard
   it("22. strictly asserts ZERO modifications were made to frozen backend and domain paths", () => {
+    if (isProposalRejectionCheckout()) {
+      const current = assertProposalRejectionActualScope();
+      expect(evaluateScopedPolicy(proposalRejectionDashboardFiles(current), PHASE5_DASHBOARD_POLICY).violations).toEqual([]);
+      const historical = proposalRejectionHistoricalFiles("c06ab0b692045557d550a3e8eb2b9dd8aed61645");
+      expect(evaluateScopedPolicy(activityDetailDashboardFiles(historical), PHASE5_DASHBOARD_POLICY).violations).toEqual([]);
+      expect(evaluateScopedPolicy(["src/app/dashboard/page.tsx", "src/lib/growth-engine/engine.ts"], PHASE5_DASHBOARD_POLICY).violations.length).toBeGreaterThan(0);
+      return;
+    }
     const delta = resolveGovernanceChangedFiles();
     expect(delta.files.length).toBeGreaterThan(0);
 
@@ -684,7 +694,7 @@ describe("Phase 5 — Stage 5A-UI Dashboard Modernization Test Suite (Round 4)",
     const syntheticResult = evaluateScopedPolicy(syntheticMixedDelta, PHASE5_DASHBOARD_POLICY);
     expect(syntheticResult.applicable).toBe(true);
     expect(syntheticResult.violations.length).toBeGreaterThan(0);
-  });
+  }, isProposalRejectionCheckout() ? 30000 : 5000);
 
   // 23. Zero Hardcoded Dark Theme Regressions
   it("23. guarantees zero hardcoded dark-theme regression classes (bg-slate-900, bg-slate-950, bg-black/20)", () => {

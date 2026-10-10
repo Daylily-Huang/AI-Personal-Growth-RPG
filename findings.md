@@ -1,5 +1,13 @@
 # 调查发现与核心架构决策 (Findings)
 
+- 2026-10-10冻结证据边界：独立565v2/156/SQLv2实际0，永久释放后主精确4/1清理0、正式11/10/nonTask全身份状态保持；oldv1 raw被reviewer同stem覆盖，564/1失败原因无法恢复，失配raw不得计通过；SQL-v1 name[]类型fixture错误而非源码缺陷。当前无已确认候选缺陷不等于GO，七docs/全25需独立最后hash绑定；source18不变、root四用户文件保持，候选冻结后只root本地追加后事件。
+
+- 2026-10-10 Reject当前主实证：Host纠正后正向Origin1024bytes真实200，目标51/full119files2780实际0；Chrome四宽44px/nativeTab/错误重试/刷新原文与其它Confirm保持，35表中间唯一status变化/最终仅已知Confirm14XP且ledger玩家514一致。QA历史一次JWT issuedatfuture不当作全部GET零错误；不擅动冻结auth。独立565 v2真实0；v1同名raw与旧terminal不匹配不能重绑为成功，等待reviewer披露，fresh候选final尚待。
+
+- 2026-10-10 同源403：补实际port后仍失败，原fixture-only推断不成立。冻结login-http真实源码说明Host目标与内部bind URL应分开且不信任forwarded。新route采用相同边界、增加四个反例，不改认证旧文件；是否关闭须重建后真实HTTP，不由mock或未捕获adapter的诊断决定。
+
+- 2026-10-10 Reject独立准入纠正：Dashboard不是Guide marker，保持其actual protected blob；assessment客户端SELECT-only来源0018 RLS+0028 grants，0021为服务端record/Activity参考。原nonselected15中exact7重叠仅允许strictactual25/all12/full11hash后读取真实78d左blob对原b9cef，另8仍current；current7由新strictgate/02prefix/旧guard逆向独验，不能泛豁免docs/tests。4production的API/session/RLS/CAS/rawreceipt/UI验证主82已通过，真实DB并发/full/browser尚未证明；不因ADMISSION或mock绿灯授予merge或整站完成。
+
 - 2026-10-10纠正候选冻结事实：两源码测试变化仅helper完整b9cef canonical prefix后的追加、一个actual caller改用共享函数并保留三个历史assert，其余历史body保持。corrected-v1九文件491/491/零skip终态0、raw3DF1847...9E41B；lint/type原及上下文恢复重复检查均0。新71中真实Git读b9cef22与旧共享11失败，三个拓扑调用同一actual函数；current-main只strict exact22或exact7重新绑定后返回，PR仍历史断言，不泛许docs/tests。15非selected原22仅checkout CRLF与LF可能raw不同，canonical/Git内容不变。没有新本地DB/AI/HTTP/browser/build证据；原PR55全套/13步/双独审134为历史，新own/post CI和不同FINAL仍待，fresh Gibbs候选未预签。
 
 - 2026-10-10 post-main确定缺陷：onboarding actual caller对positivecurrent-main的22严格scope过滤新exclusive11后，错误将余11audit路径交旧graph全scope。主9files419/1重现，raw8EB751...DFCF；PR CIgreen不覆盖真实合并拓扑。Aquinas独立旧22→11失败、累计PR32→Guide21/f10042→graph19、未来纠正7及127缺失/extra/mode/range/Git/章反例通过ADMISSION。新分类只在实际重解Git和章SHA/完整22或7严格通过后返回，旧PR历史仍原assert；不改业务/DB，不泛豁免docs/tests。新Wincheckout09与若干新文件raw为CRLF-only差异，canonical/Git内容不变，不冒称原字节一样。

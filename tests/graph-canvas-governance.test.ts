@@ -10,6 +10,7 @@ import {
 } from "./helpers/governance-delta";
 import { validateVisualMigrationDelta } from "./visual-foundation.test";
 import { phase8fCurrentScopeViolations } from "./phase8f-ui-governance.test";
+import { isProposalRejectionCheckout, proposalRejectionHistoricalFiles, assertProposalRejectionActualScope } from "./helpers/governance-delta";
 import { hasNewUserGuideScope, newUserGuideScopeViolations, resolveNewUserGuideWorkingFiles,
   resolveNewUserGuideChangedFiles, NEW_USER_GUIDE_ADDITIONS } from "./helpers/governance-delta";
 
@@ -67,6 +68,15 @@ describe("SiteReadiness02 exact graph-only scope", () => {
     }
   });
   test("binds the entire working candidate, including untracked files, to the accepted base", () => {
+    if (isProposalRejectionCheckout()) {
+      assertProposalRejectionActualScope();
+      const files = withoutActivityDetailAdditions(proposalRejectionHistoricalFiles(base));
+      expect(newUserGuideScopeViolations(withoutActivityDetailAdditions(proposalRejectionHistoricalFiles("ee48b84ce989f1d2904e94116d300513d77ef3e4")))).toEqual([]);
+      const additions = new Set<string>(NEW_USER_GUIDE_ADDITIONS), audits = new Set<string>(CONNECTED_FOCUS_AUDIT_ADDITIONS);
+      expect(graphInteractionScopeViolations(withoutActivityDetailAdditions(proposalRejectionHistoricalFiles(MOBILE_GRAPH_BASE)).filter(file => !additions.has(file)))).toEqual([]);
+      expect(graphCanvasScopeViolations(files.filter(file => !additions.has(file) && !audits.has(file) && file !== "src/app/knowledge/page.tsx"))).toEqual([]);
+      return;
+    }
     const tracked = execFileSync("git", ["diff", "--name-only", "--no-renames", "-z", base, "--"], { encoding: "utf8" }).split("\0").filter(Boolean);
     const untracked = execFileSync("git", ["ls-files", "--others", "--exclude-standard", "-z"], { encoding: "utf8" }).split("\0").filter(Boolean);
     const entire = [...tracked, ...untracked], detail = hasActivityDetailScope(entire);
@@ -95,6 +105,7 @@ describe("SiteReadiness02 exact graph-only scope", () => {
     }
   });
   test("checks the full committed PR or verified current-main first-parent range", () => {
+    if (isProposalRejectionCheckout()) { assertProposalRejectionActualScope(); return; }
     const delta = resolveGovernanceChangedFiles();
     expect(delta.files.length).toBeGreaterThan(0);
     if (hasActivityDetailScope(delta.files)) expect(activityDetailScopeViolations(resolveActivityDetailChangedFiles().files)).toEqual([]);
