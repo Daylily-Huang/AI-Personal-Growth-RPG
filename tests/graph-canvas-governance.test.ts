@@ -11,6 +11,7 @@ import {
 import { validateVisualMigrationDelta } from "./visual-foundation.test";
 import { phase8fCurrentScopeViolations } from "./phase8f-ui-governance.test";
 import { isProposalRejectionCheckout, proposalRejectionHistoricalFiles, assertProposalRejectionActualScope } from "./helpers/governance-delta";
+import { isAssessmentContextCheckout, assertAssessmentContextActualScope, assessmentContextHistoricalFiles } from "./helpers/governance-delta";
 import { hasNewUserGuideScope, newUserGuideScopeViolations, resolveNewUserGuideWorkingFiles,
   resolveNewUserGuideChangedFiles, NEW_USER_GUIDE_ADDITIONS } from "./helpers/governance-delta";
 
@@ -68,6 +69,15 @@ describe("SiteReadiness02 exact graph-only scope", () => {
     }
   });
   test("binds the entire working candidate, including untracked files, to the accepted base", () => {
+    if (isAssessmentContextCheckout()) {
+      assertAssessmentContextActualScope();
+      const files = withoutActivityDetailAdditions(assessmentContextHistoricalFiles(base));
+      expect(newUserGuideScopeViolations(withoutActivityDetailAdditions(assessmentContextHistoricalFiles("ee48b84ce989f1d2904e94116d300513d77ef3e4")))).toEqual([]);
+      const additions = new Set<string>(NEW_USER_GUIDE_ADDITIONS), audits = new Set<string>(CONNECTED_FOCUS_AUDIT_ADDITIONS);
+      expect(graphInteractionScopeViolations(withoutActivityDetailAdditions(assessmentContextHistoricalFiles(MOBILE_GRAPH_BASE)).filter(file => !additions.has(file)))).toEqual([]);
+      expect(graphCanvasScopeViolations(files.filter(file => !additions.has(file) && !audits.has(file) && file !== "src/app/knowledge/page.tsx"))).toEqual([]);
+      return;
+    }
     if (isProposalRejectionCheckout()) {
       assertProposalRejectionActualScope();
       const files = withoutActivityDetailAdditions(proposalRejectionHistoricalFiles(base));
@@ -105,6 +115,7 @@ describe("SiteReadiness02 exact graph-only scope", () => {
     }
   });
   test("checks the full committed PR or verified current-main first-parent range", () => {
+    if (isAssessmentContextCheckout()) { assertAssessmentContextActualScope(); return; }
     if (isProposalRejectionCheckout()) { assertProposalRejectionActualScope(); return; }
     const delta = resolveGovernanceChangedFiles();
     expect(delta.files.length).toBeGreaterThan(0);

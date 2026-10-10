@@ -8,6 +8,8 @@ import { hasNewUserGuideScope, NEW_USER_GUIDE_PRODUCTION } from "./helpers/gover
 import { hasActivityDetailScope, ACTIVITY_DETAIL_PRODUCTION } from "./helpers/governance-delta";
 import { PROPOSAL_REJECTION_CONTROL, PROPOSAL_REJECTION_PRODUCTION, hasProposalRejectionScope,
   isProposalRejectionCheckout, assertProposalRejectionActualScope, proposalRejectionHistoricalFiles } from "./helpers/governance-delta";
+import { ASSESSMENT_CONTEXT_CONTROL, ASSESSMENT_CONTEXT_COMPATIBILITY_CONTROL, ASSESSMENT_CONTEXT_DEMO_FIXTURE, ASSESSMENT_CONTEXT_PRODUCTION, hasAssessmentContextScope,
+  isAssessmentContextCheckout, assertAssessmentContextActualScope, assessmentContextHistoricalFiles } from "./helpers/governance-delta";
 
 const base = "f18855df297fa1a8f42e5fa3574453ef9b67d76b";
 const control = "docs/Phase8/27_PHASE8F_UI_CONTRACT.md";
@@ -21,6 +23,10 @@ function violations(files: string[]) {
     .filter(file => !files.includes(control) || !uiPaths.has(file));
 }
 function currentScopeViolations(files: string[]) {
+  if (files.includes(ASSESSMENT_CONTEXT_CONTROL) || files.includes(ASSESSMENT_CONTEXT_COMPATIBILITY_CONTROL) || files.includes(ASSESSMENT_CONTEXT_DEMO_FIXTURE)) {
+    const approved = new Set<string>(hasAssessmentContextScope(files) ? ASSESSMENT_CONTEXT_PRODUCTION : []);
+    return violations(files.filter(file => file !== control)).filter(file => !approved.has(file));
+  }
   if (files.includes(PROPOSAL_REJECTION_CONTROL)) {
     const approved = new Set<string>(hasProposalRejectionScope(files) ? PROPOSAL_REJECTION_PRODUCTION : []);
     return violations(files.filter(file => file !== control)).filter(file => !approved.has(file));
@@ -38,6 +44,12 @@ function currentScopeViolations(files: string[]) {
 export { currentScopeViolations as phase8fCurrentScopeViolations };
 describe("8F Round4 exact UI scope under27", () => {
   test("working candidate and eventual full branch retain frozen server, SQL, Core, Wishes and navigation", () => {
+    if (isAssessmentContextCheckout()) {
+      expect(currentScopeViolations(assertAssessmentContextActualScope())).toEqual([]);
+      const historical = assessmentContextHistoricalFiles(base);
+      expect(historical.length).toBeGreaterThan(0); expect(currentScopeViolations(historical)).toEqual([]);
+      return;
+    }
     if (isProposalRejectionCheckout()) {
       expect(currentScopeViolations(assertProposalRejectionActualScope())).toEqual([]);
       // The new strict gate owns all current paths; the original frozen 8F proof still runs on its fixed accepted history.

@@ -265,3 +265,24 @@
 - 2026-09-28：首次新增的 0046 静态“无写权限”断言使用跨分号贪婪范围，误把 `strategies` 的 INSERT grant 与后续 `strategy_versions` SELECT 拼成写授权；已收窄为单条 SQL statement（`[^;]*`）并复跑通过。
 
 - 2026-09-28：本机 `XP_RPG_TEST_DB_URL` 未配置，Docker CLI 存在但 daemon 未运行（`open //./pipe/docker_engine: The system cannot find the file specified`）；Round 1 的 12 个真实 DB 测试仍属未验证，不能进入独立 Gatekeeper 或 Round 2。
+
+## 2026-10-11 最小本人评估上下文新阶段
+
+- [complete] 合同13精确30/all16独立Risk2 ADMISSION 0/0/0 GO。
+- [complete] 七production/七newtests/九旧guard/七docs精确30实际写齐；局部七files139、治理623、PG5、真实HTTP13、type/lint/buildv2与一次纯合成真实AI已验。
+- [in_progress] 主full-v1 Gitshim误路由tmp夹具事件已HOLD/停ownedrunner/保留recovery ref/狭窄恢复base及index/30raw保持；shim修后显式26Git夹具前后refs/config保持。重跑完整full-v2及恢复后新owner Chrome；独立candidate/永久释放/精确清理/冻结30仍待。
+- [pending] selected30commit→ownCI→不同freshFINAL→普通merge/postmain→新accepted preview→只清无引用cache。
+- [pending] Edit模式待用户选择；补证/验证与整站验收仍待。原AI已接通；正式环境/3017/根用户文件/原secret/备份/依赖保持。
+
+### 兼容补充后的当前计划（原条目为过程历史）
+
+- [complete] full-v2真实3005pass/11fail定位并保留；15 narrow32/all17获Newton fresh ADMISSION GO，原13冻结。
+- [complete] Auth固定安全文字/旧Demo6显式配置两行/32双hash门禁修复；static-v5完整旧八guard和六AI测试逆向保持、type0、定向193/193、completed build-v3/source24/prod20。
+- [in_progress] corrected full-v3/lint、新owner browser、Tesla fresh Risk2 candidate指定目标和SQL；所有客户端永久释放后exact-owned disposal/14与32 manifest冻结。
+- [pending] selected32commit→own exact-head CI→不同fresh committed FINAL/新owned栈释放清理→受托普通merge/postmain→新预览独审→仅无引用cache。Edit等既定产品缺口仍未完成。
+
+- [complete 更新] corrected full-v3 actual126files3070/3070、type/lint/buildv3、单独Growth/E2E22、fresh Chrome四宽12几何/8原生Tab/26API/pageerror0、35表readback/singleXP11/两端511-level4-M3保持全部实际通过。main客户端已关闭/census空并direct grant Tesla独占目标157＋SQL8。
+- [in_progress 更新] 等Tesla own目标/永久release，随后主owned disposal/14和32manifest冻结/最终独立candidate绑定；当前仍不得commit/push/merge。
+
+- [complete 最终冻结更新] Tesla own157/157和只读SQL8通过并direct永久释放；主精确owned4容器/1卷已销毁、task0/0/formal11running10healthy/nonTask保持，disposal355ADB...ABC2C。原13/15不改，当前14/全部32准备最终离线绑定。
+- [in_progress 最终冻结更新] 等exact32独立candidate GO，随后才selected32 commit/ownCI/不同freshFINAL/普通merge/postmain/newpreview/无引用cache；未发布，不称整站完成。

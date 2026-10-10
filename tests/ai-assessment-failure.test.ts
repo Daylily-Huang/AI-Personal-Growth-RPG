@@ -161,6 +161,9 @@ describe("P1-02: AI assessment failure isolation and error handling", () => {
   });
 
   test("6. assess route returns 502 with retryable=true on AI failure and preserves pending_assessment", async () => {
+    // Explicit Demo fixture: never inherit configured Supabase authority from the full suite.
+    delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+    delete process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "assess-route-test-"));
     process.env.DEMO_DB_PATH = path.join(tempDir, "demo.json");
     process.env.AI_API_KEY = "test-key";

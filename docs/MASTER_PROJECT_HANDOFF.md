@@ -428,3 +428,19 @@ QA3056和本轮浏览器/主PG客户端已精确关闭；root只读census无task
 Lovelace独立offline-v2 565、真实目标156/SQL-v2实际八金额+冻结四函数体/RLS均终态通过，直接永久释放全部DB/HTTP；旧v1 raw被同stem覆盖、原564/1失败原因无法恢复及SQL-v1 roles返回类型夹具失败均如实保留在12，不拿失配raw冒充通过。主随后精确原4容器/1卷清理实际0，disposal589176159A73BBDA91236D398F4A22B6192FAD0D3A208F961F17C646245F46BE，正式11/10与非task身份state完全保持；合成数据可重建，主没有额外DB会话。
 
 source18保持build4/full2780/主Chrome受测字节，七docs/全25在本快照冻结，等待独立重新核hash后才候选GO；本章不冒签候选GO或后续FINAL/merge/网站完成。后事件只更新root本地主计划和ignored receipts，不改候选冻结字节；整站其余缺口和清理保留边界继续有效。
+
+## 2026-10-11 下一受控阶段：最小authenticated AI context（实现中）
+
+新accepted base15f6287cd53d9049a2d6e60958cab40f75911405/tree d8e80817d390ac9e203cf83637bb37dca7444134；branch codex/site-assessment-context-20261010，隔离.data/site-assessment-context。当前用户preview3017保持；正式54321/54322、备份/原secret/root用户改动/共享依赖不变。
+
+13全文EB4EDD946D269D3050C93D56F97C29C0C7DEA5D8847D5FB2AA1E80B5C5063E48已获Huygens独立Risk2 ADMISSION 0/0/0 GO，只准精确30/all16实现。源码7项与首批4新测试已写，tsc通过；局部七files139/139零skip通过。名称连字符前缀误关联首跑失败保留并修复。旧范围保护正在按实际固定历史与内容白名单适配，不能把这些局部结果当全套验收。具体主/独立运行、全30冻结/清理状态见14。
+
+Edit权限选择仍待用户答复；补证/验证和整站验收仍未完成。此阶段不改SQL/成长规则/确认/拒绝/数据库类型/依赖/工作流/AI provider；真实AI已配置但本阶段尚未用真实provider运行新版输入。
+
+后续实际状态更新（不覆盖上段历史）：精确30已写齐；623治理/PG5/HTTP13/type/lint/completed build-v2及一次纯合成deepseek-flash新版adapter smoke通过。主full-v1因Gitshim错误路由tmp夹具产生本地误commit与common配置污染，已HOLD独审、停精确ownedrunner、保留recovery ref并恢复15f/index；30raw、source23/prod20、root四/原分支/远端保持。修复shim后显式26Git夹具全部通过且前后全部refs/config一致，full-v2重跑中；原浏览器v2仅source-valid历史，将在恢复后以新owner重新绑定。该主工具错误及全部失败保存在14，不宣称候选GO/完整验收/新提交/整站完成。3017与正式数据继续保留。
+
+兼容补充后的当前状态（2026-10-11）：full-v2实际126files3005pass11fail，非全绿，raw/终态见14；九项是主shim漏只读hash-object，一项旧Auth安全文字、一项旧Demo6环境未明确。独立Newton对15补充返回ADMISSION 0/0/0 GO，原13全文冻结；scope仅增加15和旧AI test成为EXACT32/all17，不扩产品/历史内容白名单。兼容修复后主全文逆向八旧guard与旧AI6、type/lint、定向193/193和completed build-v3/source24/prod20已实验；full-v3/新owner browser/Tesla fresh Risk2/永久释放/owned disposal/final32冻结及所有提交/CI/FINAL/合并/新预览门禁仍待。当前正式/3017保持，Edit选择未答、高阶验证/整站全验收仍未完成。
+
+最新实测：full-v3 actual126files3070/3070/child0、type/lint/buildv3、单独Growth11/E2E11全绿；fresh Chrome/source24/prod20/base15f绑定通过四宽12geometry/8nativeTab/26API/pageerror0，35表readback单XP11/两端511-level4/M3、Reject与故障不增长、原记录保留。主测试客户端全部退出/census空/release后已direct grant Tesla独占指定目标＋只读SQL，等待其永久release及主owned disposal/final32 candidate绑定；不是已commit/FINAL/merge/新预览或整站完成。所有旧失败与工具故障保留在14；现有3017保持，不写正式夹具。
+
+最终候选冻结更新：Tesla own157/157及只读SQL8/函数来源/RLS权限通过、direct永久释放/clients终结；主精确处置本轮4容器1卷、task0/0、formal11running10healthy和其它13状态保持，disposal355ADB3D...98ABC2C，source24与保护保持。14与EXACT32冻结等待Tesla最后离线manifest绑定；candidate GO/commit/ownCI/不同fresh committed FINAL/新栈清理/普通merge/postmain/newpreview/cache清理仍未全部完成，不部署或称整站完成。原13/15 frozen、Edit/高阶验证等用户边界不变。

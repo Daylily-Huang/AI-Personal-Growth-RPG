@@ -808,3 +808,132 @@ export function proposalRejectionDashboardFiles(files: string[]): string[] {
   return files.filter(file => file !== PROPOSAL_REJECTION_PRODUCTION[0] && file !== PROPOSAL_REJECTION_PRODUCTION[3]);
 }
 
+// SiteReadiness13: a separately bound current scope; all accepted15f helper bytes remain above.
+export const ASSESSMENT_CONTEXT_BASE = "15f6287cd53d9049a2d6e60958cab40f75911405";
+export const ASSESSMENT_CONTEXT_CONTROL = "docs/SiteReadiness/13_ASSESSMENT_CONTEXT_CONTRACT.md";
+export const ASSESSMENT_CONTEXT_ADMISSION_SHA = "EB4EDD946D269D3050C93D56F97C29C0C7DEA5D8847D5FB2AA1E80B5C5063E48";
+export const ASSESSMENT_CONTEXT_PRODUCTION = ["src/app/api/activities/[id]/assess/route.ts", "src/lib/ai/assessment-context.ts",
+  "src/lib/ai/assess.ts", "src/lib/ai/prompts.ts", "src/lib/store/assessment-context.repository.ts",
+  "src/lib/store/repository.ts", "src/lib/store/supabase-repository.ts"] as const;
+export const ASSESSMENT_CONTEXT_TESTS = ["tests/assessment-context-api.test.ts", "tests/assessment-context-authority.test.ts",
+  "tests/assessment-context-golden.test.ts", "tests/assessment-context-governance.test.ts", "tests/assessment-context-http.test.ts",
+  "tests/assessment-context-repository.test.ts", "tests/assessment-context.test.ts"] as const;
+export const ASSESSMENT_CONTEXT_MARKERS = [ASSESSMENT_CONTEXT_CONTROL, "docs/Design ChatGPT/02_PRODUCT_DESIGN.md",
+  ...ASSESSMENT_CONTEXT_PRODUCTION, ...ASSESSMENT_CONTEXT_TESTS] as const;
+export const ASSESSMENT_CONTEXT_ALLOWED = [...ASSESSMENT_CONTEXT_MARKERS, "docs/MASTER_PROJECT_HANDOFF.md",
+  "docs/SiteReadiness/14_ASSESSMENT_CONTEXT_VERIFICATION.md", "findings.md", "progress.md", "task_plan.md",
+  "tests/activity-detail-governance.test.ts", "tests/graph-canvas-governance.test.ts", "tests/graph-mobile-governance.test.ts",
+  "tests/helpers/governance-delta.ts", "tests/onboarding-governance.test.ts", "tests/phase5-dashboard-ui.test.tsx",
+  "tests/phase8f-ui-governance.test.ts", "tests/proposal-rejection-governance.test.ts", "tests/visual-foundation.test.ts"] as const;
+export const ASSESSMENT_CONTEXT_ACTIVITY_CONTENT = ["src/lib/store/supabase-repository.ts", "src/lib/ai/assess.ts", "src/lib/ai/prompts.ts"] as const;
+export const ASSESSMENT_CONTEXT_COMPATIBILITY_CONTROL = "docs/SiteReadiness/15_ASSESSMENT_CONTEXT_COMPATIBILITY_CONTRACT.md";
+export const ASSESSMENT_CONTEXT_COMPATIBILITY_SHA = "5ECB571DE51CDFC201DF63826EAD5250D383820E56B0B259AC2D4BCEAC9935FD";
+export const ASSESSMENT_CONTEXT_DEMO_FIXTURE = "tests/ai-assessment-failure.test.ts";
+export const ASSESSMENT_CONTEXT_COMPATIBILITY_MARKERS = [...ASSESSMENT_CONTEXT_MARKERS, ASSESSMENT_CONTEXT_COMPATIBILITY_CONTROL] as const;
+export const ASSESSMENT_CONTEXT_COMPATIBILITY_ALLOWED = [...ASSESSMENT_CONTEXT_ALLOWED, ASSESSMENT_CONTEXT_COMPATIBILITY_CONTROL, ASSESSMENT_CONTEXT_DEMO_FIXTURE] as const;
+export type AssessmentContextGitOptions = ProposalRejectionGitOptions & { readCompatibilityControl?: () => string };
+function wantsContextCompatibility(files: readonly string[]): boolean {
+  return files.includes(ASSESSMENT_CONTEXT_COMPATIBILITY_CONTROL) || files.includes(ASSESSMENT_CONTEXT_DEMO_FIXTURE);
+}
+export function hasAssessmentContextScope(files: readonly string[]): boolean {
+  return ASSESSMENT_CONTEXT_MARKERS.every(file => files.includes(file)) && (!wantsContextCompatibility(files)
+    || (ASSESSMENT_CONTEXT_COMPATIBILITY_MARKERS.every(file => files.includes(file)) && files.includes(ASSESSMENT_CONTEXT_DEMO_FIXTURE)));
+}
+export function assessmentContextScopeViolations(files: readonly string[]): string[] {
+  const allowed = new Set<string>(hasAssessmentContextScope(files) ? (wantsContextCompatibility(files) ? ASSESSMENT_CONTEXT_COMPATIBILITY_ALLOWED : ASSESSMENT_CONTEXT_ALLOWED) : []);
+  return [...(new Set(files).size === files.length ? [] : ["duplicate context paths"]), ...files.filter(file => !allowed.has(file))];
+}
+export function verifyAssessmentContextCompatibility(text: string): void {
+  if (activityMainHash("sha256").update(text.replace(/\r\n/g, "\n")).digest("hex").toUpperCase() !== ASSESSMENT_CONTEXT_COMPATIBILITY_SHA)
+    throw new Error("FAIL-CLOSED: assessment context compatibility admission content is unbound");
+}
+function contextAllowed(files: readonly string[], options: AssessmentContextGitOptions): readonly string[] {
+  if (!wantsContextCompatibility(files)) return ASSESSMENT_CONTEXT_ALLOWED;
+  let text: string;
+  try { text = options.readCompatibilityControl ? options.readCompatibilityControl()
+    : readActivityMainControl(activityMainPath(options.cwd ?? process.cwd(), ASSESSMENT_CONTEXT_COMPATIBILITY_CONTROL), "utf8"); }
+  catch { throw new Error("FAIL-CLOSED: assessment context compatibility admission could not be read"); }
+  verifyAssessmentContextCompatibility(text); return ASSESSMENT_CONTEXT_COMPATIBILITY_ALLOWED;
+}
+export function verifyAssessmentContextAdmission(text: string): void {
+  if (activityMainHash("sha256").update(text.replace(/\r\n/g, "\n")).digest("hex").toUpperCase() !== ASSESSMENT_CONTEXT_ADMISSION_SHA)
+    throw new Error("FAIL-CLOSED: assessment context admission content is unbound");
+}
+function contextAdmission(options: AssessmentContextGitOptions): void {
+  let text: string;
+  try { text = options.readControl ? options.readControl() : readActivityMainControl(activityMainPath(options.cwd ?? process.cwd(), ASSESSMENT_CONTEXT_CONTROL), "utf8"); }
+  catch { throw new Error("FAIL-CLOSED: assessment context admission could not be read"); }
+  verifyAssessmentContextAdmission(text);
+}
+function contextPaths(raw: string, empty = false): string[] {
+  const files = proposalPaths(raw, empty);
+  if (files.some(file => file.startsWith("/") || file.includes("\\") || file.split("/").some(part => !part || part === "." || part === "..") || /[\x00-\x1f]/.test(file)))
+    throw new Error("FAIL-CLOSED: malformed context Git path");
+  return files;
+}
+function contextAcceptedHead(options: AssessmentContextGitOptions): string {
+  contextAdmission(options); const head = activityDetailRevision(options, "rev-parse HEAD");
+  if (activityDetailRevision(options, `merge-base ${ASSESSMENT_CONTEXT_BASE} HEAD`) !== ASSESSMENT_CONTEXT_BASE)
+    throw new Error("FAIL-CLOSED: context accepted base is not an ancestor");
+  return head;
+}
+export function resolveAssessmentContextWorkingFiles(options: AssessmentContextGitOptions = {}): string[] {
+  contextAcceptedHead(options);
+  const files = [...contextPaths(activityDetailGit(options, `diff --no-renames --name-only -z ${ASSESSMENT_CONTEXT_BASE} --`), true),
+    ...contextPaths(activityDetailGit(options, "ls-files --others --exclude-standard -z"), true)];
+  if (!files.length || new Set(files).size !== files.length) throw new Error("FAIL-CLOSED: empty or duplicate context working range");
+  return files;
+}
+export function resolveAssessmentContextChangedFiles(options: AssessmentContextGitOptions = {}): GovernanceDelta {
+  const head = contextAcceptedHead(options), remote = activityDetailRevision(options, "rev-parse origin/main");
+  const mode = head === remote ? "current-main-push" : "pr-branch";
+  const range = mode === "current-main-push" ? `${activityDetailRevision(options, 'rev-parse "HEAD^1"')}..${head}` : `${ASSESSMENT_CONTEXT_BASE}...${head}`;
+  return { mode, range, mergeBase: ASSESSMENT_CONTEXT_BASE, files: contextPaths(activityDetailGit(options, `diff --no-renames --name-only -z ${range}`)) };
+}
+export function assertAssessmentContextChangedScope(delta: GovernanceDelta, options: AssessmentContextGitOptions = {}): void {
+  assertSameActivityRange(delta, resolveAssessmentContextChangedFiles(options), true);
+  assertCompleteActivityScope(delta.files, contextAllowed(delta.files, options), assessmentContextScopeViolations(delta.files));
+}
+export function isAssessmentContextCheckout(cwd = process.cwd()): boolean {
+  return proposalControlExists(activityMainPath(cwd, ASSESSMENT_CONTEXT_CONTROL));
+}
+export function assertAssessmentContextActualScope(options: AssessmentContextGitOptions = {}): string[] {
+  const files = resolveAssessmentContextWorkingFiles(options);
+  assertCompleteActivityScope(files, contextAllowed(files, options), assessmentContextScopeViolations(files));
+  if (activityDetailRevision(options, "rev-parse HEAD") !== ASSESSMENT_CONTEXT_BASE)
+    assertAssessmentContextChangedScope(resolveAssessmentContextChangedFiles(options), options);
+  return files;
+}
+/** Old preReject contracts only: an explicit real fixed-endpoint diff after the strict current gate. */
+export function assessmentContextHistoricalFiles(anchor: string, options: AssessmentContextGitOptions = {}): string[] {
+  assertAssessmentContextActualScope(options);
+  if (!["ab84df35319d08247388051c451be523afe3c7a7", "f18855df297fa1a8f42e5fa3574453ef9b67d76b", MOBILE_GRAPH_BASE,
+    NEW_USER_GUIDE_BASE, ACTIVITY_DETAIL_BASE, ACTIVITY_MAIN_BASE].includes(anchor)) throw new Error("FAIL-CLOSED: unapproved context historical anchor");
+  if (activityDetailRevision(options, `merge-base ${anchor} ${PROPOSAL_REJECTION_BASE}`) !== anchor)
+    throw new Error("FAIL-CLOSED: context historical anchor is not an ancestor");
+  return contextPaths(activityDetailGit(options, `diff --no-renames --name-only -z ${anchor} ${PROPOSAL_REJECTION_BASE}`));
+}
+/** Reject's own exact25 history has a different accepted endpoint, never a cumulative old/current range. */
+export function assessmentContextRejectionHistoricalFiles(options: AssessmentContextGitOptions = {}): string[] {
+  assertAssessmentContextActualScope(options);
+  if (activityDetailRevision(options, `merge-base ${PROPOSAL_REJECTION_BASE} ${ASSESSMENT_CONTEXT_BASE}`) !== PROPOSAL_REJECTION_BASE)
+    throw new Error("FAIL-CLOSED: context rejection endpoint is not descended from accepted78d");
+  const files = contextPaths(activityDetailGit(options, `diff --no-renames --name-only -z ${PROPOSAL_REJECTION_BASE} ${ASSESSMENT_CONTEXT_BASE}`));
+  assertCompleteActivityScope(files, PROPOSAL_REJECTION_ALLOWED, proposalRejectionScopeViolations(files));
+  return files;
+}
+/** No blanket source/docs fallback: three independently named assertion groups and ten exact paths. */
+export function assessmentContextHistoricalContent(file: string, group: "onboarding" | "activity" | "rejection", options: AssessmentContextGitOptions = {}): string {
+  assertAssessmentContextActualScope(options);
+  const accepted = group === "onboarding" ? (PROPOSAL_REJECTION_HISTORICAL_CONTENT as readonly string[])
+    : group === "activity" ? (ASSESSMENT_CONTEXT_ACTIVITY_CONTENT as readonly string[])
+    : group === "rejection" ? ["src/lib/ai/prompts.ts"] : [];
+  if (!accepted.includes(file)) throw new Error("FAIL-CLOSED: unapproved context historical content group/path");
+  const endpoint = group === "onboarding" ? PROPOSAL_REJECTION_BASE : ASSESSMENT_CONTEXT_BASE;
+  if (activityDetailRevision(options, `merge-base ${endpoint} ${ASSESSMENT_CONTEXT_BASE}`) !== endpoint)
+    throw new Error("FAIL-CLOSED: context content endpoint is not an ancestor");
+  const content = activityDetailGit(options, `show ${endpoint}:"${file}"`);
+  if (!content) throw new Error("FAIL-CLOSED: empty context historical content");
+  return content;
+}
+

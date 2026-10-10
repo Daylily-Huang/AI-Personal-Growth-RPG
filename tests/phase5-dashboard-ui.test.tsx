@@ -27,6 +27,7 @@ import {
   proposalRejectionHistoricalFiles,
 } from "./helpers/governance-delta";
 import DashboardPage from "@/app/dashboard/page";
+import { isAssessmentContextCheckout, assertAssessmentContextActualScope, assessmentContextHistoricalFiles } from "./helpers/governance-delta";
 import { AppShellProvider } from "@/components/layout";
 import type { DashboardSnapshot, Quest } from "@/lib/store/types";
 import {
@@ -667,6 +668,13 @@ describe("Phase 5 — Stage 5A-UI Dashboard Modernization Test Suite (Round 4)",
 
   // 22. Fail-Closed Frozen Backend Delta Guard
   it("22. strictly asserts ZERO modifications were made to frozen backend and domain paths", () => {
+    if (isAssessmentContextCheckout()) {
+      assertAssessmentContextActualScope();
+      const historical = assessmentContextHistoricalFiles("c06ab0b692045557d550a3e8eb2b9dd8aed61645");
+      expect(evaluateScopedPolicy(activityDetailDashboardFiles(historical), PHASE5_DASHBOARD_POLICY).violations).toEqual([]);
+      expect(evaluateScopedPolicy(["src/app/dashboard/page.tsx", "src/lib/growth-engine/engine.ts"], PHASE5_DASHBOARD_POLICY).violations.length).toBeGreaterThan(0);
+      return;
+    }
     if (isProposalRejectionCheckout()) {
       const current = assertProposalRejectionActualScope();
       expect(evaluateScopedPolicy(proposalRejectionDashboardFiles(current), PHASE5_DASHBOARD_POLICY).violations).toEqual([]);
