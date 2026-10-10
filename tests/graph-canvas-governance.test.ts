@@ -14,6 +14,8 @@ import { hasNewUserGuideScope, newUserGuideScopeViolations, resolveNewUserGuideW
   resolveNewUserGuideChangedFiles, NEW_USER_GUIDE_ADDITIONS } from "./helpers/governance-delta";
 
 const base = "ab84df35319d08247388051c451be523afe3c7a7";
+import { hasActivityDetailScope, activityDetailScopeViolations, resolveActivityDetailWorkingFiles,
+  resolveActivityDetailChangedFiles, withoutActivityDetailAdditions } from "./helpers/governance-delta";
 const forbidden = [
   "src/app/api/skills/route.ts", "src/app/api/activities/[id]/assess/route.ts",
   "src/app/api/auth/login/route.ts", "src/lib/ai/assess.ts", "src/lib/store/repository.ts",
@@ -67,12 +69,15 @@ describe("SiteReadiness02 exact graph-only scope", () => {
   test("binds the entire working candidate, including untracked files, to the accepted base", () => {
     const tracked = execFileSync("git", ["diff", "--name-only", "--no-renames", "-z", base, "--"], { encoding: "utf8" }).split("\0").filter(Boolean);
     const untracked = execFileSync("git", ["ls-files", "--others", "--exclude-standard", "-z"], { encoding: "utf8" }).split("\0").filter(Boolean);
-    const files = [...tracked, ...untracked];
+    const entire = [...tracked, ...untracked], detail = hasActivityDetailScope(entire);
+    if (detail) expect(activityDetailScopeViolations(resolveActivityDetailWorkingFiles())).toEqual([]);
+    const historical = (files: string[]) => detail ? withoutActivityDetailAdditions(files) : files;
+    const files = historical(entire);
     if (hasNewUserGuideScope(files)) {
-      expect(newUserGuideScopeViolations(resolveNewUserGuideWorkingFiles())).toEqual([]);
+      expect(newUserGuideScopeViolations(historical(resolveNewUserGuideWorkingFiles()))).toEqual([]);
       const additions = new Set<string>(NEW_USER_GUIDE_ADDITIONS);
       const newer = execFileSync("git", ["diff", "--name-only", "--no-renames", "-z", MOBILE_GRAPH_BASE, "--"], { encoding: "utf8" }).split("\0").filter(Boolean);
-      expect(graphInteractionScopeViolations([...newer, ...untracked].filter(file => !additions.has(file)))).toEqual([]);
+      expect(graphInteractionScopeViolations(historical([...newer, ...untracked]).filter(file => !additions.has(file)))).toEqual([]);
       const auditAdditions = new Set<string>(CONNECTED_FOCUS_AUDIT_ADDITIONS);
       expect(graphCanvasScopeViolations(files.filter(file => !additions.has(file) && !auditAdditions.has(file) && file !== "src/app/knowledge/page.tsx"))).toEqual([]);
     } else if (hasConnectedFocusScope(files)) {
@@ -92,7 +97,8 @@ describe("SiteReadiness02 exact graph-only scope", () => {
   test("checks the full committed PR or verified current-main first-parent range", () => {
     const delta = resolveGovernanceChangedFiles();
     expect(delta.files.length).toBeGreaterThan(0);
-    if (hasNewUserGuideScope(delta.files)) expect(newUserGuideScopeViolations(resolveNewUserGuideChangedFiles().files)).toEqual([]);
+    if (hasActivityDetailScope(delta.files)) expect(activityDetailScopeViolations(resolveActivityDetailChangedFiles().files)).toEqual([]);
+    else if (hasNewUserGuideScope(delta.files)) expect(newUserGuideScopeViolations(resolveNewUserGuideChangedFiles().files)).toEqual([]);
     else if (hasConnectedFocusScope(delta.files)) expect(graphInteractionScopeViolations(delta.files)).toEqual([]);
     else if (hasGraphCanvasScope(delta.files)) expect(graphCanvasScopeViolations(delta.files)).toEqual([]);
   });

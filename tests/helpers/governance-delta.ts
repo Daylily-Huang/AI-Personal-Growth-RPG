@@ -557,3 +557,67 @@ export function resolveNewUserGuideChangedFiles(options: NewUserGuideGitOptions 
   return { mode, range, mergeBase, files };
 }
 
+// SiteReadiness09: a strict present-day scope before cumulative historical filters.
+export const ACTIVITY_DETAIL_BASE = "c06ab0b692045557d550a3e8eb2b9dd8aed61645";
+export const ACTIVITY_DETAIL_CONTROL = "docs/SiteReadiness/09_ACTIVITY_DETAIL_CONTRACT.md";
+export const ACTIVITY_DETAIL_PRODUCTION = ["src/app/activities/[id]/page.tsx", "src/app/api/activities/[id]/route.ts",
+  "src/components/dashboard/ActivityHistoryList.tsx", "src/components/dashboard/RecentGrowthFeed.tsx"] as const;
+export const ACTIVITY_DETAIL_TESTS = ["tests/activity-detail-api.test.ts", "tests/activity-detail-ui.test.tsx",
+  "tests/activity-detail-http.test.ts", "tests/activity-detail-governance.test.ts"] as const;
+export const ACTIVITY_DETAIL_MARKERS = [ACTIVITY_DETAIL_CONTROL, "docs/Design ChatGPT/02_PRODUCT_DESIGN.md",
+  ...ACTIVITY_DETAIL_PRODUCTION, ...ACTIVITY_DETAIL_TESTS] as const;
+export const ACTIVITY_DETAIL_ADDITIONS = [ACTIVITY_DETAIL_CONTROL, "docs/SiteReadiness/10_ACTIVITY_DETAIL_VERIFICATION.md",
+  ...ACTIVITY_DETAIL_PRODUCTION, ...ACTIVITY_DETAIL_TESTS, "tests/phase5-dashboard-ui.test.tsx"] as const;
+export const ACTIVITY_DETAIL_ALLOWED = [...ACTIVITY_DETAIL_ADDITIONS, "docs/Design ChatGPT/02_PRODUCT_DESIGN.md",
+  "tests/helpers/governance-delta.ts", "tests/visual-foundation.test.ts", "tests/graph-canvas-governance.test.ts",
+  "tests/graph-mobile-governance.test.ts", "tests/phase8f-ui-governance.test.ts", "tests/onboarding-governance.test.ts",
+  "docs/MASTER_PROJECT_HANDOFF.md", "task_plan.md", "findings.md", "progress.md"] as const;
+export function hasActivityDetailScope(files: readonly string[]): boolean {
+  return ACTIVITY_DETAIL_MARKERS.every(file => files.includes(file));
+}
+export function activityDetailScopeViolations(files: readonly string[]): string[] {
+  const allowed = new Set<string>(hasActivityDetailScope(files) ? ACTIVITY_DETAIL_ALLOWED : []);
+  return files.filter(file => !allowed.has(file));
+}
+function activityDetailGit(options: NewUserGuideGitOptions, command: string): string {
+  try { return options.execute ? options.execute(command) : execSync(`git ${command}`, { encoding: "utf8", cwd: options.cwd }); }
+  catch { throw new Error("FAIL-CLOSED: activity detail Git query failed"); }
+}
+function activityDetailRevision(options: NewUserGuideGitOptions, command: string): string {
+  const value = activityDetailGit(options, command).trim();
+  if (!/^[a-f0-9]{40}$/.test(value)) throw new Error("FAIL-CLOSED: invalid activity detail Git revision");
+  return value;
+}
+function activityDetailAcceptedBase(options: NewUserGuideGitOptions): string {
+  const head = activityDetailRevision(options, "rev-parse HEAD");
+  if (activityDetailRevision(options, `merge-base ${ACTIVITY_DETAIL_BASE} HEAD`) !== ACTIVITY_DETAIL_BASE)
+    throw new Error("FAIL-CLOSED: activity detail accepted base is not an ancestor");
+  return head;
+}
+export function resolveActivityDetailWorkingFiles(options: NewUserGuideGitOptions = {}): string[] {
+  activityDetailAcceptedBase(options);
+  const tracked = activityDetailGit(options, `diff --no-renames --name-only -z ${ACTIVITY_DETAIL_BASE} --`).split("\0").filter(Boolean);
+  const untracked = activityDetailGit(options, "ls-files --others --exclude-standard -z").split("\0").filter(Boolean);
+  const files = [...new Set([...tracked, ...untracked])];
+  if (!files.length) throw new Error("FAIL-CLOSED: empty activity detail working range");
+  return files;
+}
+export function resolveActivityDetailChangedFiles(options: NewUserGuideGitOptions = {}): GovernanceDelta {
+  const head = activityDetailAcceptedBase(options), remote = activityDetailRevision(options, "rev-parse origin/main");
+  const mode = remote === head ? "current-main-push" : "pr-branch";
+  const range = mode === "current-main-push" ? `${activityDetailRevision(options, 'rev-parse "HEAD^1"')}..${head}` : `${ACTIVITY_DETAIL_BASE}...${head}`;
+  const files = activityDetailGit(options, `diff --no-renames --name-only -z ${range}`).split("\0").filter(Boolean);
+  if (!files.length) throw new Error("FAIL-CLOSED: empty activity detail changed-file range");
+  return { mode, range, mergeBase: ACTIVITY_DETAIL_BASE, files };
+}
+/** Call only after the present-day scope passes; retain 02 and every old authorization. */
+export function withoutActivityDetailAdditions(files: readonly string[]): string[] {
+  const additions = new Set<string>(ACTIVITY_DETAIL_ADDITIONS);
+  return files.filter(file => !additions.has(file));
+}
+export function activityDetailDashboardFiles(files: string[]): string[] {
+  if (!hasActivityDetailScope(files)) return files;
+  if (activityDetailScopeViolations(files).length) throw new Error("FAIL-CLOSED: activity detail scope extra");
+  return files.filter(file => file !== "src/app/api/activities/[id]/route.ts");
+}
+

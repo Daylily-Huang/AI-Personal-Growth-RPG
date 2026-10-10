@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import type { Activity } from "@/lib/store/types";
 import { BookOpen } from "lucide-react";
 import { SectionCard } from "@/components/ui";
@@ -29,6 +30,11 @@ export function ActivityHistoryList({ activities }: ActivityHistoryListProps) {
                 <span className="capitalize">{activity.status}</span> · {new Date(activity.createdAt).toLocaleString()}
               </div>
             </div>
+            <Link href={`/activities/${encodeURIComponent(activity.id)}`} prefetch={false}
+              aria-label={`查看活动原文：${activity.title}`}
+              className="inline-flex min-h-[var(--touch-target-min)] shrink-0 items-center rounded-xl border border-[var(--border-default)] px-3 text-sm text-[var(--text-primary)] focus-visible:outline-[var(--focus-ring-color)]">
+              查看原文
+            </Link>
           </li>
         ))}
       </ul>

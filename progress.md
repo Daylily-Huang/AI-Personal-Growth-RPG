@@ -1,5 +1,9 @@
 # 项目历史工作进度 (Progress Log)
 
+- 2026-10-10纠正后PRECOMMIT冻结时点：主session8518真实113files2468零skip/actual0/signalnull、DB6FCE...03CB8；19788 standalone22/0、新420/BUILD_ID1z926/Chrome-v3严格13步/原文双入口/六宽度/原生Tab/多行长文通过。Ohm自己420/512旧64/SDK102，明确独占后134及readonly8/0049/0050/0053/RLS通过，原DIRECT永久release已保存。普通用户proc EACCES先fail-closed、同preflight WSLroot只读证明全部client0，未kill或忽略未知；主84340精确原task4容器1卷→0，receiptD51304...13093，dev11/10和全非task身份state保持。七docs/22待其最终离线bind；此dated快照不是预签GO/commit/FINAL/merge/整站，后事件ignored回执/根计划更新。
+
+- 2026-10-10 Activity09 ADMISSION：Sartre fresh只读15calls/397s、P0/P1/P2=0 GO，09SHA21C01BA24945783E5A03356A1A6A2CDEF4624960DBD774C6EB44F374CC81AF91、c06/tree8f14、当时仅09untracked。此后主实施四production、新四tests和七旧guard精确适配，type/lint/build/fullPG/Chrome完整13/候选独审及全部commit/CI/FINAL/merge仍待。ignored新栈phase8f_test_act_20261010_c06创建四容器，dev11running10healthy保持；未改正式数据。错误历史包含WSL PATH未quote、CLI exports验证、一次空hunk拒绝，均已修正，未冒称首次全成功。
+
 - 最终candidate freeze：freshLeibniz独立b4834f/9554→8f136b 9files340unskippedexit0/73.03s，SQL1b767f readonly8/prosrc0049/0050/0053/2RLS/双方500Level4ledger500、主private三owner10tablesA9EE...D78C8A自行核验通过；DIRECT永久release后不DBHTTP。主4a46e3preflight/62ab30/55886→e73d9a精确4containers1volume→0，receipt124632...ACF3D/14:09:50CST，dev11/10/clone/backup/旧preview保持，23eed3 root四dirtyhash同值/diffcheck0。额外26tmpGit只读边界失误披露不计strictproof、原NO-GO与unknownexit保留。七docs/全21待最后rawhashbound GO，未commit/PR/FINAL/merge；后事件用ignoredreceipt不反写frozen candidate。
 
 - Durable v3 65679→e6dc23实际exit0/signalnull/109files2254全pass/raw96A815...CD7E6/terminal113EB3...D3C78，actualtest13:54:22→14:04:39CST/616.565s/341内部suites。8e52b4 main四original IDs/Created/source14/.next/census[]/3053closed，明确独占grant freshLeibniz，主不DBHTTP。其153与memoryguard静态通过，extra225中的26tmpGitfixture边界披露排除strictreadonly；待独立340/SQL8/release/disposal/final21。

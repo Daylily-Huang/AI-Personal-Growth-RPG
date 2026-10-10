@@ -12,6 +12,8 @@ import {
 } from "./helpers/governance-delta";
 import { validateVisualMigrationDelta } from "./visual-foundation.test";
 import { phase8fCurrentScopeViolations } from "./phase8f-ui-governance.test";
+import { hasActivityDetailScope, activityDetailScopeViolations, resolveActivityDetailWorkingFiles,
+  resolveActivityDetailChangedFiles, withoutActivityDetailAdditions } from "./helpers/governance-delta";
 
 const extras = [
   "src/app/api/dashboard/route.ts", "src/app/api/skills/route.ts", "src/lib/store/request-repository.ts",
@@ -97,11 +99,14 @@ describe("SiteReadiness07 strict presentational-only scope without historical we
     expect(readFileSync(file, "utf8")).toContain("# 73.");
   });
   test("actual entire working tracked+untracked is strict before any historical filtering", () => {
-    const current = resolveNewUserGuideWorkingFiles(); expect(hasNewUserGuideScope(current)).toBe(true);
+    const entire = resolveNewUserGuideWorkingFiles(), detail = hasActivityDetailScope(entire);
+    if (detail) expect(activityDetailScopeViolations(resolveActivityDetailWorkingFiles())).toEqual([]);
+    const historical = (files: string[]) => detail ? withoutActivityDetailAdditions(files) : files;
+    const current = historical(entire); expect(hasNewUserGuideScope(current)).toBe(true);
     expect(newUserGuideScopeViolations(current)).toEqual([]);
     const additions = new Set<string>(NEW_USER_GUIDE_ADDITIONS);
-    const fromBase = (base: string) => [...execFileSync("git", ["diff", "--no-renames", "--name-only", "-z", base, "--"], { encoding: "utf8" }).split("\0").filter(Boolean),
-      ...execFileSync("git", ["ls-files", "--others", "--exclude-standard", "-z"], { encoding: "utf8" }).split("\0").filter(Boolean)];
+    const fromBase = (base: string) => historical([...execFileSync("git", ["diff", "--no-renames", "--name-only", "-z", base, "--"], { encoding: "utf8" }).split("\0").filter(Boolean),
+      ...execFileSync("git", ["ls-files", "--others", "--exclude-standard", "-z"], { encoding: "utf8" }).split("\0").filter(Boolean)]);
     expect(graphInteractionScopeViolations(fromBase("f100d1fe10583d1b228e5ad23b0e9fded2730b25").filter(file => !additions.has(file)))).toEqual([]);
     const audits = new Set<string>(CONNECTED_FOCUS_AUDIT_ADDITIONS);
     expect(graphCanvasScopeViolations(fromBase("ab84df35319d08247388051c451be523afe3c7a7").filter(file => !additions.has(file) && !audits.has(file) && file !== "src/app/knowledge/page.tsx"))).toEqual([]);
@@ -149,7 +154,9 @@ describe("SiteReadiness07 strict presentational-only scope without historical we
     } })).toThrow("FAIL-CLOSED");
   });
   test("actual committed range retains old accepted PR53 scope before this candidate is committed", () => {
-    const delta = resolveNewUserGuideChangedFiles();
+    const entire = resolveNewUserGuideChangedFiles();
+    if (hasActivityDetailScope(entire.files)) expect(activityDetailScopeViolations(resolveActivityDetailChangedFiles().files)).toEqual([]);
+    const delta = { ...entire, files: hasActivityDetailScope(entire.files) ? withoutActivityDetailAdditions(entire.files) : entire.files };
     if (hasNewUserGuideScope(delta.files)) expect(newUserGuideScopeViolations(delta.files)).toEqual([]);
     else expect(graphInteractionScopeViolations(delta.files)).toEqual([]);
   });

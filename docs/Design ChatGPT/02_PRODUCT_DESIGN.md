@@ -1844,3 +1844,13 @@ Next Best Action
 指南只读取已认证账户的已保存资料，固定链接返回原任务、技能和记录页面，由用户显式操作原表单；不自动创建资源、调用AI、确认或发积分。缺公开项目配置时不请求资料；真实来源还须同一构建/受控运行配置绑定，不能把演示数据算为个人进度。
 主线仅认进行中，技能目录可使用已有成长技能、不重置为零；保存记录不等于AI成功、XP结算或Mastery晋升。三步齐全只表示“入门准备已完成”。§72初始零值与全部成长/证据/奖励规则保持。
 精确范围和验收见[入门引导契约](../SiteReadiness/07_NEW_USER_GUIDE_CONTRACT.md)及[过程验收](../SiteReadiness/08_NEW_USER_GUIDE_VERIFICATION.md)。本补充不代表04§13完整十三步、真实项目AI、公开部署或整个网站验收完成。
+
+---
+
+# 74. 私有 Activity 原文详情（2026-10-10，既有验收缺口纠正）
+
+用户可从 Dashboard 的 Activity Log 或具有有效 activityId 的 Recent Growth 进入 `/activities/[id]`，完整查看已保存的原始输入、记录状态、创建时间及记录时规则版本。保留空白、换行与 HTML 字面量，不截断原文，也不把记录存在解释为 Mastery 或奖励。
+详情只通过已认证的 request-scoped repository 与 RLS 读取自己的 Activity；不存在与不属于自己统一不可访问，缺连接配置不降级为 Demo，响应 private/no-store。页面不会自动评估、确认、结算 XP 或发积分；所有既有成长/证据/奖励规则和 Artifact 延期决定不变。
+此项用于补齐04§13第11步，必须真实点击入口并看到完整原文。完整13步及整站完成仍须其余门禁同时通过，不以接口保留原文替代用户可见详情。精确范围与证据见[09合同](../SiteReadiness/09_ACTIVITY_DETAIL_CONTRACT.md)及[10验收记录](../SiteReadiness/10_ACTIVITY_DETAIL_VERIFICATION.md)。
+
+2026-10-10纠正后冻结验收快照：主实际Chrome已走完整13步并点击两个真实入口核对原文、手机/原生Tab与另合成多行长文本；113files2468真实PG与独立134通过，专属栈清理完成。此为合成账户验收证据，不预签候选/FINAL/merge或整个网站完成；§33修改/补证/拒绝与Mastery验证操作尚需后续独立受控实现，不因本读取功能而获得新增写权限。
