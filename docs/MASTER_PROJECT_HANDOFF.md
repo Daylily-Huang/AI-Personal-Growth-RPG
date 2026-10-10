@@ -444,3 +444,15 @@ Edit权限选择仍待用户答复；补证/验证和整站验收仍未完成。
 最新实测：full-v3 actual126files3070/3070/child0、type/lint/buildv3、单独Growth11/E2E11全绿；fresh Chrome/source24/prod20/base15f绑定通过四宽12geometry/8nativeTab/26API/pageerror0，35表readback单XP11/两端511-level4/M3、Reject与故障不增长、原记录保留。主测试客户端全部退出/census空/release后已direct grant Tesla独占指定目标＋只读SQL，等待其永久release及主owned disposal/final32 candidate绑定；不是已commit/FINAL/merge/新预览或整站完成。所有旧失败与工具故障保留在14；现有3017保持，不写正式夹具。
 
 最终候选冻结更新：Tesla own157/157及只读SQL8/函数来源/RLS权限通过、direct永久释放/clients终结；主精确处置本轮4容器1卷、task0/0、formal11running10healthy和其它13状态保持，disposal355ADB3D...98ABC2C，source24与保护保持。14与EXACT32冻结等待Tesla最后离线manifest绑定；candidate GO/commit/ownCI/不同fresh committed FINAL/新栈清理/普通merge/postmain/newpreview/cache清理仍未全部完成，不部署或称整站完成。原13/15 frozen、Edit/高阶验证等用户边界不变。
+
+## 2026-10-11 后续accepted52ba与补证16（实现中）
+
+上述32候选之后已完成PR58普通合并与own/post-main CI，accepted52ba1378d355ccab26f12e7fdd3eedb8464deafe/tree f0c2d8545af169c2e569e5323d3608065ec8f371；现有本机3018保留，原历史不覆盖。详情见root本地handoff及已保存CI/独审记录，不冒称本新候选重复执行旧验收。
+
+新隔离codex/site-evidence-submission-20261011：Euclid两P2原NO-GO后，纠正16 SHA F4D0B4C787FA4BAC41707387C7320FFD091422F38F75AD35B8A69CDA450EBF6F获同Risk2 ADMISSION0/0/0 GO，仅准EXACT35实现。当前文字材料E0/false＋最小幂等receipt、两受控RPC、独立面板已写；四文件155离线通过只是局部证据，真实PG/HTTP/build/browser/完整回归/候选独审及清理冻结仍待。具体历史失败/当前门禁见17；不应用正式DB0054，不发放成长/奖励，不调用AI。
+
+Edit权限仍待用户选择；完整Verifier/附件与当前整站13步验收另行完成。密钥不上传，root用户改动/3018/正式环境/共享依赖/备份保护；临时栈与无用缓存验收后精确清理，不全局prune或删活跃依赖。
+
+补证后续主验收终态：build9l8oQr59O_o4dqIkTboeI、type/lint0/无warning、133files3371全passed/child0、Growth11/E2E11、局部158/真实authority34/HTTP123/治理825均通过。Chrome55checks/30API/8geometry/3nativeTab/0pageerror，三populatedowner×36tenant表只增加3E0/receipt，原增长/奖励/Wish/outer逐字不变。原fixture/工具错误保留17；main客户端census空且已独占授权fresh Leibniz真实DB，等待其永久release及主精准清理/35冻结/候选GO。不是已提交/FINAL/PR合并/正式0054或整站完成，现行3018保持。
+
+最新纠正冻结：fresh Leibniz own257/115/62/SQL8及3owner36表通过，direct永久释放；其P2发现主浏览器宽度与契约不符，已仅补ignoredhelper真实320/390/768/1440八geometry/3Tab/zero pageerror/零业务POST，原v3宽度失败历史保留。追加readback原状态不变、main新释放后精确销毁原四容器一卷，task0/0、formal11/10与nonTask保持，disposal4297495C...05AC1。EXACT35/17冻结待其最终离线绑定；尚无candidate GO/提交/ownCI/不同fresh FINAL/普通merge/正式0054，不改变既有3018或网站未完事项。

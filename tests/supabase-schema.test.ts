@@ -76,6 +76,7 @@ const EXPECTED_ORDER = [
   "0051_phase8f_milestones_foundation",
   "0052_phase8f_milestones_rpc_authority",
   "0053_zero_xp_manual_skill_authority",
+  "0054_evidence_submission_authority",
 ];
 
 

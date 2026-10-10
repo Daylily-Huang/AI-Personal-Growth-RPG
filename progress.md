@@ -1,5 +1,11 @@
 # 项目历史工作进度 (Progress Log)
 
+- 2026-10-11 纠正候选冻结：独立phase1 0/0/1因browser宽度，own257/115/62/SQL8＋3owner36表通过且永久释放；主仅改ignored证据脚本补320/390/768/1440八geometry/3Tab/0error/0businessPOST，source/test28与build仍同。纠正Chrome/Next/PG全退并新release-v2，主exec9974精确disposal child0，原4containers1volume→0/0、formal11running10healthy和所有nonTask保持。17保存原NO-GO及纠正/清理原hash；当前等待最后35绑定，未提交/正式0054/整站完成。
+
+- 2026-10-11 补证主全量终态0：133files3371/3371，build/type/lint、Growth11/E2E11与Chrome55/30API/8geometry/3Tab通过；3owner36表deepEqual去掉仅新增3E0+3receipt后与原baseline相等。测试/浏览器/Next/PG已close并census[]/release，fresh Leibniz已获explicit独占DB grant。原失败/工具历史保留17，不预签独审/处置/提交/正式升级或整站完成。
+
+- 2026-10-11 恢复原durable v5/v3终态：158/158与34/34全部passed/child0，PG wrapper verificationErrornull、源码/Git元数据前后保持。原失败记录见17；进入完整构建前type/lint复核，不改冻结16字节或现行3018/正式54321。
+
 - 2026-10-10冻结前终态：Lovelace自己offline-v2 565、真实5files156、readonly SQL-v2八值/冻结四函数/RLS实际0；直接永久DB/HTTP释放，census三[]。原offline-v1 564/1 failedraw遭同stem覆盖、原因不可恢复，SQL-v1 roles类型fixture失败如实保留12。主72992在13:55:39.650Z原4/1→0终态0，disposal589176159A73BBDA91236D398F4A22B6192FAD0D3A208F961F17C646245F46BE，正式11/10及nonTask全ID/state原样；无第二DB会话。18source/build4/full2780/Chrome保持，七docs冻结待独立全25最终绑定，不签GO/commit/merge/sitecomplete。
 
 - 2026-10-10主full-v1真实0：13:30:51.248Z→13:45:11.523Z，119files2780全passed/零skip/raw6D3A2707D00DAEE62D76E8FE31025E6E1A94CB04DAEF08BA3B332212604094CC，Growth/E2E各11；另Growth11实际0。Chrome注册/primary/finish三个runner0，8geometry44px/4nativeTab+取消/网络fault真重试/持久原文/其它Confirm14XP→514/最后空列表成功过；两次PG精确35表proof0。QA PID2152500仅核后SIGTERM/CLI sessionclose/PGfinally0，普通preflight3旧进程EACCES后root纯读residual[]/established空通过，显式grantLovelace，主不DB/HTTP。v2独立565实际0、旧v1 raw覆盖不配旧terminal历史保留；owned清理/25最终绑定待。
@@ -565,3 +571,5 @@
 实际后续终态：full-v3 126files3070/3070/zero非passed、success/child0/verificationErrornull、818650ms、source24/metadata保持，raw75748A...9BBC5；lint0，单独Growth11/E2E11共22通过。fresh corrective Chrome flow0、四宽12geometry/8nativeTab/26API/pageerror0/无旧pending、source24/prod20/base/buildv3绑定；35表readback原记录保持，唯一XP11/两端511-level4/M3，Reject0/故障0assessment。主所有PG/HTTP/Next/CLI关停终态，task census空、release记录后direct exclusive grant Tesla own目标＋SQL8；主等待其永久release，不再DB/HTTP/browser。尚无candidateGO/disposal/finalmanifest，不commit/merge。
 
 最终冻结：Tesla direct permanently DB_ACCESS_COMPLETE，own7files157/157＋READONLY/ROLLBACK8/fivefunction sources/RLS权限通过，17:52:01Z own census空/所有clients终结。主据此精确disposer91822实际0、task4容器/1卷→0/0、formal11running10healthy/nonTask13保持/source24保护不变，raw355ADB...ABC2C；没有复开DB/HTTP/browser。当前14/32全部冻结待自己的最终hash绑定，不将该永久释放本身冒充candidateGO，也未commit/push/merge；cache待后续不用才清。
+
+2026-10-11 accepted52ba后启动16补证切片，原Euclid2P2 NO-GO及纠正准入0/0/0 GO精确保留，F4D...全文冻结；源实现从GO后开始。共享既有依赖无install，首pure63、三files136、纠正四files155全部终态0/零skip。原UI17pass1fail为已完成read signal假设错误，已补pending跨Activityabort反例；初typecheck两次新测试headers类型问题未过，已修但待最终重跑。当前不写正式DB、不AI、不新栈、不改现行3018，不以局部绿宣称完成。

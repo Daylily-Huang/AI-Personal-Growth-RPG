@@ -937,3 +937,116 @@ export function assessmentContextHistoricalContent(file: string, group: "onboard
   return content;
 }
 
+// SiteReadiness16: separate present-day authority; the entire accepted52ba prefix stays above.
+export const EVIDENCE_SUBMISSION_BASE = "52ba1378d355ccab26f12e7fdd3eedb8464deafe";
+export const EVIDENCE_SUBMISSION_CONTROL = "docs/SiteReadiness/16_EVIDENCE_SUBMISSION_CONTRACT.md";
+export const EVIDENCE_SUBMISSION_ADMISSION_SHA = "F4D0B4C787FA4BAC41707387C7320FFD091422F38F75AD35B8A69CDA450EBF6F";
+export const EVIDENCE_SUBMISSION_MIGRATION = "supabase/migrations/0054_evidence_submission_authority.sql";
+export const EVIDENCE_SUBMISSION_PRODUCTION = ["src/app/activities/[id]/page.tsx", "src/app/api/activities/[id]/evidence/route.ts",
+  "src/components/activities/EvidenceSubmissionPanel.tsx", "src/lib/evidence-submission/client.ts", "src/lib/evidence-submission/http.ts",
+  "src/lib/evidence-submission/repository.ts", "src/lib/evidence-submission/request.ts", "src/lib/evidence-submission/types.ts",
+  "src/lib/evidence-submission/validation.ts"] as const;
+export const EVIDENCE_SUBMISSION_TESTS = ["tests/evidence-submission-api.test.ts", "tests/evidence-submission-authority.test.ts",
+  "tests/evidence-submission-governance.test.ts", "tests/evidence-submission-http.test.ts", "tests/evidence-submission-repository.test.ts",
+  "tests/evidence-submission-ui.test.tsx", "tests/evidence-submission-validation.test.ts"] as const;
+export const EVIDENCE_SUBMISSION_MARKERS = [EVIDENCE_SUBMISSION_CONTROL, "docs/Design ChatGPT/02_PRODUCT_DESIGN.md",
+  ...EVIDENCE_SUBMISSION_PRODUCTION, EVIDENCE_SUBMISSION_MIGRATION, ...EVIDENCE_SUBMISSION_TESTS] as const;
+export const EVIDENCE_SUBMISSION_ALLOWED = [...EVIDENCE_SUBMISSION_MARKERS, "docs/MASTER_PROJECT_HANDOFF.md",
+  "docs/SiteReadiness/17_EVIDENCE_SUBMISSION_VERIFICATION.md", "findings.md", "progress.md", "task_plan.md",
+  "tests/activity-detail-governance.test.ts", "tests/assessment-context-governance.test.ts", "tests/graph-canvas-governance.test.ts",
+  "tests/graph-mobile-governance.test.ts", "tests/helpers/governance-delta.ts", "tests/onboarding-governance.test.ts",
+  "tests/phase5-dashboard-ui.test.tsx", "tests/phase8f-ui-governance.test.ts", "tests/proposal-rejection-governance.test.ts",
+  "tests/supabase-schema.test.ts", "tests/visual-foundation.test.ts"] as const;
+export function hasEvidenceSubmissionScope(files: readonly string[]): boolean {
+  return EVIDENCE_SUBMISSION_MARKERS.every(file => files.includes(file));
+}
+export function evidenceSubmissionScopeViolations(files: readonly string[]): string[] {
+  const allowed = new Set<string>(hasEvidenceSubmissionScope(files) ? EVIDENCE_SUBMISSION_ALLOWED : []);
+  return [...(new Set(files).size === files.length ? [] : ["duplicate evidence paths"]),
+    ...files.filter(file => !allowed.has(file)),
+    ...EVIDENCE_SUBMISSION_ALLOWED.filter(file => !files.includes(file)).map(file => `missing evidence path: ${file}`)];
+}
+export function verifyEvidenceSubmissionAdmission(text: string): void {
+  if (activityMainHash("sha256").update(text.replace(/\r\n/g, "\n")).digest("hex").toUpperCase() !== EVIDENCE_SUBMISSION_ADMISSION_SHA)
+    throw new Error("FAIL-CLOSED: evidence submission contract is unbound");
+}
+function evidenceAcceptedHead(options: ProposalRejectionGitOptions): string {
+  let text: string;
+  try { text = options.readControl ? options.readControl() : readActivityMainControl(activityMainPath(options.cwd ?? process.cwd(), EVIDENCE_SUBMISSION_CONTROL), "utf8"); }
+  catch { throw new Error("FAIL-CLOSED: evidence submission contract could not be read"); }
+  verifyEvidenceSubmissionAdmission(text);
+  const head = activityDetailRevision(options, "rev-parse HEAD");
+  if (activityDetailRevision(options, `merge-base ${EVIDENCE_SUBMISSION_BASE} HEAD`) !== EVIDENCE_SUBMISSION_BASE)
+    throw new Error("FAIL-CLOSED: evidence accepted base is not an ancestor");
+  return head;
+}
+export function resolveEvidenceSubmissionWorkingFiles(options: ProposalRejectionGitOptions = {}): string[] {
+  evidenceAcceptedHead(options);
+  const files = [...contextPaths(activityDetailGit(options, `diff --no-renames --name-only -z ${EVIDENCE_SUBMISSION_BASE} --`), true),
+    ...contextPaths(activityDetailGit(options, "ls-files --others --exclude-standard -z"), true)];
+  if (!files.length || new Set(files).size !== files.length) throw new Error("FAIL-CLOSED: empty or duplicate evidence working range");
+  return files;
+}
+export function resolveEvidenceSubmissionChangedFiles(options: ProposalRejectionGitOptions = {}): GovernanceDelta {
+  const head = evidenceAcceptedHead(options), remote = activityDetailRevision(options, "rev-parse origin/main");
+  const mode = head === remote ? "current-main-push" : "pr-branch";
+  let range = `${EVIDENCE_SUBMISSION_BASE}...${head}`;
+  if (mode === "current-main-push") {
+    const parent = activityDetailRevision(options, 'rev-parse "HEAD^1"');
+    if (parent !== EVIDENCE_SUBMISSION_BASE) throw new Error("FAIL-CLOSED: evidence current-main first parent is not accepted52ba");
+    range = `${parent}..${head}`;
+  }
+  return { mode, range, mergeBase: EVIDENCE_SUBMISSION_BASE, files: contextPaths(activityDetailGit(options, `diff --no-renames --name-only -z ${range}`)) };
+}
+export function assertEvidenceSubmissionChangedScope(delta: GovernanceDelta, options: ProposalRejectionGitOptions = {}): void {
+  assertSameActivityRange(delta, resolveEvidenceSubmissionChangedFiles(options), true);
+  assertCompleteActivityScope(delta.files, EVIDENCE_SUBMISSION_ALLOWED, evidenceSubmissionScopeViolations(delta.files));
+}
+export function isEvidenceSubmissionCheckout(cwd = process.cwd()): boolean {
+  return proposalControlExists(activityMainPath(cwd, EVIDENCE_SUBMISSION_CONTROL));
+}
+export function assertEvidenceSubmissionActualScope(options: ProposalRejectionGitOptions = {}): string[] {
+  const files = resolveEvidenceSubmissionWorkingFiles(options);
+  assertCompleteActivityScope(files, EVIDENCE_SUBMISSION_ALLOWED, evidenceSubmissionScopeViolations(files));
+  if (activityDetailRevision(options, "rev-parse HEAD") !== EVIDENCE_SUBMISSION_BASE)
+    assertEvidenceSubmissionChangedScope(resolveEvidenceSubmissionChangedFiles(options), options);
+  return files;
+}
+export function evidenceSubmissionHistoricalFiles(anchor: string, options: ProposalRejectionGitOptions = {}): string[] {
+  assertEvidenceSubmissionActualScope(options);
+  if (!["ab84df35319d08247388051c451be523afe3c7a7", "f18855df297fa1a8f42e5fa3574453ef9b67d76b", MOBILE_GRAPH_BASE,
+    NEW_USER_GUIDE_BASE, ACTIVITY_DETAIL_BASE, ACTIVITY_MAIN_BASE].includes(anchor)) throw new Error("FAIL-CLOSED: unapproved evidence historical anchor");
+  if (activityDetailRevision(options, `merge-base ${anchor} ${PROPOSAL_REJECTION_BASE}`) !== anchor)
+    throw new Error("FAIL-CLOSED: evidence historical anchor is not an ancestor");
+  return contextPaths(activityDetailGit(options, `diff --no-renames --name-only -z ${anchor} ${PROPOSAL_REJECTION_BASE}`));
+}
+export function evidenceSubmissionRejectionFiles(options: ProposalRejectionGitOptions = {}): string[] {
+  assertEvidenceSubmissionActualScope(options);
+  if (activityDetailRevision(options, `merge-base ${PROPOSAL_REJECTION_BASE} ${ASSESSMENT_CONTEXT_BASE}`) !== PROPOSAL_REJECTION_BASE)
+    throw new Error("FAIL-CLOSED: evidence reject history is not descended from accepted78d");
+  const files = contextPaths(activityDetailGit(options, `diff --no-renames --name-only -z ${PROPOSAL_REJECTION_BASE} ${ASSESSMENT_CONTEXT_BASE}`));
+  assertCompleteActivityScope(files, PROPOSAL_REJECTION_ALLOWED, proposalRejectionScopeViolations(files));
+  return files;
+}
+export function evidenceSubmissionContextFiles(options: ProposalRejectionGitOptions = {}): string[] {
+  assertEvidenceSubmissionActualScope(options);
+  if (activityDetailRevision(options, `merge-base ${ASSESSMENT_CONTEXT_BASE} ${EVIDENCE_SUBMISSION_BASE}`) !== ASSESSMENT_CONTEXT_BASE)
+    throw new Error("FAIL-CLOSED: evidence context history is not descended from accepted15f");
+  const files = contextPaths(activityDetailGit(options, `diff --no-renames --name-only -z ${ASSESSMENT_CONTEXT_BASE} ${EVIDENCE_SUBMISSION_BASE}`));
+  assertCompleteActivityScope(files, ASSESSMENT_CONTEXT_COMPATIBILITY_ALLOWED, assessmentContextScopeViolations(files));
+  return files;
+}
+export function evidenceSubmissionHistoricalContent(file: string, group: "onboarding" | "activity" | "rejection" | "page", options: ProposalRejectionGitOptions = {}): string {
+  assertEvidenceSubmissionActualScope(options);
+  const accepted = group === "onboarding" ? PROPOSAL_REJECTION_HISTORICAL_CONTENT as readonly string[]
+    : group === "activity" ? ASSESSMENT_CONTEXT_ACTIVITY_CONTENT as readonly string[]
+    : group === "rejection" ? ["src/lib/ai/prompts.ts"] : group === "page" ? ["src/app/activities/[id]/page.tsx"] : [];
+  if (!accepted.includes(file)) throw new Error("FAIL-CLOSED: unapproved evidence content group/path");
+  const endpoint = group === "onboarding" ? PROPOSAL_REJECTION_BASE : group === "page" ? EVIDENCE_SUBMISSION_BASE : ASSESSMENT_CONTEXT_BASE;
+  if (activityDetailRevision(options, `merge-base ${endpoint} ${EVIDENCE_SUBMISSION_BASE}`) !== endpoint)
+    throw new Error("FAIL-CLOSED: evidence content endpoint is not an ancestor");
+  const content = activityDetailGit(options, `show ${endpoint}:"${file}"`);
+  if (!content) throw new Error("FAIL-CLOSED: empty evidence historical content");
+  return content;
+}
+

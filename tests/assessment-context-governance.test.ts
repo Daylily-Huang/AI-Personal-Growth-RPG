@@ -9,15 +9,27 @@ import { ASSESSMENT_CONTEXT_BASE as BASE, ASSESSMENT_CONTEXT_CONTROL as CONTROL,
   ASSESSMENT_CONTEXT_COMPATIBILITY_ALLOWED as COMPAT_ALLOWED, ASSESSMENT_CONTEXT_COMPATIBILITY_MARKERS as COMPAT_MARKERS,
   ASSESSMENT_CONTEXT_DEMO_FIXTURE as DEMO_FIXTURE, verifyAssessmentContextCompatibility as verifyCompatibility,
   hasAssessmentContextScope as has, assessmentContextScopeViolations as violations, verifyAssessmentContextAdmission as verify,
-  resolveAssessmentContextWorkingFiles as working, resolveAssessmentContextChangedFiles as changed, assertAssessmentContextActualScope as actual,
-  assertAssessmentContextChangedScope as bindChanged, assessmentContextHistoricalFiles as history,
-  assessmentContextRejectionHistoricalFiles as rejectHistory, assessmentContextHistoricalContent as content,
+  resolveAssessmentContextWorkingFiles as working, resolveAssessmentContextChangedFiles as changed, assertAssessmentContextActualScope as priorActual,
+  assertAssessmentContextChangedScope as bindChanged, assessmentContextHistoricalFiles as priorHistory,
+  assessmentContextRejectionHistoricalFiles as priorRejectHistory, assessmentContextHistoricalContent as priorContent,
   PROPOSAL_REJECTION_BASE as BEFORE_REJECT, PROPOSAL_REJECTION_ALLOWED, PROPOSAL_REJECTION_HISTORICAL_CONTENT as OLD_CONTENT,
   NEW_USER_GUIDE_BASE, NEW_USER_GUIDE_MARKERS, ACTIVITY_DETAIL_BASE, ACTIVITY_DETAIL_ALLOWED, ACTIVITY_MAIN_BASE, ACTIVITY_MAIN_ALLOWED,
   GRAPH_CANVAS_MARKERS, MOBILE_GRAPH_MARKERS, CONNECTED_FOCUS_MARKERS, SKILL_BOOTSTRAP_MARKERS,
   type AssessmentContextGitOptions } from "./helpers/governance-delta";
 import { validateVisualMigrationDelta as visual } from "./visual-foundation.test";
 import { phase8fCurrentScopeViolations as phase8f } from "./phase8f-ui-governance.test";
+import { isEvidenceSubmissionCheckout, assertEvidenceSubmissionActualScope, evidenceSubmissionContextFiles,
+  evidenceSubmissionHistoricalFiles, evidenceSubmissionRejectionFiles, evidenceSubmissionHistoricalContent,
+  EVIDENCE_SUBMISSION_BASE } from "./helpers/governance-delta";
+// Only actual present-day calls get a fixed-endpoint adapter; every old synthetic model still exercises the original functions.
+const actual = (options: AssessmentContextGitOptions = {}) => !options.execute && isEvidenceSubmissionCheckout(options.cwd)
+  ? evidenceSubmissionContextFiles(options) : priorActual(options);
+const history = (anchor: string, options: AssessmentContextGitOptions = {}) => !options.execute && isEvidenceSubmissionCheckout(options.cwd)
+  ? evidenceSubmissionHistoricalFiles(anchor, options) : priorHistory(anchor, options);
+const rejectHistory = (options: AssessmentContextGitOptions = {}) => !options.execute && isEvidenceSubmissionCheckout(options.cwd)
+  ? evidenceSubmissionRejectionFiles(options) : priorRejectHistory(options);
+const content = (file: string, group: "onboarding" | "activity" | "rejection", options: AssessmentContextGitOptions = {}) => !options.execute && isEvidenceSubmissionCheckout(options.cwd)
+  ? evidenceSubmissionHistoricalContent(file, group, options) : priorContent(file, group, options);
 const canonical=(value:string)=>value.replace(/\r\n/g,"\n"), document=()=>readFileSync(CONTROL,"utf8"), revision=(n:number)=>String(n).repeat(40);
 const extras=["src/lib/growth-engine/engine.ts","src/lib/ai/schemas.ts","src/lib/store/settlement.service.ts","src/lib/store/request-repository.ts",
   "src/lib/supabase/admin.ts","src/lib/supabase/server.ts","src/app/api/assessments/[id]/confirm/route.ts","src/app/api/assessments/[id]/reject/route.ts",
@@ -110,6 +122,11 @@ describe("context13 exact30/16 new gate and explicitly bounded accepted history"
   test("entire accepted helper/product prefixes and all forbidden DB/growth/config scopes remain frozen",()=>{
     for(const file of ["tests/helpers/governance-delta.ts","docs/Design ChatGPT/02_PRODUCT_DESIGN.md"])expect(canonical(readFileSync(file,"utf8")).startsWith(canonical(execFileSync("git",["show",`${BASE}:${file}`],{encoding:"utf8"})))).toBe(true);
     const protectedPaths=["supabase","src/lib/supabase","src/lib/growth-engine","src/lib/store/settlement.service.ts","src/lib/store/request-repository.ts","src/lib/ai/schemas.ts","src/app/api/assessments","src/components/dashboard/PendingProposals.tsx","package.json","pnpm-lock.yaml",".github","src/app/globals.css","src/styles/design-tokens.css"];
+    if (isEvidenceSubmissionCheckout()) {
+      assertEvidenceSubmissionActualScope();
+      expect(execFileSync("git",["diff","--no-renames","--name-only",BASE,EVIDENCE_SUBMISSION_BASE,"--",...protectedPaths],{encoding:"utf8"}).trim()).toBe("");
+      return;
+    }
     expect(execFileSync("git",["diff","--no-renames","--name-only",BASE,"--",...protectedPaths],{encoding:"utf8"}).trim()).toBe("");
   });
 });
