@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { isValidUuid } from "@/lib/http/validation";
 import type { Activity } from "@/lib/store/types";
+import { EvidenceSubmissionPanel } from "@/components/activities/EvidenceSubmissionPanel";
 
 type Detail = Pick<Activity, "id" | "title" | "rawInput" | "status" | "createdAt" | "rulesVersion">;
 type State = { kind: "loading" | "configuration" | "invalid" | "notFound" | "error" | "unauthenticated" }
@@ -93,6 +94,7 @@ function ActivityDetail({ id }: { id: string }) {
         <h2 id="activity-original-title" className="mb-4 font-serif text-lg font-semibold">原始输入</h2>
         <pre data-testid="activity-raw-input" className="min-w-0 whitespace-pre-wrap break-words font-sans text-sm leading-relaxed text-[var(--text-primary)] [overflow-wrap:anywhere]">{visible.activity.rawInput}</pre>
       </section>
+      <EvidenceSubmissionPanel activityId={visible.activity.id} />
     </>}
   </section>;
 }

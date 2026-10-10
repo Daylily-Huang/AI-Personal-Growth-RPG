@@ -1,5 +1,15 @@
 # AI Personal Growth RPG — 项目总体计划与当前状态 (Task Plan)
 
+- [in_progress 纠正35最终离线绑定] source/build-v2 mLc保持，main完整133files3379/3379、Growth11/E2E11/type/lint0、新Chrome61/真实两路取消/契约四宽八geometry3Tab/3owner36表parity通过；旧20/8fail、3376/3失败与303预算复核保留。主全部客户端退出/release-v2/census[]，原4containers1volume精确清理0/0、formal11/10/nonTask/source/protected保持，disposal39DA...05F95。controller16固定/仅panel+UI8regress及六auditdocs变；完整35与17冻结待Ramanujan sameRisk2最后candidate GO，之后selected8新commit→新ownCI→不同fresh committed FINAL/新栈清理→普通merge/postCI→正式54当前批准/备份恢复独审→新preview/cache清理。现3018/正式数据/密钥/备份/deps保留，整站未完成。
+
+- [in_progress PR59 committed FINAL P2纠正] fresh Ramanujan0/0/1 NO-GO已永久DB/HTTP释放；旧source8新增回归全失败、修后166offline/type/lint0。仅production面板与新增8test/六auditdocs变化，controller16不改。main独占同一新合成栈新build-v2/full/Growth/E2E/四宽Chrome/36表快照→新release/owned清理→同Risk2候选复审/35freeze→新selectedcommit/ownCI/不同fresh committed FINAL，之后才普通merge/postCI。正式54当前批准待，3018/数据/密钥/备份/deps不动，整站未完成。
+
+- [in_progress 最终35离线绑定] Leibniz独立257/115/62/SQL8/3owner36表通过并永久释放，原P2宽度证据缺口已主实际补齐320/390/768/1440/八geometry/3Tab/零error/零businessPOST，source28未动。主纠正客户端全退、新release-v2后精确销毁原4容器1卷，task0/0/formal11/10/nonTask保持。17/七文档冻结待最终manifest GO；所有提交/CI/不同FINAL/PR/正式0054/新预览仍待，3018保持。
+
+- [in_progress evidence35 fresh Risk2] 主完整133files3371/3371/child0，build9l8oQr59O_o4dqIkTboeI/type/lint/Growth11/E2E11，Chrome55checks/30API/8geometry/3nativeTab/0pageerror、三owner36表原记录不变通过；旧失败保留17。main所有客户端退出/census[]，已direct给Leibniz指定独占真实DB，待永久release→owned disposal→35最终冻结/候选GO。无提交/正式0054/整站完成，3018保持。
+
+- [in_progress evidence35 完整构建前验收] 最新主offline-v5 158/158、真实PG authority-v3 34/34，两个child0/zero非passed；原失败与修复过程见17。尚未build/HTTP/browser/full/候选GO/提交/正式0054。下一步type/lint→completed build→真实Auth/HTTP，现行3018保持。
+
 - [complete 所有运行/精确owned清理；pending exact25候选最终绑定] Lovelace自己565v2/156/readonlySQLv2终态0，直接永久释放；旧v1 raw覆盖和SQL-v1夹具失败公开分层保留。主72992原4容器1卷→0、正式11/10/全部nonTask IDs/state不变，disposal589176...F46BE；source18/build4/full2780/Chrome相同，七docs冻结后外部25manifest。候选GO前不commit；后事件不反写冻结25，仍需ownCI/不同committed FINAL/ordinarymerge/postmain/accepted preview，不是整站完成。
 
 - [complete 主实现/全套/Chrome；in_progress fresh候选] currentbuild4 KwxsbCEmj_h6hYEjzgJ1g/source18冻结，unit86/real目标51/full119files2780/Growth11零skip实际0；主Chrome四宽八44px/nativeTab4/取消/网络abort重试/持久原文/其它Confirm14XP/空列表成功过，35表仅预期status+Confirm delta/ledger parity。QA/浏览器/PG已闭/root只读preflight通过，显式grantLovelace后主不再DB/HTTP，等待独立永久release后只做精确owned清理；候选final/owned4+1清理/25冻结尚待，不commit/merge/sitecomplete。
@@ -286,3 +296,7 @@
 
 - [complete 最终冻结更新] Tesla own157/157和只读SQL8通过并direct永久释放；主精确owned4容器/1卷已销毁、task0/0/formal11running10healthy/nonTask保持，disposal355ADB...ABC2C。原13/15不改，当前14/全部32准备最终离线绑定。
 - [in_progress 最终冻结更新] 等exact32独立candidate GO，随后才selected32 commit/ownCI/不同freshFINAL/普通merge/postmain/newpreview/无引用cache；未发布，不称整站完成。
+
+- [complete 历史后续] PR58/accepted52ba/3018已完成，root本地handoff与CI/FINAL保存记录为依据，旧过程日志保持。
+- [complete evidence16纠正ADMISSION] Euclid0/0/0 GO仅F4D...冻结合同；原NO-GO两P2保留。accepted52ba/tree f0c2d，EXACT35/all19。
+- [in_progress evidence实现] 纯验证/实际SDK/API/UI四files155通过，原UI夹具1失败与headers type失败保留在17；旧闭包/0054/realHTTP/全套/独审/清理冻结尚待，不预签candidate或整站完成。3018与正式DB/root用户数据保护。

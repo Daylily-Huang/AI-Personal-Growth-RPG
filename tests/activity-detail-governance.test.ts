@@ -39,6 +39,7 @@ const canonical = (s: string) => s.replace(/\r\n/g, "\n");
 import { isProposalRejectionCheckout, proposalRejectionHistoricalFiles, NEW_USER_GUIDE_BASE } from "./helpers/governance-delta";
 import { isAssessmentContextCheckout, assessmentContextHistoricalFiles, assessmentContextHistoricalContent,
   ASSESSMENT_CONTEXT_ACTIVITY_CONTENT } from "./helpers/governance-delta";
+import { isEvidenceSubmissionCheckout, evidenceSubmissionHistoricalFiles, evidenceSubmissionHistoricalContent } from "./helpers/governance-delta";
 describe("Activity09 strict current scope without historical permission laundering", () => {
   test("binds admitted09, exact22/all10/exclusive11 and four production/four new tests", () => {
     expect(createHash("sha256").update(canonical(readFileSync(ACTIVITY_DETAIL_CONTROL, "utf8"))).digest("hex").toUpperCase()).toBe("21C01BA24945783E5A03356A1A6A2CDEF4624960DBD774C6EB44F374CC81AF91");
@@ -78,9 +79,9 @@ describe("Activity09 strict current scope without historical permission launderi
     expect(evaluateScopedPolicy(["src/app/dashboard/page.tsx", "src/lib/growth-engine/engine.ts"], PHASE5_DASHBOARD_POLICY).violations).toHaveLength(1);
   });
   test("actual working is exact22 before filtering old Guide21, with every old marker retained", () => {
-    const current = isAssessmentContextCheckout() ? assessmentContextHistoricalFiles(ACTIVITY_DETAIL_BASE) : isProposalRejectionCheckout() ? proposalRejectionHistoricalFiles(ACTIVITY_DETAIL_BASE) : resolveActivityDetailWorkingFiles(); expect([...current].sort()).toEqual([...ACTIVITY_DETAIL_ALLOWED].sort());
+    const current = isEvidenceSubmissionCheckout() ? evidenceSubmissionHistoricalFiles(ACTIVITY_DETAIL_BASE) : isAssessmentContextCheckout() ? assessmentContextHistoricalFiles(ACTIVITY_DETAIL_BASE) : isProposalRejectionCheckout() ? proposalRejectionHistoricalFiles(ACTIVITY_DETAIL_BASE) : resolveActivityDetailWorkingFiles(); expect([...current].sort()).toEqual([...ACTIVITY_DETAIL_ALLOWED].sort());
     expect(activityDetailScopeViolations(current)).toEqual([]);
-    const historical = withoutActivityDetailAdditions(isAssessmentContextCheckout() ? assessmentContextHistoricalFiles(NEW_USER_GUIDE_BASE) : isProposalRejectionCheckout() ? proposalRejectionHistoricalFiles(NEW_USER_GUIDE_BASE) : resolveNewUserGuideWorkingFiles()); expect(newUserGuideScopeViolations(historical)).toEqual([]); expect([...historical].sort()).toEqual([...NEW_USER_GUIDE_ALLOWED].sort());
+    const historical = withoutActivityDetailAdditions(isEvidenceSubmissionCheckout() ? evidenceSubmissionHistoricalFiles(NEW_USER_GUIDE_BASE) : isAssessmentContextCheckout() ? assessmentContextHistoricalFiles(NEW_USER_GUIDE_BASE) : isProposalRejectionCheckout() ? proposalRejectionHistoricalFiles(NEW_USER_GUIDE_BASE) : resolveNewUserGuideWorkingFiles()); expect(newUserGuideScopeViolations(historical)).toEqual([]); expect([...historical].sort()).toEqual([...NEW_USER_GUIDE_ALLOWED].sort());
     const combined = [...new Set([...NEW_USER_GUIDE_ALLOWED, ...ACTIVITY_DETAIL_ALLOWED])]; expect(withoutActivityDetailAdditions(combined).sort()).toEqual([...NEW_USER_GUIDE_ALLOWED].sort());
     expect(NEW_USER_GUIDE_ADDITIONS).toHaveLength(12);
   });
@@ -93,7 +94,7 @@ describe("Activity09 strict current scope without historical permission launderi
   test("protected Core/auth/AI/SQL and navigation remain baseline blobs", () => {
     for (const file of ["src/lib/store/request-repository.ts", "src/lib/store/supabase-repository.ts", "src/lib/http/validation.ts", "src/lib/ai/assess.ts", "src/lib/ai/prompts.ts", "src/lib/ai/schemas.ts", "src/lib/growth-engine/levels.ts", "src/proxy.ts", "src/components/layout/AppShellBoundary.tsx", "src/app/globals.css",
       "supabase/migrations/0049_phase8e_reward_wishes_rpc_authority.sql", "supabase/migrations/0050_phase8e_reward_canonical_source_fix.sql", "supabase/migrations/0053_zero_xp_manual_skill_authority.sql"]) {
-      const baseline = execFileSync("git", ["show", `${ACTIVITY_DETAIL_BASE}:${file}`], { encoding: "utf8" }); expect(canonical(isAssessmentContextCheckout() && (ASSESSMENT_CONTEXT_ACTIVITY_CONTENT as readonly string[]).includes(file) ? assessmentContextHistoricalContent(file, "activity") : readFileSync(file, "utf8")), file).toBe(canonical(baseline));
+      const baseline = execFileSync("git", ["show", `${ACTIVITY_DETAIL_BASE}:${file}`], { encoding: "utf8" }); expect(canonical(isEvidenceSubmissionCheckout() && (ASSESSMENT_CONTEXT_ACTIVITY_CONTENT as readonly string[]).includes(file) ? evidenceSubmissionHistoricalContent(file, "activity") : isAssessmentContextCheckout() && (ASSESSMENT_CONTEXT_ACTIVITY_CONTENT as readonly string[]).includes(file) ? assessmentContextHistoricalContent(file, "activity") : readFileSync(file, "utf8")), file).toBe(canonical(baseline));
     }
   });
   test("read-only page/API have no new authority, demo fallbacks, storage or secret references", () => {

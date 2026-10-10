@@ -12,6 +12,8 @@ import { PROPOSAL_REJECTION_CONTROL, proposalRejectionScopeViolations, isProposa
   assertProposalRejectionActualScope } from './helpers/governance-delta';
 import { ASSESSMENT_CONTEXT_CONTROL, ASSESSMENT_CONTEXT_COMPATIBILITY_CONTROL, ASSESSMENT_CONTEXT_DEMO_FIXTURE, assessmentContextScopeViolations, isAssessmentContextCheckout,
   assertAssessmentContextActualScope } from './helpers/governance-delta';
+import { EVIDENCE_SUBMISSION_CONTROL, evidenceSubmissionScopeViolations, isEvidenceSubmissionCheckout,
+  assertEvidenceSubmissionActualScope } from './helpers/governance-delta';
 
 export const FROZEN_BACKEND_DENYLIST = [
   'src/app/api/',
@@ -150,6 +152,9 @@ export const AUTH_ENTRYPOINT_BACKEND = [
 ] as const;
 
 export function validateVisualMigrationDelta(changedFiles: string[]): VisualMigrationValidationResult {
+  if (changedFiles.includes(EVIDENCE_SUBMISSION_CONTROL)) {
+    return { isVisualPR: true, violations: evidenceSubmissionScopeViolations(changedFiles) };
+  }
   if (changedFiles.includes(ASSESSMENT_CONTEXT_CONTROL) || changedFiles.includes(ASSESSMENT_CONTEXT_COMPATIBILITY_CONTROL) || changedFiles.includes(ASSESSMENT_CONTEXT_DEMO_FIXTURE)) {
     return { isVisualPR: true, violations: assessmentContextScopeViolations(changedFiles) };
   }
@@ -446,6 +451,10 @@ describe('Visual Foundation & Design Tokens Runtime Verification', () => {
   });
 
   it('10. verifies live PR delta: visual migration contains zero frozen backend violations', () => {
+    if (isEvidenceSubmissionCheckout()) {
+      expect(validateVisualMigrationDelta(assertEvidenceSubmissionActualScope())).toEqual({ isVisualPR: true, violations: [] });
+      return;
+    }
     if (isAssessmentContextCheckout()) {
       const result = validateVisualMigrationDelta(assertAssessmentContextActualScope());
       expect(result.isVisualPR).toBe(true); expect(result.violations).toEqual([]);

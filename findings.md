@@ -1,5 +1,15 @@
 # 调查发现与核心架构决策 (Findings)
 
+- 纠正主终态complete：full-v2 actual133files3379/3379/child0/verificationnull/raw2E726BEF...F0444，旧v1(3376/3)、原8fail和303预算复核保留；Growth11/E2E11/type/lint/build-v2全0。Chrome61checks/37API、真实两held-sibling原生AbortSignal、3203907681440/8geometry/3nativeTab/3E0/0error/AI；三populatedowner36表只多3材料/receipt，其余成长/reward/Wish/outer完全保持。独立old8fail/new8pass+265通过但永久无DB，不冒称其重跑新full/browser。主全部客户端close/release-v2/census[]后精确原4/1清理0/0、formal11/10/nonTask/source/protected保持，disposal39DA5C3B...05F95。当前六auditdocs/17/35冻结待同Risk2最终candidate绑定，未新commit/ownCI/FINAL/merge/正式54/整站完成。
+
+- 2026-10-11 PR59 head54ca ownCI成功后，fresh Ramanujan committed FINAL真实React发现双GET失败→controller丢登记P2，NO-GO0/0/1，已永久释放/census[]。旧source新8回归20pass8fail；main仅finally捕获currentRead、abort后delete，修后四文件166/166/type/lint0。旧build/full/browser不能给新source背书；正在新build/full/Chrome/精准清理/同Risk2候选复审，不合并、不写正式0054。16全文与旧SQL/断言保持。
+
+- fresh Risk2唯一P2为主browser测360/390/768/1280不满足16要求320/390/768/1440；不是source缺陷，不改冻结契约。追加真实同build四契约宽度/长文/44px/3Tab/zero pageerror/零businessPOST，原v3保留。独立257/115/62/SQL8/3owner36表通过并direct永久释放；主新client census空后精准task4/1→0/0/formal11/10及nonTask保持。等待17/35最终离线绑定，无预签GO或整站完成。
+
+- 主全量133files3371/3371与completed build/E2E/Growth均通过；Chrome真实响应丢失后200同receipt重放不重复、保存后503刷新不丢回执、不二次POST、真实过期401零新增。三owner×36tenant表原成长/奖励/愿望/outer完整保持，只有3E0+3receipt新增。原生option可见性/登录session重跑夹具错误已保留，不是产品finding；fresh独审及清理冻结尚待。
+
+- 新补证PG权限/幂等/1007分页/级联/父对象并发变化34/34通过；创建只有Core E0正文及receipt增加，其他增长/奖励/愿望全表保持。局部158/158通过。原pending trigger事件夹具失败保留；这些是主局部证据，不能代替completed build/真实HTTP/full/browser/fresh独立Gatekeeper。
+
 - 2026-10-10冻结证据边界：独立565v2/156/SQLv2实际0，永久释放后主精确4/1清理0、正式11/10/nonTask全身份状态保持；oldv1 raw被reviewer同stem覆盖，564/1失败原因无法恢复，失配raw不得计通过；SQL-v1 name[]类型fixture错误而非源码缺陷。当前无已确认候选缺陷不等于GO，七docs/全25需独立最后hash绑定；source18不变、root四用户文件保持，候选冻结后只root本地追加后事件。
 
 - 2026-10-10 Reject当前主实证：Host纠正后正向Origin1024bytes真实200，目标51/full119files2780实际0；Chrome四宽44px/nativeTab/错误重试/刷新原文与其它Confirm保持，35表中间唯一status变化/最终仅已知Confirm14XP且ledger玩家514一致。QA历史一次JWT issuedatfuture不当作全部GET零错误；不擅动冻结auth。独立565 v2真实0；v1同名raw与旧terminal不匹配不能重绑为成功，等待reviewer披露，fresh候选final尚待。
@@ -397,5 +407,9 @@ accepted评估原来只传time/固定null main/重复0，relatedSkillNames从未
 主运行器故障：不带cwd边界的专用Gitshim会把tmp夹具git init/config/add/commit送入candidate/common config。full-v1已因此作废并保留；30source/docs bytes未变，狭窄恢复base/index、误commit留recovery ref，根四/原分支/远端保持。新shim仅exact candidate只读Git＋指定OS tmp自有Git，显式26夹具真实前后refs/config一致。CLI浏览器response.json未返回不等于网站未保存：另行真实Dashboard GET验证成功保存，改为POST状态＋独立持久GET并明确来源，不伪造响应体；仍需恢复后的最终完整绑定与独审。
 
 兼容纠正：full-v2另暴露9只读hash-object包装器漏项、1Auth安全固定提示、1原Demo6夹具承袭configured public env。15独立补充准入后仅旧Demo6删两项public配置并既有afterEach恢复；去这两行和注释完整还原原六测试，不以生产缺context回退Demo求绿。固定Auth文本与原类一致，不用private error.message。主static-v5全文逆向旧guard/AI6均通过；hash-object只允许exact--path/file三参，组合写旗标亦拒。当前EXACT32/all17/source24/build-v3，原13纯30语义和历史白名单未扩；所有旧失败保留，不以局部绿作最终GO。
+
+补证16当前实现：旧0008 Evidence默认1不能用于补交，0054明确写0/false/user_submission，正文不复制进receipt。receipt没有Skill FK，保留原0036 SETNULL；新deferred Evidence FK同时保护单删与父级cascade，必须真实PG验证。INSERT guard用SECURITY INVOKER检查真实postgres执行身份；UPDATE/DELETE guard独立SECURITY DEFINER查真实父行，避免RLS隐藏外人Activity伪称不存在；默认及broaden-grants权限需实测。只有16准入GO，非实现通过。
+
+原page只加唯一import和panel插入，旧“只读”说明由新panel明确归属上方原文区。未知POST立即记同key/frozen tuple，仅严格回执成功；刷新读失败不再写。旧helper完整52ba前缀保留，新增35/19/hash/历史端点分离，Context32/Reject25等不借新SQL洗掉旧保护。主155离线局部测试已过，后续治理/PG/HTTP仍待，不能据此发版。
 
 
