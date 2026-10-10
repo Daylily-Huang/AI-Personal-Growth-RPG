@@ -1,5 +1,9 @@
 # 调查发现与核心架构决策 (Findings)
 
+- 2026-10-10纠正候选冻结事实：两源码测试变化仅helper完整b9cef canonical prefix后的追加、一个actual caller改用共享函数并保留三个历史assert，其余历史body保持。corrected-v1九文件491/491/零skip终态0、raw3DF1847...9E41B；lint/type原及上下文恢复重复检查均0。新71中真实Git读b9cef22与旧共享11失败，三个拓扑调用同一actual函数；current-main只strict exact22或exact7重新绑定后返回，PR仍历史断言，不泛许docs/tests。15非selected原22仅checkout CRLF与LF可能raw不同，canonical/Git内容不变。没有新本地DB/AI/HTTP/browser/build证据；原PR55全套/13步/双独审134为历史，新own/post CI和不同FINAL仍待，fresh Gibbs候选未预签。
+
+- 2026-10-10 post-main确定缺陷：onboarding actual caller对positivecurrent-main的22严格scope过滤新exclusive11后，错误将余11audit路径交旧graph全scope。主9files419/1重现，raw8EB751...DFCF；PR CIgreen不覆盖真实合并拓扑。Aquinas独立旧22→11失败、累计PR32→Guide21/f10042→graph19、未来纠正7及127缺失/extra/mode/range/Git/章反例通过ADMISSION。新分类只在实际重解Git和章SHA/完整22或7严格通过后返回，旧PR历史仍原assert；不改业务/DB，不泛豁免docs/tests。新Wincheckout09与若干新文件raw为CRLF-only差异，canonical/Git内容不变，不冒称原字节一样。
+
 ## 2026-10-10 — Activity 详情纠正当前事实
 
 纠正后冻结：主420/full113files2468/Chrome严格13步/standalone22通过；fresh Ohm实际旧64绕过、当前512严格等值、SDK102与独占134/read-only8/prosrc/RLS通过。09必须先于任何visual early-return，首NO-GO不能由旧green full2467覆盖。原DIRECT永久释放已捕获，主D51304...13093精确task4/1归零；清理不是审查者第二DB执行。七docs/22待最终候选hashbind，commit/CI/不同FINAL/merge后事件不回写冻结候选。整站Proposal Edit/Reject/Verify仍有实际路线图差距，不扩本轮Core或写权限。

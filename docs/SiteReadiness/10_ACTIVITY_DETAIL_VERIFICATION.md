@@ -67,3 +67,60 @@ Ohm（01a1254e-46ff-7983-aff3-bafb73ed2867）独立9files420/420零skip/exit0；
 当前BUILD_ID1z926ZO4YZxST9g8Inv9U、base/HEADc06ab0b692045557d550a3e8eb2b9dd8aed61645/tree8f14dbca16341324678cb0c51f6c19f08cf3c25d；09准入字节不变，四生产/十一tests均与独审captured15相同，七文档现冻结。其后须独立全22manifest与完整本note绑定candidate GO，才selected22commit；之后own exact-head CI、不同fresh committed FINAL与新栈/新清理、委托普通merge/post-main CI、新accepted预览/安全缓存清理仍是必要后续门禁。不能复用本creation/disposal充当FINAL新证据。
 
 严格13步是主真实浏览器合成新账户/真实项目AI的验收；独审没有第二浏览器、第二全套或向AI发送既有私人输入。读详情不写Core/账户/账本，业务创建/评估/Confirm属于明确fixture及显式流程，不宣称整套零写。旧失败/NO-GO/单行QuickLog限制/超时推断/环境修复均保留。整站Edit/Reject/Verify等路线图差距、长期运行/公开部署与完整产品验收不在本GO内；Artifact认定/奖励继续延期，现实成就零积分。14常量、0049八数值及0050/0053权限不改。
+<!-- BEGIN:ACTIVITY_MAIN_GUARD_CORRECTIVE_ADMISSION -->
+## Post-main 范围检查纠正准入（2026-10-10，本节接点优先于既有历史快照）
+
+状态：ADMISSION 待 fresh Risk2；此时只新增本节，未修改 helper/测试。原09合同字节及以下全部PR55历史保持，不把旧candidate/FINAL GO冒充post-main成功。
+
+接受基线为已普通合并的 main `b9cef589cec7834344b88850937503df7cd687c0` / tree `cc9fd0da6bfd2b2ba81a6bd46b166bbca49755ab`；修复分支 `codex/site-activity-main-guard-20261010` / `.data/site-activity-main-guard`。PR55的受审6560、ownCI38045295918均成功，但post-main38046256511两job实际失败，不能更新accepted预览或称完整交付。
+
+真实唯一失败为onboarding-governance的actual committed historical-range用例：current-main已严格验证Activity22之后，仅过滤exclusive11，余下11个共同文档/guard文件不含旧Guide全markers；随即错误交给旧graph全scope校验。属于范围分类错误，不是业务/数据库测试失败，不以重跑、skip、扩大允许目录或删历史断言解决。
+
+本轮是09§6 post-main后续纠正补充：完整c06累计Activity范围仍恰22/all10/exclusive11，不扩大其授权；本轮独立selected delta仅以下7路径（原22内），不改任何src/SQL/AI/auth/依赖/workflow/public/nav/styles。原22的15个非selected字节与基线同一内容，若改变则本补充准入失效。
+
+```text
+docs/MASTER_PROJECT_HANDOFF.md
+docs/SiteReadiness/10_ACTIVITY_DETAIL_VERIFICATION.md
+findings.md
+progress.md
+task_plan.md
+tests/helpers/governance-delta.ts
+tests/onboarding-governance.test.ts
+```
+
+纠正scope的mandatory3 markers：10验收控制节、helper、onboarding-governance。缺任何一个不得激活纠正例外；exact selected7最终冻结，pure selector可检测含3markers的allowed子集，任何extra拒绝。实际分类入口须校验本BEGIN/END块canonical LF SHA与准入冻结值一致（SHA保存在块外回执/新源码常量，避免自指），Git和章内容读取异常同样fail closed。10原历史只追加，09 canonical LF SHA保持21C01BA24945783E5A03356A1A6A2CDEF4624960DBD774C6EB44F374CC81AF91；新checkout的CRLF-only raw差异不能冒称源内容变更或原始字节相等。原helper全prefix不变，只追加严格新分类函数；原onboarding历史test bodies/assertions除actual-range这一个必要调用点不变，原断言继续用于旧Guide/graph分支并补独立反例。
+
+分类必须严格先验再返回：
+
+1. 当前main的完整Activity22：只有两resolver均positive origin/main==HEAD、祖先有效、first-parent range与原始files完全一致，并通过原Activity22/all10严格校验，才分类为已验证Activity本轮，不再拿共享审计残余冒充旧graph功能。缺marker/extra/range或files不一致/Git异常必须拒绝。
+2. 当前main的本补充selected7：必须同样positive remote equality、接受基线b9cef祖先、非空first-parent delta，并通过本补充strict7/all3。不能凭几个文档名泛化为所有docs/tests更改。
+3. PR/cumulative历史：保留f100全累计resolver和c06 Activity严格resolver，先严格当前Activity再只过滤exclusive11；旧Guide21/11/12、graph原19/9、原policy/oldexpect/protected继续执行。旧HEAD祖先但不等于origin/main不得借first-parent；任何Git错误、畸形SHA、空/非祖先失败。
+
+回归必须实际复现b9cef当前main旧失败，并验证完整Activity主分支、包含旧Guide的PR、后续selected7主分支三种不同拓扑。构造全部缺marker/extra/mixed scope、12类Git失败、range/files不一致、旧branch、PR多commit不能截成HEAD~1；尽量用真实Git只读对象与in-memory options，不生成临时Git仓库。不能再仅测试假main模式而漏掉实际historical caller。
+
+证据与门禁：fresh Risk2 ADMISSION先于测试编辑；主direct Node offline九文件/新增反例、类型/lint、真实Git主分支与未来merge拓扑探针；所有production/迁移/AI/常量逐字证明不变。本次无业务变更，不重复本机DB/AI/Chrome/新测试栈，原双独审134/主严格13步只作为历史；新ownCI与post-main CI仍各须真实全PG113files全测试、harness11/E2E11终态通过，不能以skip版替代。fresh Risk2 PRECOMMIT精确7冻结→selected7→own exact-head CI→不同fresh committed FINAL（自己offline/实际Git拓扑/反例/ownGH日志、原22保护）→ordinarymerge→post-main；只在最后全部通过才更新accepted预览和清理旧构建。
+
+外部常量/标准冻结：Activity3态/UUID语法、44px/md48rem/250ms与0 reduced-motion/原相机参数/trim25、02§71 primary-only/04§13、0049唯一IMMUTABLE奖励八值150/100/150/200/200/100/150/250、0050语法与0053手动零XP。Artifact认定/奖励延期、现实成就零积分；高阶Mastery校验选择另待用户，不借本纠正增加权限。
+
+root四userdirty/三主计划受控更新、正式DB/备份/3015/共享physical node_modules保留；不安装、不pnpm exec、不改DSH或全局代理、不重跑旧CI冒称修复、不admin/force/删分支/公开部署。清理仅在新accepted预览GO后删除无引用的再生构建，严格保留用户数据/证据/依赖。任何候选字节变化使本轮GO失效。
+<!-- END:ACTIVITY_MAIN_GUARD_CORRECTIVE_ADMISSION -->
+
+### 纠正阶段的真实过程（不修改上方准入块）
+
+Aquinas（01a12579-0bc2-74b0-8769-14f811bbfc8b）fresh只读11calls、P0/P1/P2=0 ADMISSION GO，仅785DC37337DC1A37C8EE7B1FD929EDBD474771A62903949E95DA9AD039514079章/b9cef/treecc9/selected7，不是实现GO。自己旧actual b9cef22→共享11失败、累计32→Guide21与f10042→graph19保持、未来纠正完整7/127不完整、extra/mixed/Git/range/files/mode/章反例核对，无Vitest/DB/HTTP/browser/写入。
+
+main未改test前 session29587→e6ab9e实际exit1/signalnull/errornull，9files419pass/1fail/0skip，raw8EB7511060042395F7536DC46647439299013D2F73B2D23736A17120FE32DFCF；唯一失败与CI完全相同的onboarding-governance:161。之后才编辑两测试文件：原helper全prefix保留，仅追加chapter绑定/严格7/main分类；原caller三个历史assert仍由同一个函数用于历史分支，currentmain仅严格重新绑定完整22或7后返回。新增回归复用同caller并读真实b9cef Git对象，另测旧PR/未来merge而不是只fake一个resolver。
+
+捕获Aquinas原final的第一次输出filename不符合既有activity-detail-*约束被拒，改用合法前缀保存，未改捕获器/未伪造final。新offline、type/lint、候选7/ownCI/不同FINAL/普通merge/post-main与accepted预览/清理尚待；不新增本机测试栈、不重复真实AI/browser/DB，所有业务与14常量/SQL源码保护继续核对。
+
+### Post-main纠正主终态与候选冻结（上段pending为当时快照）
+
+corrected-v1 session43856→1d9fe3终态exit0，实际child.status0/signalnull/errornull，2026-10-10T11:12:26.155Z至11:13:28.309Z，九文件491/491全部passed/零skip/nonpassed/messages[]。rawSHA256 3DF1847ADD19EC17CB40FE41B19498DF22B270DC818C7270AE81E7EAEEA9E41B；原before419pass/1fail同caller与旧主CI失败保留，不能称历史CI已成功。
+
+新注册71项回归中，真实Git读b9cef-c06完整22、旧withoutActivityDetailAdditions共享11及旧graph全拒绝；新三拓扑均调用同一assertHistoricalCommittedGuideScope，而非只验证未接入selector。strict correction main127个不完整子集全部拒绝，pure all3 allowed子集只作selector模型不授予actual-main；缺markers/extra/mixed/range/files/mode/base/重复、非祖先/空/畸形SHA/Git读与章缺失篡改均覆盖。原helper整个b9cef canonical prefix、原10整份canonical prefix保持；除必要actual committed test调用点搬入共享函数外，旧test bodies和三个历史assert保留。full c06累计仍exact22，selected仅exact7。
+
+lint session3909→96dd4c与type3171→65c6bb原检查均terminal0/signalnull/errornull；上下文恢复未及时找到原ID而重复type68651→89d6f8、lint97083→991cbf，也各terminal0，未改源码。不将重复检查隐去或当作独立验收。两测试及五docs现冻结，785DC准入块内容和09 canonical21C01完全不变；15非selected原22用canonical/Git清理内容核对一致，不冒称Win CRLF raw与原LF raw相等。
+
+本次production/SQL/AI/依赖/workflow全部零delta，无业务权限或数据变更，因此按准入不建新本地DB/HTTP/browser/build栈；旧PR55真实2468/13步/双134/read-only8/清理仅历史，不虚增纠正runtime。fresh Gibbs（01a12586-1887-7980-ad66-453739420a18）独立Risk2候选仅static/offline指定九文件491与actual Git/反例，未授DB/HTTP；其最终精确7 hash-bound候选GO仍待，未GO不得commit。
+
+后续selected7 commit、own exact-head完整真实PG CI、不同fresh committed FINAL（自己指定offline/实际Git拓扑/ownGH完整日志）、委托普通merge与post-main真实全PG终态均必要。按新增71推算完整应2539，但这里只是预期，不能称CI执行通过；具体文件/断言数以后真实原始日志为准。只有post-main成功并accepted新loopback预览独审GO后，才精确停止旧3015并清理无引用再生构建；原数据/备份/root四userdirty/用户密钥文件/共享physical依赖保留，无global prune/公开部署。整站Proposal Edit/Reject/Verify及高阶Mastery标准另阶段；Artifact认定/奖励延期、现实成就零积分不改。
