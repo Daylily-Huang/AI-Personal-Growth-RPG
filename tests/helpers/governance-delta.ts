@@ -621,3 +621,83 @@ export function activityDetailDashboardFiles(files: string[]): string[] {
   return files.filter(file => file !== "src/app/api/activities/[id]/route.ts");
 }
 
+// Post-main corrective admission in SiteReadiness10. Every earlier helper byte stays above.
+import { readFileSync as readActivityMainControl } from "node:fs";
+import { createHash as activityMainHash } from "node:crypto";
+import { resolve as activityMainPath } from "node:path";
+export const ACTIVITY_MAIN_BASE = "b9cef589cec7834344b88850937503df7cd687c0";
+export const ACTIVITY_MAIN_CONTROL = "docs/SiteReadiness/10_ACTIVITY_DETAIL_VERIFICATION.md";
+export const ACTIVITY_MAIN_ADMISSION_SHA = "785DC37337DC1A37C8EE7B1FD929EDBD474771A62903949E95DA9AD039514079";
+export const ACTIVITY_MAIN_MARKERS = [ACTIVITY_MAIN_CONTROL, "tests/helpers/governance-delta.ts", "tests/onboarding-governance.test.ts"] as const;
+export const ACTIVITY_MAIN_ALLOWED = ["docs/MASTER_PROJECT_HANDOFF.md", ACTIVITY_MAIN_CONTROL,
+  "findings.md", "progress.md", "task_plan.md", "tests/helpers/governance-delta.ts", "tests/onboarding-governance.test.ts"] as const;
+export function activityMainScopeViolations(files: readonly string[]): string[] {
+  const violations = ACTIVITY_MAIN_MARKERS.every(file => files.includes(file)) ? [] : ["missing corrective markers"];
+  if (new Set(files).size !== files.length) violations.push("duplicate corrective paths");
+  return [...violations, ...files.filter(file => !(ACTIVITY_MAIN_ALLOWED as readonly string[]).includes(file))];
+}
+export function verifyActivityMainAdmission(document: string): void {
+  const blocks = document.replace(/\r\n/g, "\n").match(/<!-- BEGIN:ACTIVITY_MAIN_GUARD_CORRECTIVE_ADMISSION -->[\s\S]*?<!-- END:ACTIVITY_MAIN_GUARD_CORRECTIVE_ADMISSION -->/g);
+  if (blocks?.length !== 1 || activityMainHash("sha256").update(blocks[0]).digest("hex").toUpperCase() !== ACTIVITY_MAIN_ADMISSION_SHA)
+    throw new Error("FAIL-CLOSED: corrective admission content is unbound");
+}
+function assertActivityMainAdmission(options: NewUserGuideGitOptions): void {
+  let document: string;
+  try { document = readActivityMainControl(activityMainPath(options.cwd ?? process.cwd(), ACTIVITY_MAIN_CONTROL), "utf8"); }
+  catch { throw new Error("FAIL-CLOSED: corrective admission could not be read"); }
+  verifyActivityMainAdmission(document);
+}
+function activityMainAcceptedHead(options: NewUserGuideGitOptions): string {
+  const head = activityDetailRevision(options, "rev-parse HEAD");
+  if (activityDetailRevision(options, `merge-base ${ACTIVITY_MAIN_BASE} HEAD`) !== ACTIVITY_MAIN_BASE)
+    throw new Error("FAIL-CLOSED: corrective accepted base is not an ancestor");
+  return head;
+}
+export function resolveActivityMainWorkingFiles(options: NewUserGuideGitOptions = {}): string[] {
+  activityMainAcceptedHead(options);
+  const tracked = activityDetailGit(options, `diff --no-renames --name-only -z ${ACTIVITY_MAIN_BASE} --`).split("\0").filter(Boolean);
+  const untracked = activityDetailGit(options, "ls-files --others --exclude-standard -z").split("\0").filter(Boolean);
+  const files = [...new Set([...tracked, ...untracked])];
+  if (!files.length) throw new Error("FAIL-CLOSED: empty corrective working delta");
+  return files;
+}
+export function resolveActivityMainChangedFiles(options: NewUserGuideGitOptions = {}): GovernanceDelta {
+  const head = activityMainAcceptedHead(options), remote = activityDetailRevision(options, "rev-parse origin/main");
+  const mode = head === remote ? "current-main-push" : "pr-branch";
+  const range = mode === "current-main-push" ? `${activityDetailRevision(options, 'rev-parse "HEAD^1"')}..${head}` : `${ACTIVITY_MAIN_BASE}...${head}`;
+  const files = activityDetailGit(options, `diff --no-renames --name-only -z ${range}`).split("\0").filter(Boolean);
+  if (!files.length) throw new Error("FAIL-CLOSED: empty corrective changed delta");
+  return { mode, range, mergeBase: ACTIVITY_MAIN_BASE, files };
+}
+function assertSameActivityRange(left: GovernanceDelta, right: GovernanceDelta, sameAcceptedBase: boolean): void {
+  if (left.mode !== right.mode || left.range !== right.range ||
+      (sameAcceptedBase && left.mergeBase !== right.mergeBase) ||
+      !/^[a-f0-9]{40}\.{2,3}[a-f0-9]{40}$/.test(left.range) ||
+      new Set(left.files).size !== left.files.length || new Set(right.files).size !== right.files.length ||
+      JSON.stringify([...left.files].sort()) !== JSON.stringify([...right.files].sort()))
+    throw new Error("FAIL-CLOSED: corrective mode/range/files binding mismatch");
+}
+function assertCompleteActivityScope(files: readonly string[], allowed: readonly string[], violations: readonly string[]): void {
+  if (violations.length || JSON.stringify([...files].sort()) !== JSON.stringify([...allowed].sort()))
+    throw new Error("FAIL-CLOSED: incomplete or extra current-main scope");
+}
+/** Only a freshly resolved, fully bound main delta may avoid unrelated historical full-scope checks. */
+export function classifyActivityGuideCommittedRange(entire: GovernanceDelta, options: NewUserGuideGitOptions = {}): "historical" | "activity-main" | "corrective-main" {
+  assertActivityMainAdmission(options);
+  assertSameActivityRange(entire, resolveNewUserGuideChangedFiles(options), true);
+  if (entire.mode !== "current-main-push") return "historical";
+  if (entire.files.includes(ACTIVITY_DETAIL_CONTROL)) {
+    const current = resolveActivityDetailChangedFiles(options);
+    assertSameActivityRange(entire, current, false);
+    assertCompleteActivityScope(current.files, ACTIVITY_DETAIL_ALLOWED, activityDetailScopeViolations(current.files));
+    return "activity-main";
+  }
+  if (entire.files.includes(ACTIVITY_MAIN_CONTROL)) {
+    const current = resolveActivityMainChangedFiles(options);
+    assertSameActivityRange(entire, current, false);
+    assertCompleteActivityScope(current.files, ACTIVITY_MAIN_ALLOWED, activityMainScopeViolations(current.files));
+    return "corrective-main";
+  }
+  return "historical";
+}
+

@@ -1,5 +1,9 @@
 # AI Personal Growth RPG — 项目总体计划与当前状态 (Task Plan)
 
+- [complete main / in_progress independent corrective candidate] Aquinas ADMISSION785DC后仅selected7实施；主before419/1、corrected-v1九文件491/491零skip真实terminal0与原及恢复重复lint/type0均记录。五docs/全7现冻结，fresh Gibbs自己offline/actualGit/反例/final7绑定待，未候选GO不commit。本轮不建本地DB/HTTP/browser/build；15非selected和全部生产/权限/SQL/常量不改。之后selected7→ownCI真实完整PG→不同fresh committed FINAL→普通merge/post-main成功→accepted预览→精确无引用缓存清理；未验预期2539不是结果，旧3015与正式数据保留，整站Edit/Reject/Verify另受控阶段。
+
+- [in_progress 2026-10-10 post-main纠正] PR55 ownCI/FINAL绿而主38046256511两job同actual historicalcaller失败。Aquinas独立11calls ADMISSION零finding GO（785DC...14079）仅selected7/all3；main未改test前419/1精确复现。追加严格分类helper、保留原prefix/历史assert、同调用者三拓扑反例；所有src/SQL/AI/依赖/09原样。新offline/type/lint/实际Git探针→fresh候选7冻结→selected7/own realPGCI/不同FINAL→ordinarymerge/postmainCI→accepted预览及无引用缓存清理均待；当前3015/正式数据/备份/root保护保持，发布BLOCKED。
+
 ## 2026-10-10 — Activity 原文详情（当前，旧记录保持）
 
 - [complete 主实现/纠正验收冻结] 新build1z926/TS/lint、offline420/full113files2468/standalone22与主Chrome严格13步/长原文/六宽度/原生Tab终态0；首P2 NO-GO保留，仅两test纠正。Ohm自己420/512+SDK102及独占134/readonly8/prosrc/RLS通过，DIRECT永久释放后主原4容器1卷→0，D51304...13093；正式11/10/备份/3015/root四保护保持。

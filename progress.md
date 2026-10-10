@@ -1,5 +1,9 @@
 # 项目历史工作进度 (Progress Log)
 
+- 2026-10-10纠正候选冻结：corrected-v1 session43856→1d9fe3实际child0/signalnull/errornull，11:12:26.155Z→11:13:28.309Z、9files491/491零skip/messages[]，raw3DF1847ADD19EC17CB40FE41B19498DF22B270DC818C7270AE81E7EAEEA9E41B。原lint3909→96dd4c/type3171→65c6bb均0；上下文恢复先未从主会话取回ID而重复type68651→89d6f8/lint97083→991cbf均0，不冒称只跑一次。source2、785DC章与15保护内容保持；fresh Gibbs新候选仅只读指定491/反例，无DB/HTTP授权。五docs/全7冻结送最终hash绑定，未candidateGO不得commit；其后ownCI/不同FINAL/普通merge/post-main/accepted预览及再生缓存清理仍待。旧失败、旧3015、正式数据/备份/共享依赖/root四保护保持。
+
+- 2026-10-10 post-main纠正：38046256511 actualfailure已保存；main未改test前29587→e6ab9e exit1/419pass1fail同caller/零skip。Aquinas11只读calls ADMISSION零finding GO绑定最新785DC...14079；声明段hash为BEGIN/END内canonicalLF不含末换行，原09保持canonical21C01，CRLFraw不同已明示。之后仅helper追加和旧actualcaller一个替换/新增回归；selected7准备完整、新offline/type/lint未签。原final捕获器首次拒绝activity-main前缀filename，改用其既有activity-detail安全前缀另存，不弱化捕获器，不把纯解析失败当产品缺陷。
+
 - 2026-10-10纠正后PRECOMMIT冻结时点：主session8518真实113files2468零skip/actual0/signalnull、DB6FCE...03CB8；19788 standalone22/0、新420/BUILD_ID1z926/Chrome-v3严格13步/原文双入口/六宽度/原生Tab/多行长文通过。Ohm自己420/512旧64/SDK102，明确独占后134及readonly8/0049/0050/0053/RLS通过，原DIRECT永久release已保存。普通用户proc EACCES先fail-closed、同preflight WSLroot只读证明全部client0，未kill或忽略未知；主84340精确原task4容器1卷→0，receiptD51304...13093，dev11/10和全非task身份state保持。七docs/22待其最终离线bind；此dated快照不是预签GO/commit/FINAL/merge/整站，后事件ignored回执/根计划更新。
 
 - 2026-10-10 Activity09 ADMISSION：Sartre fresh只读15calls/397s、P0/P1/P2=0 GO，09SHA21C01BA24945783E5A03356A1A6A2CDEF4624960DBD774C6EB44F374CC81AF91、c06/tree8f14、当时仅09untracked。此后主实施四production、新四tests和七旧guard精确适配，type/lint/build/fullPG/Chrome完整13/候选独审及全部commit/CI/FINAL/merge仍待。ignored新栈phase8f_test_act_20261010_c06创建四容器，dev11running10healthy保持；未改正式数据。错误历史包含WSL PATH未quote、CLI exports验证、一次空hunk拒绝，均已修正，未冒称首次全成功。
