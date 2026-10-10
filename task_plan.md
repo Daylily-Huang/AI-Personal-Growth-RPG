@@ -1,5 +1,13 @@
 # AI Personal Growth RPG — 项目总体计划与当前状态 (Task Plan)
 
+- [complete 所有运行/精确owned清理；pending exact25候选最终绑定] Lovelace自己565v2/156/readonlySQLv2终态0，直接永久释放；旧v1 raw覆盖和SQL-v1夹具失败公开分层保留。主72992原4容器1卷→0、正式11/10/全部nonTask IDs/state不变，disposal589176...F46BE；source18/build4/full2780/Chrome相同，七docs冻结后外部25manifest。候选GO前不commit；后事件不反写冻结25，仍需ownCI/不同committed FINAL/ordinarymerge/postmain/accepted preview，不是整站完成。
+
+- [complete 主实现/全套/Chrome；in_progress fresh候选] currentbuild4 KwxsbCEmj_h6hYEjzgJ1g/source18冻结，unit86/real目标51/full119files2780/Growth11零skip实际0；主Chrome四宽八44px/nativeTab4/取消/网络abort重试/持久原文/其它Confirm14XP/空列表成功过，35表仅预期status+Confirm delta/ledger parity。QA/浏览器/PG已闭/root只读preflight通过，显式grantLovelace后主不再DB/HTTP，等待独立永久release后只做精确owned清理；候选final/owned4+1清理/25冻结尚待，不commit/merge/sitecomplete。
+
+- [in_progress Reject同源修复验证] build3/port夹具修正后目标仍50/1；仅新route采用旧login-http Host边界+四反例，unit5/build4进行。保留旧失败；新目标/full/Chrome/fresh候选/精确清理和25冻结尚待，不提交/合并/宣称整站完成。
+
+- [in_progress Proposal Reject Round1] accepted78d/tree9a85；BB98合同经Bernoulli纠正ADMISSION GO后实现4production+六tests/八旧guard窄适配，exact25/all12。主unit-v4三files82/82/lint/type终态0只证明当前接口/UI，不代真实PG/完整回归/浏览器/fresh candidate。生产无SQL/权限/XP/AI/依赖变更，Dashboard protected blob保持；reject只status CAS。后续真实两锁序/双拒绝/sibling/三owner snapshots→completedbuildHTTP/full/Chrome→freshRisk2→永久release/owned清理/25冻结→selectedcommit/ownCI/不同FINAL/ordinarymerge/postCI/accepted预览。未准候选GO不得commit；Edit/补证/Verify/最小AI上下文及整站仍未完。
+
 - [complete main / in_progress independent corrective candidate] Aquinas ADMISSION785DC后仅selected7实施；主before419/1、corrected-v1九文件491/491零skip真实terminal0与原及恢复重复lint/type0均记录。五docs/全7现冻结，fresh Gibbs自己offline/actualGit/反例/final7绑定待，未候选GO不commit。本轮不建本地DB/HTTP/browser/build；15非selected和全部生产/权限/SQL/常量不改。之后selected7→ownCI真实完整PG→不同fresh committed FINAL→普通merge/post-main成功→accepted预览→精确无引用缓存清理；未验预期2539不是结果，旧3015与正式数据保留，整站Edit/Reject/Verify另受控阶段。
 
 - [in_progress 2026-10-10 post-main纠正] PR55 ownCI/FINAL绿而主38046256511两job同actual historicalcaller失败。Aquinas独立11calls ADMISSION零finding GO（785DC...14079）仅selected7/all3；main未改test前419/1精确复现。追加严格分类helper、保留原prefix/历史assert、同调用者三拓扑反例；所有src/SQL/AI/依赖/09原样。新offline/type/lint/实际Git探针→fresh候选7冻结→selected7/own realPGCI/不同FINAL→ordinarymerge/postmainCI→accepted预览及无引用缓存清理均待；当前3015/正式数据/备份/root保护保持，发布BLOCKED。

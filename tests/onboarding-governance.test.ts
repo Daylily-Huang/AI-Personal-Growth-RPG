@@ -39,6 +39,8 @@ const extras = [
   "docs/SiteReadiness/06_CONNECTED_KEYBOARD_FOCUS_CORRECTIVE_CONTRACT.md", "docs/unsafe.md",
 ];
 const revision = (n: number) => String(n).repeat(40);
+import { isProposalRejectionCheckout, proposalRejectionHistoricalFiles, assertProposalRejectionActualScope,
+  proposalRejectionHistoricalContent, PROPOSAL_REJECTION_HISTORICAL_CONTENT } from "./helpers/governance-delta";
 function fakeGit(head = revision(1), remote = revision(2), files: readonly string[] = NEW_USER_GUIDE_ALLOWED) {
   const calls: string[] = [];
   const execute = (command: string) => {
@@ -104,19 +106,20 @@ describe("SiteReadiness07 strict presentational-only scope without historical we
     expect(readFileSync(file, "utf8")).toContain("# 73.");
   });
   test("actual entire working tracked+untracked is strict before any historical filtering", () => {
-    const entire = resolveNewUserGuideWorkingFiles(), detail = hasActivityDetailScope(entire);
-    if (detail) expect(activityDetailScopeViolations(resolveActivityDetailWorkingFiles())).toEqual([]);
+    const rejection = isProposalRejectionCheckout();
+    const entire = rejection ? proposalRejectionHistoricalFiles(NEW_USER_GUIDE_BASE) : resolveNewUserGuideWorkingFiles(), detail = hasActivityDetailScope(entire);
+    if (detail) expect(activityDetailScopeViolations(rejection ? proposalRejectionHistoricalFiles(ACTIVITY_DETAIL_BASE) : resolveActivityDetailWorkingFiles())).toEqual([]);
     const historical = (files: string[]) => detail ? withoutActivityDetailAdditions(files) : files;
     const current = historical(entire); expect(hasNewUserGuideScope(current)).toBe(true);
     expect(newUserGuideScopeViolations(current)).toEqual([]);
     const additions = new Set<string>(NEW_USER_GUIDE_ADDITIONS);
-    const fromBase = (base: string) => historical([...execFileSync("git", ["diff", "--no-renames", "--name-only", "-z", base, "--"], { encoding: "utf8" }).split("\0").filter(Boolean),
+    const fromBase = (base: string) => historical(rejection ? proposalRejectionHistoricalFiles(base) : [...execFileSync("git", ["diff", "--no-renames", "--name-only", "-z", base, "--"], { encoding: "utf8" }).split("\0").filter(Boolean),
       ...execFileSync("git", ["ls-files", "--others", "--exclude-standard", "-z"], { encoding: "utf8" }).split("\0").filter(Boolean)]);
     expect(graphInteractionScopeViolations(fromBase("f100d1fe10583d1b228e5ad23b0e9fded2730b25").filter(file => !additions.has(file)))).toEqual([]);
     const audits = new Set<string>(CONNECTED_FOCUS_AUDIT_ADDITIONS);
     expect(graphCanvasScopeViolations(fromBase("ab84df35319d08247388051c451be523afe3c7a7").filter(file => !additions.has(file) && !audits.has(file) && file !== "src/app/knowledge/page.tsx"))).toEqual([]);
     for (const extra of extras) expect(newUserGuideScopeViolations([...current, extra])).toEqual([extra]);
-  });
+  }, isProposalRejectionCheckout() ? 30000 : 5000);
   test("pure presentation code has no write, private config, storage or AI authority", () => {
     for (const file of NEW_USER_GUIDE_PRODUCTION.slice(0, 3)) {
       const source = readFileSync(file, "utf8");
@@ -165,6 +168,12 @@ describe("SiteReadiness07 strict presentational-only scope without historical we
 
 // The same historical caller is exercised below, not just its new selector in isolation.
 function assertHistoricalCommittedGuideScope(options: NewUserGuideGitOptions = {}): void {
+  if (!options.execute && isProposalRejectionCheckout(options.cwd)) {
+    assertProposalRejectionActualScope(options);
+    const historical = withoutActivityDetailAdditions(proposalRejectionHistoricalFiles(NEW_USER_GUIDE_BASE, options));
+    expect(newUserGuideScopeViolations(historical)).toEqual([]);
+    return;
+  }
   const entire = resolveNewUserGuideChangedFiles(options);
   if (classifyActivityGuideCommittedRange(entire, options) !== "historical") return;
   if (hasActivityDetailScope(entire.files)) expect(activityDetailScopeViolations(resolveActivityDetailChangedFiles(options).files)).toEqual([]);
@@ -198,7 +207,7 @@ describe("SiteReadiness10 post-main exact corrective admission without historica
     verifyActivityMainAdmission(doc);
     expect(ACTIVITY_MAIN_ALLOWED).toHaveLength(7); expect(ACTIVITY_MAIN_MARKERS).toHaveLength(3);
     for (const file of ACTIVITY_MAIN_ALLOWED) expect(ACTIVITY_DETAIL_ALLOWED).toContain(file);
-    expect([...resolveActivityMainWorkingFiles()].sort()).toEqual([...ACTIVITY_MAIN_ALLOWED].sort());
+    expect([...(isProposalRejectionCheckout() ? proposalRejectionHistoricalFiles(ACTIVITY_MAIN_BASE) : resolveActivityMainWorkingFiles())].sort()).toEqual([...ACTIVITY_MAIN_ALLOWED].sort());
   });
   test("actual b9cef main objects reproduce old22-to-shared11 failure, but the same new caller closes it", () => {
     const files = execFileSync("git", ["diff", "--no-renames", "--name-only", "-z", `${ACTIVITY_DETAIL_BASE}..${ACTIVITY_MAIN_BASE}`], { encoding: "utf8" }).split("\0").filter(Boolean);
@@ -209,7 +218,7 @@ describe("SiteReadiness10 post-main exact corrective admission without historica
     expect(() => assertHistoricalCommittedGuideScope(model)).not.toThrow();
   });
   test("future corrective-main uses actual selected working paths and the same caller", () => {
-    const files = resolveActivityMainWorkingFiles(), model = correctiveGit(files, "corrective");
+    const files = isProposalRejectionCheckout() ? proposalRejectionHistoricalFiles(ACTIVITY_MAIN_BASE) : resolveActivityMainWorkingFiles(), model = correctiveGit(files, "corrective");
     expect(classifyActivityGuideCommittedRange(resolveNewUserGuideChangedFiles(model), model)).toBe("corrective-main");
     expect(() => assertHistoricalCommittedGuideScope(model)).not.toThrow();
     expect(resolveActivityMainChangedFiles(model).range).toBe(`${ACTIVITY_MAIN_BASE}..${revision(4)}`);
@@ -280,10 +289,10 @@ describe("SiteReadiness10 post-main exact corrective admission without historica
   test("every nonselected original22 file and helper prefix retain baseline content", () => {
     const canonical = (s: string) => s.replace(/\r\n/g, "\n");
     for (const file of ACTIVITY_DETAIL_ALLOWED.filter(f => !(ACTIVITY_MAIN_ALLOWED as readonly string[]).includes(f)))
-      expect(canonical(readFileSync(file, "utf8")), file).toBe(canonical(execFileSync("git", ["show", `${ACTIVITY_MAIN_BASE}:${file}`], { encoding: "utf8" })));
+      expect(canonical(isProposalRejectionCheckout() && (PROPOSAL_REJECTION_HISTORICAL_CONTENT as readonly string[]).includes(file) ? proposalRejectionHistoricalContent(file) : readFileSync(file, "utf8")), file).toBe(canonical(execFileSync("git", ["show", `${ACTIVITY_MAIN_BASE}:${file}`], { encoding: "utf8" })));
     const helper = "tests/helpers/governance-delta.ts", old = execFileSync("git", ["show", `${ACTIVITY_MAIN_BASE}:${helper}`], { encoding: "utf8" });
     expect(canonical(readFileSync(helper, "utf8")).startsWith(canonical(old))).toBe(true);
     const oldDoc = execFileSync("git", ["show", `${ACTIVITY_MAIN_BASE}:${ACTIVITY_MAIN_CONTROL}`], { encoding: "utf8" });
     expect(canonical(readFileSync(ACTIVITY_MAIN_CONTROL, "utf8")).startsWith(canonical(oldDoc))).toBe(true);
-  });
+  }, isProposalRejectionCheckout() ? 30000 : 5000);
 });

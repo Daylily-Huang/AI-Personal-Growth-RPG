@@ -406,3 +406,25 @@ Phase 1–8E冻结边界保持。8F已准入并完成Round1–5：PR49受审head
 2. **可选 backlog（需迁移，非门禁项）**：已合格 `CONTEXTUAL` 上 `rpc_evaluate_strategy_status(confirm=true)` 的错误码命名 `INSUFFICIENT_SUPPORT_FOR_PROMOTION` 不够精确（行为本身 fail-closed 且已有测试 pin）。
 3. **继续保持可审计性**：后续 PR 继续绑定 exact head、CI run、独立审查结论与 merge SHA；不得把历史失败改写为成功，也不得把 skipped/local-only 结果替代真实 database-backed CI 证据。
 4. **整站交付尚未完成**：现实成就零积分、Artifact双延期、物理辅助技术与触控/liveAI未验证边界继续有效；8G可选；托管、真实数据迁移和公开部署需各自范围/必要授权，不能以阶段冻结代替网站上线。
+
+## 2026-10-10 Proposal Review Round1 实现中（非冻结验收）
+
+当前accepted main78d2036af19e55ea59f40cdc8a3358c3bab3cae4/tree9a85fff25d2ee36396cda29c7723408d482887eb，本机3016可用，真实AI配置仅childmemory且密钥原文件Git excluded，不上传。PR56自身及post-main CI和不同独审闭环已完成，不重做旧阶段。
+
+11合同BB98D531957762DFA112FCE6BF8E46D0EA7798710A7CB430C2E9B93C938F69AB经两次历史NO-GO纠正和Bernoulli ADMISSION GO后，在独立副本codex/site-proposal-rejection-20261010实现exact25/all12的Reject垂直切片。仅四production：session+RLS先读、admin唯一status CAS、严格最小receipt、PendingProposals内二次确认/取消/重试；Dashboard和原Confirm/成长/AI/SQL/权限保持。
+
+主当前unit-v4三files82/82及当时type/lint terminal0，不是PG并发/完整回归或独立candidate验收。八旧guard的strict当前25先验及真实固定78d历史路径/精确七内容投影正在补全；所有旧helper全文prefix/旧policy/七protected blobs保持。新真实authority/HTTP及完整流程、Chrome、freshRisk2、永久release/owned清理和最终25hash冻结待，未GO不commit。过程与全部失败边界见[12](SiteReadiness/12_PROPOSAL_REJECTION_VERIFICATION.md)。
+
+Edit/补证/验证申请/最小AI上下文仍后续待办，整站未完成。Artifact双延期、现实零积分、reward-v1八金额和全部规则保持；清理不得动正式库/备份/密钥/root用户文件/共享依赖/当前3016。
+
+### 本轮最新主验收终态（独立候选最终绑定待）
+
+Reject同源403的port-only首判被二次50/1反证，完整历史见12；仅新route对齐现有login-http Host目标策略、忽略forwarded，并增四反例，旧auth不改。当前unit86、真实目标51、全套119files2780、Growth另11均实际0/零skip，build-v4 KwxsbCEmj_h6hYEjzgJ1g与18source/test hash一致；完整全套含旧真实E2E11。主Chrome四宽44px/nativeTab/取消/网络错误重试/拒绝持久性/原文可读/其它Confirm/空列表成功均实际通过；35表中间仅status及最终已知Confirm delta/ledger parity已核。不以此替代fresh独审。
+
+QA3056和本轮浏览器/主PG客户端已精确关闭；root只读census无task residual/established，已显式独占授予Lovelace合成栈DB访问，主不再DB/HTTP。候选独审、永久release后主owned4/1清理及最终25manifest仍待。accepted3016/正式11running10healthy/备份/root四用户文件/密钥原文件/共享依赖均保留，未公开部署或整站完成。
+
+### 本轮冻结前运行与清理完成（候选文件最终绑定待）
+
+Lovelace独立offline-v2 565、真实目标156/SQL-v2实际八金额+冻结四函数体/RLS均终态通过，直接永久释放全部DB/HTTP；旧v1 raw被同stem覆盖、原564/1失败原因无法恢复及SQL-v1 roles返回类型夹具失败均如实保留在12，不拿失配raw冒充通过。主随后精确原4容器/1卷清理实际0，disposal589176159A73BBDA91236D398F4A22B6192FAD0D3A208F961F17C646245F46BE，正式11/10与非task身份state完全保持；合成数据可重建，主没有额外DB会话。
+
+source18保持build4/full2780/主Chrome受测字节，七docs/全25在本快照冻结，等待独立重新核hash后才候选GO；本章不冒签候选GO或后续FINAL/merge/网站完成。后事件只更新root本地主计划和ignored receipts，不改候选冻结字节；整站其余缺口和清理保留边界继续有效。

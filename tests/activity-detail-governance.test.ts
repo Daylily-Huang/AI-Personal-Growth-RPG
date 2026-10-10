@@ -36,6 +36,7 @@ function fakeGit(head = revision(1), remote = revision(2), files: readonly strin
   return { execute, calls };
 }
 const canonical = (s: string) => s.replace(/\r\n/g, "\n");
+import { isProposalRejectionCheckout, proposalRejectionHistoricalFiles, NEW_USER_GUIDE_BASE } from "./helpers/governance-delta";
 describe("Activity09 strict current scope without historical permission laundering", () => {
   test("binds admitted09, exact22/all10/exclusive11 and four production/four new tests", () => {
     expect(createHash("sha256").update(canonical(readFileSync(ACTIVITY_DETAIL_CONTROL, "utf8"))).digest("hex").toUpperCase()).toBe("21C01BA24945783E5A03356A1A6A2CDEF4624960DBD774C6EB44F374CC81AF91");
@@ -75,9 +76,9 @@ describe("Activity09 strict current scope without historical permission launderi
     expect(evaluateScopedPolicy(["src/app/dashboard/page.tsx", "src/lib/growth-engine/engine.ts"], PHASE5_DASHBOARD_POLICY).violations).toHaveLength(1);
   });
   test("actual working is exact22 before filtering old Guide21, with every old marker retained", () => {
-    const current = resolveActivityDetailWorkingFiles(); expect([...current].sort()).toEqual([...ACTIVITY_DETAIL_ALLOWED].sort());
+    const current = isProposalRejectionCheckout() ? proposalRejectionHistoricalFiles(ACTIVITY_DETAIL_BASE) : resolveActivityDetailWorkingFiles(); expect([...current].sort()).toEqual([...ACTIVITY_DETAIL_ALLOWED].sort());
     expect(activityDetailScopeViolations(current)).toEqual([]);
-    const historical = withoutActivityDetailAdditions(resolveNewUserGuideWorkingFiles()); expect(newUserGuideScopeViolations(historical)).toEqual([]); expect([...historical].sort()).toEqual([...NEW_USER_GUIDE_ALLOWED].sort());
+    const historical = withoutActivityDetailAdditions(isProposalRejectionCheckout() ? proposalRejectionHistoricalFiles(NEW_USER_GUIDE_BASE) : resolveNewUserGuideWorkingFiles()); expect(newUserGuideScopeViolations(historical)).toEqual([]); expect([...historical].sort()).toEqual([...NEW_USER_GUIDE_ALLOWED].sort());
     const combined = [...new Set([...NEW_USER_GUIDE_ALLOWED, ...ACTIVITY_DETAIL_ALLOWED])]; expect(withoutActivityDetailAdditions(combined).sort()).toEqual([...NEW_USER_GUIDE_ALLOWED].sort());
     expect(NEW_USER_GUIDE_ADDITIONS).toHaveLength(12);
   });

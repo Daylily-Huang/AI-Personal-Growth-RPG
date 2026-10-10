@@ -701,3 +701,110 @@ export function classifyActivityGuideCommittedRange(entire: GovernanceDelta, opt
   return "historical";
 }
 
+// SiteReadiness11: reject-only present-day gate. All accepted78d helper text stays above.
+import { existsSync as proposalControlExists } from "node:fs";
+export const PROPOSAL_REJECTION_BASE = "78d2036af19e55ea59f40cdc8a3358c3bab3cae4";
+export const PROPOSAL_REJECTION_CONTROL = "docs/SiteReadiness/11_PROPOSAL_REJECTION_CONTRACT.md";
+export const PROPOSAL_REJECTION_ADMISSION_SHA = "BB98D531957762DFA112FCE6BF8E46D0EA7798710A7CB430C2E9B93C938F69AB";
+export const PROPOSAL_REJECTION_PRODUCTION = ["src/app/api/assessments/[id]/reject/route.ts",
+  "src/components/dashboard/PendingProposals.tsx", "src/lib/assessments/rejection-client.ts",
+  "src/lib/store/assessment-rejection.service.ts"] as const;
+export const PROPOSAL_REJECTION_TESTS = ["tests/proposal-rejection-api.test.ts", "tests/proposal-rejection-authority.test.ts",
+  "tests/proposal-rejection-governance.test.ts", "tests/proposal-rejection-http.test.ts",
+  "tests/proposal-rejection-service.test.ts", "tests/proposal-rejection-ui.test.tsx"] as const;
+export const PROPOSAL_REJECTION_MARKERS = [PROPOSAL_REJECTION_CONTROL, "docs/Design ChatGPT/02_PRODUCT_DESIGN.md",
+  ...PROPOSAL_REJECTION_PRODUCTION, ...PROPOSAL_REJECTION_TESTS] as const;
+export const PROPOSAL_REJECTION_ALLOWED = [...PROPOSAL_REJECTION_MARKERS,
+  "docs/MASTER_PROJECT_HANDOFF.md", "docs/SiteReadiness/12_PROPOSAL_REJECTION_VERIFICATION.md",
+  "findings.md", "progress.md", "task_plan.md", "tests/activity-detail-governance.test.ts",
+  "tests/graph-canvas-governance.test.ts", "tests/graph-mobile-governance.test.ts", "tests/helpers/governance-delta.ts",
+  "tests/onboarding-governance.test.ts", "tests/phase5-dashboard-ui.test.tsx", "tests/phase8f-ui-governance.test.ts",
+  "tests/visual-foundation.test.ts"] as const;
+export const PROPOSAL_REJECTION_HISTORICAL_CONTENT = ["docs/Design ChatGPT/02_PRODUCT_DESIGN.md",
+  "tests/activity-detail-governance.test.ts", "tests/phase5-dashboard-ui.test.tsx", "tests/visual-foundation.test.ts",
+  "tests/graph-canvas-governance.test.ts", "tests/graph-mobile-governance.test.ts", "tests/phase8f-ui-governance.test.ts"] as const;
+export type ProposalRejectionGitOptions = NewUserGuideGitOptions & { readControl?: () => string };
+export function hasProposalRejectionScope(files: readonly string[]): boolean {
+  return PROPOSAL_REJECTION_MARKERS.every(file => files.includes(file));
+}
+export function proposalRejectionScopeViolations(files: readonly string[]): string[] {
+  const allowed = new Set<string>(hasProposalRejectionScope(files) ? PROPOSAL_REJECTION_ALLOWED : []);
+  return [...(new Set(files).size === files.length ? [] : ["duplicate proposal paths"]), ...files.filter(file => !allowed.has(file))];
+}
+export function verifyProposalRejectionAdmission(document: string): void {
+  if (activityMainHash("sha256").update(document.replace(/\r\n/g, "\n")).digest("hex").toUpperCase() !== PROPOSAL_REJECTION_ADMISSION_SHA)
+    throw new Error("FAIL-CLOSED: proposal rejection admission content is unbound");
+}
+function proposalAdmission(options: ProposalRejectionGitOptions): void {
+  let document: string;
+  try { document = options.readControl ? options.readControl() : readActivityMainControl(activityMainPath(options.cwd ?? process.cwd(), PROPOSAL_REJECTION_CONTROL), "utf8"); }
+  catch { throw new Error("FAIL-CLOSED: proposal rejection admission could not be read"); }
+  verifyProposalRejectionAdmission(document);
+}
+function proposalPaths(raw: string, allowEmpty = false): string[] {
+  if (raw && !raw.endsWith("\0")) throw new Error("FAIL-CLOSED: unterminated proposal Git paths");
+  const files = raw ? raw.slice(0, -1).split("\0") : [];
+  if ((!allowEmpty && !files.length) || files.some(file => !file || file.includes("\n") || file.includes("\r")) || new Set(files).size !== files.length)
+    throw new Error("FAIL-CLOSED: empty, malformed or duplicate proposal Git paths");
+  return files;
+}
+function proposalAcceptedHead(options: ProposalRejectionGitOptions): string {
+  proposalAdmission(options);
+  const head = activityDetailRevision(options, "rev-parse HEAD");
+  if (activityDetailRevision(options, `merge-base ${PROPOSAL_REJECTION_BASE} HEAD`) !== PROPOSAL_REJECTION_BASE)
+    throw new Error("FAIL-CLOSED: proposal rejection accepted base is not an ancestor");
+  return head;
+}
+export function resolveProposalRejectionWorkingFiles(options: ProposalRejectionGitOptions = {}): string[] {
+  proposalAcceptedHead(options);
+  const files = [...proposalPaths(activityDetailGit(options, `diff --no-renames --name-only -z ${PROPOSAL_REJECTION_BASE} --`), true),
+    ...proposalPaths(activityDetailGit(options, "ls-files --others --exclude-standard -z"), true)];
+  if (!files.length || new Set(files).size !== files.length) throw new Error("FAIL-CLOSED: empty or duplicate proposal working range");
+  return files;
+}
+export function resolveProposalRejectionChangedFiles(options: ProposalRejectionGitOptions = {}): GovernanceDelta {
+  const head = proposalAcceptedHead(options), remote = activityDetailRevision(options, "rev-parse origin/main");
+  const mode = remote === head ? "current-main-push" : "pr-branch";
+  const range = mode === "current-main-push" ? `${activityDetailRevision(options, 'rev-parse "HEAD^1"')}..${head}` : `${PROPOSAL_REJECTION_BASE}...${head}`;
+  return { mode, range, mergeBase: PROPOSAL_REJECTION_BASE,
+    files: proposalPaths(activityDetailGit(options, `diff --no-renames --name-only -z ${range}`)) };
+}
+export function assertProposalRejectionChangedScope(entire: GovernanceDelta, options: ProposalRejectionGitOptions = {}): void {
+  assertSameActivityRange(entire, resolveProposalRejectionChangedFiles(options), true);
+  assertCompleteActivityScope(entire.files, PROPOSAL_REJECTION_ALLOWED, proposalRejectionScopeViolations(entire.files));
+}
+/** Only real filesystem detection selects this new entry; old synthetic/default callers stay unchanged. */
+export function isProposalRejectionCheckout(cwd = process.cwd()): boolean {
+  return proposalControlExists(activityMainPath(cwd, PROPOSAL_REJECTION_CONTROL));
+}
+export function assertProposalRejectionActualScope(options: ProposalRejectionGitOptions = {}): string[] {
+  const files = resolveProposalRejectionWorkingFiles(options);
+  assertCompleteActivityScope(files, PROPOSAL_REJECTION_ALLOWED, proposalRejectionScopeViolations(files));
+  if (activityDetailRevision(options, "rev-parse HEAD") !== PROPOSAL_REJECTION_BASE)
+    assertProposalRejectionChangedScope(resolveProposalRejectionChangedFiles(options), options);
+  return files;
+}
+/** Explicit fixed historical diff, NEVER the current working/PR/main range. */
+export function proposalRejectionHistoricalFiles(base: string, options: ProposalRejectionGitOptions = {}): string[] {
+  assertProposalRejectionActualScope(options);
+  if (!["ab84df35319d08247388051c451be523afe3c7a7", "f18855df297fa1a8f42e5fa3574453ef9b67d76b", MOBILE_GRAPH_BASE, NEW_USER_GUIDE_BASE, ACTIVITY_DETAIL_BASE, ACTIVITY_MAIN_BASE].includes(base))
+    throw new Error("FAIL-CLOSED: unapproved proposal historical anchor");
+  if (activityDetailRevision(options, `merge-base ${base} ${PROPOSAL_REJECTION_BASE}`) !== base)
+    throw new Error("FAIL-CLOSED: proposal historical anchor is not an ancestor");
+  return proposalPaths(activityDetailGit(options, `diff --no-renames --name-only -z ${base} ${PROPOSAL_REJECTION_BASE}`));
+}
+/** Used only for the seven overlapping members of the original nonselected15 content assertion. */
+export function proposalRejectionHistoricalContent(file: string, options: ProposalRejectionGitOptions = {}): string {
+  assertProposalRejectionActualScope(options);
+  if (!(PROPOSAL_REJECTION_HISTORICAL_CONTENT as readonly string[]).includes(file))
+    throw new Error("FAIL-CLOSED: unapproved proposal historical content path");
+  const content = activityDetailGit(options, `show ${PROPOSAL_REJECTION_BASE}:"${file}"`);
+  if (!content) throw new Error("FAIL-CLOSED: empty proposal historical content");
+  return content;
+}
+export function proposalRejectionDashboardFiles(files: string[]): string[] {
+  if (!hasProposalRejectionScope(files)) return files;
+  if (proposalRejectionScopeViolations(files).length) throw new Error("FAIL-CLOSED: proposal rejection Dashboard scope extra");
+  return files.filter(file => file !== PROPOSAL_REJECTION_PRODUCTION[0] && file !== PROPOSAL_REJECTION_PRODUCTION[3]);
+}
+
