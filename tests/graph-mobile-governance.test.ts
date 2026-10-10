@@ -15,6 +15,8 @@ import { validateVisualMigrationDelta } from "./visual-foundation.test";
 import { phase8fCurrentScopeViolations } from "./phase8f-ui-governance.test";
 import { hasNewUserGuideScope, newUserGuideScopeViolations, resolveNewUserGuideWorkingFiles,
   NEW_USER_GUIDE_ADDITIONS } from "./helpers/governance-delta";
+import { hasActivityDetailScope, activityDetailScopeViolations, resolveActivityDetailWorkingFiles,
+  withoutActivityDetailAdditions } from "./helpers/governance-delta";
 
 const forbidden = [
   "src/components/graph/useGraphCameraFit.ts", "src/app/skills/page.tsx", "src/app/knowledge/page.tsx",
@@ -69,9 +71,12 @@ describe("SiteReadiness04 exact two-class graph scope", () => {
   test("checks the full working-plus-untracked delta against accepted f100", () => {
     const tracked = execFileSync("git", ["diff", "--name-only", "--no-renames", "-z", MOBILE_GRAPH_BASE, "--"], { encoding: "utf8" }).split("\0").filter(Boolean);
     const untracked = execFileSync("git", ["ls-files", "--others", "--exclude-standard", "-z"], { encoding: "utf8" }).split("\0").filter(Boolean);
-    const files = [...tracked, ...untracked];
+    const entire = [...tracked, ...untracked], detail = hasActivityDetailScope(entire);
+    if (detail) expect(activityDetailScopeViolations(resolveActivityDetailWorkingFiles())).toEqual([]);
+    const priorFiles = (files: string[]) => detail ? withoutActivityDetailAdditions(files) : files;
+    const files = priorFiles(entire);
     if (hasNewUserGuideScope(files)) {
-      expect(newUserGuideScopeViolations(resolveNewUserGuideWorkingFiles())).toEqual([]);
+      expect(newUserGuideScopeViolations(priorFiles(resolveNewUserGuideWorkingFiles()))).toEqual([]);
       const additions = new Set<string>(NEW_USER_GUIDE_ADDITIONS);
       const historical = files.filter(file => !additions.has(file));
       expect(hasMobileGraphScope(historical)).toBe(true); expect(graphInteractionScopeViolations(historical)).toEqual([]);

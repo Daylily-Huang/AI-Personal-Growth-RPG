@@ -1,5 +1,16 @@
 # AI Personal Growth RPG — 项目总体计划与当前状态 (Task Plan)
 
+## 2026-10-10 — Activity 原文详情（当前，旧记录保持）
+
+- [complete 主实现/纠正验收冻结] 新build1z926/TS/lint、offline420/full113files2468/standalone22与主Chrome严格13步/长原文/六宽度/原生Tab终态0；首P2 NO-GO保留，仅两test纠正。Ohm自己420/512+SDK102及独占134/readonly8/prosrc/RLS通过，DIRECT永久释放后主原4容器1卷→0，D51304...13093；正式11/10/备份/3015/root四保护保持。
+- [pending 冻结时点后续] 七docs/全22离线manifest候选GO→selectedcommit/own exactCI/不同fresh FINAL+新栈/新清理→普通merge/postCI/accepted新预览与临时缓存清理。后事件记ignored回执/根三plans，不反写冻结字节；不把主13步或本轮GO当整站完成，下一受控阶段核定Edit/Reject/Verify。
+
+- [complete] main c06/tree8f14与root7dirty保护；09独立Sartre ADMISSION零finding GO，仅准入。
+- [in_progress] exact22/all10/exclusive11：私有GET/详情页/两个实际activityId入口、新API/UI/HTTP/governance与七旧guard窄兼容。
+- [pending] direct-Node目标/保护回归、lint/type/build、专属PG全套/harness/E2E、真实Chrome严格13步与长原文/手机/原生Tab/错误态。
+- [pending] fresh Risk2 candidate/permanent DB release/exact disposal/22manifest→selectedcommit/ownCI/不同FINAL→委托ordinarymerge/postCI/accepted预览/安全临时缓存清理。
+- [pending] 整站完成审计；单项准入/功能GO不改写完整用户goal，不擅自公开部署。
+
 ## 2026-10-09 — 新用户指南（当前阶段，历史记录保持）
 
 - [complete main/independent runtimes and exact cleanup; pending final21 hash-bound candidate] 主build/lint/tsc/harness11/340/durable109files2254exit0以及新Chrome/三owner10tables保持过；freshLeibniz自己153/memory/授权340/readonly8+prosrc/2RLS/cacheparity过，永久release。主62ab30→e73d9a精确task4容器1卷→0/receipt124632...ACF3D，正式11/10/备份/旧previews/root四dirty保持。extra26 tmpGit边界失误披露排除strictproof，旧NO-GO/unknownexit/raw均保留。七docs/全21冻结送其最后离线绑定，未candidateGO不commit；之后ownCI/不同freshFINAL/merge/postCI仍待，realAI/十三步/整站未完。

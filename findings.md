@@ -1,5 +1,13 @@
 # 调查发现与核心架构决策 (Findings)
 
+## 2026-10-10 — Activity 详情纠正当前事实
+
+纠正后冻结：主420/full113files2468/Chrome严格13步/standalone22通过；fresh Ohm实际旧64绕过、当前512严格等值、SDK102与独占134/read-only8/prosrc/RLS通过。09必须先于任何visual early-return，首NO-GO不能由旧green full2467覆盖。原DIRECT永久释放已捕获，主D51304...13093精确task4/1归零；清理不是审查者第二DB执行。七docs/22待最终候选hashbind，commit/CI/不同FINAL/merge后事件不回写冻结候选。整站Proposal Edit/Reject/Verify仍有实际路线图差距，不扩本轮Core或写权限。
+
+旧ActivityLog与RecentGrowth截断文本且没有详情入口，是strict04§13第11步的真实P2。只查API原文并不关闭。09准入独审15calls/397s、exact22/all10/exclusive11模型33反例、actual repository/owner/原文与16protected/constants通过。直接authenticatedfactory避免Demo；session先于UUID，foreign/不存在统一404，所有显式JSON private,no-store，只有GET。详情独立main/h1，own字段/精确三态/ID匹配/异步generation隔离，原文React纯text保留空白HTML与换行。两入口只用实际activityId；legacy非法不伪造。
+
+旧Phase5Dashboard policy禁止api，必须第七旧guard仅在all10+strict当前22后过滤精确新GET；旧policy/synthetic断言不弱化。旧Guide21/11/12仍原样；当前c06严格门禁先执行，再只过滤exclusive11（不含02）。物理共享依赖完整但生成links指向旧已删checkout的历史已纠正，今后directNode、不用pnpm exec；实际清理还需反向依赖检查。
+
 ## 2026-10-09 — 新用户指南当前事实
 
 当前最终证据分层：主durable109/2254actualexit0+主Chrome与private十表；独立153/memory+明确授权340/readonlySQL8/actualboth500Level4ledger500+privatebaseline自行核实，DIRECT永久release；精确task销毁是主e73d9a证据而非独立第二DB会话。extra26 tmpGit越界必须披露排除strictreadonly，不隐去；旧P2/unknownsession保留。七docs/全21冻结待freshhashbound GO，仍无commit/FINAL/merge/sitecomplete。

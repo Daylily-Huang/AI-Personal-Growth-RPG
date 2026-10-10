@@ -22,6 +22,7 @@ import {
   evaluateScopedPolicy,
   resolveGovernanceChangedFiles,
   PHASE5_DASHBOARD_POLICY,
+  hasActivityDetailScope, activityDetailScopeViolations, resolveActivityDetailChangedFiles, activityDetailDashboardFiles,
 } from "./helpers/governance-delta";
 import DashboardPage from "@/app/dashboard/page";
 import { AppShellProvider } from "@/components/layout";
@@ -667,7 +668,8 @@ describe("Phase 5 — Stage 5A-UI Dashboard Modernization Test Suite (Round 4)",
     const delta = resolveGovernanceChangedFiles();
     expect(delta.files.length).toBeGreaterThan(0);
 
-    const result = evaluateScopedPolicy(delta.files, PHASE5_DASHBOARD_POLICY);
+    if (hasActivityDetailScope(delta.files)) expect(activityDetailScopeViolations(resolveActivityDetailChangedFiles().files)).toEqual([]);
+    const result = evaluateScopedPolicy(activityDetailDashboardFiles(delta.files), PHASE5_DASHBOARD_POLICY);
     if (result.applicable) {
       expect(result.violations).toEqual([]);
     } else {

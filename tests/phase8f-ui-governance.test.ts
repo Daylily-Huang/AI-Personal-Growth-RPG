@@ -5,6 +5,7 @@ import { hasSkillBootstrapScope, SKILL_BOOTSTRAP_MARKERS, SKILL_BOOTSTRAP_PRODUC
 import { hasGraphCanvasScope, GRAPH_CANVAS_PRODUCTION } from "./helpers/governance-delta";
 import { hasConnectedFocusScope, CONNECTED_FOCUS_PAGES } from "./helpers/governance-delta";
 import { hasNewUserGuideScope, NEW_USER_GUIDE_PRODUCTION } from "./helpers/governance-delta";
+import { hasActivityDetailScope, ACTIVITY_DETAIL_PRODUCTION } from "./helpers/governance-delta";
 
 const base = "f18855df297fa1a8f42e5fa3574453ef9b67d76b";
 const control = "docs/Phase8/27_PHASE8F_UI_CONTRACT.md";
@@ -24,6 +25,7 @@ function currentScopeViolations(files: string[]) {
     ...(hasGraphCanvasScope(files) ? GRAPH_CANVAS_PRODUCTION : []),
     ...(hasConnectedFocusScope(files) ? CONNECTED_FOCUS_PAGES : []),
     ...(hasNewUserGuideScope(files) ? NEW_USER_GUIDE_PRODUCTION : []),
+    ...(hasActivityDetailScope(files) ? ACTIVITY_DETAIL_PRODUCTION : []),
   ]);
   return historical.filter(file => !approved.has(file));
 }

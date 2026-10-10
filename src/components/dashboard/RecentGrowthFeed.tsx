@@ -1,6 +1,8 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
+import { isValidUuid } from "@/lib/http/validation";
 import type { XpTransaction } from "@/lib/store/types";
 import { TrendingUp } from "lucide-react";
 import { SectionCard } from "@/components/ui";
@@ -35,6 +37,11 @@ export function RecentGrowthFeed({ transactions }: RecentGrowthFeedProps) {
                     : `无重复惩罚（第 ${tx.repetitionCount} 次类似，服务器判定）`}
                 </div>
               ) : null}
+              {isValidUuid(tx.activityId) && <Link href={`/activities/${encodeURIComponent(tx.activityId)}`} prefetch={false}
+                aria-label={`查看成长来源活动：${tx.reason}`}
+                className="mt-1 inline-flex min-h-[var(--touch-target-min)] items-center rounded-xl border border-[var(--border-default)] px-3 text-xs text-[var(--text-secondary)] focus-visible:outline-[var(--focus-ring-color)]">
+                查看活动原文
+              </Link>}
             </div>
             <div className="shrink-0 rounded-full bg-[var(--surface-raised)] border border-[var(--gold-400)]/40 px-3 py-1 text-xs font-bold font-mono text-[var(--gold-500)]">
               +{tx.amount} XP

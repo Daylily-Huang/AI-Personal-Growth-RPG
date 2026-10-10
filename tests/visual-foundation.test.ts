@@ -7,6 +7,7 @@ import { hasGraphCanvasScope, graphCanvasScopeViolations } from './helpers/gover
 import { hasMobileGraphScope, mobileGraphScopeViolations } from './helpers/governance-delta';
 import { hasConnectedFocusScope, graphInteractionScopeViolations } from './helpers/governance-delta';
 import { hasNewUserGuideScope, newUserGuideScopeViolations } from './helpers/governance-delta';
+import { ACTIVITY_DETAIL_CONTROL, activityDetailScopeViolations } from './helpers/governance-delta';
 
 export const FROZEN_BACKEND_DENYLIST = [
   'src/app/api/',
@@ -145,6 +146,9 @@ export const AUTH_ENTRYPOINT_BACKEND = [
 ] as const;
 
 export function validateVisualMigrationDelta(changedFiles: string[]): VisualMigrationValidationResult {
+  if (changedFiles.includes(ACTIVITY_DETAIL_CONTROL)) {
+    return { isVisualPR: true, violations: activityDetailScopeViolations(changedFiles) };
+  }
   const isVisualPR = changedFiles.some((f) => isVisualMigrationPath(f));
   if (!isVisualPR) {
     return { isVisualPR: false, violations: [] };
