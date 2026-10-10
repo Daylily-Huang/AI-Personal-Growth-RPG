@@ -3,6 +3,7 @@ import type { Database, Json } from "@/lib/supabase/database.types";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { assembleSkillDetail } from "@/lib/skills/derived-state";
 import { AssessmentPersistenceService } from "./assessment-persistence.service";
+import { loadAssessmentContext } from "./assessment-context.repository";
 import type { Repository, SettlementResult } from "./repository";
 import type {
   Activity,
@@ -53,6 +54,10 @@ export class SupabaseRepository implements Repository {
     const { data, error } = await this.client.from("activities").select("*").eq("id", id).eq("user_id", this.userId).maybeSingle();
     if (error) throw error;
     return data ? mapActivity(data) : null;
+  }
+
+  async getAssessmentContext(activityId: string) {
+    return loadAssessmentContext(this.client, this.userId, activityId);
   }
 
   async listActivities(): Promise<Activity[]> {

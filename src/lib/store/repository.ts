@@ -20,6 +20,7 @@ import type {
   UpdateSkillMetadataInput,
   XpTransaction,
 } from "./types";
+import type { AssessmentContextSnapshot } from "@/lib/ai/assessment-context";
 
 export type SettlementConflictReason =
   | "already_confirmed" // this assessment is no longer pending
@@ -70,6 +71,8 @@ export interface SettlementResult {
 export interface Repository {
   // ---- reads ----
   getActivity(id: string): Promise<Activity | null>;
+  /** Authenticated-only minimal read; old Demo implementations deliberately have no personal context. */
+  getAssessmentContext?(activityId: string): Promise<AssessmentContextSnapshot>;
   listActivities(): Promise<Activity[]>;
   getAssessment(id: string): Promise<Assessment | null>;
   listPendingAssessments(): Promise<Assessment[]>;

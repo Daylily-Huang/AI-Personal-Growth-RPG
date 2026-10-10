@@ -1,6 +1,7 @@
 import OpenAI from "openai";
-import { buildAssessmentUserPrompt, SYSTEM_CONSTITUTION } from "./prompts";
+import { buildAssessmentUserPrompt, buildAuthenticatedAssessmentPrompt, SYSTEM_CONSTITUTION } from "./prompts";
 import { AssessmentProposalSchema, type AssessmentProposal } from "./schemas";
+import { AssessmentContextError, validateAssessmentContextSnapshot, type AssessmentContextSnapshot } from "./assessment-context";
 
 export interface AssessmentContext {
   rawInput: string;
@@ -9,6 +10,8 @@ export interface AssessmentContext {
   recentSimilarCount: number;
   activeMainQuest?: string | null;
   relatedSkillNames?: string[];
+  activityId?: string;
+  authenticatedSnapshot?: AssessmentContextSnapshot;
 }
 
 function getAiConfig() {
@@ -59,6 +62,7 @@ export async function assessActivity(
   context: AssessmentContext,
   options?: { allowDemoFallback?: boolean }
 ): Promise<AssessActivityResult> {
+  if (context.authenticatedSnapshot !== undefined) return assessAuthenticatedActivity(context);
   const clientInfo = makeClient();
   if (clientInfo) {
     const { client, model } = clientInfo;
@@ -129,6 +133,32 @@ export async function assessActivity(
     "ai_not_configured",
     false
   );
+}
+
+/** Strict auth-only adapter: no Demo fallback and no input-bearing upstream/schema errors. */
+async function assessAuthenticatedActivity(context: AssessmentContext): Promise<AssessActivityResult> {
+  const snapshot = validateAssessmentContextSnapshot(context.authenticatedSnapshot);
+  if (!context.activityId || snapshot.activityId !== context.activityId || snapshot.rawInput !== context.rawInput)
+    throw new AssessmentContextError();
+  const prompt = buildAuthenticatedAssessmentPrompt({ activityId: context.activityId, rawInput: context.rawInput,
+    totalMinutes: context.totalMinutes, effectiveMinutes: context.effectiveMinutes, authenticatedSnapshot: snapshot });
+  let clientInfo: ReturnType<typeof makeClient>;
+  try { clientInfo = makeClient(); }
+  catch { throw new AIAssessmentError("AI service request failed; please retry", "ai_request_failed", true); }
+  if (!clientInfo) throw new AIAssessmentError("AI service is not configured", "ai_not_configured", false);
+  let content: string | null | undefined;
+  try {
+    const completion = await clientInfo.client.chat.completions.create({ model: clientInfo.model, temperature: 0,
+      messages: [{ role: "system", content: SYSTEM_CONSTITUTION }, { role: "user", content: prompt }],
+      response_format: { type: "json_object" } });
+    content = completion.choices[0]?.message?.content;
+  } catch { throw new AIAssessmentError("AI service request failed; please retry", "ai_request_failed", true); }
+  if (typeof content !== "string" || !content.trim()) throw new AIAssessmentError("AI service returned empty content", "ai_empty_content", true);
+  const proposal = parseProposalJson(content);
+  if (!proposal) throw new AIAssessmentError("AI response was not valid JSON", "ai_invalid_json", true);
+  const parsed = AssessmentProposalSchema.safeParse(proposal);
+  if (!parsed.success) throw new AIAssessmentError("AI response could not be validated; please retry", "ai_invalid_schema", true);
+  return { proposal: parsed.data, modelName: clientInfo.model };
 }
 
 function parseProposalJson(content: string): unknown {

@@ -388,3 +388,14 @@ Dashboard fresh在已有quest/skill后关闭，因此增加常驻Header与EmptyS
 - Phase 8E Round 1 residual precondition for Round 2: `wishes.credit_cost` is nullable and the frozen contract allows exact `credit_cost` edits while `IDEA`/`ACTIVE`, so an owner can clear it on an `ACTIVE` Wish (now pinned by a test in `tests/phase8e-db-foundation.test.ts`). `rpc_reserve_wish_credits` and `rpc_set_primary_wish` must fail closed on a NULL cost rather than assuming `ACTIVE` implies a positive cost. This is a recorded contract-consistent behaviour, not an endorsed one.
 
 
+## 2026-10-11 Assessment Context（主已复现，不替代独审）
+
+accepted评估原来只传time/固定null main/重复0，relatedSkillNames从未进入prompt。新request-scoped只读loader与DTO/actualUTF8发送预算补齐必要本人资料，v0.3与legacy v0.2分支隔离，Confirm仍是唯一确定性权威。首轮Skill-2前缀误匹配已实际修复并保留回归；raw status/null/owner/unknown-field/getter/样本窗口与私有SDK错误测试目前通过。
+
+治理历史不可把累计范围当当前：先strict30/hash/realGit，再preReject78d路径与accepted15f Reject25，两终点和七＋三content组限定；旧helper全文prefix/原synthetic断言不改。旧RejectHTTP sourceHashes精确18要求由同completed build透明view满足，同时新context完整23独立保留，不弱化旧HTTP test。实现未全验。
+
+主运行器故障：不带cwd边界的专用Gitshim会把tmp夹具git init/config/add/commit送入candidate/common config。full-v1已因此作废并保留；30source/docs bytes未变，狭窄恢复base/index、误commit留recovery ref，根四/原分支/远端保持。新shim仅exact candidate只读Git＋指定OS tmp自有Git，显式26夹具真实前后refs/config一致。CLI浏览器response.json未返回不等于网站未保存：另行真实Dashboard GET验证成功保存，改为POST状态＋独立持久GET并明确来源，不伪造响应体；仍需恢复后的最终完整绑定与独审。
+
+兼容纠正：full-v2另暴露9只读hash-object包装器漏项、1Auth安全固定提示、1原Demo6夹具承袭configured public env。15独立补充准入后仅旧Demo6删两项public配置并既有afterEach恢复；去这两行和注释完整还原原六测试，不以生产缺context回退Demo求绿。固定Auth文本与原类一致，不用private error.message。主static-v5全文逆向旧guard/AI6均通过；hash-object只允许exact--path/file三参，组合写旗标亦拒。当前EXACT32/all17/source24/build-v3，原13纯30语义和历史白名单未扩；所有旧失败保留，不以局部绿作最终GO。
+
+
