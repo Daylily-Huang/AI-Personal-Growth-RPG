@@ -94,6 +94,32 @@ describe("manual E0 panel without implicit reads/writes", () => {
     await act(async () => wait.resolve({ view: "skills", items: [{ id: skill, name: "old private" }], nextCursor: null }));
     expect(screen.queryByText("old private")).toBeNull(); expect(screen.queryByRole("textbox")).toBeNull();
   });
+  it.each((["submissions", "skills"] as const).flatMap(failedView =>
+    (["close", "unmount", "activity", "refresh"] as const).map(action => ({ failedView, action }))))(
+    "failed $failedView cancels the waiting sibling on $action without stale facts or writes",
+    async ({ failedView, action }) => {
+      const pending = deferred<unknown>(); let signal: AbortSignal | undefined, reads = 0;
+      const stale = `private stale ${failedView} ${action}`;
+      mocks.load.mockImplementation((_activity, query, readSignal: AbortSignal) => {
+        if (++reads > 2) return Promise.resolve({ view: query.view, items: [], nextCursor: null });
+        if (query.view === failedView) return Promise.reject(Error("synthetic-read-failure"));
+        signal = readSignal; return pending.promise;
+      });
+      const { rerender, unmount } = render(<EvidenceSubmissionPanel activityId={activity} />);
+      fireEvent.click(screen.getByRole("button", { name: "展开补证面板" }));
+      await screen.findByRole("alert"); expect(mocks.load).toHaveBeenCalledTimes(2);
+      expect((screen.getByRole("button", { name: "重新读取材料与技能" }) as HTMLButtonElement).disabled).toBe(false);
+      if (action === "close") fireEvent.click(screen.getByRole("button", { name: "关闭补证面板" }));
+      else if (action === "unmount") unmount();
+      else if (action === "activity") rerender(<EvidenceSubmissionPanel activityId={id(88)} />);
+      else { fireEvent.click(screen.getByRole("button", { name: "重新读取材料与技能" })); await waitFor(() => expect(screen.queryByRole("alert")).toBeNull()); }
+      expect(signal).toBeDefined(); expect(signal?.aborted).toBe(true);
+      await act(async () => pending.resolve(failedView === "skills"
+        ? { view: "submissions", items: [stored({ requestId, skillId: null, description: stale }).submission], nextCursor: null }
+        : { view: "skills", items: [{ id: skill, name: stale, status: "active", nameTruncated: false }], nextCursor: null }));
+      expect(screen.queryByText(stale)).toBeNull(); expect(mocks.submit).not.toHaveBeenCalled();
+    },
+  );
   it("Activity change unmounts private form/clients and starts closed with zero new reads", async () => {
     const { rerender } = render(<EvidenceSubmissionPanel activityId={activity} />); await open(); prepare("previous private");
     rerender(<EvidenceSubmissionPanel activityId={id(88)} />); expect(screen.queryByText("previous private")).toBeNull(); expect(screen.queryByRole("textbox")).toBeNull();

@@ -36,8 +36,11 @@ function Panel({ activityId }: { activityId: string }) {
       } catch (error) {
         if (!controller.signal.aborted && generation.current === current) setReadError(evidenceClientMessage(error));
       } finally {
+        const currentRead = !controller.signal.aborted && generation.current === current;
+        // Promise.all can reject while its sibling is pending; cancel before unregistering.
+        controller.abort();
         owned.delete(controller);
-        if (!controller.signal.aborted && generation.current === current) setLoading(false);
+        if (currentRead) setLoading(false);
       }
     }
     void read();

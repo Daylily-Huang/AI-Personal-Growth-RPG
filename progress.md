@@ -1,5 +1,9 @@
 # 项目历史工作进度 (Progress Log)
 
+- 2026-10-11 纠正主验收全终态：actualfull-v2 133files3379/3379/0nonpassed/child0/verificationnull/raw2E726BEF...F0444；Growth11/E2E11/type/lint/build-v2mLc均0。新Chrome61checks/37API/两held-sibling原生取消/四契约宽8geometry3Tab/3E0/0error/AI与三populatedowner36表只多材料receipt、原growth/reward/Wish/outer保持。原FULLv1 timeout3376/3、303预算复核和8旧source失败保留。独立sameRisk2 old8fail/new8pass/265通过且永久释放；主新全部client退出/release-v2/census[]后97015精确原4/1清理0/0，formal11/10/nonTask/source/protected保持，新disposal39DA5C3B...05F95。当前六auditdocs/17/完整35冻结待最后candidate绑定，尚无新commit/CI/不同FINAL/merge/正式54，3018与root4/数据/密钥/备份/deps保护。
+
+- 2026-10-11 PR59已提交54ca/ownCI38088330473成功133files3371/Growth11/E2E11；fresh不同Ramanujan own257/62/SQL8之后发现初次双GET一失败丢失另一路取消P2，committed FINAL NO-GO0/0/1并direct永久release/census[]。main新增8回归先实证旧source20pass8fail/raw5F541...6449，再仅finally捕获currentRead/abort/delete；四文件166/166/raw5426...59EF5、type/lint0。新build/full/browser/清理/同Risk2复审待，旧验收历史保留且不套用现source。未merge/正式54。
+
 - 2026-10-11 纠正候选冻结：独立phase1 0/0/1因browser宽度，own257/115/62/SQL8＋3owner36表通过且永久释放；主仅改ignored证据脚本补320/390/768/1440八geometry/3Tab/0error/0businessPOST，source/test28与build仍同。纠正Chrome/Next/PG全退并新release-v2，主exec9974精确disposal child0，原4containers1volume→0/0、formal11running10healthy和所有nonTask保持。17保存原NO-GO及纠正/清理原hash；当前等待最后35绑定，未提交/正式0054/整站完成。
 
 - 2026-10-11 补证主全量终态0：133files3371/3371，build/type/lint、Growth11/E2E11与Chrome55/30API/8geometry/3Tab通过；3owner36表deepEqual去掉仅新增3E0+3receipt后与原baseline相等。测试/浏览器/Next/PG已close并census[]/release，fresh Leibniz已获explicit独占DB grant。原失败/工具历史保留17，不预签独审/处置/提交/正式升级或整站完成。

@@ -1,5 +1,9 @@
 # 调查发现与核心架构决策 (Findings)
 
+- 纠正主终态complete：full-v2 actual133files3379/3379/child0/verificationnull/raw2E726BEF...F0444，旧v1(3376/3)、原8fail和303预算复核保留；Growth11/E2E11/type/lint/build-v2全0。Chrome61checks/37API、真实两held-sibling原生AbortSignal、3203907681440/8geometry/3nativeTab/3E0/0error/AI；三populatedowner36表只多3材料/receipt，其余成长/reward/Wish/outer完全保持。独立old8fail/new8pass+265通过但永久无DB，不冒称其重跑新full/browser。主全部客户端close/release-v2/census[]后精确原4/1清理0/0、formal11/10/nonTask/source/protected保持，disposal39DA5C3B...05F95。当前六auditdocs/17/35冻结待同Risk2最终candidate绑定，未新commit/ownCI/FINAL/merge/正式54/整站完成。
+
+- 2026-10-11 PR59 head54ca ownCI成功后，fresh Ramanujan committed FINAL真实React发现双GET失败→controller丢登记P2，NO-GO0/0/1，已永久释放/census[]。旧source新8回归20pass8fail；main仅finally捕获currentRead、abort后delete，修后四文件166/166/type/lint0。旧build/full/browser不能给新source背书；正在新build/full/Chrome/精准清理/同Risk2候选复审，不合并、不写正式0054。16全文与旧SQL/断言保持。
+
 - fresh Risk2唯一P2为主browser测360/390/768/1280不满足16要求320/390/768/1440；不是source缺陷，不改冻结契约。追加真实同build四契约宽度/长文/44px/3Tab/zero pageerror/零businessPOST，原v3保留。独立257/115/62/SQL8/3owner36表通过并direct永久释放；主新client census空后精准task4/1→0/0/formal11/10及nonTask保持。等待17/35最终离线绑定，无预签GO或整站完成。
 
 - 主全量133files3371/3371与completed build/E2E/Growth均通过；Chrome真实响应丢失后200同receipt重放不重复、保存后503刷新不丢回执、不二次POST、真实过期401零新增。三owner×36tenant表原成长/奖励/愿望/outer完整保持，只有3E0+3receipt新增。原生option可见性/登录session重跑夹具错误已保留，不是产品finding；fresh独审及清理冻结尚待。

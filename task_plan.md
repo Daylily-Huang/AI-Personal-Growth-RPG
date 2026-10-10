@@ -1,5 +1,9 @@
 # AI Personal Growth RPG — 项目总体计划与当前状态 (Task Plan)
 
+- [in_progress 纠正35最终离线绑定] source/build-v2 mLc保持，main完整133files3379/3379、Growth11/E2E11/type/lint0、新Chrome61/真实两路取消/契约四宽八geometry3Tab/3owner36表parity通过；旧20/8fail、3376/3失败与303预算复核保留。主全部客户端退出/release-v2/census[]，原4containers1volume精确清理0/0、formal11/10/nonTask/source/protected保持，disposal39DA...05F95。controller16固定/仅panel+UI8regress及六auditdocs变；完整35与17冻结待Ramanujan sameRisk2最后candidate GO，之后selected8新commit→新ownCI→不同fresh committed FINAL/新栈清理→普通merge/postCI→正式54当前批准/备份恢复独审→新preview/cache清理。现3018/正式数据/密钥/备份/deps保留，整站未完成。
+
+- [in_progress PR59 committed FINAL P2纠正] fresh Ramanujan0/0/1 NO-GO已永久DB/HTTP释放；旧source8新增回归全失败、修后166offline/type/lint0。仅production面板与新增8test/六auditdocs变化，controller16不改。main独占同一新合成栈新build-v2/full/Growth/E2E/四宽Chrome/36表快照→新release/owned清理→同Risk2候选复审/35freeze→新selectedcommit/ownCI/不同fresh committed FINAL，之后才普通merge/postCI。正式54当前批准待，3018/数据/密钥/备份/deps不动，整站未完成。
+
 - [in_progress 最终35离线绑定] Leibniz独立257/115/62/SQL8/3owner36表通过并永久释放，原P2宽度证据缺口已主实际补齐320/390/768/1440/八geometry/3Tab/零error/零businessPOST，source28未动。主纠正客户端全退、新release-v2后精确销毁原4容器1卷，task0/0/formal11/10/nonTask保持。17/七文档冻结待最终manifest GO；所有提交/CI/不同FINAL/PR/正式0054/新预览仍待，3018保持。
 
 - [in_progress evidence35 fresh Risk2] 主完整133files3371/3371/child0，build9l8oQr59O_o4dqIkTboeI/type/lint/Growth11/E2E11，Chrome55checks/30API/8geometry/3nativeTab/0pageerror、三owner36表原记录不变通过；旧失败保留17。main所有客户端退出/census[]，已direct给Leibniz指定独占真实DB，待永久release→owned disposal→35最终冻结/候选GO。无提交/正式0054/整站完成，3018保持。
