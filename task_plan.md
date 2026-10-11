@@ -300,3 +300,27 @@
 - [complete 历史后续] PR58/accepted52ba/3018已完成，root本地handoff与CI/FINAL保存记录为依据，旧过程日志保持。
 - [complete evidence16纠正ADMISSION] Euclid0/0/0 GO仅F4D...冻结合同；原NO-GO两P2保留。accepted52ba/tree f0c2d，EXACT35/all19。
 - [in_progress evidence实现] 纯验证/实际SDK/API/UI四files155通过，原UI夹具1失败与headers type失败保留在17；旧闭包/0054/realHTTP/全套/独审/清理冻结尚待，不预签candidate或整站完成。3018与正式DB/root用户数据保护。
+
+
+## 当前后续 — FACT-EDIT18 完整验收
+
+- [in_progress] EXACT52/MARKERS35治理主回归941与原定向461终态通过；旧helper/932matcher参数/七source逆向保持，完整独立验收尚待。
+- [pending] 新完整build与隔离PG/Auth/HTTP受控合成AI、并发/populated全表基线、主full/Growth/E2E/type/lint/四宽Chrome。
+- [pending] fresh Risk2候选与不同fresh committedFINAL、精确owned清理、合并及post-mainCI。
+- [pending] 正式0055当前批准/新备份恢复/迁移独审、新本机预览；之后Verifier/附件/最新13步整站验收。
+
+既有3019、正式0054、备份、共享deps与root用户修改保留；不将阶段通过冒称整站完成。
+
+## FACT-EDIT corrective当前 — 独立准入后严格53
+
+- [complete admission only] 用户授权唯一新增tests/assessment-context-api.test.ts，只增加类型和false mock；19唯一修订块绑定原18/base/tree，Herschel narrow Risk2 ADMISSION GO。严格53/35/两增加逆向/旧assertions完整，不修改冻结18或缺port生产failclosed。
+- [complete main targeted] 实际Provider+DashboardPage复现刷新503卸载回执P1，Pending自有15s owned GET成功才setDashboard、取消跟随Editor生命周期；外部内存store不可变snapshot关闭production React lint。最终主v14 8files464/464、TS0/六文件lint0；治理v3 12files942/942主终态0。
+- [pending] 修后build-v3/主full零skip/四宽Chrome真实全流程/独占独审/永久release/精确owned disposal与最终53冻结。v1/v2 full与旧build/失败浏览器全部历史保留19，不能提前commit或正式0055。
+
+## FACT-EDIT final corrective snapshot（本节优先于上方历史pending）
+
+- [complete main] build-v3 WQPlTjOYzDkMzQHrmSS_a/source347、full143files4011/4011零skip/unhandled/child0、TS0/全项目ESLint0warnings0、Growth11/E2E11、治理942/966旧matcher；主Chrome51/8geometry/4Tab/25HTTP与实际GrowthXP12/三owner38表parity。
+- [complete independent execution, not candidate verdict] Herschel独立12files246/246与readonlySQL243/19prosrc/RLS/奖励8报告通过，直接永久DB释放，客户端终态与census空。其stdout哈希及三SQL fixture错误准确保留19，不冒称其第二全套/浏览器。
+- [complete exact-owned cleanup] 原4容器/1卷→0，其他容器inventory保持，删121623728byte构建cache，source/build/备份/共享deps/正式数据保留。disposal2529CFEF...DD113。
+- [pending narrow next gate] 冻结严格53/note与七旧docs完整prefix，Herschel最终离线候选裁决；其GO前不commit。之后selected53/ownCI/不同fresh committedFINAL/普通merge/postmainCI。
+- [pending separate authority] 正式0055当前批准、新备份恢复/迁移独审、新本机预览；真实AI/Verifier/附件/整站13步仍不由本切片证明。现有3019及正式0054保持。

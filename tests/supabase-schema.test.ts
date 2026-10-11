@@ -77,6 +77,7 @@ const EXPECTED_ORDER = [
   "0052_phase8f_milestones_rpc_authority",
   "0053_zero_xp_manual_skill_authority",
   "0054_evidence_submission_authority",
+  "0055_proposal_fact_edit_authority",
 ];
 
 
@@ -98,6 +99,16 @@ const STAGE1_PRIVATE_TABLES = [
   "artifact_links",
   "reviews",
 ];
+
+// 0055 extends the inventory, not the Stage1 pre-0017 table list or its assertions.
+describe("0055 proposal fact audit inventory", () => {
+  test("exactly two added private tables with own SELECT and explicit RLS", () => {
+    const sql = fs.readFileSync(path.join(MIGRATIONS_DIR, "0055_proposal_fact_edit_authority.sql"), "utf8");
+    const added = [...sql.matchAll(/create table public\.([a-z_]+)\s*\(/gi)].map(match => match[1]);
+    expect(added).toEqual(["proposal_fact_edit_requests", "proposal_fact_revisions"]);
+    for (const table of added) expect(sql.toLowerCase()).toContain(`alter table public.${table} enable row level security`);
+  });
+});
 
 function readMigrations(): Map<string, string> {
   const files = fs.readdirSync(MIGRATIONS_DIR).filter((f) => f.endsWith(".sql")).sort();

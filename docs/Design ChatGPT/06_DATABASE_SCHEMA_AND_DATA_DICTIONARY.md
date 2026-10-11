@@ -672,3 +672,17 @@ Markdown summary
 ```
 
 用户的数据不能被锁死在产品中。
+
+
+# 27. 0055 事实修正审计增量（尚未正式应用）
+
+仅新增以下两张私有表，旧0001..0054不变，不追加到0017之前的Stage1表清单：
+
+| 表 | 唯一职责 | 权限 |
+| --- | --- | --- |
+| proposal_fact_edit_requests | owner/request UUID绑定的不可变完整facts、base/Activity、180秒期限及五态请求回执 | RLS本人SELECT；受控begin/read，service-only complete/fail；禁止API直接DML |
+| proposal_fact_revisions | 成功结果与唯一request、base/result assessment、previous revision、rules/prompt的不可变线性链 | RLS本人SELECT；仅受控finalize插入，原Activity/旧JSON保持 |
+
+同key不能换facts；失败/过期/冲突不复活，完成后不能重发模型。成功重评只生成pending，不直接改Core/积分。旧record/settle两个函数只增统一Activity gate及revision/分钟/Quest delta一致性guard；无revision仍原语义，奖励常量不改。0055为唯一新migration，正式应用另需当前批准、独立备份恢复及迁移验收；当前仅合成环境历史基础测试已通过，最终证据见19。
+
+合成环境后续证据：最终build全套143files4011通过，独立组合246/只读SQL243含19 installed prosrc/RLS/权限/0050来源及Unicode25验证报告通过；八奖励仍150/100/150/200/200/100/150/250。主browser三owner38表parity只增加三revision/三assessment/四request含一failed、一次ConfirmXP12/一ledger/原E0 Evidence，原Activity/其他owner/奖励/Mastery不改。独立永久释放后原task4容器1卷已精确销毁；这些不是正式0055应用证据，正式54321/54322仍0054，备份保留；最终候选及正式迁移门禁见19。

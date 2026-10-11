@@ -1050,3 +1050,162 @@ export function evidenceSubmissionHistoricalContent(file: string, group: "onboar
   return content;
 }
 
+// SiteReadiness18: strict full-scope gate before any fixed historical projection.
+// The complete accepted229c helper prefix above is immutable.
+export const PROPOSAL_FACT_EDIT_BASE = "229c09f122d3f0cb31fd02ff3ade53b27d06566d";
+export const PROPOSAL_FACT_EDIT_CONTROL = "docs/SiteReadiness/18_PROPOSAL_FACT_EDIT_CONTRACT.md";
+export const PROPOSAL_FACT_EDIT_ADMISSION_SHA = "BF9CFA5BC25677A75489C6B0DD7238221ABB44F0A9FB290E83E5C8ADCBCC1019";
+export const PROPOSAL_FACT_EDIT_FIXTURE_PATH = "tests/assessment-context-api.test.ts";
+export const PROPOSAL_FACT_EDIT_AMENDMENT_PATH = "docs/SiteReadiness/19_PROPOSAL_FACT_EDIT_VERIFICATION.md";
+export const PROPOSAL_FACT_EDIT_AMENDMENT_SHA = "56E0AE62C62A1DA9CAC94FFF58B5000F59A9DEF4682064F97731C9152B08ABF0";
+export const PROPOSAL_FACT_EDIT_PRODUCTION = [
+  "src/app/activities/[id]/page.tsx", "src/app/api/activities/[id]/assess/route.ts",
+  "src/app/api/activities/[id]/fact-revisions/route.ts", "src/app/api/assessments/[id]/edit/route.ts",
+  "src/components/activities/ProposalFactHistory.tsx", "src/components/assessments/ProposalFactsEditor.tsx",
+  "src/components/dashboard/PendingProposals.tsx", "src/lib/proposal-edit/ai.ts", "src/lib/proposal-edit/client.ts",
+  "src/lib/proposal-edit/context.ts", "src/lib/proposal-edit/http.ts", "src/lib/proposal-edit/repository.ts",
+  "src/lib/proposal-edit/request.ts", "src/lib/proposal-edit/service.ts", "src/lib/proposal-edit/types.ts",
+  "src/lib/proposal-edit/validation.ts", "src/lib/store/repository.ts", "src/lib/store/settlement.service.ts",
+  "src/lib/store/supabase-repository.ts", "src/lib/store/types.ts", "supabase/migrations/0055_proposal_fact_edit_authority.sql",
+] as const;
+export const PROPOSAL_FACT_EDIT_TESTS = ["tests/proposal-edit-api.test.ts", "tests/proposal-edit-authority.test.ts",
+  "tests/proposal-edit-concurrency.test.ts", "tests/proposal-edit-context.test.ts", "tests/proposal-edit-golden.test.ts",
+  "tests/proposal-edit-governance.test.ts", "tests/proposal-edit-http.test.ts", "tests/proposal-edit-repository.test.ts",
+  "tests/proposal-edit-ui.test.tsx", "tests/proposal-edit-validation.test.ts"] as const;
+export const PROPOSAL_FACT_EDIT_MARKERS = [PROPOSAL_FACT_EDIT_CONTROL, "docs/Design ChatGPT/02_PRODUCT_DESIGN.md",
+  "docs/Design ChatGPT/03_TECHNICAL_IMPLEMENTATION.md", "docs/Design ChatGPT/06_DATABASE_SCHEMA_AND_DATA_DICTIONARY.md",
+  ...PROPOSAL_FACT_EDIT_PRODUCTION, ...PROPOSAL_FACT_EDIT_TESTS] as const;
+export const PROPOSAL_FACT_EDIT_ALLOWED = [...PROPOSAL_FACT_EDIT_MARKERS,
+  "docs/MASTER_PROJECT_HANDOFF.md", "docs/SiteReadiness/19_PROPOSAL_FACT_EDIT_VERIFICATION.md", "findings.md", "progress.md", "task_plan.md",
+  "tests/activity-detail-governance.test.ts", "tests/assessment-context-governance.test.ts", "tests/evidence-submission-governance.test.ts",
+  "tests/graph-canvas-governance.test.ts", "tests/graph-mobile-governance.test.ts", "tests/helpers/governance-delta.ts",
+  "tests/onboarding-governance.test.ts", "tests/phase5-dashboard-ui.test.tsx", "tests/phase8f-ui-governance.test.ts",
+  "tests/proposal-rejection-governance.test.ts", "tests/supabase-schema.test.ts", "tests/visual-foundation.test.ts", PROPOSAL_FACT_EDIT_FIXTURE_PATH] as const;
+export function hasProposalFactEditScope(files: readonly string[]): boolean {
+  return PROPOSAL_FACT_EDIT_MARKERS.every(file => files.includes(file));
+}
+export function proposalFactEditScopeViolations(files: readonly string[]): string[] {
+  const allowed = new Set<string>(hasProposalFactEditScope(files) ? PROPOSAL_FACT_EDIT_ALLOWED : []);
+  return [...(new Set(files).size === files.length ? [] : ["duplicate proposal fact edit paths"]),
+    ...files.filter(file => !allowed.has(file)),
+    ...PROPOSAL_FACT_EDIT_ALLOWED.filter(file => !files.includes(file)).map(file => `missing proposal fact edit path: ${file}`)];
+}
+export function verifyProposalFactEditAdmission(text: string): void {
+  if (activityMainHash("sha256").update(text.replace(/\r\n/g, "\n")).digest("hex").toUpperCase() !== PROPOSAL_FACT_EDIT_ADMISSION_SHA)
+    throw new Error("FAIL-CLOSED: proposal fact edit contract is unbound");
+}
+export function verifyProposalFactEditAmendment(text: string): void {
+  const canonical = text.replace(/\r\n/g, "\n");
+  const start = "<!-- BEGIN PROPOSAL_FACT_EDIT_FIXTURE_AMENDMENT -->", end = "<!-- END PROPOSAL_FACT_EDIT_FIXTURE_AMENDMENT -->";
+  if (canonical.split(start).length !== 2 || canonical.split(end).length !== 2)
+    throw new Error("FAIL-CLOSED: proposal fact edit amendment missing or duplicate");
+  const begin = canonical.indexOf(start), finish = canonical.indexOf(end);
+  if (finish < begin || activityMainHash("sha256").update(canonical.slice(begin, finish + end.length)).digest("hex").toUpperCase() !== PROPOSAL_FACT_EDIT_AMENDMENT_SHA)
+    throw new Error("FAIL-CLOSED: proposal fact edit amendment is unbound");
+}
+export function verifyProposalFactEditFixture(current: string, accepted: string): void {
+  let restored = current.replace(/\r\n/g, "\n");
+  for (const extra of [";hasProposalFactEdit:ReturnType<typeof vi.fn>", ",hasProposalFactEdit:vi.fn().mockResolvedValue(false)"]) {
+    if (restored.split(extra).length !== 2) throw new Error("FAIL-CLOSED: proposal fact edit fixture change is not exact");
+    restored = restored.replace(extra, "");
+  }
+  if (restored !== accepted.replace(/\r\n/g, "\n")) throw new Error("FAIL-CLOSED: proposal fact edit old fixture/assertions changed");
+}
+type ProposalFactEditGitOptions = ProposalRejectionGitOptions & { readAmendment?: () => string; readFixture?: () => string };
+function proposalFactEditHead(options: ProposalFactEditGitOptions): string {
+  let text: string;
+  try { text = options.readControl ? options.readControl() : readActivityMainControl(activityMainPath(options.cwd ?? process.cwd(), PROPOSAL_FACT_EDIT_CONTROL), "utf8"); }
+  catch { throw new Error("FAIL-CLOSED: proposal fact edit contract could not be read"); }
+  verifyProposalFactEditAdmission(text);
+  try {
+    const cwd = options.cwd ?? process.cwd();
+    verifyProposalFactEditAmendment(options.readAmendment ? options.readAmendment() : readActivityMainControl(activityMainPath(cwd, PROPOSAL_FACT_EDIT_AMENDMENT_PATH), "utf8"));
+    verifyProposalFactEditFixture(options.readFixture ? options.readFixture() : readActivityMainControl(activityMainPath(cwd, PROPOSAL_FACT_EDIT_FIXTURE_PATH), "utf8"),
+      activityDetailGit(options, `show ${PROPOSAL_FACT_EDIT_BASE}:"${PROPOSAL_FACT_EDIT_FIXTURE_PATH}"`));
+  } catch { throw new Error("FAIL-CLOSED: proposal fact edit amendment/fixture verification failed"); }
+  const head = activityDetailRevision(options, "rev-parse HEAD");
+  if (activityDetailRevision(options, `merge-base ${PROPOSAL_FACT_EDIT_BASE} HEAD`) !== PROPOSAL_FACT_EDIT_BASE)
+    throw new Error("FAIL-CLOSED: proposal fact edit base is not an ancestor");
+  return head;
+}
+export function resolveProposalFactEditWorkingFiles(options: ProposalFactEditGitOptions = {}): string[] {
+  proposalFactEditHead(options);
+  const files = [...contextPaths(activityDetailGit(options, `diff --no-renames --name-only -z ${PROPOSAL_FACT_EDIT_BASE} --`), true),
+    ...contextPaths(activityDetailGit(options, "ls-files --others --exclude-standard -z"), true)];
+  if (!files.length || new Set(files).size !== files.length) throw new Error("FAIL-CLOSED: empty or duplicate fact edit working range");
+  return files;
+}
+export function resolveProposalFactEditChangedFiles(options: ProposalFactEditGitOptions = {}): GovernanceDelta {
+  const head = proposalFactEditHead(options), remote = activityDetailRevision(options, "rev-parse origin/main");
+  const mode = head === remote ? "current-main-push" : "pr-branch";
+  let range = `${PROPOSAL_FACT_EDIT_BASE}...${head}`;
+  if (mode === "current-main-push") {
+    const parent = activityDetailRevision(options, 'rev-parse "HEAD^1"');
+    if (parent !== PROPOSAL_FACT_EDIT_BASE) throw new Error("FAIL-CLOSED: fact edit current-main first parent is not accepted229c");
+    range = `${parent}..${head}`;
+  }
+  return { mode, range, mergeBase: PROPOSAL_FACT_EDIT_BASE, files: contextPaths(activityDetailGit(options, `diff --no-renames --name-only -z ${range}`)) };
+}
+export function assertProposalFactEditChangedScope(delta: GovernanceDelta, options: ProposalFactEditGitOptions = {}): void {
+  assertSameActivityRange(delta, resolveProposalFactEditChangedFiles(options), true);
+  assertCompleteActivityScope(delta.files, PROPOSAL_FACT_EDIT_ALLOWED, proposalFactEditScopeViolations(delta.files));
+}
+export function isProposalFactEditCheckout(cwd = process.cwd()): boolean {
+  return proposalControlExists(activityMainPath(cwd, PROPOSAL_FACT_EDIT_CONTROL));
+}
+export function assertProposalFactEditActualScope(options: ProposalFactEditGitOptions = {}): string[] {
+  const files = resolveProposalFactEditWorkingFiles(options);
+  assertCompleteActivityScope(files, PROPOSAL_FACT_EDIT_ALLOWED, proposalFactEditScopeViolations(files));
+  if (activityDetailRevision(options, "rev-parse HEAD") !== PROPOSAL_FACT_EDIT_BASE)
+    assertProposalFactEditChangedScope(resolveProposalFactEditChangedFiles(options), options);
+  return files;
+}
+function proposalFactEditFixedRange(from: string, to: string, options: ProposalRejectionGitOptions): string[] {
+  if (activityDetailRevision(options, `merge-base ${from} ${to}`) !== from)
+    throw new Error("FAIL-CLOSED: fact edit historical endpoint is not an ancestor");
+  return contextPaths(activityDetailGit(options, `diff --no-renames --name-only -z ${from} ${to}`));
+}
+export function proposalFactEditEvidenceFiles(options: ProposalFactEditGitOptions = {}): string[] {
+  assertProposalFactEditActualScope(options);
+  const files = proposalFactEditFixedRange(EVIDENCE_SUBMISSION_BASE, PROPOSAL_FACT_EDIT_BASE, options);
+  assertCompleteActivityScope(files, EVIDENCE_SUBMISSION_ALLOWED, evidenceSubmissionScopeViolations(files));
+  return files;
+}
+export function proposalFactEditContextFiles(options: ProposalFactEditGitOptions = {}): string[] {
+  assertProposalFactEditActualScope(options);
+  const files = proposalFactEditFixedRange(ASSESSMENT_CONTEXT_BASE, EVIDENCE_SUBMISSION_BASE, options);
+  assertCompleteActivityScope(files, ASSESSMENT_CONTEXT_COMPATIBILITY_ALLOWED, assessmentContextScopeViolations(files));
+  return files;
+}
+export function proposalFactEditRejectionFiles(options: ProposalFactEditGitOptions = {}): string[] {
+  assertProposalFactEditActualScope(options);
+  const files = proposalFactEditFixedRange(PROPOSAL_REJECTION_BASE, ASSESSMENT_CONTEXT_BASE, options);
+  assertCompleteActivityScope(files, PROPOSAL_REJECTION_ALLOWED, proposalRejectionScopeViolations(files));
+  return files;
+}
+export function proposalFactEditHistoricalFiles(anchor: string, options: ProposalFactEditGitOptions = {}): string[] {
+  assertProposalFactEditActualScope(options);
+  if (!["ab84df35319d08247388051c451be523afe3c7a7", "f18855df297fa1a8f42e5fa3574453ef9b67d76b", MOBILE_GRAPH_BASE,
+    NEW_USER_GUIDE_BASE, ACTIVITY_DETAIL_BASE, ACTIVITY_MAIN_BASE].includes(anchor)) throw new Error("FAIL-CLOSED: unapproved fact edit historical anchor");
+  const files = proposalFactEditFixedRange(anchor, PROPOSAL_REJECTION_BASE, options);
+  if (anchor === ACTIVITY_DETAIL_BASE) assertCompleteActivityScope(files, ACTIVITY_DETAIL_ALLOWED, activityDetailScopeViolations(files));
+  if (anchor === ACTIVITY_MAIN_BASE) assertCompleteActivityScope(files, ACTIVITY_MAIN_ALLOWED, activityMainScopeViolations(files));
+  // Earlier cumulative graph/guide scopes retain their complete old assertions in the callers.
+  return files;
+}
+export function proposalFactEditHistoricalContent(file: string, group: "onboarding" | "activity" | "rejection" | "page" | "evidence-page" | "context-source", options: ProposalFactEditGitOptions = {}): string {
+  assertProposalFactEditActualScope(options);
+  const accepted = group === "onboarding" ? PROPOSAL_REJECTION_HISTORICAL_CONTENT as readonly string[]
+    : group === "activity" ? ASSESSMENT_CONTEXT_ACTIVITY_CONTENT as readonly string[]
+    : group === "rejection" ? ["src/lib/ai/prompts.ts"]
+    : group === "page" || group === "evidence-page" ? ["src/app/activities/[id]/page.tsx"]
+    : group === "context-source" ? ["src/lib/store/repository.ts", "src/lib/store/supabase-repository.ts"] : [];
+  if (!accepted.includes(file)) throw new Error("FAIL-CLOSED: unapproved fact edit content group/path");
+  const endpoint = group === "onboarding" ? PROPOSAL_REJECTION_BASE : group === "page" ? EVIDENCE_SUBMISSION_BASE
+    : group === "evidence-page" || group === "context-source" ? PROPOSAL_FACT_EDIT_BASE : ASSESSMENT_CONTEXT_BASE;
+  if (activityDetailRevision(options, `merge-base ${endpoint} ${PROPOSAL_FACT_EDIT_BASE}`) !== endpoint)
+    throw new Error("FAIL-CLOSED: fact edit content endpoint is not an ancestor");
+  const content = activityDetailGit(options, `show ${endpoint}:"${file}"`);
+  if (!content) throw new Error("FAIL-CLOSED: empty fact edit historical content");
+  return content;
+}

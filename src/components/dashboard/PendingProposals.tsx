@@ -9,6 +9,10 @@ import { SectionCard, PrimaryButton, SecondaryButton, ConfidenceBadge } from "@/
 import { ArtifactProposalResolutionPicker } from "@/components/artifacts/ArtifactProposalResolutionPicker";
 import { useOptionalAppShell } from "@/components/layout/AppShellContext";
 import { ProposalRejectionError, rejectProposal } from "@/lib/assessments/rejection-client";
+// BEGIN PROPOSAL_FACT_EDIT_PENDING_IMPORT
+import { ProposalFactsEditor, createProposalEditMemory } from "@/components/assessments/ProposalFactsEditor";
+import type { ProposalEditClientResult } from "@/lib/proposal-edit/client";
+// END PROPOSAL_FACT_EDIT_PENDING_IMPORT
 
 export interface PendingProposalsProps {
   assessments: Assessment[];
@@ -56,6 +60,32 @@ export function PendingProposals({
     }
   }
 
+  // BEGIN PROPOSAL_FACT_EDIT_PENDING_REFRESH
+  const editRefresh = useRef<AbortController | null>(null);
+  useEffect(() => () => { editRefresh.current?.abort(); }, []);
+  async function handleEdited(result: Extract<ProposalEditClientResult, { status: "completed" }>, signal: AbortSignal) {
+    if (!mounted.current) return false;
+    setNotice(`新建议 ${result.request.completion.assessment.id} 已保存，尚未结算 XP。`);
+    if (!shell) { router.refresh(); return false; }
+    const request = new AbortController(); editRefresh.current?.abort(); editRefresh.current = request;
+    const cancel = () => request.abort(); signal.addEventListener("abort", cancel, { once: true }); if (signal.aborted) request.abort();
+    const timeout = setTimeout(() => request.abort(), 15000);
+    try {
+      // Global refresh clears the dashboard on failure and unmounts this receipt.
+      // Publish a replacement only after this owned read has actually succeeded.
+      const response = await fetch("/api/dashboard", { signal: request.signal });
+      if (!mounted.current || request.signal.aborted || editRefresh.current !== request) return false;
+      if (response.status === 401) router.push("/login");
+      if (!response.ok) throw new Error("Dashboard refresh failed");
+      const data = await response.json();
+      if (!mounted.current || request.signal.aborted || editRefresh.current !== request) return false;
+      if (!data?.dashboard) throw new Error("Dashboard refresh missing snapshot");
+      shell.setDashboard(data.dashboard);
+      return true;
+    } catch { if (mounted.current && editRefresh.current === request) setNotice("重评已成功，旧建议不可再确认；列表刷新未完成，请刷新页面。不要再次提交重评。"); return false; }
+    finally { clearTimeout(timeout); signal.removeEventListener("abort", cancel); if (editRefresh.current === request) editRefresh.current = null; request.abort(); }
+  }
+  // END PROPOSAL_FACT_EDIT_PENDING_REFRESH
   if (visible.length === 0 && !notice) return null;
 
   return (
@@ -78,6 +108,9 @@ export function PendingProposals({
             confirmingId={confirmingId}
             onConfirm={onConfirm}
             onReject={handleReject}
+            /* BEGIN PROPOSAL_FACT_EDIT_PENDING_PROP */
+            onEdited={handleEdited}
+            /* END PROPOSAL_FACT_EDIT_PENDING_PROP */
           />
         ))}
       </div>
@@ -90,11 +123,17 @@ function PendingAssessmentItem({
   confirmingId,
   onConfirm,
   onReject,
+  // BEGIN PROPOSAL_FACT_EDIT_PENDING_CALLBACK
+  onEdited,
+  // END PROPOSAL_FACT_EDIT_PENDING_CALLBACK
 }: {
   assessment: Assessment;
   confirmingId: string | null;
   onConfirm: (id: string, resolutions?: ArtifactResolutionInput[]) => void | Promise<void>;
   onReject: (assessment: Assessment, signal: AbortSignal) => Promise<void>;
+  // BEGIN PROPOSAL_FACT_EDIT_PENDING_CALLBACK_TYPE
+  onEdited: (result: Extract<ProposalEditClientResult, { status: "completed" }>, signal: AbortSignal) => Promise<boolean>;
+  // END PROPOSAL_FACT_EDIT_PENDING_CALLBACK_TYPE
 }) {
   const artifactProposals = assessment.proposal?.artifactProposals || [];
   const hasProposals = artifactProposals.length > 0;
@@ -107,6 +146,14 @@ function PendingAssessmentItem({
   const busy = useRef(false);
   const mounted = useRef(false);
   const rejectionRequest = useRef<AbortController | null>(null);
+  // BEGIN PROPOSAL_FACT_EDIT_PENDING_STATE
+  const [editing, setEditing] = useState(false), [retired, setRetired] = useState(false);
+  const [editMemory] = useState(createProposalEditMemory);
+  const editButton = useRef<HTMLButtonElement>(null), restoreEditFocus = useRef(false);
+  useEffect(() => {
+    if (!editing && restoreEditFocus.current) { restoreEditFocus.current = false; editButton.current?.focus(); }
+  }, [editing]);
+  // END PROPOSAL_FACT_EDIT_PENDING_STATE
   useEffect(() => {
     mounted.current = true;
     return () => { mounted.current = false; rejectionRequest.current?.abort(); };
@@ -121,7 +168,7 @@ function PendingAssessmentItem({
   );
 
   const isConfirming = confirmingId === assessment.id || operation === "confirm";
-  const isBusy = isConfirming || operation === "reject";
+  const isBusy = isConfirming || operation === "reject" || editing || retired;
 
   async function confirm() {
     if (busy.current || isBusy || askingToReject || !resolutionsValid) return;
@@ -222,6 +269,14 @@ function PendingAssessmentItem({
 
       {/* Confirmation CTA */}
       <div className="flex flex-wrap justify-end gap-3 pt-2">
+        {/* BEGIN PROPOSAL_FACT_EDIT_PENDING_BUTTON */}
+        <button ref={editButton} type="button" className="min-h-[var(--touch-target-min)] rounded-lg border border-[var(--border-subtle)] px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring-color)] disabled:opacity-50"
+          disabled={isConfirming || operation === "reject" || editing || askingToReject}
+          aria-expanded={editing} onClick={() => {
+            if (busy.current || isConfirming || operation === "reject" || askingToReject) return;
+            busy.current = true; setEditing(true);
+          }}>{retired ? "查看重评回执" : "修正事实"}</button>
+        {/* END PROPOSAL_FACT_EDIT_PENDING_BUTTON */}
         {!askingToReject && <SecondaryButton
           onClick={() => { setAskingToReject(true); setRejectionError(null); }}
           disabled={isBusy}
@@ -247,6 +302,12 @@ function PendingAssessmentItem({
         </div>
       </div>}
       {rejectionError && <p role="alert" className="text-sm text-[var(--state-danger-text)]">{rejectionError}</p>}
+      {/* BEGIN PROPOSAL_FACT_EDIT_PENDING_EDITOR */}
+      {editing && <ProposalFactsEditor key={`${assessment.id}:${assessment.activityId}`} assessmentId={assessment.id} activityId={assessment.activityId}
+        memory={editMemory} onClose={() => { busy.current = false; restoreEditFocus.current = true; setEditing(false); }}
+        onCompleted={async (result, signal) => { setRetired(true); return onEdited(result, signal); }} />}
+      {retired && !editing && <p role="status" className="text-sm">此建议已被重评替换，不能再确认；可查看重评回执或刷新读取新建议。</p>}
+      {/* END PROPOSAL_FACT_EDIT_PENDING_EDITOR */}
     </div>
   );
 }

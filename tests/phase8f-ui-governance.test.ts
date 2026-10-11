@@ -1,3 +1,4 @@
+import { isProposalFactEditCheckout, assertProposalFactEditActualScope, proposalFactEditHistoricalFiles, PROPOSAL_FACT_EDIT_CONTROL, proposalFactEditScopeViolations } from "./helpers/governance-delta";
 import { execFileSync } from "node:child_process";
 import { readFileSync, readdirSync } from "node:fs";
 import { describe, expect, test } from "vitest";
@@ -25,6 +26,7 @@ function violations(files: string[]) {
     .filter(file => !files.includes(control) || !uiPaths.has(file));
 }
 function currentScopeViolations(files: string[]) {
+  if (files.includes(PROPOSAL_FACT_EDIT_CONTROL)) return proposalFactEditScopeViolations(files);
   if (files.includes(EVIDENCE_SUBMISSION_CONTROL)) return evidenceSubmissionScopeViolations(files);
   if (files.includes(ASSESSMENT_CONTEXT_CONTROL) || files.includes(ASSESSMENT_CONTEXT_COMPATIBILITY_CONTROL) || files.includes(ASSESSMENT_CONTEXT_DEMO_FIXTURE)) {
     const approved = new Set<string>(hasAssessmentContextScope(files) ? ASSESSMENT_CONTEXT_PRODUCTION : []);
@@ -47,6 +49,12 @@ function currentScopeViolations(files: string[]) {
 export { currentScopeViolations as phase8fCurrentScopeViolations };
 describe("8F Round4 exact UI scope under27", () => {
   test("working candidate and eventual full branch retain frozen server, SQL, Core, Wishes and navigation", () => {
+    if (isProposalFactEditCheckout()) {
+      expect(currentScopeViolations(assertProposalFactEditActualScope())).toEqual([]);
+      const historical = proposalFactEditHistoricalFiles(base);
+      expect(historical.length).toBeGreaterThan(0); expect(currentScopeViolations(historical)).toEqual([]);
+      return;
+    }
     if (isEvidenceSubmissionCheckout()) {
       expect(currentScopeViolations(assertEvidenceSubmissionActualScope())).toEqual([]);
       const historical = evidenceSubmissionHistoricalFiles(base);

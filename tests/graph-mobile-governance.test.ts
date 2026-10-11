@@ -1,3 +1,4 @@
+import { isProposalFactEditCheckout, assertProposalFactEditActualScope, proposalFactEditHistoricalFiles } from "./helpers/governance-delta";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -72,6 +73,14 @@ describe("SiteReadiness04 exact two-class graph scope", () => {
     }
   });
   test("checks the full working-plus-untracked delta against accepted f100", () => {
+    if (isProposalFactEditCheckout()) {
+      assertProposalFactEditActualScope();
+      const files = withoutActivityDetailAdditions(proposalFactEditHistoricalFiles(MOBILE_GRAPH_BASE));
+      expect(newUserGuideScopeViolations(withoutActivityDetailAdditions(proposalFactEditHistoricalFiles("ee48b84ce989f1d2904e94116d300513d77ef3e4")))).toEqual([]);
+      const additions = new Set<string>(NEW_USER_GUIDE_ADDITIONS), historical = files.filter(file => !additions.has(file));
+      expect(hasMobileGraphScope(historical)).toBe(true); expect(graphInteractionScopeViolations(historical)).toEqual([]);
+      return;
+    }
     if (isEvidenceSubmissionCheckout()) {
       assertEvidenceSubmissionActualScope();
       const files = withoutActivityDetailAdditions(evidenceSubmissionHistoricalFiles(MOBILE_GRAPH_BASE));
@@ -112,6 +121,7 @@ describe("SiteReadiness04 exact two-class graph scope", () => {
     expect(hasMobileGraphScope(files)).toBe(true); expect(graphInteractionScopeViolations(files)).toEqual([]);
   });
   test("checks full committed PR or verified current-main first-parent range without swallowing Git errors", () => {
+    if (isProposalFactEditCheckout()) { assertProposalFactEditActualScope(); return; }
     if (isEvidenceSubmissionCheckout()) { assertEvidenceSubmissionActualScope(); return; }
     if (isAssessmentContextCheckout()) { assertAssessmentContextActualScope(); return; }
     if (isProposalRejectionCheckout()) { assertProposalRejectionActualScope(); return; }

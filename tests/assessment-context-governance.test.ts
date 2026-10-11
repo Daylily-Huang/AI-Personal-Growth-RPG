@@ -22,14 +22,20 @@ import { isEvidenceSubmissionCheckout, assertEvidenceSubmissionActualScope, evid
   evidenceSubmissionHistoricalFiles, evidenceSubmissionRejectionFiles, evidenceSubmissionHistoricalContent,
   EVIDENCE_SUBMISSION_BASE } from "./helpers/governance-delta";
 // Only actual present-day calls get a fixed-endpoint adapter; every old synthetic model still exercises the original functions.
-const actual = (options: AssessmentContextGitOptions = {}) => !options.execute && isEvidenceSubmissionCheckout(options.cwd)
-  ? evidenceSubmissionContextFiles(options) : priorActual(options);
-const history = (anchor: string, options: AssessmentContextGitOptions = {}) => !options.execute && isEvidenceSubmissionCheckout(options.cwd)
-  ? evidenceSubmissionHistoricalFiles(anchor, options) : priorHistory(anchor, options);
-const rejectHistory = (options: AssessmentContextGitOptions = {}) => !options.execute && isEvidenceSubmissionCheckout(options.cwd)
-  ? evidenceSubmissionRejectionFiles(options) : priorRejectHistory(options);
-const content = (file: string, group: "onboarding" | "activity" | "rejection", options: AssessmentContextGitOptions = {}) => !options.execute && isEvidenceSubmissionCheckout(options.cwd)
-  ? evidenceSubmissionHistoricalContent(file, group, options) : priorContent(file, group, options);
+import { isProposalFactEditCheckout, assertProposalFactEditActualScope, proposalFactEditContextFiles,
+  proposalFactEditHistoricalFiles, proposalFactEditRejectionFiles, proposalFactEditHistoricalContent } from "./helpers/governance-delta";
+const actual = (options: AssessmentContextGitOptions = {}) => !options.execute && isProposalFactEditCheckout(options.cwd)
+  ? proposalFactEditContextFiles(options) : !options.execute && isEvidenceSubmissionCheckout(options.cwd)
+    ? evidenceSubmissionContextFiles(options) : priorActual(options);
+const history = (anchor: string, options: AssessmentContextGitOptions = {}) => !options.execute && isProposalFactEditCheckout(options.cwd)
+  ? proposalFactEditHistoricalFiles(anchor, options) : !options.execute && isEvidenceSubmissionCheckout(options.cwd)
+    ? evidenceSubmissionHistoricalFiles(anchor, options) : priorHistory(anchor, options);
+const rejectHistory = (options: AssessmentContextGitOptions = {}) => !options.execute && isProposalFactEditCheckout(options.cwd)
+  ? proposalFactEditRejectionFiles(options) : !options.execute && isEvidenceSubmissionCheckout(options.cwd)
+    ? evidenceSubmissionRejectionFiles(options) : priorRejectHistory(options);
+const content = (file: string, group: "onboarding" | "activity" | "rejection", options: AssessmentContextGitOptions = {}) => !options.execute && isProposalFactEditCheckout(options.cwd)
+  ? proposalFactEditHistoricalContent(file, group, options) : !options.execute && isEvidenceSubmissionCheckout(options.cwd)
+    ? evidenceSubmissionHistoricalContent(file, group, options) : priorContent(file, group, options);
 const canonical=(value:string)=>value.replace(/\r\n/g,"\n"), document=()=>readFileSync(CONTROL,"utf8"), revision=(n:number)=>String(n).repeat(40);
 const extras=["src/lib/growth-engine/engine.ts","src/lib/ai/schemas.ts","src/lib/store/settlement.service.ts","src/lib/store/request-repository.ts",
   "src/lib/supabase/admin.ts","src/lib/supabase/server.ts","src/app/api/assessments/[id]/confirm/route.ts","src/app/api/assessments/[id]/reject/route.ts",
@@ -122,6 +128,11 @@ describe("context13 exact30/16 new gate and explicitly bounded accepted history"
   test("entire accepted helper/product prefixes and all forbidden DB/growth/config scopes remain frozen",()=>{
     for(const file of ["tests/helpers/governance-delta.ts","docs/Design ChatGPT/02_PRODUCT_DESIGN.md"])expect(canonical(readFileSync(file,"utf8")).startsWith(canonical(execFileSync("git",["show",`${BASE}:${file}`],{encoding:"utf8"})))).toBe(true);
     const protectedPaths=["supabase","src/lib/supabase","src/lib/growth-engine","src/lib/store/settlement.service.ts","src/lib/store/request-repository.ts","src/lib/ai/schemas.ts","src/app/api/assessments","src/components/dashboard/PendingProposals.tsx","package.json","pnpm-lock.yaml",".github","src/app/globals.css","src/styles/design-tokens.css"];
+    if (isProposalFactEditCheckout()) {
+      assertProposalFactEditActualScope();
+      expect(execFileSync("git",["diff","--no-renames","--name-only",BASE,EVIDENCE_SUBMISSION_BASE,"--",...protectedPaths],{encoding:"utf8"}).trim()).toBe("");
+      return;
+    }
     if (isEvidenceSubmissionCheckout()) {
       assertEvidenceSubmissionActualScope();
       expect(execFileSync("git",["diff","--no-renames","--name-only",BASE,EVIDENCE_SUBMISSION_BASE,"--",...protectedPaths],{encoding:"utf8"}).trim()).toBe("");

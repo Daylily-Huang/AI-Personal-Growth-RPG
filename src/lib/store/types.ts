@@ -362,6 +362,11 @@ export interface SettlementSkillToApply {
  */
 export interface SettlementToApply {
   assessmentId: string;
+  // BEGIN PROPOSAL_FACT_EDIT_SETTLEMENT_AUDIT
+  /** Present only when Confirm consumes a verified immutable fact revision. */
+  factRevisionId?: string;
+  factEffectiveMinutes?: number | null;
+  // END PROPOSAL_FACT_EDIT_SETTLEMENT_AUDIT
   /** Exact ledger row content; the repository sets the authoritative skillId. */
   transaction: XpTransaction;
   /** = transaction.amount; applied as `current += xpDelta`. */

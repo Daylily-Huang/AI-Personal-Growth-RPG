@@ -1,7 +1,9 @@
+import { isProposalFactEditCheckout, assertProposalFactEditActualScope, PROPOSAL_FACT_EDIT_CONTROL, proposalFactEditScopeViolations } from "./helpers/governance-delta";
 import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import { compile } from 'tailwindcss';
+import { createRequire } from 'node:module';
 import { resolveGovernanceChangedFiles, PHASE8E_ACCEPTED_BACKEND, hasSkillBootstrapScope, SKILL_BOOTSTRAP_MARKERS, SKILL_BOOTSTRAP_PRODUCTION } from './helpers/governance-delta';
 import { hasGraphCanvasScope, graphCanvasScopeViolations } from './helpers/governance-delta';
 import { hasMobileGraphScope, mobileGraphScopeViolations } from './helpers/governance-delta';
@@ -152,6 +154,9 @@ export const AUTH_ENTRYPOINT_BACKEND = [
 ] as const;
 
 export function validateVisualMigrationDelta(changedFiles: string[]): VisualMigrationValidationResult {
+  if (changedFiles.includes(PROPOSAL_FACT_EDIT_CONTROL)) {
+    return { isVisualPR: true, violations: proposalFactEditScopeViolations(changedFiles) };
+  }
   if (changedFiles.includes(EVIDENCE_SUBMISSION_CONTROL)) {
     return { isVisualPR: true, violations: evidenceSubmissionScopeViolations(changedFiles) };
   }
@@ -272,6 +277,12 @@ describe('Visual Foundation & Design Tokens Runtime Verification', () => {
     const compiler = await compile(globalsCss, {
       base: path.resolve(rootDir, 'src/app'),
       loadStylesheet: async (id, base) => {
+        if (isProposalFactEditCheckout() && id === 'tailwindcss') {
+          assertProposalFactEditActualScope();
+          // Reuse the actual installed compiler's CSS; do not install or relink shared dependencies.
+          const fullPath = createRequire(import.meta.url).resolve('tailwindcss/index.css');
+          return { path: fullPath, content: fs.readFileSync(fullPath, 'utf8'), base: path.dirname(fullPath) };
+        }
         const fullPath = id.startsWith('.') ? path.resolve(base, id) : path.resolve(rootDir, 'node_modules', id, 'index.css');
         return {
           path: fullPath,
@@ -451,6 +462,10 @@ describe('Visual Foundation & Design Tokens Runtime Verification', () => {
   });
 
   it('10. verifies live PR delta: visual migration contains zero frozen backend violations', () => {
+    if (isProposalFactEditCheckout()) {
+      expect(validateVisualMigrationDelta(assertProposalFactEditActualScope())).toEqual({ isVisualPR: true, violations: [] });
+      return;
+    }
     if (isEvidenceSubmissionCheckout()) {
       expect(validateVisualMigrationDelta(assertEvidenceSubmissionActualScope())).toEqual({ isVisualPR: true, violations: [] });
       return;

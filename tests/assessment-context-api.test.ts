@@ -14,10 +14,10 @@ function fixture(): AssessmentContextSnapshot {
     mainQuest:null,relatedSkills:[],recentSamples:[],temporaryState:{energy:70,focus:60,momentum:30,stress:10},coverage:{candidateScanTruncated:false,aliasesTruncated:false,skillNamesOmitted:false,relatedSkillsTruncated:false,recentSamplesTruncated:false,questChainIncomplete:false,budgetReduced:false}}};
 }
 describe("actual assessment route auth/context ordering and safe pending-only boundary",()=>{
-  let context:AssessmentContextSnapshot,activity:Record<string,unknown>,repo:{getActivity:ReturnType<typeof vi.fn>;getAssessmentContext?:ReturnType<typeof vi.fn>;addAssessment:ReturnType<typeof vi.fn>};
+  let context:AssessmentContextSnapshot,activity:Record<string,unknown>,repo:{getActivity:ReturnType<typeof vi.fn>;getAssessmentContext?:ReturnType<typeof vi.fn>;addAssessment:ReturnType<typeof vi.fn>;hasProposalFactEdit:ReturnType<typeof vi.fn>};
   beforeEach(()=>{
     vi.clearAllMocks();state.configured=true;context=fixture();activity={id:context.activityId,rawInput:context.rawInput,rulesVersion:context.context.rulesVersion,status:"pending_assessment",totalMinutes:30,effectiveMinutes:20};
-    repo={getActivity:vi.fn(async()=>activity),getAssessmentContext:vi.fn(async()=>context),addAssessment:vi.fn(async(input)=>({id:randomUUID(),status:"pending",...input}))};
+    repo={getActivity:vi.fn(async()=>activity),getAssessmentContext:vi.fn(async()=>context),addAssessment:vi.fn(async(input)=>({id:randomUUID(),status:"pending",...input})),hasProposalFactEdit:vi.fn().mockResolvedValue(false)};
     state.repository.mockResolvedValue(repo);state.dispatch.mockResolvedValue({proposal:{synthetic:"proposal-not-final-XP"},modelName:"synthetic-model"});
   });
   afterEach(()=>vi.restoreAllMocks());

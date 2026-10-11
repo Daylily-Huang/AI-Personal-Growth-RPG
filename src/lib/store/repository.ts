@@ -21,6 +21,9 @@ import type {
   XpTransaction,
 } from "./types";
 import type { AssessmentContextSnapshot } from "@/lib/ai/assessment-context";
+// BEGIN PROPOSAL_FACT_EDIT_PORT_IMPORT
+import type { ProposalFactRevision } from "@/lib/proposal-edit/types";
+// END PROPOSAL_FACT_EDIT_PORT_IMPORT
 
 export type SettlementConflictReason =
   | "already_confirmed" // this assessment is no longer pending
@@ -75,6 +78,12 @@ export interface Repository {
   getAssessmentContext?(activityId: string): Promise<AssessmentContextSnapshot>;
   listActivities(): Promise<Activity[]>;
   getAssessment(id: string): Promise<Assessment | null>;
+  // BEGIN PROPOSAL_FACT_EDIT_PORT
+  /** Authenticated immutable revision read; deliberately absent from Demo. */
+  getProposalFactRevision?(assessmentId: string): Promise<ProposalFactRevision | null>;
+  /** Read-only model preflight; the installed record RPC still arbitrates races. */
+  hasProposalFactEdit?(activityId: string): Promise<boolean>;
+  // END PROPOSAL_FACT_EDIT_PORT
   listPendingAssessments(): Promise<Assessment[]>;
   listTransactions(): Promise<XpTransaction[]>;
   countRecentSimilarTransactions(params: {

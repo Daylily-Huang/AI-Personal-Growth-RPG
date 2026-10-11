@@ -1,3 +1,4 @@
+import { isProposalFactEditCheckout, proposalFactEditRejectionFiles, proposalFactEditHistoricalFiles, proposalFactEditHistoricalContent } from "./helpers/governance-delta";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -110,9 +111,9 @@ describe("Proposal Reject11 strict current25 and explicit accepted78d history", 
     expect(dashboardFiles([PRODUCTION[0]])).toEqual([PRODUCTION[0]]);
   });
   test("actual working/committed entry binds all25 before any historical projection", () => {
-    expect([...(isEvidenceSubmissionCheckout() ? evidenceSubmissionRejectionFiles() : isAssessmentContextCheckout() ? assessmentContextRejectionHistoricalFiles() : actual())].sort()).toEqual([...ALLOWED].sort());
-    expect((isEvidenceSubmissionCheckout() ? evidenceSubmissionHistoricalFiles(ACTIVITY_DETAIL_BASE) : isAssessmentContextCheckout() ? assessmentContextHistoricalFiles(ACTIVITY_DETAIL_BASE) : history(ACTIVITY_DETAIL_BASE)).sort()).toEqual([...ACTIVITY_DETAIL_ALLOWED].sort());
-    expect((isEvidenceSubmissionCheckout() ? evidenceSubmissionHistoricalFiles(ACTIVITY_MAIN_BASE) : isAssessmentContextCheckout() ? assessmentContextHistoricalFiles(ACTIVITY_MAIN_BASE) : history(ACTIVITY_MAIN_BASE)).sort()).toEqual([...ACTIVITY_MAIN_ALLOWED].sort());
+    expect([...(isProposalFactEditCheckout() ? proposalFactEditRejectionFiles() : isEvidenceSubmissionCheckout() ? evidenceSubmissionRejectionFiles() : isAssessmentContextCheckout() ? assessmentContextRejectionHistoricalFiles() : actual())].sort()).toEqual([...ALLOWED].sort());
+    expect((isProposalFactEditCheckout() ? proposalFactEditHistoricalFiles(ACTIVITY_DETAIL_BASE) : isEvidenceSubmissionCheckout() ? evidenceSubmissionHistoricalFiles(ACTIVITY_DETAIL_BASE) : isAssessmentContextCheckout() ? assessmentContextHistoricalFiles(ACTIVITY_DETAIL_BASE) : history(ACTIVITY_DETAIL_BASE)).sort()).toEqual([...ACTIVITY_DETAIL_ALLOWED].sort());
+    expect((isProposalFactEditCheckout() ? proposalFactEditHistoricalFiles(ACTIVITY_MAIN_BASE) : isEvidenceSubmissionCheckout() ? evidenceSubmissionHistoricalFiles(ACTIVITY_MAIN_BASE) : isAssessmentContextCheckout() ? assessmentContextHistoricalFiles(ACTIVITY_MAIN_BASE) : history(ACTIVITY_MAIN_BASE)).sort()).toEqual([...ACTIVITY_MAIN_ALLOWED].sort());
   });
   test("PR uses full78d-to-HEAD even if remote moved ahead, never HEAD~1", () => {
     for (const head of [BASE, revision(1)]) {
@@ -159,7 +160,7 @@ describe("Proposal Reject11 strict current25 and explicit accepted78d history", 
   test("only exact seven overlapping protected inputs use real78d left blob; all other paths reject", () => {
     const overlap = ACTIVITY_DETAIL_ALLOWED.filter(file => !(ACTIVITY_MAIN_ALLOWED as readonly string[]).includes(file) && (ALLOWED as readonly string[]).includes(file));
     expect([...CONTENT].sort()).toEqual(overlap.sort()); expect(CONTENT).toHaveLength(7);
-    for (const file of CONTENT) expect(canonical(isEvidenceSubmissionCheckout() ? evidenceSubmissionHistoricalContent(file, "onboarding") : isAssessmentContextCheckout() ? assessmentContextHistoricalContent(file, "onboarding") : historicalContent(file))).toBe(canonical(execFileSync("git", ["show", `${BASE}:${file}`], { encoding: "utf8" })));
+    for (const file of CONTENT) expect(canonical(isProposalFactEditCheckout() ? proposalFactEditHistoricalContent(file, "onboarding") : isEvidenceSubmissionCheckout() ? evidenceSubmissionHistoricalContent(file, "onboarding") : isAssessmentContextCheckout() ? assessmentContextHistoricalContent(file, "onboarding") : historicalContent(file))).toBe(canonical(execFileSync("git", ["show", `${BASE}:${file}`], { encoding: "utf8" })));
     for (const file of ["src/app/dashboard/page.tsx", "tests/helpers/governance-delta.ts", "docs/unsafe.md", "../secret", ""]) expect(() => historicalContent(file, model())).toThrow("FAIL-CLOSED");
     expect(() => historicalContent(CONTENT[0], altered(model(), `show ${BASE}:"${CONTENT[0]}"`, Error("fixture")))).toThrow("FAIL-CLOSED");
   }, 30000);
@@ -171,6 +172,6 @@ describe("Proposal Reject11 strict current25 and explicit accepted78d history", 
       "src/styles/design-tokens.css", "supabase/migrations/0018_authority_rls_matrix.sql",
       "supabase/migrations/0049_phase8e_reward_wishes_rpc_authority.sql", "supabase/migrations/0050_phase8e_reward_canonical_source_fix.sql",
       "supabase/migrations/0053_zero_xp_manual_skill_authority.sql"])
-      expect(canonical(isEvidenceSubmissionCheckout() && file === "src/lib/ai/prompts.ts" ? evidenceSubmissionHistoricalContent(file, "rejection") : isAssessmentContextCheckout() && file === "src/lib/ai/prompts.ts" ? assessmentContextHistoricalContent(file, "rejection") : readFileSync(file, "utf8")), file).toBe(canonical(execFileSync("git", ["show", `${BASE}:${file}`], { encoding: "utf8" })));
+      expect(canonical(isProposalFactEditCheckout() && file === "src/lib/ai/prompts.ts" ? proposalFactEditHistoricalContent(file, "rejection") : isEvidenceSubmissionCheckout() && file === "src/lib/ai/prompts.ts" ? evidenceSubmissionHistoricalContent(file, "rejection") : isAssessmentContextCheckout() && file === "src/lib/ai/prompts.ts" ? assessmentContextHistoricalContent(file, "rejection") : readFileSync(file, "utf8")), file).toBe(canonical(execFileSync("git", ["show", `${BASE}:${file}`], { encoding: "utf8" })));
   });
 });

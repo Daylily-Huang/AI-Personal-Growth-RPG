@@ -6,6 +6,9 @@ import { useParams, useRouter } from "next/navigation";
 import { isValidUuid } from "@/lib/http/validation";
 import type { Activity } from "@/lib/store/types";
 import { EvidenceSubmissionPanel } from "@/components/activities/EvidenceSubmissionPanel";
+// BEGIN PROPOSAL_FACT_EDIT_DETAIL_IMPORT
+import { ProposalFactHistory } from "@/components/activities/ProposalFactHistory";
+// END PROPOSAL_FACT_EDIT_DETAIL_IMPORT
 
 type Detail = Pick<Activity, "id" | "title" | "rawInput" | "status" | "createdAt" | "rulesVersion">;
 type State = { kind: "loading" | "configuration" | "invalid" | "notFound" | "error" | "unauthenticated" }
@@ -95,6 +98,9 @@ function ActivityDetail({ id }: { id: string }) {
         <pre data-testid="activity-raw-input" className="min-w-0 whitespace-pre-wrap break-words font-sans text-sm leading-relaxed text-[var(--text-primary)] [overflow-wrap:anywhere]">{visible.activity.rawInput}</pre>
       </section>
       <EvidenceSubmissionPanel activityId={visible.activity.id} />
+      {/* BEGIN PROPOSAL_FACT_EDIT_DETAIL_HISTORY */}
+      <ProposalFactHistory key={visible.activity.id} activityId={visible.activity.id} />
+      {/* END PROPOSAL_FACT_EDIT_DETAIL_HISTORY */}
     </>}
   </section>;
 }

@@ -5,6 +5,10 @@ import { assessActivity, AIAssessmentError } from "@/lib/ai/assess";
 import { getPromptVersion } from "@/lib/ai/prompts";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { AssessmentContextError, validateAssessmentContextSnapshot } from "@/lib/ai/assessment-context";
+// BEGIN PROPOSAL_FACT_EDIT_LEGACY_IMPORT
+import { isProposalFactEditConflict } from "@/lib/proposal-edit/repository";
+import { ProposalEditError } from "@/lib/proposal-edit/types";
+// END PROPOSAL_FACT_EDIT_LEGACY_IMPORT
 
 const response = (body: unknown, status: number) => NextResponse.json(body, {
   status, headers: { "Cache-Control": "private, no-store", Vary: "Cookie" },
@@ -33,6 +37,12 @@ export async function POST(_request: Request, ctx: { params: Promise<{ id: strin
       );
     }
 
+    // BEGIN PROPOSAL_FACT_EDIT_LEGACY_PREFLIGHT
+    if (!isDemo) {
+      if (!repo.hasProposalFactEdit) throw new ProposalEditError("PROPOSAL_EDIT_UNAVAILABLE");
+      if (await repo.hasProposalFactEdit(activity.id)) throw new ProposalEditError("PROPOSAL_EDIT_CONFLICT");
+    }
+    // END PROPOSAL_FACT_EDIT_LEGACY_PREFLIGHT
     // Primary skill / activity type are only known AFTER the proposal exists,
     // so similarity can't be computed here. 0 is honest: the real repetition
     // penalty is enforced deterministically at confirm time (see similarity.ts).
@@ -65,6 +75,9 @@ export async function POST(_request: Request, ctx: { params: Promise<{ id: strin
 
     return response({ assessment }, 200);
   } catch (error) {
+    // BEGIN PROPOSAL_FACT_EDIT_LEGACY_CONFLICT
+    if (isProposalFactEditConflict(error)) return response({ error: "请使用修正事实入口重新评估；先核实已有重评请求", code: "PROPOSAL_EDIT_CONFLICT" }, 409);
+    // END PROPOSAL_FACT_EDIT_LEGACY_CONFLICT
     if (error instanceof ActivityAlreadySettledError) {
       // Round6: a confirmed Activity yields one original settlement; no zombie
       // pending revisions until a correction pipeline exists.
