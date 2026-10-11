@@ -1,5 +1,39 @@
 # 调查发现与核心架构决策 (Findings)
 
+- V6纠正最终主验接点：20全文5112C0AFF160F85527C171EE0DB2CE3BF752F41786BB0CD1F5BF1F7EDB20B934／EXACT46／25markers／旧53交21并集78。主corrective-full-v3/session80420真实151files4358/4358、0skip/fail/unhandled、child0/null/null，2026-10-11T21:27:03.397Z至21:48:38.728Z，rawC68EC55FC2AE7BC983E2330CE44D431F919D64E30C09870E6E165C73A65F185E；分批119+116+234=469、最新type-v4/lint-v4均0无warning、原Growth11保持且全套再通过。Turing自己235/0skip终态0及477拒绝/17到达标志通过，旧116全文/model/body/helper前缀与历史data/current46分离；不是其二次full/browser/DB，旧171永久释放仅同生产历史。357生产源/13business及buildRze/主Chrome31同源不改。主417f23确认taskRuntimeResidual[]/mainreleaseBC7598694FB78EACB809670383D743C93790F54A1D0BEF292032FD53AF97D97E；随后89183→d37cc3只精确新four-ID测试栈4容器1卷清至0/0、nonTask全部ID/state保持，disposal6F9646A95C9C67BF87F547B258959ADBF8A333F0B481F6ECF723EEA92583E795，当前cache不存在/删除0bytes，原119864600bytes是之前开发栈阶段已回收，不能重复计。全部历史NO-GO、V4的2fail、V5的3fail/negative提前fixture假绿、v19原总300s截断及新no-op mutation失败、误报8→实际7等如实保留21。现九docs/46待最后窄hash绑定，不预签candidateGO；之后仍selected corrective commit/new ownCI/不同fresh committedFINAL/新栈释放清理/ordinary merge/postCI。0056未正式授权，现3020/0055、完整备份、共享deps及root四用户文件保持；不称真实AI13步或整站完成。
+
+- V6独立OWN_OFFLINE_COMPLETE已收到：Turing own2files235/235/session31596 exit0/0skip/nonpassed/unhandled、212.88s；额外477拒绝反例+17目标到达标志，旧116全文/modelbody/helperprefix及历史data不替代current46证明通过，四hash前后不变、357源同源，本轮无reviewer工具错误。尚非candidate GO；旧171仅历史、永久noDBHTTP不撤回。主随后启动corrective-full-v3/session80420，2026-10-11T21:27:03.397Z/worker803142，Rze/357源/原same-owned四容器，未终态不宣称全绿。终态0后才mainrelease→精确清理→46冻结→Turing≤6calls绑定→纠正提交/新CI/不同FINAL/merge；正式0056仍另批。
+
+- V6纠正定向已终态：unit-v20新governance119/119/session66226 exit0；v21原proposal-edit-governance116/116/session71953 exit0；v22其余4files234/234/session66702 exit0，合6files469passed/0fail/pending，原30秒用例26347ms。latest type-v4/session30789与lint-v4/session1443 actual0无warnings。Turing已得到仅OWN_OFFLINE_READY，独立主要变更2files235及静态反例复核，永久noDBHTTP/无writer；主等其终态再full-v3，不并行Git。V5full3fail及v19partial/no-op mutation历史保留；未候选GO/未纠正提交/CI/不同FINAL/合并/正式0056。
+
+- V6已独立ADMISSION GO：Poincare0/0/0，完整20 raw/canonical5112C0AFF160F85527C171EE0DB2CE3BF752F41786BB0CD1F5BF1F7EDB20B934，46/25/21/78不变后窄实施。原proposal-edit-gov仅model定义唯一rename、directvalidator alias与顶部适配，原116body/expect保持；append-only真实历史5168→229c provider和唯一UUID逆向、原execute/calls/controls/显式providers保持，current入口仍自身strict46，通用legacy分流未改。新8测试覆盖整份inverse、真实历史data不是scopeproof、override/accepted/非Artifact以及注入到达轨迹。主type-v3/session94741实际0，unit-v19六文件/session14071与lint-v3/session39356进行，不冒候选GO。20初次append少一空行hash差异被检出、先精确修正再验证；ignored parent ceiling一度改600000但从未执行，恢复原300000后才运行，原per-test timeout全不改。旧V5完整3fail及负例提前失败历史保留，正式0056仍未授权。
+
+- V5完整终态NO-GO：corrective-full-v2/session99191→d92f6f actualexit1/null/null，2026-10-11T20:40:28.298Z至21:00:57.240Z；严格JSON151files4351assertions=4348pass/3fail/0skip/unhandled0，raw42703A92CD0B3CE6886E91E9619D9FCE82C3E558B043B3DCAA3FF4A36382C3C6。唯一旧proposal-edit-governance116三项fixture inverse阻断，其他150文件passed；旧API21、旧30秒内容用例26731ms、新112/42/12/12/UI17及growth11passed。不据此签GO。主最后真实comm/cwd taskClients[]，全部测试进程已结束；合成四容器待纠正重跑后精确清理。V6仅ignored外部draft5112C0AFF160F85527C171EE0DB2CE3BF752F41786BB0CD1F5BF1F7EDB20B934正式同级ADMISSION进行，candidate20/helper/tests尚未改；旧否决及部分negative提前fixture假绿均保留。
+
+- V5主定向终态：unit-v18/session39349实际5files346/346、0fail/pending、child0；原30秒内容用例27315ms，未改timeout或断言。corrective type-v2/session14568与lint-v2/session69321均child0/null/null。Turing正在同Risk2永久离线纠正复核，独立运行终态前主不启动full-v2避免Git争用；完整候选/纠正提交/新CI/不同FINAL/合并/正式0056均仍待。生产357/buildRze保持。本次恢复先猜错21文件名的只读ENOENT后由rg定位真实21，无文件影响。
+
+- [V5 admitted / corrective verification in_progress] V5 correctiveADMISSION已Poincare独立0/0/0 GO绑定20 canonical451AA77072E31B9D574D37FC1FA44A24949999093A645E6F167A6B5DAD20C27E/native wrapper E0CE7AA80B88EC46342AF941FE13004F0D5488799996F0225FF9E8CDDEC40D0C；旧wrapper仅子命令白名单可带--output的P2 NO-GO保留，现14合法/59拒绝、3真实rawsame、31漂移/176逐次Git失败/5binder反例独审通过。EXACT46/all25/old53交21/cumulative78；本轮只改旧API fixture首个activityId为合法固定v4 UUID，原21全部body/assert/mock及负例原样、全文inverse；newhelper当前同步proof减少重复、结束HEAD/remote及3原文重读漂移拒，原prefix不变。主type-v2/session14568实际终态0，unit-v18五文件与旧30秒性能实跑中，未候选GO/未完整绿。原4347/2fail历史不删，357生产/SQL/buildRze/原Chrome31同源，0056未正式批准。补丁预生成74819tokens输出截断被检测、未用截断文本apply；主精确重构完整旧append/新append及完整20/governance、旧API唯一一行后才apply，不冒称原生成成功。
+
+- [NO-GO / V5 admission pending] V4 full-v1终态NO-GO：151files4347pass/2fail/0skip/unhandled0，rawCFC331672B0A6CDF5509E308B1C0AE1CC0648D3A6F77E432CCA53049874FEEA8；旧API21内1失败因合法随机UUID含99969触发原/999/断言，旧contextgov157内1失败为原30000ms限时。新业务和Stage7C29均过不代完整绿。初次成功预设JSON断言失败是主工具错误；滚动regex漏failed行，只统计pass，已明确向用户纠正。V5外部draft124E3B8A0EDDA1400753AE1C6F0CBAD132C223C07EAA630D38B64E297F47AD16待独立准入，拟第46旧API仅一处合法固定fixtureUUID，原全部assert/body/mock/timeout不变，old53交21并集78；未实施V5。native真实WindowsGit实测三命令raw同，diff277ms/Linux627ms；只改ignored调度不fake/cache/放宽timeout。主所有DBHTTP运行已结束，新测试栈idle未清理；正式0056/3020/数据备份保持。
+
+- V4主定向unit-v15已实际终态0：3files166/166＝新governance110＋原Dashboard27＋原Stage7C29，fail/pending0；raw .data/artifact-manual-unit-v15.json。corrective type-v1/session71649与lint-v1/session71220均child0/signalnull/errornull，生产357源逐项保持。主corrective full-v1/session92725正在新four-ID合成栈真实运行，未终态不宣称全通过；独审Turing仅offline延续，永久DB释放不撤销。
+
+- [V4 corrective in_progress] V4纠正准入已由Poincare同Risk2直接P0/P1/P2=0 ADMISSION GO，绑定20 canonical03A26A6ECAE2923D5E3473260E0A7FAAA3CC210F9E4D43501DC6800FA39F7C32，EXACT45/all25/old53重叠20/cumulative78。仅新增旧Stage7C最前alias/wrapper，原29整份逆向保护；helper accepted5168全prefix不改，当前e0a仅精确SHA/tree/remote5168/冻结44+E68过渡，exported committed binder及新HEAD仍strict45。生产13、旧55SQL、buildRze全部357源不变。ownCI38167679925及Harvey FINAL P2 NO-GO保留历史；主unit-v15/newtype/fullsuite待终态，不能合并。正式0056仍另批、3020/源数据/完整备份/deps不动。新的四ID FINAL合成栈复用于主纠正，结束后另作精确清理，原disposal不覆盖新栈。
+- 工具历史：本次生成补丁先误以Stage7C使用双空格缩进，count=0的assert在任何apply_patch前阻止写入；改按真实\s*it计数29。另一次猜测ignored unit.cjs不存在，rg定位真实unit-runner；不属于产品缺陷，不冒称首轮成功。
+
+
+- 最终纠正主全量实际151文件4346assertions/全部passed/zero其它/child0，原Dashboard27及new42/12/12/17/107、old67/20/18、Growth11/E2E11全在原始JSON，469不是文件数。Turing独立171与117旧最终函数/8值/33helper拒绝不是主第二次执行，已永久释放；其alias工具失败保留。精确owned清理原4容器1卷及119864600B可重建cache后task0/0、非task身份/状态保持，formal11running10healthy与两原exited255如实保留。全部product findings当前关闭；最终44/docs/hash独立裁决尚待，不以主证明代candidate GO或正式0056许可。
+
+- Turing纠正独立runtime171/171已终态0且永久释放；旧117最终函数体canonical保持、八值/33helper拒绝另只读通过。其CJS Vitest alias工具错误先0测试失败，最终仅内存移除alias成功，不能把失败隐去或当产品缺陷。V3旧Dashboard27原样在主219全过，下一承重仅主完整full-v2真实终态及精确清理/final44绑定；无新增production delta，build-v3继续有效。
+
+- 本轮真实修复：Turing初次3P2（remote漏验/生命周期强转/02旧prefix）全部主修复并独立确认关闭，修后build-v3 Rze/Chrome31/三owner全部Core快照保持。完整回归发现旧Dashboard直接旧53范围检查仍拒当前43；不得绕过旧helper或改原27断言，V3仅新增一个旧检查入口适配的44范围草案由Poincare重新Risk2准入中，尚未实施。该Dashboard路径已在历史53中，正确累计仍77/重叠20，初稿误78已纠正并保留历史。正式0056无许可。
+
+## 2026-10-12 Artifact手动验收开发
+
+- 用户最新决定覆盖旧延期：只增加USER_CONFIRMED_ARTIFACT和一次100愿望积分，不增加XP/Mastery/verified Evidence；现实成就仍零积分。冻结reward-v1不变。
+- 真实PG38authority＋12并发均通过，UI15通过；微秒输入必须使用旧生命周期trigger产生的实际updated_at，不可用INSERT固定时间假设。旧grant拒Artifact为显式ok=false，不是抛异常；新增测试已按真实旧协议校正，未改旧RPC。
+- 新helpers采用实际invoker/current_user/外层角色分离检查，避免放宽EXECUTE后直接调用private begin/write/receipt伪造权威。0056只在合成库，正式升级未授权。当前不是候选或FINAL GO，后续见20/21。
+
 - 纠正主终态complete：full-v2 actual133files3379/3379/child0/verificationnull/raw2E726BEF...F0444，旧v1(3376/3)、原8fail和303预算复核保留；Growth11/E2E11/type/lint/build-v2全0。Chrome61checks/37API、真实两held-sibling原生AbortSignal、3203907681440/8geometry/3nativeTab/3E0/0error/AI；三populatedowner36表只多3材料/receipt，其余成长/reward/Wish/outer完全保持。独立old8fail/new8pass+265通过但永久无DB，不冒称其重跑新full/browser。主全部客户端close/release-v2/census[]后精确原4/1清理0/0、formal11/10/nonTask/source/protected保持，disposal39DA5C3B...05F95。当前六auditdocs/17/35冻结待同Risk2最终candidate绑定，未新commit/ownCI/FINAL/merge/正式54/整站完成。
 
 - 2026-10-11 PR59 head54ca ownCI成功后，fresh Ramanujan committed FINAL真实React发现双GET失败→controller丢登记P2，NO-GO0/0/1，已永久释放/census[]。旧source新8回归20pass8fail；main仅finally捕获currentRead、abort后delete，修后四文件166/166/type/lint0。旧build/full/browser不能给新source背书；正在新build/full/Chrome/精准清理/同Risk2候选复审，不合并、不写正式0054。16全文与旧SQL/断言保持。

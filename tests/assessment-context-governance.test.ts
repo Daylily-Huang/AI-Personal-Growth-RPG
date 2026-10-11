@@ -22,8 +22,14 @@ import { isEvidenceSubmissionCheckout, assertEvidenceSubmissionActualScope, evid
   evidenceSubmissionHistoricalFiles, evidenceSubmissionRejectionFiles, evidenceSubmissionHistoricalContent,
   EVIDENCE_SUBMISSION_BASE } from "./helpers/governance-delta";
 // Only actual present-day calls get a fixed-endpoint adapter; every old synthetic model still exercises the original functions.
-import { isProposalFactEditCheckout, assertProposalFactEditActualScope, proposalFactEditContextFiles,
-  proposalFactEditHistoricalFiles, proposalFactEditRejectionFiles, proposalFactEditHistoricalContent } from "./helpers/governance-delta";
+import { artifactManualLegacyProjection, artifactManualProposalFiles, artifactManualHistoricalFiles, artifactManualHistoricalContent, artifactManualContextFiles, artifactManualRejectionFiles } from "./helpers/governance-delta";
+const assertProposalFactEditActualScope = artifactManualLegacyProjection(artifactManualPrevious_assertProposalFactEditActualScope, artifactManualProposalFiles);
+const proposalFactEditHistoricalFiles = artifactManualLegacyProjection(artifactManualPrevious_proposalFactEditHistoricalFiles, artifactManualHistoricalFiles);
+const proposalFactEditHistoricalContent = artifactManualLegacyProjection(artifactManualPrevious_proposalFactEditHistoricalContent, artifactManualHistoricalContent);
+const proposalFactEditContextFiles = artifactManualLegacyProjection(artifactManualPrevious_proposalFactEditContextFiles, artifactManualContextFiles);
+const proposalFactEditRejectionFiles = artifactManualLegacyProjection(artifactManualPrevious_proposalFactEditRejectionFiles, artifactManualRejectionFiles);
+import { isProposalFactEditCheckout, assertProposalFactEditActualScope as artifactManualPrevious_assertProposalFactEditActualScope, proposalFactEditContextFiles as artifactManualPrevious_proposalFactEditContextFiles,
+  proposalFactEditHistoricalFiles as artifactManualPrevious_proposalFactEditHistoricalFiles, proposalFactEditRejectionFiles as artifactManualPrevious_proposalFactEditRejectionFiles, proposalFactEditHistoricalContent as artifactManualPrevious_proposalFactEditHistoricalContent } from "./helpers/governance-delta";
 const actual = (options: AssessmentContextGitOptions = {}) => !options.execute && isProposalFactEditCheckout(options.cwd)
   ? proposalFactEditContextFiles(options) : !options.execute && isEvidenceSubmissionCheckout(options.cwd)
     ? evidenceSubmissionContextFiles(options) : priorActual(options);

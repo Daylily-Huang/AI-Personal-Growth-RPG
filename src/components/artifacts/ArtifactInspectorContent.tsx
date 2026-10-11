@@ -46,6 +46,7 @@ export interface ArtifactInspectorContentProps {
     code?: string;
   }>;
   className?: string;
+  acceptancePanel?: React.ReactNode;
 }
 
 export function ArtifactInspectorContent({
@@ -55,6 +56,7 @@ export function ArtifactInspectorContent({
   onStatusChange,
   onDelete,
   className = "",
+  acceptancePanel,
 }: ArtifactInspectorContentProps) {
   const { artifact, links } = detail;
   const artifactId = artifact.id;
@@ -222,6 +224,8 @@ export function ArtifactInspectorContent({
           )}
         </div>
       </div>
+
+      {acceptancePanel}
 
       {/* 2. Reusability Meter */}
       <div className="space-y-2 p-3.5 rounded-[var(--radius-lg)] bg-[var(--surface-ground)] border border-[var(--border-subtle)]">

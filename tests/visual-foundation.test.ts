@@ -1,4 +1,6 @@
-import { isProposalFactEditCheckout, assertProposalFactEditActualScope, PROPOSAL_FACT_EDIT_CONTROL, proposalFactEditScopeViolations } from "./helpers/governance-delta";
+import { artifactManualLegacyProjection, artifactManualProposalFiles, ARTIFACT_MANUAL_CONTROL, artifactManualScopeViolations } from "./helpers/governance-delta";
+const assertProposalFactEditActualScope = artifactManualLegacyProjection(artifactManualPrevious_assertProposalFactEditActualScope, artifactManualProposalFiles);
+import { isProposalFactEditCheckout, assertProposalFactEditActualScope as artifactManualPrevious_assertProposalFactEditActualScope, PROPOSAL_FACT_EDIT_CONTROL, proposalFactEditScopeViolations } from "./helpers/governance-delta";
 import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -154,6 +156,7 @@ export const AUTH_ENTRYPOINT_BACKEND = [
 ] as const;
 
 export function validateVisualMigrationDelta(changedFiles: string[]): VisualMigrationValidationResult {
+  if (changedFiles.includes(ARTIFACT_MANUAL_CONTROL)) return { isVisualPR: true, violations: artifactManualScopeViolations(changedFiles) };
   if (changedFiles.includes(PROPOSAL_FACT_EDIT_CONTROL)) {
     return { isVisualPR: true, violations: proposalFactEditScopeViolations(changedFiles) };
   }

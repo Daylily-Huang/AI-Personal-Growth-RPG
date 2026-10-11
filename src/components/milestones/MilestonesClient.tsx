@@ -62,7 +62,7 @@ export default function MilestonesClient() {
       <div className="min-w-0 space-y-2"><p className="text-xs tracking-widest text-[var(--text-secondary)]">REWARDS · MILESTONES</p>
         <h1 className="font-serif text-3xl">让值得记住的成长，留下记录</h1>
         <p className="max-w-2xl text-sm leading-relaxed text-[var(--text-secondary)]">认定是一份记录，不等于领取奖励。Core 成就按规则核验；现实成就是你的自述，暂不发积分。撤销保留历史，不改变 XP、掌握度或原始成长事实。</p>
-        <p className="text-sm text-[var(--text-secondary)]">Artifact（作品与产物）的成就认定和奖励均暂缓，原有作品与证据仍然保留。</p>
+        <p className="text-sm text-[var(--text-secondary)]">Artifact（作品与产物）支持用户手动验收，每件首次100愿望积分；不是独立核验，不增加XP。<a href="/artifacts" className="inline-flex min-h-[var(--touch-target-min)] items-center underline">前往作品库办理</a>，原有作品与证据仍然保留。</p>
       </div>
       <div className="flex flex-wrap gap-2"><SecondaryButton onClick={refresh}>刷新数据</SecondaryButton>
         <PrimaryButton disabled={Boolean(intent)} onClick={() => start({ id: crypto.randomUUID(), kind: "confirm", source: null, realitySourceId: crypto.randomUUID() })}>记录现实成就</PrimaryButton></div>

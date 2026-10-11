@@ -1,5 +1,7 @@
 # AI Personal Growth RPG — 数据库 Schema 与数据字典
 
+> 2026-10-12 候选0056（尚未正式升级）：新增唯一私有表artifact_acceptances，15字段包含owner/Artifact复合FK、固定USER_CONFIRMED_ARTIFACT、ACTIVE→REVOKED终态、不可变验收时标题/nullable版本/updated_at/说明/时间/原EARN/策略，以及撤销时间/原因/精确CORRECTION。UNIQUE(user_id,artifact_id)覆盖所有状态，源硬删RESTRICT。独立artifact-manual-v1固定100愿望积分，ARTIFACT小写UUID跨policy终生EARN唯一；未知旧Artifact账本导致迁移失败，不自动认领历史。RLS仅本人SELECT，写入只走两受控RPC；原始写、伪旗标和放宽grant不得绕过。旧reward-v1八值、canonical语法、Core来源/认定、确认/XP/0053/0054/0055定义均不编辑。详情以20为准，合成库通过后还需新PR、独审及另一次正式0056授权与备份恢复门禁。
+
 > 版本：v0.1  
 > 数据库：PostgreSQL / Supabase  
 > 原则：事实表、AI 判断、正式成长账本必须分离。
@@ -686,3 +688,5 @@ Markdown summary
 同key不能换facts；失败/过期/冲突不复活，完成后不能重发模型。成功重评只生成pending，不直接改Core/积分。旧record/settle两个函数只增统一Activity gate及revision/分钟/Quest delta一致性guard；无revision仍原语义，奖励常量不改。0055为唯一新migration，正式应用另需当前批准、独立备份恢复及迁移验收；当前仅合成环境历史基础测试已通过，最终证据见19。
 
 合成环境后续证据：最终build全套143files4011通过，独立组合246/只读SQL243含19 installed prosrc/RLS/权限/0050来源及Unicode25验证报告通过；八奖励仍150/100/150/200/200/100/150/250。主browser三owner38表parity只增加三revision/三assessment/四request含一failed、一次ConfirmXP12/一ledger/原E0 Evidence，原Activity/其他owner/奖励/Mastery不改。独立永久释放后原task4容器1卷已精确销毁；这些不是正式0055应用证据，正式54321/54322仍0054，备份保留；最终候选及正式迁移门禁见19。
+
+> 候选0056后续验收记录：SQL本身在V4–V6兼容性纠正中逐字未改，主完整151文件4358项含真实authority42/concurrency12/HTTP12及旧67/20/18全部通过，原0001..0055及旧reward-v1保持。测试专属新四ID栈已删除4容器1卷，正式54321/54322仍0055；这些是合成验收，不是正式0056应用证明。46候选绑定、新exact-head CI与不同FINAL/合并后仍须另获0056授权、新完整备份恢复和迁移独审，详见20/21。

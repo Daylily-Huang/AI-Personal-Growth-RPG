@@ -1,4 +1,8 @@
-import { isProposalFactEditCheckout, assertProposalFactEditActualScope, proposalFactEditHistoricalFiles } from "./helpers/governance-delta";
+import { artifactManualLegacyProjection, assertArtifactManualActualScope, artifactManualProposalFiles, artifactManualHistoricalFiles } from "./helpers/governance-delta";
+const isProposalFactEditCheckout = artifactManualLegacyProjection(artifactManualPrevious_isProposalFactEditCheckout, (cwd?: string) => { assertArtifactManualActualScope({ cwd }); return artifactManualPrevious_isProposalFactEditCheckout(cwd); });
+const assertProposalFactEditActualScope = artifactManualLegacyProjection(artifactManualPrevious_assertProposalFactEditActualScope, artifactManualProposalFiles);
+const proposalFactEditHistoricalFiles = artifactManualLegacyProjection(artifactManualPrevious_proposalFactEditHistoricalFiles, artifactManualHistoricalFiles);
+import { isProposalFactEditCheckout as artifactManualPrevious_isProposalFactEditCheckout, assertProposalFactEditActualScope as artifactManualPrevious_assertProposalFactEditActualScope, proposalFactEditHistoricalFiles as artifactManualPrevious_proposalFactEditHistoricalFiles } from "./helpers/governance-delta";
 // @vitest-environment jsdom
 /**
  * tests/phase5-dashboard-ui.test.tsx

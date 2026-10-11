@@ -1,5 +1,7 @@
 # AI Personal Growth RPG — 技术架构、开发实施与 Coding Agent 操作手册
 
+> 2026-10-12 Artifact用户验收实施补充：独立request-scoped认证入口GET/POST `/api/artifacts/[id]/acceptance`及POST `/revoke`，运行时不使用admin/service-role。0056只追加一张私有认定表、独立IMMUTABLE100策略和两受控RPC，不替换0001..0055函数。共享旧请求锁/账户锁与ledger fold，第一次验收、EARN、cache、audit原子提交；撤销校验并复用合法既有CORRECTION。浏览GET不创建账户。原始角色、auth.uid、owner/account/provenance多层校验，严格原始回执与无缓存安全JSON。UI原请求tuple存页面父级内存，未知结果只能原请求重放，成功receipt独立于刷新结果。控制合同20/验收21；当前合成栈开发，不代表正式0056许可或交付完成。
+
 > **版本：v0.1**
 >
 > 本文档是 AI Personal Growth RPG 的技术实施规范。
@@ -3658,3 +3660,5 @@ AI 理解这件事意味着什么
 原Activity不改，SettlementService仅从严格revision读取修正effectiveMinutes代入原calculateXp/QuestDelta，并在settlement/ledger审计revision。UI unknown保持同key/同facts、最多20GET/60秒，关闭仅停止等待。旧AI全文、Demo、provider、依赖及工作流均不变。具体资源预算与权限以18为准，19列历史失败/未验证边界；尚待完成build/真实HTTP/全套/Chrome/独审，正式0055另需批准与备份恢复。
 
 corrective最新技术状态：Pending自有15s abortable GET成功才发布dashboard，不再因全局refresh503丢回执；Editor每item RAM external store使用不可变snapshot/useSyncExternalStore，无浏览器持久化，关闭/卸载阻断迟到写回。build-v3 WQPlTjOYzDkMzQHrmSS_a/347sources保持，完整143files4011/TS/全项目lint/Growth11和主四宽Chrome通过；Herschel独立246/只读SQL243报告终态并永久释放。主原ID精确清理4容器1卷及121623728byte缓存；最终53/note离线绑定待，不把历史失败build或受控AI当真实供应商证明，正式0055/committedFINAL/合并仍另门禁。
+
+> Artifact V6技术终态补充：新增逻辑/SQL13生产文件及completed build Rze的357源逐项保持；main full-v3实际151文件4358项、type-v4/lint-v4、Growth11通过，旧116测试仅顶部模型/validator适配且全文可逆，当前真实46门禁和原53历史数据分别验证。Turing own235及477/17反例通过，不冒其二次DB/full/browser。主新四ID合成栈4容器1卷已精确清理，nonTask保持；46最后窄绑定/新commit/CI/不同FINAL/merge/0056正式权限仍待，详见21。

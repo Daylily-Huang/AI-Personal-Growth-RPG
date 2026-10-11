@@ -49,7 +49,7 @@ describe("8F milestone UI: reads, informed commands and durable page-session ret
 
   test("mount and refresh are read-only; reality and Artifact boundaries are visible", async () => {
     await ready(); expect(posts()).toHaveLength(0);
-    expect(screen.getByText(/Artifact（作品与产物）的成就认定和奖励均暂缓/)).toBeTruthy();
+    expect(screen.getByText(/Artifact（作品与产物）支持用户手动验收，每件首次100愿望积分/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "刷新数据" })); await screen.findByRole("article", { name: "候选 已完成的 Epic" });
     expect(posts()).toHaveLength(0);
     expect(fetchMock.mock.calls.every(([, init]) => init.cache === "no-store" && init.credentials === "same-origin")).toBe(true);

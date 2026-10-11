@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { InspectorDrawer } from "@/components/layout/InspectorDrawer";
+import { ArtifactAcceptancePanel } from "@/components/artifacts/ArtifactAcceptancePanel";
+import { createArtifactAcceptancePageMemory } from "@/lib/artifact-acceptance/client";
 import {
   ArtifactCard,
   ArtifactInspectorContent,
@@ -94,6 +96,9 @@ export default function ArtifactsPage() {
   // Request sequencing refs to avoid race conditions
   const detailRequestIdRef = useRef(0);
   const listRequestIdRef = useRef(0);
+  // In-memory page session: close/reopen, list refresh and Inspector remounts
+  // keep the original mutation tuple isolated by BOTH authenticated owner and Artifact.
+  const [acceptanceSessions] = useState(createArtifactAcceptancePageMemory);
 
   // Load available skills for left rail filter
   useEffect(() => {
@@ -697,6 +702,9 @@ export default function ArtifactsPage() {
               onManageLinks={() => setLinkManagerOpen(true)}
               onStatusChange={handleStatusChange}
               onDelete={handleDeleteArtifact}
+              acceptancePanel={<ArtifactAcceptancePanel key={`${selectedDetail.artifact.userId}:${selectedDetail.artifact.id}`}
+                artifactId={selectedDetail.artifact.id} ownerId={selectedDetail.artifact.userId}
+                session={acceptanceSessions.forArtifact(selectedDetail.artifact.userId, selectedDetail.artifact.id)} />}
             />
           ) : (
             <div className="p-8 text-center text-xs text-[var(--text-muted)]">

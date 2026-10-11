@@ -10,7 +10,7 @@ import { AuthRequiredError } from "@/lib/store/request-repository";
 import { AIAssessmentError } from "@/lib/ai/assess";
 import { ActivityAlreadySettledError } from "@/lib/store/errors";
 function fixture(): AssessmentContextSnapshot {
-  return {activityId:randomUUID(),rawInput:"本人活动原文",context:{version:"activity-context-v1",asOf:"2026-10-10T12:00:00.000Z",rulesVersion:"activity-frozen-rule",
+  return {activityId:"11111111-1111-4111-8111-111111111111",rawInput:"本人活动原文",context:{version:"activity-context-v1",asOf:"2026-10-10T12:00:00.000Z",rulesVersion:"activity-frozen-rule",
     mainQuest:null,relatedSkills:[],recentSamples:[],temporaryState:{energy:70,focus:60,momentum:30,stress:10},coverage:{candidateScanTruncated:false,aliasesTruncated:false,skillNamesOmitted:false,relatedSkillsTruncated:false,recentSamplesTruncated:false,questChainIncomplete:false,budgetReduced:false}}};
 }
 describe("actual assessment route auth/context ordering and safe pending-only boundary",()=>{
