@@ -1213,8 +1213,10 @@ export function proposalFactEditHistoricalContent(file: string, group: "onboardi
 // SiteReadiness20: append-only present-day Artifact gate. Every byte above is
 // accepted5168 history; projections below never weaken an old selector.
 export const ARTIFACT_MANUAL_BASE = "5168bc4805444ecd1d62490d99f55d3c9e17a58b";
+export const ARTIFACT_MANUAL_CORRECTIVE_HEAD = "e0a9ff8c56fd9c80976b96c630d55a47dd331ead";
+export const ARTIFACT_MANUAL_CORRECTIVE_TREE = "6abcfdecb6834237a172c8ed3fb04ca234205e86";
 export const ARTIFACT_MANUAL_CONTROL = "docs/SiteReadiness/20_ARTIFACT_MANUAL_ACCEPTANCE_CONTRACT.md";
-export const ARTIFACT_MANUAL_ADMISSION_SHA = "E68FB02441A0A288E17B63917709765516ACBBC663BA7D527B4DBBC372ECA923";
+export const ARTIFACT_MANUAL_ADMISSION_SHA = "5112C0AFF160F85527C171EE0DB2CE3BF752F41786BB0CD1F5BF1F7EDB20B934";
 export const ARTIFACT_MANUAL_UI_TEST = "tests/phase8f-milestones-ui.test.tsx";
 export const ARTIFACT_MANUAL_PRODUCTION = [
   "src/lib/artifact-acceptance/types.ts", "src/lib/artifact-acceptance/validation.ts", "src/lib/artifact-acceptance/repository.ts",
@@ -1236,7 +1238,7 @@ export const ARTIFACT_MANUAL_ALLOWED = [...ARTIFACT_MANUAL_MARKERS, "docs/MASTER
   "tests/graph-canvas-governance.test.ts", "tests/graph-mobile-governance.test.ts", "tests/helpers/governance-delta.ts",
   "tests/onboarding-governance.test.ts", "tests/phase8f-ui-governance.test.ts", "tests/proposal-rejection-governance.test.ts",
   "tests/proposal-edit-governance.test.ts", "tests/supabase-schema.test.ts", "tests/visual-foundation.test.ts", ARTIFACT_MANUAL_UI_TEST,
-  "tests/phase5-dashboard-ui.test.tsx"] as const;
+  "tests/phase5-dashboard-ui.test.tsx", "tests/stage7c-ui.test.tsx", "tests/assessment-context-api.test.ts"] as const;
 export function hasArtifactManualScope(files: readonly string[]): boolean { return ARTIFACT_MANUAL_MARKERS.every(file => files.includes(file)); }
 export function artifactManualScopeViolations(files: readonly string[]): string[] {
   const allowed = new Set<string>(hasArtifactManualScope(files) ? ARTIFACT_MANUAL_ALLOWED : []);
@@ -1254,57 +1256,103 @@ export function verifyArtifactManualUIAssertion(current: string, accepted: strin
   if (normalized.includes(old) || normalized.split(replacement).length !== 2 || normalized.replace(replacement, old) !== accepted.replace(/\r\n/g, "\n"))
     throw new Error("FAIL-CLOSED: Artifact sole old UI assertion is not exact");
 }
-export type ArtifactManualGitOptions = ProposalRejectionGitOptions & { readUIFixture?: () => string };
+export const ARTIFACT_MANUAL_API_TEST = "tests/assessment-context-api.test.ts";
+export function verifyArtifactManualAPIFixture(current: string, accepted: string): void {
+  const old = 'return {activityId:randomUUID(),rawInput:"本人活动原文"';
+  const fixed = 'return {activityId:"11111111-1111-4111-8111-111111111111",rawInput:"本人活动原文"';
+  const normalized = current.replace(/\r\n/g, "\n");
+  if (normalized.includes(old) || normalized.split(fixed).length !== 2 || normalized.replace(fixed, old) !== accepted.replace(/\r\n/g, "\n"))
+    throw new Error("FAIL-CLOSED: Artifact sole old API UUID fixture is not exact");
+}
+export type ArtifactManualGitOptions = ProposalRejectionGitOptions & { readUIFixture?: () => string; readAPIFixture?: () => string };
 export function isArtifactManualCheckout(cwd = process.cwd()): boolean { return proposalControlExists(activityMainPath(cwd, ARTIFACT_MANUAL_CONTROL)); }
-function artifactManualHead(options: ArtifactManualGitOptions): string {
+type ArtifactManualInputs = readonly [string, string, string];
+function artifactManualInputs(options: ArtifactManualGitOptions): ArtifactManualInputs {
   try {
     const cwd = options.cwd ?? process.cwd();
-    verifyArtifactManualAdmission(options.readControl ? options.readControl() : readActivityMainControl(activityMainPath(cwd, ARTIFACT_MANUAL_CONTROL), "utf8"));
-    verifyArtifactManualUIAssertion(options.readUIFixture ? options.readUIFixture() : readActivityMainControl(activityMainPath(cwd, ARTIFACT_MANUAL_UI_TEST), "utf8"),
-      activityDetailGit(options, `show ${ARTIFACT_MANUAL_BASE}:"${ARTIFACT_MANUAL_UI_TEST}"`));
-  } catch { throw new Error("FAIL-CLOSED: Artifact admission/UI assertion unreadable or invalid"); }
+    return [options.readControl ? options.readControl() : readActivityMainControl(activityMainPath(cwd, ARTIFACT_MANUAL_CONTROL), "utf8"),
+      options.readUIFixture ? options.readUIFixture() : readActivityMainControl(activityMainPath(cwd, ARTIFACT_MANUAL_UI_TEST), "utf8"),
+      options.readAPIFixture ? options.readAPIFixture() : readActivityMainControl(activityMainPath(cwd, ARTIFACT_MANUAL_API_TEST), "utf8")];
+  } catch { throw new Error("FAIL-CLOSED: Artifact current admission inputs unreadable"); }
+}
+function artifactManualHead(options: ArtifactManualGitOptions, inputs = artifactManualInputs(options)): string {
+  try {
+    verifyArtifactManualAdmission(inputs[0]);
+    verifyArtifactManualUIAssertion(inputs[1], activityDetailGit(options, 'show ' + ARTIFACT_MANUAL_BASE + ':"' + ARTIFACT_MANUAL_UI_TEST + '"'));
+    verifyArtifactManualAPIFixture(inputs[2], activityDetailGit(options, 'show ' + ARTIFACT_MANUAL_BASE + ':"' + ARTIFACT_MANUAL_API_TEST + '"'));
+  } catch { throw new Error("FAIL-CLOSED: Artifact admission/UI/API fixture unreadable or invalid"); }
   const head = activityDetailRevision(options, "rev-parse HEAD");
-  if (activityDetailRevision(options, `merge-base ${ARTIFACT_MANUAL_BASE} HEAD`) !== ARTIFACT_MANUAL_BASE)
+  if (activityDetailRevision(options, 'merge-base ' + ARTIFACT_MANUAL_BASE + ' HEAD') !== ARTIFACT_MANUAL_BASE)
     throw new Error("FAIL-CLOSED: Artifact accepted base is not an ancestor");
   return head;
 }
-export function resolveArtifactManualWorkingFiles(options: ArtifactManualGitOptions = {}): string[] {
-  artifactManualHead(options);
-  const files = [...contextPaths(activityDetailGit(options, `diff --no-renames --name-only -z ${ARTIFACT_MANUAL_BASE} --`), true),
+function artifactManualWorkingAtValidatedHead(options: ArtifactManualGitOptions): string[] {
+  const files = [...contextPaths(activityDetailGit(options, 'diff --no-renames --name-only -z ' + ARTIFACT_MANUAL_BASE + ' --'), true),
     ...contextPaths(activityDetailGit(options, "ls-files --others --exclude-standard -z"), true)];
   if (!files.length || new Set(files).size !== files.length) throw new Error("FAIL-CLOSED: empty or duplicate Artifact working range");
   return files;
 }
-export function resolveArtifactManualChangedFiles(options: ArtifactManualGitOptions = {}): GovernanceDelta {
-  const head = artifactManualHead(options), remote = activityDetailRevision(options, "rev-parse origin/main");
-  if (activityDetailRevision(options, `merge-base ${ARTIFACT_MANUAL_BASE} origin/main`) !== ARTIFACT_MANUAL_BASE)
+export function resolveArtifactManualWorkingFiles(options: ArtifactManualGitOptions = {}): string[] {
+  artifactManualHead(options);
+  return artifactManualWorkingAtValidatedHead(options);
+}
+function artifactManualRemote(options: ArtifactManualGitOptions): string {
+  const remote = activityDetailRevision(options, "rev-parse origin/main");
+  if (activityDetailRevision(options, 'merge-base ' + ARTIFACT_MANUAL_BASE + ' origin/main') !== ARTIFACT_MANUAL_BASE)
     throw new Error("FAIL-CLOSED: Artifact remote does not contain accepted base");
+  return remote;
+}
+function artifactManualChangedAt(head: string, remote: string, options: ArtifactManualGitOptions): GovernanceDelta {
   const mode = head === remote ? "current-main-push" : "pr-branch";
-  let range = `${ARTIFACT_MANUAL_BASE}...${head}`;
+  let range = ARTIFACT_MANUAL_BASE + '...' + head;
   if (mode === "current-main-push") {
     const parent = activityDetailRevision(options, 'rev-parse "HEAD^1"');
     if (parent !== ARTIFACT_MANUAL_BASE) throw new Error("FAIL-CLOSED: Artifact main first parent differs from accepted5168");
-    range = `${parent}..${head}`;
+    range = parent + '..' + head;
   }
-  return { mode, range, mergeBase: ARTIFACT_MANUAL_BASE, files: contextPaths(activityDetailGit(options, `diff --no-renames --name-only -z ${range}`)) };
+  return { mode, range, mergeBase: ARTIFACT_MANUAL_BASE, files: contextPaths(activityDetailGit(options, 'diff --no-renames --name-only -z ' + range)) };
+}
+export function resolveArtifactManualChangedFiles(options: ArtifactManualGitOptions = {}): GovernanceDelta {
+  const head = artifactManualHead(options), remote = artifactManualRemote(options);
+  return artifactManualChangedAt(head, remote, options);
 }
 export function assertArtifactManualChangedScope(delta: GovernanceDelta, options: ArtifactManualGitOptions = {}): void {
   assertSameActivityRange(delta, resolveArtifactManualChangedFiles(options), true);
   assertCompleteActivityScope(delta.files, ARTIFACT_MANUAL_ALLOWED, artifactManualScopeViolations(delta.files));
 }
+/** Sole rejected44 transition. Values come only from this synchronous validated call. */
+function artifactManualFrozen44Transition(head: string, remote: string, options: ArtifactManualGitOptions): void {
+  if (head !== ARTIFACT_MANUAL_CORRECTIVE_HEAD || remote !== ARTIFACT_MANUAL_BASE ||
+      activityDetailRevision(options, 'rev-parse "HEAD^{tree}"') !== ARTIFACT_MANUAL_CORRECTIVE_TREE)
+    throw new Error("FAIL-CLOSED: Artifact rejected44 transition identity differs");
+  const delta = artifactManualChangedAt(head, remote, options);
+  const expected = ARTIFACT_MANUAL_ALLOWED.filter(file => file !== "tests/stage7c-ui.test.tsx" && file !== ARTIFACT_MANUAL_API_TEST);
+  if (delta.mode !== "pr-branch" || delta.range !== ARTIFACT_MANUAL_BASE + '...' + ARTIFACT_MANUAL_CORRECTIVE_HEAD || delta.mergeBase !== ARTIFACT_MANUAL_BASE)
+    throw new Error("FAIL-CLOSED: Artifact rejected44 transition topology differs");
+  assertCompleteActivityScope(delta.files, expected, delta.files.filter(file => !(expected as readonly string[]).includes(file)));
+  const oldControl = activityDetailGit(options, 'show ' + ARTIFACT_MANUAL_CORRECTIVE_HEAD + ':"' + ARTIFACT_MANUAL_CONTROL + '"');
+  if (activityMainHash("sha256").update(oldControl.replace(/\r\n/g, "\n")).digest("hex").toUpperCase() !== "E68FB02441A0A288E17B63917709765516ACBBC663BA7D527B4DBBC372ECA923")
+    throw new Error("FAIL-CLOSED: Artifact rejected44 frozen contract differs");
+}
 export function assertArtifactManualActualScope(options: ArtifactManualGitOptions = {}): string[] {
-  const files = resolveArtifactManualWorkingFiles(options);
+  // Per-invocation proof only: no cross-call state or Git-output cache.
+  const inputs = artifactManualInputs(options), head = artifactManualHead(options, inputs);
+  const files = artifactManualWorkingAtValidatedHead(options);
   assertCompleteActivityScope(files, ARTIFACT_MANUAL_ALLOWED, artifactManualScopeViolations(files));
-  // Even an uncommitted candidate must bind the remote revision and accepted ancestry.
-  activityDetailRevision(options, "rev-parse origin/main");
-  if (activityDetailRevision(options, `merge-base ${ARTIFACT_MANUAL_BASE} origin/main`) !== ARTIFACT_MANUAL_BASE)
-    throw new Error("FAIL-CLOSED: Artifact remote does not contain accepted base");
-  if (activityDetailRevision(options, "rev-parse HEAD") !== ARTIFACT_MANUAL_BASE)
-    assertArtifactManualChangedScope(resolveArtifactManualChangedFiles(options), options);
+  const remote = artifactManualRemote(options);
+  if (head === ARTIFACT_MANUAL_CORRECTIVE_HEAD) artifactManualFrozen44Transition(head, remote, options);
+  else if (head !== ARTIFACT_MANUAL_BASE) {
+    const delta = artifactManualChangedAt(head, remote, options);
+    assertCompleteActivityScope(delta.files, ARTIFACT_MANUAL_ALLOWED, artifactManualScopeViolations(delta.files));
+  }
+  if (activityDetailRevision(options, "rev-parse HEAD") !== head || activityDetailRevision(options, "rev-parse origin/main") !== remote)
+    throw new Error("FAIL-CLOSED: Artifact revisions changed during scope validation");
+  const after = artifactManualInputs(options);
+  if (after.some((text, index) => text !== inputs[index])) throw new Error("FAIL-CLOSED: Artifact admission inputs changed during scope validation");
   return files;
 }
 /** Explicit immutable committed-history projection, not a fabricated present-day run.
- * Current43 is independently validated FIRST. Then old validators receive their
+ * Current46 is independently validated FIRST. Then old validators receive their
  * own actual accepted229c..5168 files/content, including the sole old fixture.
  */
 export function artifactManualProposalHistoricalOptions(options: ArtifactManualGitOptions = {}): ProposalFactEditGitOptions {
@@ -1338,14 +1386,14 @@ export function artifactManualHistoricalContent(file: string, group: Parameters<
 export function artifactManualCumulativeFiles(options: ArtifactManualGitOptions = {}): string[] {
   const current = assertArtifactManualActualScope(options), prior = artifactManualProposalFiles(options);
   const expected = [...new Set([...prior, ...current])];
-  if (expected.length !== 77) throw new Error("FAIL-CLOSED: Artifact cumulative history union differs");
+  if (expected.length !== 78) throw new Error("FAIL-CLOSED: Artifact cumulative history union differs");
   const actual = [...contextPaths(activityDetailGit(options, `diff --no-renames --name-only -z ${PROPOSAL_FACT_EDIT_BASE} --`), true),
     ...contextPaths(activityDetailGit(options, "ls-files --others --exclude-standard -z"), true)];
   if (actual.length !== expected.length || new Set(actual).size !== actual.length || actual.some(file => !expected.includes(file)))
     throw new Error("FAIL-CLOSED: Artifact cumulative range has extra/missing paths");
   return actual;
 }
-/** Only real current Artifact checkouts get a strict43 + fixed accepted-history
+/** Only real current Artifact checkouts get a strict46 + fixed accepted-history
  * projection. Synthetic old-selector unit inputs remain on their original path.
  */
 export function artifactManualLegacyProjection<A extends unknown[], R>(previous: (...args: A) => R, current: (...args: A) => R): (...args: A) => R {
@@ -1353,5 +1401,46 @@ export function artifactManualLegacyProjection<A extends unknown[], R>(previous:
     const last = args.at(-1);
     const options = last && typeof last === "object" ? last as ProposalRejectionGitOptions : {};
     return !options.execute && isArtifactManualCheckout(options.cwd) ? current(...args) : previous(...args);
+  };
+}
+
+/** Truthful fixed accepted53 metadata, only after strict current46/cumulative78. */
+export function artifactManualStage7CHistoricalDelta(options: ArtifactManualGitOptions = {}): GovernanceDelta {
+  artifactManualCumulativeFiles(options);
+  const files = artifactManualProposalFiles(options);
+  return { mode: "pr-branch", range: `${PROPOSAL_FACT_EDIT_BASE}...${ARTIFACT_MANUAL_BASE}`, mergeBase: PROPOSAL_FACT_EDIT_BASE, files };
+}
+
+/** Historical synthetic DATA only; never a proof of the actual Artifact scope.
+ * The caller's original execute/calls/control and explicit fixture providers
+ * remain untouched. Each default read independently reads both real Git blobs.
+ */
+export function artifactManualProposalSyntheticModel<A extends unknown[], R extends ProposalFactEditGitOptions>(previous: (...args: A) => R): (...args: A) => R {
+  return (...args: A): R => {
+    const options = previous(...args);
+    if (!isArtifactManualCheckout(options.cwd)) return options;
+    if (typeof options.execute !== "function") throw new Error("FAIL-CLOSED: historical proposal model requires its original synthetic execute");
+    if (Object.hasOwn(options, "readFixture")) return options;
+    return { ...options, readFixture() {
+      const real = { cwd: options.cwd };
+      const fixture = activityDetailGit(real, `show ${ARTIFACT_MANUAL_BASE}:"${PROPOSAL_FACT_EDIT_FIXTURE_PATH}"`);
+      const accepted = activityDetailGit(real, `show ${PROPOSAL_FACT_EDIT_BASE}:"${PROPOSAL_FACT_EDIT_FIXTURE_PATH}"`);
+      verifyProposalFactEditFixture(fixture, accepted);
+      return fixture;
+    } };
+  };
+}
+
+/** Pure fixture adapter, not a current scope exception. Never replace accepted.
+ * The unique V5 UUID inverse must match the whole real accepted5168 fixture;
+ * the original validator still checks its own full PR60 two-mock inverse.
+ */
+export function artifactManualProposalFixtureValidator(previous: (current: string, accepted: string) => void, cwd = process.cwd()): (current: string, accepted: string) => void {
+  return (current, accepted): void => {
+    const fixed = 'return {activityId:"11111111-1111-4111-8111-111111111111",rawInput:"本人活动原文"';
+    if (!isArtifactManualCheckout(cwd) || !current.includes(fixed)) return previous(current, accepted);
+    const historical = activityDetailGit({ cwd }, `show ${ARTIFACT_MANUAL_BASE}:"${PROPOSAL_FACT_EDIT_FIXTURE_PATH}"`);
+    verifyArtifactManualAPIFixture(current, historical);
+    previous(current.replace(/\r\n/g, "\n").replace(fixed, 'return {activityId:randomUUID(),rawInput:"本人活动原文"'), accepted);
   };
 }
