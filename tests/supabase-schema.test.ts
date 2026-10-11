@@ -78,6 +78,7 @@ const EXPECTED_ORDER = [
   "0053_zero_xp_manual_skill_authority",
   "0054_evidence_submission_authority",
   "0055_proposal_fact_edit_authority",
+  "0056_artifact_manual_acceptance",
 ];
 
 
@@ -107,6 +108,16 @@ describe("0055 proposal fact audit inventory", () => {
     const added = [...sql.matchAll(/create table public\.([a-z_]+)\s*\(/gi)].map(match => match[1]);
     expect(added).toEqual(["proposal_fact_edit_requests", "proposal_fact_revisions"]);
     for (const table of added) expect(sql.toLowerCase()).toContain(`alter table public.${table} enable row level security`);
+  });
+});
+
+describe("0056 manual Artifact inventory is separate from Stage1 and Core verification", () => {
+  test("adds only one private acceptance table with owner SELECT and immutable provenance", () => {
+    const sql = fs.readFileSync(path.join(MIGRATIONS_DIR, "0056_artifact_manual_acceptance.sql"), "utf8");
+    expect([...sql.matchAll(/create table public\.([a-z_]+)\s*\(/gi)].map(match => match[1])).toEqual(["artifact_acceptances"]);
+    expect(sql).toContain("ALTER TABLE public.artifact_acceptances ENABLE ROW LEVEL SECURITY");
+    expect(sql).toContain("USER_CONFIRMED_ARTIFACT"); expect(sql).toContain("UNIQUE(user_id,artifact_id)");
+    expect(sql).not.toMatch(/CREATE OR REPLACE FUNCTION public\.(?:calculate_reward_grant_v1|rpc_grant_reward_credit)/i);
   });
 });
 

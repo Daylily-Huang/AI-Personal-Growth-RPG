@@ -1,5 +1,15 @@
 # AI Personal Growth RPG — 项目总体计划与当前状态 (Task Plan)
 
+- [complete Artifact44主/独立运行及精确清理；pending最后离线candidate GO] actual full-v2 151files4346/4346/0skip/unhandled/status0、219/type-v3/lint-v5/buildRze/Growth11/主Chrome31/三ownerCore保持；Turing自己171/171/只读117函数+八值+33helper拒绝后直接永久释放。主34588→97a855仅原4容器1卷→0、cache119864600B移除、nonTask/数据/完整备份/3020/deps/root四保持；21失败历史不删。当前九docs/全44冻结→最后candidate GO→selected44commit/ownCI/不同freshFINAL/新栈清理/ordinarymerge/postCI。正式0056另问、获准后新完整备份恢复独审；当前未提交、未正式升级、未整站完成。
+
+- [in_progress Artifact44 full-v2] 独立Turing171/171、session47528终态0并直接永久释放；主219/type-v3/lint-v5均0。full-v2/session72149正在全套回归，未终态不清栈。之后精确owned4容器1卷/cache处置→九docs/44manifest冻结→Turing最终离线candidate GO→selected44commit/ownCI/不同freshFINAL/ordinarymerge/postCI。正式0056另问、重新完整备份恢复独审；3020/数据/现备份/共享deps保留，旧所有失败保留21。
+
+- [in_progress Artifact44] full-v1真实4344/1唯一旧Dashboard治理失败；Poincare独立ADMISSION V3 E68/all25 GO后仅增第44文件最前3wrapper、原27整份逆向、旧helperprefix保持，累计77不误加1。type-v3已0，新unit-v14→主全部client census/独占171独审→永久release→correctedfull-v2→精确清理/44冻结/candidate GO；之后44commit/ownCI/不同FINAL/merge/postCI。正式0056另问，新备份恢复独审不能省，3020保持。
+
+- [in_progress Artifact43纠正验收] 三独立P2全部实施修复，新build-v3 Rze通过；主Chrome-v4 31checks/四宽44px/原key重放/保存回执与3owner全表Core/XP500level4保持通过。主完整full-v1进行，fresh Turing同Risk2纠正待；旧target432、独审NO-GO、各fixture/工具失败均保留21。正式0056无许可，3020正式0055预览保持，owned清理待双方永久释放。
+
+- [in_progress Artifact20] 用户批准手动验收/首次100愿望积分（非XP）；独立纠正ADMISSION43/25 GO，候选0056＋新服务端/Inspector面板/旧UI唯一文案断言已实现。主v8真实PG50/50、v6UI15/15；下一步新HTTP/治理与所有旧功能回归、type/lint/build/fullsuite/harness/Chrome→fresh Risk2候选→selected43/ownCI/不同FINAL/普通merge/postCI。正式0056另问用户且新备份恢复独审，不复用0055许可。最终精确清理合成栈/无引用缓存；3020/正式数据/密钥/备份/共享deps保留。详21，失败历史保留。
+
 - [in_progress 纠正35最终离线绑定] source/build-v2 mLc保持，main完整133files3379/3379、Growth11/E2E11/type/lint0、新Chrome61/真实两路取消/契约四宽八geometry3Tab/3owner36表parity通过；旧20/8fail、3376/3失败与303预算复核保留。主全部客户端退出/release-v2/census[]，原4containers1volume精确清理0/0、formal11/10/nonTask/source/protected保持，disposal39DA...05F95。controller16固定/仅panel+UI8regress及六auditdocs变；完整35与17冻结待Ramanujan sameRisk2最后candidate GO，之后selected8新commit→新ownCI→不同fresh committed FINAL/新栈清理→普通merge/postCI→正式54当前批准/备份恢复独审→新preview/cache清理。现3018/正式数据/密钥/备份/deps保留，整站未完成。
 
 - [in_progress PR59 committed FINAL P2纠正] fresh Ramanujan0/0/1 NO-GO已永久DB/HTTP释放；旧source8新增回归全失败、修后166offline/type/lint0。仅production面板与新增8test/六auditdocs变化，controller16不改。main独占同一新合成栈新build-v2/full/Growth/E2E/四宽Chrome/36表快照→新release/owned清理→同Risk2候选复审/35freeze→新selectedcommit/ownCI/不同fresh committed FINAL，之后才普通merge/postCI。正式54当前批准待，3018/数据/密钥/备份/deps不动，整站未完成。

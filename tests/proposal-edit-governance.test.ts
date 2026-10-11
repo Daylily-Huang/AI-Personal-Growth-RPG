@@ -2,6 +2,13 @@ import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFileSync, readdirSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { artifactManualLegacyProjection, artifactManualProposalFiles, artifactManualHistoricalFiles, artifactManualHistoricalContent, artifactManualEvidenceFiles, artifactManualContextFiles, artifactManualRejectionFiles } from "./helpers/governance-delta";
+const actual = artifactManualLegacyProjection(artifactManualPrevious_actual, artifactManualProposalFiles);
+const history = artifactManualLegacyProjection(artifactManualPrevious_history, artifactManualHistoricalFiles);
+const content = artifactManualLegacyProjection(artifactManualPrevious_content, artifactManualHistoricalContent);
+const evidence = artifactManualLegacyProjection(artifactManualPrevious_evidence, artifactManualEvidenceFiles);
+const context = artifactManualLegacyProjection(artifactManualPrevious_context, artifactManualContextFiles);
+const rejection = artifactManualLegacyProjection(artifactManualPrevious_rejection, artifactManualRejectionFiles);
 import {
   PROPOSAL_FACT_EDIT_BASE as BASE, PROPOSAL_FACT_EDIT_CONTROL as CONTROL, PROPOSAL_FACT_EDIT_ADMISSION_SHA as HASH,
   PROPOSAL_FACT_EDIT_ALLOWED as ALLOWED, PROPOSAL_FACT_EDIT_MARKERS as MARKERS,
@@ -10,9 +17,9 @@ import {
   PROPOSAL_FACT_EDIT_PRODUCTION as PRODUCTION, PROPOSAL_FACT_EDIT_TESTS as TESTS,
   hasProposalFactEditScope as has, proposalFactEditScopeViolations as violations, verifyProposalFactEditAdmission as verify,
   resolveProposalFactEditWorkingFiles as working, resolveProposalFactEditChangedFiles as changed,
-  assertProposalFactEditActualScope as actual, assertProposalFactEditChangedScope as bind,
-  proposalFactEditHistoricalFiles as history, proposalFactEditEvidenceFiles as evidence,
-  proposalFactEditContextFiles as context, proposalFactEditRejectionFiles as rejection, proposalFactEditHistoricalContent as content,
+  assertProposalFactEditActualScope as artifactManualPrevious_actual, assertProposalFactEditChangedScope as bind,
+  proposalFactEditHistoricalFiles as artifactManualPrevious_history, proposalFactEditEvidenceFiles as artifactManualPrevious_evidence,
+  proposalFactEditContextFiles as artifactManualPrevious_context, proposalFactEditRejectionFiles as artifactManualPrevious_rejection, proposalFactEditHistoricalContent as artifactManualPrevious_content,
   EVIDENCE_SUBMISSION_BASE, EVIDENCE_SUBMISSION_ALLOWED, ASSESSMENT_CONTEXT_BASE, ASSESSMENT_CONTEXT_COMPATIBILITY_ALLOWED,
   PROPOSAL_REJECTION_BASE, PROPOSAL_REJECTION_ALLOWED, PROPOSAL_REJECTION_HISTORICAL_CONTENT,
   ASSESSMENT_CONTEXT_ACTIVITY_CONTENT, ACTIVITY_DETAIL_BASE, ACTIVITY_DETAIL_ALLOWED, ACTIVITY_MAIN_BASE, ACTIVITY_MAIN_ALLOWED,

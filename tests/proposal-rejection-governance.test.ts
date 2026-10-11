@@ -1,4 +1,8 @@
-import { isProposalFactEditCheckout, proposalFactEditRejectionFiles, proposalFactEditHistoricalFiles, proposalFactEditHistoricalContent } from "./helpers/governance-delta";
+import { artifactManualLegacyProjection, artifactManualHistoricalFiles, artifactManualHistoricalContent, artifactManualRejectionFiles } from "./helpers/governance-delta";
+const proposalFactEditHistoricalFiles = artifactManualLegacyProjection(artifactManualPrevious_proposalFactEditHistoricalFiles, artifactManualHistoricalFiles);
+const proposalFactEditHistoricalContent = artifactManualLegacyProjection(artifactManualPrevious_proposalFactEditHistoricalContent, artifactManualHistoricalContent);
+const proposalFactEditRejectionFiles = artifactManualLegacyProjection(artifactManualPrevious_proposalFactEditRejectionFiles, artifactManualRejectionFiles);
+import { isProposalFactEditCheckout, proposalFactEditRejectionFiles as artifactManualPrevious_proposalFactEditRejectionFiles, proposalFactEditHistoricalFiles as artifactManualPrevious_proposalFactEditHistoricalFiles, proposalFactEditHistoricalContent as artifactManualPrevious_proposalFactEditHistoricalContent } from "./helpers/governance-delta";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";

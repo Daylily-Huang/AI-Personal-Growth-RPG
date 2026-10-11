@@ -1,5 +1,7 @@
 # AI Personal Growth RPG — 技术架构、开发实施与 Coding Agent 操作手册
 
+> 2026-10-12 Artifact用户验收实施补充：独立request-scoped认证入口GET/POST `/api/artifacts/[id]/acceptance`及POST `/revoke`，运行时不使用admin/service-role。0056只追加一张私有认定表、独立IMMUTABLE100策略和两受控RPC，不替换0001..0055函数。共享旧请求锁/账户锁与ledger fold，第一次验收、EARN、cache、audit原子提交；撤销校验并复用合法既有CORRECTION。浏览GET不创建账户。原始角色、auth.uid、owner/account/provenance多层校验，严格原始回执与无缓存安全JSON。UI原请求tuple存页面父级内存，未知结果只能原请求重放，成功receipt独立于刷新结果。控制合同20/验收21；当前合成栈开发，不代表正式0056许可或交付完成。
+
 > **版本：v0.1**
 >
 > 本文档是 AI Personal Growth RPG 的技术实施规范。

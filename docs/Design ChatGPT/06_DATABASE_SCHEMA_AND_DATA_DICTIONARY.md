@@ -1,5 +1,7 @@
 # AI Personal Growth RPG — 数据库 Schema 与数据字典
 
+> 2026-10-12 候选0056（尚未正式升级）：新增唯一私有表artifact_acceptances，15字段包含owner/Artifact复合FK、固定USER_CONFIRMED_ARTIFACT、ACTIVE→REVOKED终态、不可变验收时标题/nullable版本/updated_at/说明/时间/原EARN/策略，以及撤销时间/原因/精确CORRECTION。UNIQUE(user_id,artifact_id)覆盖所有状态，源硬删RESTRICT。独立artifact-manual-v1固定100愿望积分，ARTIFACT小写UUID跨policy终生EARN唯一；未知旧Artifact账本导致迁移失败，不自动认领历史。RLS仅本人SELECT，写入只走两受控RPC；原始写、伪旗标和放宽grant不得绕过。旧reward-v1八值、canonical语法、Core来源/认定、确认/XP/0053/0054/0055定义均不编辑。详情以20为准，合成库通过后还需新PR、独审及另一次正式0056授权与备份恢复门禁。
+
 > 版本：v0.1  
 > 数据库：PostgreSQL / Supabase  
 > 原则：事实表、AI 判断、正式成长账本必须分离。

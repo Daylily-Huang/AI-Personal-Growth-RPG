@@ -23,8 +23,14 @@ import { phase8fCurrentScopeViolations as phase8f } from "./phase8f-ui-governanc
 const canonical = (value: string) => value.replace(/\r\n/g, "\n");
 const document = () => readFileSync(CONTROL, "utf8"), revision = (n: number) => String(n).repeat(40);
 const actualDiff = (from: string, to: string) => execFileSync("git", ["diff", "--no-renames", "--name-only", "-z", from, to], { encoding: "utf8" });
-import { isProposalFactEditCheckout, proposalFactEditEvidenceFiles, proposalFactEditContextFiles,
-  proposalFactEditRejectionFiles, proposalFactEditHistoricalFiles, proposalFactEditHistoricalContent } from "./helpers/governance-delta";
+import { artifactManualLegacyProjection, artifactManualHistoricalFiles, artifactManualHistoricalContent, artifactManualEvidenceFiles, artifactManualContextFiles, artifactManualRejectionFiles } from "./helpers/governance-delta";
+const proposalFactEditHistoricalFiles = artifactManualLegacyProjection(artifactManualPrevious_proposalFactEditHistoricalFiles, artifactManualHistoricalFiles);
+const proposalFactEditHistoricalContent = artifactManualLegacyProjection(artifactManualPrevious_proposalFactEditHistoricalContent, artifactManualHistoricalContent);
+const proposalFactEditEvidenceFiles = artifactManualLegacyProjection(artifactManualPrevious_proposalFactEditEvidenceFiles, artifactManualEvidenceFiles);
+const proposalFactEditContextFiles = artifactManualLegacyProjection(artifactManualPrevious_proposalFactEditContextFiles, artifactManualContextFiles);
+const proposalFactEditRejectionFiles = artifactManualLegacyProjection(artifactManualPrevious_proposalFactEditRejectionFiles, artifactManualRejectionFiles);
+import { isProposalFactEditCheckout, proposalFactEditEvidenceFiles as artifactManualPrevious_proposalFactEditEvidenceFiles, proposalFactEditContextFiles as artifactManualPrevious_proposalFactEditContextFiles,
+  proposalFactEditRejectionFiles as artifactManualPrevious_proposalFactEditRejectionFiles, proposalFactEditHistoricalFiles as artifactManualPrevious_proposalFactEditHistoricalFiles, proposalFactEditHistoricalContent as artifactManualPrevious_proposalFactEditHistoricalContent } from "./helpers/governance-delta";
 const actual = (options: ProposalRejectionGitOptions = {}) => !options.execute && isProposalFactEditCheckout(options.cwd)
   ? proposalFactEditEvidenceFiles(options) : priorActual(options);
 const history = (anchor: string, options: ProposalRejectionGitOptions = {}) => !options.execute && isProposalFactEditCheckout(options.cwd)

@@ -1209,3 +1209,149 @@ export function proposalFactEditHistoricalContent(file: string, group: "onboardi
   if (!content) throw new Error("FAIL-CLOSED: empty fact edit historical content");
   return content;
 }
+
+// SiteReadiness20: append-only present-day Artifact gate. Every byte above is
+// accepted5168 history; projections below never weaken an old selector.
+export const ARTIFACT_MANUAL_BASE = "5168bc4805444ecd1d62490d99f55d3c9e17a58b";
+export const ARTIFACT_MANUAL_CONTROL = "docs/SiteReadiness/20_ARTIFACT_MANUAL_ACCEPTANCE_CONTRACT.md";
+export const ARTIFACT_MANUAL_ADMISSION_SHA = "E68FB02441A0A288E17B63917709765516ACBBC663BA7D527B4DBBC372ECA923";
+export const ARTIFACT_MANUAL_UI_TEST = "tests/phase8f-milestones-ui.test.tsx";
+export const ARTIFACT_MANUAL_PRODUCTION = [
+  "src/lib/artifact-acceptance/types.ts", "src/lib/artifact-acceptance/validation.ts", "src/lib/artifact-acceptance/repository.ts",
+  "src/lib/artifact-acceptance/request.ts", "src/lib/artifact-acceptance/http.ts", "src/lib/artifact-acceptance/client.ts",
+  "src/components/artifacts/ArtifactAcceptancePanel.tsx", "src/app/api/artifacts/[id]/acceptance/route.ts",
+  "src/app/api/artifacts/[id]/acceptance/revoke/route.ts", "src/app/artifacts/page.tsx",
+  "src/components/artifacts/ArtifactInspectorContent.tsx", "src/components/milestones/MilestonesClient.tsx",
+  "supabase/migrations/0056_artifact_manual_acceptance.sql",
+] as const;
+export const ARTIFACT_MANUAL_TESTS = ["tests/artifact-acceptance-validation.test.ts", "tests/artifact-acceptance-repository.test.ts",
+  "tests/artifact-acceptance-api.test.ts", "tests/artifact-acceptance-authority.test.ts", "tests/artifact-acceptance-concurrency.test.ts",
+  "tests/artifact-acceptance-http.test.ts", "tests/artifact-acceptance-ui.test.tsx", "tests/artifact-acceptance-governance.test.ts"] as const;
+export const ARTIFACT_MANUAL_MARKERS = [ARTIFACT_MANUAL_CONTROL, "docs/Design ChatGPT/02_PRODUCT_DESIGN.md",
+  "docs/Design ChatGPT/03_TECHNICAL_IMPLEMENTATION.md", "docs/Design ChatGPT/06_DATABASE_SCHEMA_AND_DATA_DICTIONARY.md",
+  ...ARTIFACT_MANUAL_PRODUCTION, ...ARTIFACT_MANUAL_TESTS] as const;
+export const ARTIFACT_MANUAL_ALLOWED = [...ARTIFACT_MANUAL_MARKERS, "docs/MASTER_PROJECT_HANDOFF.md",
+  "docs/SiteReadiness/21_ARTIFACT_MANUAL_ACCEPTANCE_VERIFICATION.md", "findings.md", "progress.md", "task_plan.md",
+  "tests/activity-detail-governance.test.ts", "tests/assessment-context-governance.test.ts", "tests/evidence-submission-governance.test.ts",
+  "tests/graph-canvas-governance.test.ts", "tests/graph-mobile-governance.test.ts", "tests/helpers/governance-delta.ts",
+  "tests/onboarding-governance.test.ts", "tests/phase8f-ui-governance.test.ts", "tests/proposal-rejection-governance.test.ts",
+  "tests/proposal-edit-governance.test.ts", "tests/supabase-schema.test.ts", "tests/visual-foundation.test.ts", ARTIFACT_MANUAL_UI_TEST,
+  "tests/phase5-dashboard-ui.test.tsx"] as const;
+export function hasArtifactManualScope(files: readonly string[]): boolean { return ARTIFACT_MANUAL_MARKERS.every(file => files.includes(file)); }
+export function artifactManualScopeViolations(files: readonly string[]): string[] {
+  const allowed = new Set<string>(hasArtifactManualScope(files) ? ARTIFACT_MANUAL_ALLOWED : []);
+  return [...(new Set(files).size === files.length ? [] : ["duplicate Artifact paths"]), ...files.filter(file => !allowed.has(file)),
+    ...ARTIFACT_MANUAL_ALLOWED.filter(file => !files.includes(file)).map(file => `missing Artifact path: ${file}`)];
+}
+export function verifyArtifactManualAdmission(text: string): void {
+  if (activityMainHash("sha256").update(text.replace(/\r\n/g, "\n")).digest("hex").toUpperCase() !== ARTIFACT_MANUAL_ADMISSION_SHA)
+    throw new Error("FAIL-CLOSED: Artifact contract is unbound");
+}
+export function verifyArtifactManualUIAssertion(current: string, accepted: string): void {
+  const old = 'expect(screen.getByText(/Artifact（作品与产物）的成就认定和奖励均暂缓/)).toBeTruthy();';
+  const replacement = 'expect(screen.getByText(/Artifact（作品与产物）支持用户手动验收，每件首次100愿望积分/)).toBeTruthy();';
+  const normalized = current.replace(/\r\n/g, "\n");
+  if (normalized.includes(old) || normalized.split(replacement).length !== 2 || normalized.replace(replacement, old) !== accepted.replace(/\r\n/g, "\n"))
+    throw new Error("FAIL-CLOSED: Artifact sole old UI assertion is not exact");
+}
+export type ArtifactManualGitOptions = ProposalRejectionGitOptions & { readUIFixture?: () => string };
+export function isArtifactManualCheckout(cwd = process.cwd()): boolean { return proposalControlExists(activityMainPath(cwd, ARTIFACT_MANUAL_CONTROL)); }
+function artifactManualHead(options: ArtifactManualGitOptions): string {
+  try {
+    const cwd = options.cwd ?? process.cwd();
+    verifyArtifactManualAdmission(options.readControl ? options.readControl() : readActivityMainControl(activityMainPath(cwd, ARTIFACT_MANUAL_CONTROL), "utf8"));
+    verifyArtifactManualUIAssertion(options.readUIFixture ? options.readUIFixture() : readActivityMainControl(activityMainPath(cwd, ARTIFACT_MANUAL_UI_TEST), "utf8"),
+      activityDetailGit(options, `show ${ARTIFACT_MANUAL_BASE}:"${ARTIFACT_MANUAL_UI_TEST}"`));
+  } catch { throw new Error("FAIL-CLOSED: Artifact admission/UI assertion unreadable or invalid"); }
+  const head = activityDetailRevision(options, "rev-parse HEAD");
+  if (activityDetailRevision(options, `merge-base ${ARTIFACT_MANUAL_BASE} HEAD`) !== ARTIFACT_MANUAL_BASE)
+    throw new Error("FAIL-CLOSED: Artifact accepted base is not an ancestor");
+  return head;
+}
+export function resolveArtifactManualWorkingFiles(options: ArtifactManualGitOptions = {}): string[] {
+  artifactManualHead(options);
+  const files = [...contextPaths(activityDetailGit(options, `diff --no-renames --name-only -z ${ARTIFACT_MANUAL_BASE} --`), true),
+    ...contextPaths(activityDetailGit(options, "ls-files --others --exclude-standard -z"), true)];
+  if (!files.length || new Set(files).size !== files.length) throw new Error("FAIL-CLOSED: empty or duplicate Artifact working range");
+  return files;
+}
+export function resolveArtifactManualChangedFiles(options: ArtifactManualGitOptions = {}): GovernanceDelta {
+  const head = artifactManualHead(options), remote = activityDetailRevision(options, "rev-parse origin/main");
+  if (activityDetailRevision(options, `merge-base ${ARTIFACT_MANUAL_BASE} origin/main`) !== ARTIFACT_MANUAL_BASE)
+    throw new Error("FAIL-CLOSED: Artifact remote does not contain accepted base");
+  const mode = head === remote ? "current-main-push" : "pr-branch";
+  let range = `${ARTIFACT_MANUAL_BASE}...${head}`;
+  if (mode === "current-main-push") {
+    const parent = activityDetailRevision(options, 'rev-parse "HEAD^1"');
+    if (parent !== ARTIFACT_MANUAL_BASE) throw new Error("FAIL-CLOSED: Artifact main first parent differs from accepted5168");
+    range = `${parent}..${head}`;
+  }
+  return { mode, range, mergeBase: ARTIFACT_MANUAL_BASE, files: contextPaths(activityDetailGit(options, `diff --no-renames --name-only -z ${range}`)) };
+}
+export function assertArtifactManualChangedScope(delta: GovernanceDelta, options: ArtifactManualGitOptions = {}): void {
+  assertSameActivityRange(delta, resolveArtifactManualChangedFiles(options), true);
+  assertCompleteActivityScope(delta.files, ARTIFACT_MANUAL_ALLOWED, artifactManualScopeViolations(delta.files));
+}
+export function assertArtifactManualActualScope(options: ArtifactManualGitOptions = {}): string[] {
+  const files = resolveArtifactManualWorkingFiles(options);
+  assertCompleteActivityScope(files, ARTIFACT_MANUAL_ALLOWED, artifactManualScopeViolations(files));
+  // Even an uncommitted candidate must bind the remote revision and accepted ancestry.
+  activityDetailRevision(options, "rev-parse origin/main");
+  if (activityDetailRevision(options, `merge-base ${ARTIFACT_MANUAL_BASE} origin/main`) !== ARTIFACT_MANUAL_BASE)
+    throw new Error("FAIL-CLOSED: Artifact remote does not contain accepted base");
+  if (activityDetailRevision(options, "rev-parse HEAD") !== ARTIFACT_MANUAL_BASE)
+    assertArtifactManualChangedScope(resolveArtifactManualChangedFiles(options), options);
+  return files;
+}
+/** Explicit immutable committed-history projection, not a fabricated present-day run.
+ * Current43 is independently validated FIRST. Then old validators receive their
+ * own actual accepted229c..5168 files/content, including the sole old fixture.
+ */
+export function artifactManualProposalHistoricalOptions(options: ArtifactManualGitOptions = {}): ProposalFactEditGitOptions {
+  assertArtifactManualActualScope(options);
+  if (activityDetailRevision(options, `merge-base ${PROPOSAL_FACT_EDIT_BASE} ${ARTIFACT_MANUAL_BASE}`) !== PROPOSAL_FACT_EDIT_BASE)
+    throw new Error("FAIL-CLOSED: Artifact proposal history ancestry differs");
+  const show = (file: string) => activityDetailGit(options, `show ${ARTIFACT_MANUAL_BASE}:"${file}"`);
+  const historical: ProposalFactEditGitOptions = { cwd: options.cwd,
+    readControl: () => show(PROPOSAL_FACT_EDIT_CONTROL), readAmendment: () => show(PROPOSAL_FACT_EDIT_AMENDMENT_PATH), readFixture: () => show(PROPOSAL_FACT_EDIT_FIXTURE_PATH),
+    execute(command) {
+      if (command === "rev-parse HEAD") return activityDetailRevision(options, `rev-parse ${ARTIFACT_MANUAL_BASE}`);
+      if (command === "rev-parse origin/main") return activityDetailRevision(options, `rev-parse ${PROPOSAL_FACT_EDIT_BASE}`);
+      if (command === "ls-files --others --exclude-standard -z") return ""; // committed fixed endpoint, not current working tree
+      if (command === `merge-base ${PROPOSAL_FACT_EDIT_BASE} HEAD`) return activityDetailGit(options, `merge-base ${PROPOSAL_FACT_EDIT_BASE} ${ARTIFACT_MANUAL_BASE}`);
+      if (command === `diff --no-renames --name-only -z ${PROPOSAL_FACT_EDIT_BASE} --` || command === `diff --no-renames --name-only -z ${PROPOSAL_FACT_EDIT_BASE}...${ARTIFACT_MANUAL_BASE}`)
+        return activityDetailGit(options, `diff --no-renames --name-only -z ${PROPOSAL_FACT_EDIT_BASE} ${ARTIFACT_MANUAL_BASE}`);
+      return activityDetailGit(options, command);
+    } };
+  // Each selected OLD projection validates this complete53 through its original
+  // assertProposalFactEditActualScope before returning any files/content.
+  return historical;
+}
+export function artifactManualProposalFiles(options: ArtifactManualGitOptions = {}): string[] { return assertProposalFactEditActualScope(artifactManualProposalHistoricalOptions(options)); }
+export function artifactManualEvidenceFiles(options: ArtifactManualGitOptions = {}): string[] { return proposalFactEditEvidenceFiles(artifactManualProposalHistoricalOptions(options)); }
+export function artifactManualContextFiles(options: ArtifactManualGitOptions = {}): string[] { return proposalFactEditContextFiles(artifactManualProposalHistoricalOptions(options)); }
+export function artifactManualRejectionFiles(options: ArtifactManualGitOptions = {}): string[] { return proposalFactEditRejectionFiles(artifactManualProposalHistoricalOptions(options)); }
+export function artifactManualHistoricalFiles(anchor: string, options: ArtifactManualGitOptions = {}): string[] { return proposalFactEditHistoricalFiles(anchor, artifactManualProposalHistoricalOptions(options)); }
+export function artifactManualHistoricalContent(file: string, group: Parameters<typeof proposalFactEditHistoricalContent>[1], options: ArtifactManualGitOptions = {}): string {
+  return proposalFactEditHistoricalContent(file, group, artifactManualProposalHistoricalOptions(options));
+}
+export function artifactManualCumulativeFiles(options: ArtifactManualGitOptions = {}): string[] {
+  const current = assertArtifactManualActualScope(options), prior = artifactManualProposalFiles(options);
+  const expected = [...new Set([...prior, ...current])];
+  if (expected.length !== 77) throw new Error("FAIL-CLOSED: Artifact cumulative history union differs");
+  const actual = [...contextPaths(activityDetailGit(options, `diff --no-renames --name-only -z ${PROPOSAL_FACT_EDIT_BASE} --`), true),
+    ...contextPaths(activityDetailGit(options, "ls-files --others --exclude-standard -z"), true)];
+  if (actual.length !== expected.length || new Set(actual).size !== actual.length || actual.some(file => !expected.includes(file)))
+    throw new Error("FAIL-CLOSED: Artifact cumulative range has extra/missing paths");
+  return actual;
+}
+/** Only real current Artifact checkouts get a strict43 + fixed accepted-history
+ * projection. Synthetic old-selector unit inputs remain on their original path.
+ */
+export function artifactManualLegacyProjection<A extends unknown[], R>(previous: (...args: A) => R, current: (...args: A) => R): (...args: A) => R {
+  return (...args: A): R => {
+    const last = args.at(-1);
+    const options = last && typeof last === "object" ? last as ProposalRejectionGitOptions : {};
+    return !options.execute && isArtifactManualCheckout(options.cwd) ? current(...args) : previous(...args);
+  };
+}

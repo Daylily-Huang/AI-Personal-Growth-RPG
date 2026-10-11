@@ -1,5 +1,21 @@
 # 项目历史工作进度 (Progress Log)
 
+- 最终manifest首次ignored helper误缺cwd，hash-object相对路径失败128、未创建回执；只补helper明确candidate cwd，完整4346/build/source/test证据不变，错误保留21，再冻结。
+
+- 2026-10-12 03:13最终冻结：主72149→e6b76d full-v2真实151files4346/4346/零skip/fail/unhandled、child0/null/null；raw301962...DD6AE严格解析，469为内部suite不是files。Turing独立171终态0且直接永久释放后，主34588→97a855仅精确原4容器1卷/cache119864600B删除，task0/0/nonTask保持，disposalFD868F...56B47；随后只读Docker formal11running10healthy、两原exited255保留。219/type-v3/lint-v5/buildRze/Growth11/主Chrome31和三ownerCore证明有效。九docs/全44外部manifest冻结送最后candidate GO；还无commit/CI/不同FINAL/merge/0056正式许可，3020与备份/deps保持。上下文wait参数/ANSI进度probe/文件共享锁错误与全部旧NO-GO/fixtures保留21。
+
+- 2026-10-12 02:52：直接收到Turing永久DB/HTTP释放，独立6files171/171/session47528 terminal0；前CJS alias/内存工具错误公开保留21。主启动corrected full-v2/session72149，final lint-v5终态0；unit-v14 219与type-v3均0。此时不声明full-v2通过、候选GO或清理完成；source13/buildRze/Chrome31与正式0055/3020保持。
+
+- V3当前44准入E68经Poincare独立GO后窄接入，主unit-v14 219/219（含原Dashboard27）零skip/child0与type-v3终态0；原full-v1 4344/1及v13 hash9失败保留21。main所有DB/HTTP/browser客户端终态、Linux census[]后于2026-10-12 02:45:32明确独占grant Turing实际6files171；主停止DBHTTP直到其永久release，之后纠正full-v2/精确清理/最终44绑定。未候选GO/未提交/0056未正式授权。
+
+- Artifact纠正：Turing三P2已主修复并build-v3终态0，真实Chrome31/四宽44px与三owner全表快照通过；完整full-v1正在执行，最终候选/清理/43冻结待。完整历史见SiteReadiness/21，不宣称已正式0056或整站完成。
+
+## 2026-10-12 Artifact20实施中（非完成声明）
+
+- accepted5168为基线，独立ADMISSION43/25已GO；创建专属4容器合成栈并成功迁移0001..0056，更新新4private helpers的invoker执行身份检查；正式54322未连接。
+- 输入/仓储/实际路由143历史通过；新UI15/15通过，最新v8真实authority38＋concurrency12=50/50零skip终态0。v3参数fixture冲突、v4旧grant返回协议误判、v7updated_at假设失败保留在21和原始日志；修正新fixture/断言后通过，不弱化旧断言或更改旧生产规则。
+- 待新completed-buildHTTP/全部43治理/全套与独审/CI/PR/0056另授权/最终清理，现3020仍0055 accepted版本。
+
 - 2026-10-11 纠正主验收全终态：actualfull-v2 133files3379/3379/0nonpassed/child0/verificationnull/raw2E726BEF...F0444；Growth11/E2E11/type/lint/build-v2mLc均0。新Chrome61checks/37API/两held-sibling原生取消/四契约宽8geometry3Tab/3E0/0error/AI与三populatedowner36表只多材料receipt、原growth/reward/Wish/outer保持。原FULLv1 timeout3376/3、303预算复核和8旧source失败保留。独立sameRisk2 old8fail/new8pass/265通过且永久释放；主新全部client退出/release-v2/census[]后97015精确原4/1清理0/0，formal11/10/nonTask/source/protected保持，新disposal39DA5C3B...05F95。当前六auditdocs/17/完整35冻结待最后candidate绑定，尚无新commit/CI/不同FINAL/merge/正式54，3018与root4/数据/密钥/备份/deps保护。
 
 - 2026-10-11 PR59已提交54ca/ownCI38088330473成功133files3371/Growth11/E2E11；fresh不同Ramanujan own257/62/SQL8之后发现初次双GET一失败丢失另一路取消P2，committed FINAL NO-GO0/0/1并direct永久release/census[]。main新增8回归先实证旧source20pass8fail/raw5F541...6449，再仅finally捕获currentRead/abort/delete；四文件166/166/raw5426...59EF5、type/lint0。新build/full/browser/清理/同Risk2复审待，旧验收历史保留且不套用现source。未merge/正式54。

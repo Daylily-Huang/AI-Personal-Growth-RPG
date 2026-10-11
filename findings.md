@@ -1,5 +1,17 @@
 # 调查发现与核心架构决策 (Findings)
 
+- 最终纠正主全量实际151文件4346assertions/全部passed/zero其它/child0，原Dashboard27及new42/12/12/17/107、old67/20/18、Growth11/E2E11全在原始JSON，469不是文件数。Turing独立171与117旧最终函数/8值/33helper拒绝不是主第二次执行，已永久释放；其alias工具失败保留。精确owned清理原4容器1卷及119864600B可重建cache后task0/0、非task身份/状态保持，formal11running10healthy与两原exited255如实保留。全部product findings当前关闭；最终44/docs/hash独立裁决尚待，不以主证明代candidate GO或正式0056许可。
+
+- Turing纠正独立runtime171/171已终态0且永久释放；旧117最终函数体canonical保持、八值/33helper拒绝另只读通过。其CJS Vitest alias工具错误先0测试失败，最终仅内存移除alias成功，不能把失败隐去或当产品缺陷。V3旧Dashboard27原样在主219全过，下一承重仅主完整full-v2真实终态及精确清理/final44绑定；无新增production delta，build-v3继续有效。
+
+- 本轮真实修复：Turing初次3P2（remote漏验/生命周期强转/02旧prefix）全部主修复并独立确认关闭，修后build-v3 Rze/Chrome31/三owner全部Core快照保持。完整回归发现旧Dashboard直接旧53范围检查仍拒当前43；不得绕过旧helper或改原27断言，V3仅新增一个旧检查入口适配的44范围草案由Poincare重新Risk2准入中，尚未实施。该Dashboard路径已在历史53中，正确累计仍77/重叠20，初稿误78已纠正并保留历史。正式0056无许可。
+
+## 2026-10-12 Artifact手动验收开发
+
+- 用户最新决定覆盖旧延期：只增加USER_CONFIRMED_ARTIFACT和一次100愿望积分，不增加XP/Mastery/verified Evidence；现实成就仍零积分。冻结reward-v1不变。
+- 真实PG38authority＋12并发均通过，UI15通过；微秒输入必须使用旧生命周期trigger产生的实际updated_at，不可用INSERT固定时间假设。旧grant拒Artifact为显式ok=false，不是抛异常；新增测试已按真实旧协议校正，未改旧RPC。
+- 新helpers采用实际invoker/current_user/外层角色分离检查，避免放宽EXECUTE后直接调用private begin/write/receipt伪造权威。0056只在合成库，正式升级未授权。当前不是候选或FINAL GO，后续见20/21。
+
 - 纠正主终态complete：full-v2 actual133files3379/3379/child0/verificationnull/raw2E726BEF...F0444，旧v1(3376/3)、原8fail和303预算复核保留；Growth11/E2E11/type/lint/build-v2全0。Chrome61checks/37API、真实两held-sibling原生AbortSignal、3203907681440/8geometry/3nativeTab/3E0/0error/AI；三populatedowner36表只多3材料/receipt，其余成长/reward/Wish/outer完全保持。独立old8fail/new8pass+265通过但永久无DB，不冒称其重跑新full/browser。主全部客户端close/release-v2/census[]后精确原4/1清理0/0、formal11/10/nonTask/source/protected保持，disposal39DA5C3B...05F95。当前六auditdocs/17/35冻结待同Risk2最终candidate绑定，未新commit/ownCI/FINAL/merge/正式54/整站完成。
 
 - 2026-10-11 PR59 head54ca ownCI成功后，fresh Ramanujan committed FINAL真实React发现双GET失败→controller丢登记P2，NO-GO0/0/1，已永久释放/census[]。旧source新8回归20pass8fail；main仅finally捕获currentRead、abort后delete，修后四文件166/166/type/lint0。旧build/full/browser不能给新source背书；正在新build/full/Chrome/精准清理/同Risk2候选复审，不合并、不写正式0054。16全文与旧SQL/断言保持。
