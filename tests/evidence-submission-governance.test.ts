@@ -8,9 +8,9 @@ import {
   EVIDENCE_SUBMISSION_TESTS as TESTS, EVIDENCE_SUBMISSION_MIGRATION as MIGRATION,
   hasEvidenceSubmissionScope as has, evidenceSubmissionScopeViolations as violations, verifyEvidenceSubmissionAdmission as verify,
   resolveEvidenceSubmissionWorkingFiles as working, resolveEvidenceSubmissionChangedFiles as changed,
-  assertEvidenceSubmissionActualScope as actual, assertEvidenceSubmissionChangedScope as bind,
-  evidenceSubmissionHistoricalFiles as history, evidenceSubmissionContextFiles as contextHistory,
-  evidenceSubmissionRejectionFiles as rejectHistory, evidenceSubmissionHistoricalContent as content,
+  assertEvidenceSubmissionActualScope as priorActual, assertEvidenceSubmissionChangedScope as bind,
+  evidenceSubmissionHistoricalFiles as priorHistory, evidenceSubmissionContextFiles as priorContextHistory,
+  evidenceSubmissionRejectionFiles as priorRejectHistory, evidenceSubmissionHistoricalContent as priorContent,
   ASSESSMENT_CONTEXT_BASE as CONTEXT_BASE, ASSESSMENT_CONTEXT_COMPATIBILITY_ALLOWED as CONTEXT_ALLOWED,
   PROPOSAL_REJECTION_BASE as REJECT_BASE, PROPOSAL_REJECTION_ALLOWED as REJECT_ALLOWED,
   PROPOSAL_REJECTION_HISTORICAL_CONTENT as OLD_CONTENT, ASSESSMENT_CONTEXT_ACTIVITY_CONTENT as ACTIVITY_CONTENT,
@@ -23,6 +23,18 @@ import { phase8fCurrentScopeViolations as phase8f } from "./phase8f-ui-governanc
 const canonical = (value: string) => value.replace(/\r\n/g, "\n");
 const document = () => readFileSync(CONTROL, "utf8"), revision = (n: number) => String(n).repeat(40);
 const actualDiff = (from: string, to: string) => execFileSync("git", ["diff", "--no-renames", "--name-only", "-z", from, to], { encoding: "utf8" });
+import { isProposalFactEditCheckout, proposalFactEditEvidenceFiles, proposalFactEditContextFiles,
+  proposalFactEditRejectionFiles, proposalFactEditHistoricalFiles, proposalFactEditHistoricalContent } from "./helpers/governance-delta";
+const actual = (options: ProposalRejectionGitOptions = {}) => !options.execute && isProposalFactEditCheckout(options.cwd)
+  ? proposalFactEditEvidenceFiles(options) : priorActual(options);
+const history = (anchor: string, options: ProposalRejectionGitOptions = {}) => !options.execute && isProposalFactEditCheckout(options.cwd)
+  ? proposalFactEditHistoricalFiles(anchor, options) : priorHistory(anchor, options);
+const contextHistory = (options: ProposalRejectionGitOptions = {}) => !options.execute && isProposalFactEditCheckout(options.cwd)
+  ? proposalFactEditContextFiles(options) : priorContextHistory(options);
+const rejectHistory = (options: ProposalRejectionGitOptions = {}) => !options.execute && isProposalFactEditCheckout(options.cwd)
+  ? proposalFactEditRejectionFiles(options) : priorRejectHistory(options);
+const content = (file: string, group: "onboarding" | "activity" | "rejection" | "page", options: ProposalRejectionGitOptions = {}) => !options.execute && isProposalFactEditCheckout(options.cwd)
+  ? proposalFactEditHistoricalContent(file, group, options) : priorContent(file, group, options);
 function model(files: readonly string[] = ALLOWED, head = BASE, remote = revision(2)): ProposalRejectionGitOptions & { calls: string[] } {
   const calls: string[] = [];
   return { readControl: document, calls, execute(command) {
@@ -111,7 +123,8 @@ describe("Evidence16 strict authority, immutable admission and whole historical 
     expect(() => contextHistory(alter(model(), `diff --no-renames --name-only -z ${CONTEXT_BASE} ${BASE}`, "fake\0"))).toThrow("FAIL-CLOSED");
   });
   it("original page exactly restored by removing only panel import/insertion", () => {
-    const file = "src/app/activities/[id]/page.tsx", current = canonical(readFileSync(file, "utf8"));
+    const file = "src/app/activities/[id]/page.tsx", current = canonical(isProposalFactEditCheckout()
+      ? proposalFactEditHistoricalContent(file, "evidence-page") : readFileSync(file, "utf8"));
     const additions = ['import { EvidenceSubmissionPanel } from "@/components/activities/EvidenceSubmissionPanel";\n', '      <EvidenceSubmissionPanel activityId={visible.activity.id} />\n'];
     let reconstructed = current;
     for (const addition of additions) { expect(reconstructed.split(addition)).toHaveLength(2); reconstructed = reconstructed.replace(addition, ""); }

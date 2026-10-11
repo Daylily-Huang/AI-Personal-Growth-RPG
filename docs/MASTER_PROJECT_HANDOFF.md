@@ -462,3 +462,18 @@ Edit权限仍待用户选择；完整Verifier/附件与当前整站13步验收�
 同Risk2纠正仅面板finally先捕获当前状态、abort关联请求、再注销，新增8 UI反例，原controller16和旧断言保持。旧source新增测试20pass8fail/raw5F541...6449保留；修后4files166/166、typecheck/lint0已终态，新build/fullsuite/Chrome和同Risk2候选复审待。旧build/full/browser不替当前修复背书；同一合成栈由main独占重验后精确清理。3018/正式54321/根用户文件/密钥/备份/共享依赖保持；整站未完成。
 
 纠正最终主终态：新build-v2 mLc5p1VVKcPCPhnq5wsQh/source28保持；full-v1真实3376/3默认5s失败与303的30s复核保留后，整个full-v2 actual133files3379/3379/child0/verificationnull，raw2E726BEF...F0444；单独Growth11/E2E11、type/lint0。主新Chrome61/37API、两真实held-sibling原生取消、实际320/390/768/1440八geometry/3Tab/3材料、0error/AI，三populatedowner36表仅多3E0/receipt/原XP500L4M8及reward/Wish/outer保持。独立Ramanujan old8fail/new8pass与265/0skip通过，永久无DB；不是其二次full/browser/DB复跑。新browser/Next/PG退出及mainrelease-v2/census空后，97015原4containers1volume精确清理至0/0，formal11/10/nonTask/source/protected保持，新disposal39DA5C3B...05F95。六auditdocs/17/完整35在当前快照冻结待同Risk2最后离线绑定；候选GO后仍新selected8commit/ownCI/不同fresh FINAL/newstack/普通merge/postmain，正式54另批准及备份恢复。所有旧失败和旧GO范围保留，3018与用户数据/密钥/备份/deps保持；整站未完成。
+
+
+## SiteReadiness18 — 事实修正与AI重评：实现进行中
+
+基线229c09f122d3f0cb31fd02ff3ade53b27d06566d，独立checkout .data/site-proposal-edit。SQL0055、私有读写/上下文/AI路由、编辑器与历史面板已实现；主定向8files461及治理12files941均终态0/零skip/unhandled。EXACT52/MARKERS35主回归通过，helper旧前缀/932历史matcher参数/七业务source逆向保持；新完成buildHTTP套件仅TS/lint，尚未实跑，不替代最终全套/Chrome/fresh独审。完整阶段证据/失败保留19，18全文冻结。当前不提交/PR、不应用正式0055、不重建3019。
+
+本机3019/正式0054/完整备份/共享依赖与用户root修改保留。正式0055另需当前批准、新备份恢复/迁移独审。候选GO→selected52commit/ownCI→不同fresh committedFINAL→普通merge/postCI门禁不变；整站Verifier、附件及最新13步尚未完成，外部部署延期。
+
+### corrective最新状态（前段52为历史准入）
+
+用户已明确仅增旧assessment-context-api夹具一文件且原断言不变，fresh Risk2独立ADMISSION GO；18冻结不改，19唯一修订块hash56E0AE...ABF0约束当前严格53/35及新增文件逆向全文还原。主corrective治理942/定向464/TS0/production lint0通过；原完整suite3997pass/8fail/2skip及浏览器真实P1刷新卸载回执已记录和修复，不算最终全量通过。修后build-v3/full/Chrome/候选独审/精确owned清理/冻结53仍进行中；后续selected53commit/ownCI/不同fresh committedFINAL/普通merge/postCI及正式0055独立批准门禁继续。未签整站完成。
+
+### corrective主终态与清理后冻结（候选裁决待）
+
+当前build-v3 WQPlTjOYzDkMzQHrmSS_a/source347；完整143fileResults/4011assertions全passed/零skip/unhandled/child0，raw D673EA067011FE31AB4CC987CFDB34469FC25F297AE2CC2A27357FAC9ED9C477；全项目lint0/零warning，TS/Growth11/E2E11、治理942/966旧matcher、主Chrome51/8geometry/4nativeTab/PG XP12均通过。Herschel独立246及只读SQL243/19prosrc报告通过、永久释放，非其二次完整suite或浏览器。主29656→347e2e精确销毁原4容器1卷，task0/0、nonTask不变，清理121623728byte缓存；disposal2529CFEF...DD113，完整19保留所有失败/归属。严格53/冻结18/修订块35markers原hash保持，最终manifest/note待同Risk2离线裁决；候选GO后selected53commit/ownCI/不同freshFINAL/新栈释放清理/普通merge/postCI，不提前跳步。正式0055未当前批准、3019仍accepted229c；备份/共享deps/root用户四保护不变，整站未完成。

@@ -3649,3 +3649,12 @@ AI 理解这件事意味着什么
 - 长期可维护性
 
 则没有必要加入。
+
+
+# 事实修正入口实现说明（SiteReadiness18，进行中）
+
+新增本人 pending assessment 的 edit GET/POST 和 Activity fact-revisions GET。request-key锁在统一 per-Activity gate前；begin持久化不可变完整事实，只有新dispatch调用v0.4-facts，重放/结果核实GET不重调模型。service-only finalize原子插入新建议、revision并supersede旧pending。旧record/settle只加入准确gate/receipt保护，原逻辑可逆。
+
+原Activity不改，SettlementService仅从严格revision读取修正effectiveMinutes代入原calculateXp/QuestDelta，并在settlement/ledger审计revision。UI unknown保持同key/同facts、最多20GET/60秒，关闭仅停止等待。旧AI全文、Demo、provider、依赖及工作流均不变。具体资源预算与权限以18为准，19列历史失败/未验证边界；尚待完成build/真实HTTP/全套/Chrome/独审，正式0055另需批准与备份恢复。
+
+corrective最新技术状态：Pending自有15s abortable GET成功才发布dashboard，不再因全局refresh503丢回执；Editor每item RAM external store使用不可变snapshot/useSyncExternalStore，无浏览器持久化，关闭/卸载阻断迟到写回。build-v3 WQPlTjOYzDkMzQHrmSS_a/347sources保持，完整143files4011/TS/全项目lint/Growth11和主四宽Chrome通过；Herschel独立246/只读SQL243报告终态并永久释放。主原ID精确清理4容器1卷及121623728byte缓存；最终53/note离线绑定待，不把历史失败build或受控AI当真实供应商证明，正式0055/committedFINAL/合并仍另门禁。

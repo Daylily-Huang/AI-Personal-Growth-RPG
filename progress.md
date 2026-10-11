@@ -577,3 +577,20 @@
 最终冻结：Tesla direct permanently DB_ACCESS_COMPLETE，own7files157/157＋READONLY/ROLLBACK8/fivefunction sources/RLS权限通过，17:52:01Z own census空/所有clients终结。主据此精确disposer91822实际0、task4容器/1卷→0/0、formal11running10healthy/nonTask13保持/source24保护不变，raw355ADB...ABC2C；没有复开DB/HTTP/browser。当前14/32全部冻结待自己的最终hash绑定，不将该永久释放本身冒充candidateGO，也未commit/push/merge；cache待后续不用才清。
 
 2026-10-11 accepted52ba后启动16补证切片，原Euclid2P2 NO-GO及纠正准入0/0/0 GO精确保留，F4D...全文冻结；源实现从GO后开始。共享既有依赖无install，首pure63、三files136、纠正四files155全部终态0/零skip。原UI17pass1fail为已完成read signal假设错误，已补pending跨Activityabort反例；初typecheck两次新测试headers类型问题未过，已修但待最终重跑。当前不写正式DB、不AI、不新栈、不改现行3018，不以局部绿宣称完成。
+
+
+## FACT-EDIT18 — 完整范围及历史主回归通过
+
+已连接21production，原定向v11 8files461/461和新52/35治理v2 12files941/941主终态0/零skip/unhandled，featureTS/14本段tests lint0。12旧tests严格实际分支保留旧helper前缀/策略/932matcher参数及固定历史；新完成buildHTTP合成AI套件仅TS/lint，等待真实执行。v1 930/941的依赖路径/错误source名/漏转Reject范围及两TS hold夹具失败保留19。未提交、未正式0055、未触及既有3019或正式数据；后续完整构建/全栈/Chrome/独审与精确owned清理。
+
+## FACT-EDIT corrective进行中（原阶段仅历史）
+
+已主build-v1/隔离真实HTTP206；full-v1环境中断unknown，full-v2终态143files3997pass/8fail/2skip。用户授权窄增旧fixture一文件，经Herschel独立ADMISSION后strict53/35/18冻结/19块hash56E0AE...ABF0与exact两fixture增加逆向，旧assertions保留，生产缺port仍拒。治理v3 12files942/942终态0，966历史matcher原参数保持。
+
+浏览器v4暴露真实refresh503回执丢失，Pending owned GET成功才更新dashboard，Editor取消传递、15s/过时响应阻断；实际Provider+父page回归及close/unmount反例通过。production lint5errors修为内存external store不可变snapshot/useSyncExternalStore；最终主v14 8files464/464、TS0/lint0，之前build-v2只历史，正在v3重建。旧全部失败/不完整证据保留19，无commit/正式0055/候选GO；现有3019/正式0054/备份/root保护保持。
+
+## 2026-10-11 corrective terminal / cleanup
+
+主full84257→e55600实际143files4011/4011/零skip/unhandled/child0/null/null，raw D673EA067011FE31AB4CC987CFDB34469FC25F297AE2CC2A27357FAC9ED9C477；build-v3 WQPlTjOYzDkMzQHrmSS_a/347sources保持。全项目lint44100→25236d terminal0/warnings0，TS/Growth11/E2E11通过；Chrome-v5 51/8geometry/4nativeTab/25HTTP和PG frozenGrowthXP12证据见19，非真实AI供应商验收。
+
+主12:30:11census空后明确独占grant，Herschel独立246/SQL243终态报告和12:40:17census空直接永久DB释放已收；三SQL夹具错误保留，不冒称其二次完整suite或浏览器。主29656→347e2e终态0精确清原4容器/1卷→0，nonTask保持，cache121623728bytes删除，disposal SHA2529CFEF5DAA96D01E3AC83910BA6C6AA6B0D6DAB76A7F7545DF4E58925DD113；source/build/备份/shareddeps/root四/现有3019不动。冻结53/19与七旧docprefix待Herschel离线裁决；尚未候选GO/commit/正式0055/整站完成。

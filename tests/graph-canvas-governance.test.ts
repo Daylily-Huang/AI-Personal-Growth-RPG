@@ -1,3 +1,4 @@
+import { isProposalFactEditCheckout, assertProposalFactEditActualScope, proposalFactEditHistoricalFiles } from "./helpers/governance-delta";
 import { execFileSync } from "node:child_process";
 import { describe, expect, test } from "vitest";
 import {
@@ -70,6 +71,15 @@ describe("SiteReadiness02 exact graph-only scope", () => {
     }
   });
   test("binds the entire working candidate, including untracked files, to the accepted base", () => {
+    if (isProposalFactEditCheckout()) {
+      assertProposalFactEditActualScope();
+      const files = withoutActivityDetailAdditions(proposalFactEditHistoricalFiles(base));
+      expect(newUserGuideScopeViolations(withoutActivityDetailAdditions(proposalFactEditHistoricalFiles("ee48b84ce989f1d2904e94116d300513d77ef3e4")))).toEqual([]);
+      const additions = new Set<string>(NEW_USER_GUIDE_ADDITIONS), audits = new Set<string>(CONNECTED_FOCUS_AUDIT_ADDITIONS);
+      expect(graphInteractionScopeViolations(withoutActivityDetailAdditions(proposalFactEditHistoricalFiles(MOBILE_GRAPH_BASE)).filter(file => !additions.has(file)))).toEqual([]);
+      expect(graphCanvasScopeViolations(files.filter(file => !additions.has(file) && !audits.has(file) && file !== "src/app/knowledge/page.tsx"))).toEqual([]);
+      return;
+    }
     if (isEvidenceSubmissionCheckout()) {
       assertEvidenceSubmissionActualScope();
       const files = withoutActivityDetailAdditions(evidenceSubmissionHistoricalFiles(base));
@@ -125,6 +135,7 @@ describe("SiteReadiness02 exact graph-only scope", () => {
     }
   });
   test("checks the full committed PR or verified current-main first-parent range", () => {
+    if (isProposalFactEditCheckout()) { assertProposalFactEditActualScope(); return; }
     if (isEvidenceSubmissionCheckout()) { assertEvidenceSubmissionActualScope(); return; }
     if (isAssessmentContextCheckout()) { assertAssessmentContextActualScope(); return; }
     if (isProposalRejectionCheckout()) { assertProposalRejectionActualScope(); return; }

@@ -6,6 +6,9 @@ import { countRecentSimilar } from "@/lib/store/similarity";
 import type { AssessmentProposal } from "@/lib/ai/schemas";
 import type { Repository } from "./repository";
 import { isValidUuid } from "@/lib/http/validation";
+// BEGIN PROPOSAL_FACT_EDIT_SETTLEMENT_IMPORT
+import { validateProposalFactSettlementRevision } from "@/lib/proposal-edit/validation";
+// END PROPOSAL_FACT_EDIT_SETTLEMENT_IMPORT
 import type {
   ConfirmResult,
   MasteryVerification,
@@ -69,6 +72,14 @@ export class SettlementService {
     const activity = await this.repo.getActivity(assessment.activityId);
     if (!activity) return { result: { ok: false, reason: "activity_not_found" }, retry: false };
 
+    // BEGIN PROPOSAL_FACT_EDIT_SETTLEMENT_READ
+    const revision = this.repo.getProposalFactRevision ? await this.repo.getProposalFactRevision(assessment.id) : null;
+    const factRevision = revision === null ? null : validateProposalFactSettlementRevision(revision, assessment.id, activity.id, activity.rulesVersion);
+    if (factRevision && assessment.rulesVersion !== activity.rulesVersion) {
+      return { result: { ok: false, reason: "fact_revision_mismatch" }, retry: false };
+    }
+    const effectiveMinutes = factRevision ? factRevision.facts.effectiveMinutes : activity.effectiveMinutes;
+    // END PROPOSAL_FACT_EDIT_SETTLEMENT_READ
     // Stage 7B Artifact resolution validation
     const storedProposals = assessment.proposal.artifactProposals ?? [];
     const proposalCount = storedProposals.length;
@@ -227,7 +238,7 @@ export class SettlementService {
       novelty: assessment.proposal.xp_semantics.novelty,
       goalAlignment: assessment.proposal.xp_semantics.goal_alignment,
       repetitionCount: recentSimilarCount,
-      effectiveMinutes: activity.effectiveMinutes ?? undefined,
+      effectiveMinutes: effectiveMinutes ?? undefined,
       questSize: effectiveQuestSize,
     };
     const xpResult = calculateXp(xpInput);
@@ -236,7 +247,7 @@ export class SettlementService {
     // Milestone 4.2 / Round26 (P1-4): Shared deterministic quest progression delta
     const questProgressDelta = activity.questId
       ? calculateQuestProgressDelta({
-          effectiveMinutes: activity.effectiveMinutes,
+          effectiveMinutes,
           completion: assessment.proposal.activity.completion,
         })
       : undefined;
@@ -297,6 +308,9 @@ export class SettlementService {
         ...xpResult.modifiers,
         ...(activity.questIdSnapshot ? { questIdSnapshot: activity.questIdSnapshot } : {}),
         ...(activity.questTitleSnapshot ? { questTitleSnapshot: activity.questTitleSnapshot } : {}),
+        // BEGIN PROPOSAL_FACT_EDIT_LEDGER_AUDIT
+        ...(factRevision ? { factRevisionId: factRevision.id, factEffectiveMinutes: factRevision.facts.effectiveMinutes } : {}),
+        // END PROPOSAL_FACT_EDIT_LEDGER_AUDIT
       } as unknown as Record<string, unknown>,
       reason: activity.rawInput,
       rulesVersion: activity.rulesVersion,
@@ -306,6 +320,9 @@ export class SettlementService {
     const settlement: SettlementToApply = {
       assessmentId: assessment.id,
       transaction,
+      // BEGIN PROPOSAL_FACT_EDIT_SETTLEMENT_PAYLOAD
+      ...(factRevision ? { factRevisionId: factRevision.id, factEffectiveMinutes: factRevision.facts.effectiveMinutes } : {}),
+      // END PROPOSAL_FACT_EDIT_SETTLEMENT_PAYLOAD
       xpDelta,
       primarySkill: {
         skill: primarySkillResolution,

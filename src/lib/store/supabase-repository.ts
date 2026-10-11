@@ -4,6 +4,9 @@ import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { assembleSkillDetail } from "@/lib/skills/derived-state";
 import { AssessmentPersistenceService } from "./assessment-persistence.service";
 import { loadAssessmentContext } from "./assessment-context.repository";
+// BEGIN PROPOSAL_FACT_EDIT_REPOSITORY_IMPORT
+import { loadProposalFactRevision, hasProposalFactEdit } from "@/lib/proposal-edit/repository";
+// END PROPOSAL_FACT_EDIT_REPOSITORY_IMPORT
 import type { Repository, SettlementResult } from "./repository";
 import type {
   Activity,
@@ -78,6 +81,14 @@ export class SupabaseRepository implements Repository {
     return (data ?? []).map(mapAssessment);
   }
 
+  // BEGIN PROPOSAL_FACT_EDIT_REPOSITORY
+  async getProposalFactRevision(assessmentId: string) {
+    return loadProposalFactRevision(this.client, this.userId, assessmentId);
+  }
+  async hasProposalFactEdit(activityId: string) {
+    return hasProposalFactEdit(this.client, this.userId, activityId);
+  }
+  // END PROPOSAL_FACT_EDIT_REPOSITORY
   async listTransactions(): Promise<XpTransaction[]> {
     const { data, error } = await this.client
       .from("xp_transactions")

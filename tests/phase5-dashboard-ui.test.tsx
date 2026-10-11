@@ -1,3 +1,4 @@
+import { isProposalFactEditCheckout, assertProposalFactEditActualScope, proposalFactEditHistoricalFiles } from "./helpers/governance-delta";
 // @vitest-environment jsdom
 /**
  * tests/phase5-dashboard-ui.test.tsx
@@ -669,6 +670,13 @@ describe("Phase 5 — Stage 5A-UI Dashboard Modernization Test Suite (Round 4)",
 
   // 22. Fail-Closed Frozen Backend Delta Guard
   it("22. strictly asserts ZERO modifications were made to frozen backend and domain paths", () => {
+    if (isProposalFactEditCheckout()) {
+      assertProposalFactEditActualScope();
+      const historical = proposalFactEditHistoricalFiles("c06ab0b692045557d550a3e8eb2b9dd8aed61645");
+      expect(evaluateScopedPolicy(activityDetailDashboardFiles(historical), PHASE5_DASHBOARD_POLICY).violations).toEqual([]);
+      expect(evaluateScopedPolicy(["src/app/dashboard/page.tsx", "src/lib/growth-engine/engine.ts"], PHASE5_DASHBOARD_POLICY).violations.length).toBeGreaterThan(0);
+      return;
+    }
     if (isEvidenceSubmissionCheckout()) {
       assertEvidenceSubmissionActualScope();
       const historical = evidenceSubmissionHistoricalFiles("c06ab0b692045557d550a3e8eb2b9dd8aed61645");

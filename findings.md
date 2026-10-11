@@ -413,3 +413,18 @@ accepted评估原来只传time/固定null main/重复0，relatedSkillNames从未
 原page只加唯一import和panel插入，旧“只读”说明由新panel明确归属上方原文区。未知POST立即记同key/frozen tuple，仅严格回执成功；刷新读失败不再写。旧helper完整52ba前缀保留，新增35/19/hash/历史端点分离，Context32/Reject25等不借新SQL洗掉旧保护。主155离线局部测试已过，后续治理/PG/HTTP仍待，不能据此发版。
 
 
+
+
+## FACT-EDIT18 — 治理主回归通过，完整验收待续
+
+新helper仅追加accepted229c完整前缀后，严格52/35/hash/祖先/实际Git范围绑定先于固定Evidence35/Context32/Reject25及更早图谱历史投影。旧测试synthetic入口继续原函数；只有实际18 checkout走新门禁。七旧production精确逆向、932历史matcher参数/七docs前缀保持；主governance941及定向复跑461均终态0/零skip，TS/lint0。首轮11失败和两TS夹具错误保留19。当前新HTTP测试未运行，尚不宣称完成build/真实AI/候选GO；SQL277仅历史基础证据。
+
+## Corrective承重更新（上述仅历史）
+
+实际浏览器v4发现全局refresh503清空dashboard卸载editor的P1，真实Provider+DashboardPage回归不可由shell mock替代。修复限定Pending/Editor：成功GET才发布snapshot，失败保存receipt/retired/key；15s、关闭/卸载abort及迟到结果不写回。内存store用不可变snapshot/实际React订阅，避免prop写入/render ref读取；不localStorage/sessionStorage/cookie。最终主464/464、TS/lint0，仅主证据。
+
+full-v2 143files3997pass/8fail/2skip，8为旧mock缺新只读port并正确failclosed；用户授权只扩该旧fixture路径、原断言不变，经独立准入后严格53/35。19唯一不可变修订块56E0AE...ABF0/18冻结/两fixture增加逆向还原，禁止52旁路和第54路径；治理942、966历史matcher已主验证。旧full/build/browser不绑定修后，最终全量/Chrome/候选独审/清理仍待。
+
+## 纠正最终承重与证据归属
+
+实际父页面refresh503卸载回执缺陷已由当前ownedGET/store修复，完整source347/build-v3、主143files4011零skip/unhandled、全项目lint/TS、Chrome51/8geometry/4Tab及实际冻结GrowthXP12绑定。仅旧fixture两增加精确逆向还原accepted全文件，旧21断言运行通过；不是修改生产fallback以绕过failclosed。Herschel独立246/SQL243/19prosrc和永久释放来自其直接报告，主浏览器/full/disposal不冒称其执行。释放无自动messageID，主receipt明确引用实际工具返回原文及两stdoutSHA，session31404只是运行session。主精准4容器1卷清理及121623728byte cache删除后source/编译build/非taskinventory/备份/deps保持，最终候选53hash-binding仍待。所有失败/UNKNOWN保留19，正式0055仍未授权应用。
