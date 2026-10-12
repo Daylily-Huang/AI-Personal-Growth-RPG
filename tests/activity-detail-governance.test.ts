@@ -1,10 +1,16 @@
-import { artifactManualLegacyProjection, artifactManualHistoricalFiles, artifactManualHistoricalContent } from "./helpers/governance-delta";
+// REVIEW_HISTORY_ADAPTER_BEGIN
+import { reviewHistoricalFunction, reviewHistoricalReader } from "./helpers/governance-delta";
+const artifactManualHistoricalFiles = reviewHistoricalFunction(reviewPrevious_artifactManualHistoricalFiles);
+const artifactManualHistoricalContent = reviewHistoricalFunction(reviewPrevious_artifactManualHistoricalContent);
+const readFileSync = reviewHistoricalReader(reviewPrevious_readFileSync);
+// REVIEW_HISTORY_ADAPTER_END
+import { artifactManualLegacyProjection, artifactManualHistoricalFiles as reviewPrevious_artifactManualHistoricalFiles, artifactManualHistoricalContent as reviewPrevious_artifactManualHistoricalContent } from "./helpers/governance-delta";
 const proposalFactEditHistoricalFiles = artifactManualLegacyProjection(artifactManualPrevious_proposalFactEditHistoricalFiles, artifactManualHistoricalFiles);
 const proposalFactEditHistoricalContent = artifactManualLegacyProjection(artifactManualPrevious_proposalFactEditHistoricalContent, artifactManualHistoricalContent);
 import { isProposalFactEditCheckout, proposalFactEditHistoricalFiles as artifactManualPrevious_proposalFactEditHistoricalFiles, proposalFactEditHistoricalContent as artifactManualPrevious_proposalFactEditHistoricalContent } from "./helpers/governance-delta";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { readFileSync as reviewPrevious_readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 import { ACTIVITY_DETAIL_BASE, ACTIVITY_DETAIL_CONTROL, ACTIVITY_DETAIL_PRODUCTION, ACTIVITY_DETAIL_TESTS,
   ACTIVITY_DETAIL_MARKERS, ACTIVITY_DETAIL_ADDITIONS, ACTIVITY_DETAIL_ALLOWED, hasActivityDetailScope,

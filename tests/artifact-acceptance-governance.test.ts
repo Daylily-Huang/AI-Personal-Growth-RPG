@@ -1,10 +1,24 @@
+// REVIEW_HISTORY_ADAPTER_BEGIN
+import { reviewHistoricalFunction, reviewHistoricalReader } from "./helpers/governance-delta";
+const stage7c = reviewHistoricalFunction(reviewPrevious_stage7c);
+const actual = reviewHistoricalFunction(reviewPrevious_actual);
+const changed = reviewHistoricalFunction(reviewPrevious_changed);
+const bind = reviewHistoricalFunction(reviewPrevious_bind);
+const prior = reviewHistoricalFunction(reviewPrevious_prior);
+const evidence = reviewHistoricalFunction(reviewPrevious_evidence);
+const context = reviewHistoricalFunction(reviewPrevious_context);
+const rejection = reviewHistoricalFunction(reviewPrevious_rejection);
+const history = reviewHistoricalFunction(reviewPrevious_history);
+const cumulative = reviewHistoricalFunction(reviewPrevious_cumulative);
+const readFileSync = reviewHistoricalReader(reviewPrevious_readFileSync);
+// REVIEW_HISTORY_ADAPTER_END
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync as reviewPrevious_readFileSync, readdirSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   ARTIFACT_MANUAL_CORRECTIVE_HEAD as CORRECTIVE, ARTIFACT_MANUAL_CORRECTIVE_TREE as CORRECTIVE_TREE,
-  artifactManualStage7CHistoricalDelta as stage7c, artifactManualLegacyProjection as legacy, resolveGovernanceChangedFiles as originalResolver,
+  artifactManualStage7CHistoricalDelta as reviewPrevious_stage7c, artifactManualLegacyProjection as legacy, resolveGovernanceChangedFiles as originalResolver,
   ARTIFACT_MANUAL_BASE as BASE, ARTIFACT_MANUAL_CONTROL as CONTROL, ARTIFACT_MANUAL_ADMISSION_SHA as HASH,
   ARTIFACT_MANUAL_ALLOWED as ALLOWED, ARTIFACT_MANUAL_MARKERS as MARKERS, ARTIFACT_MANUAL_PRODUCTION as PRODUCTION,
   ARTIFACT_MANUAL_TESTS as TESTS, ARTIFACT_MANUAL_UI_TEST as UI_TEST, ARTIFACT_MANUAL_API_TEST as API_TEST,
@@ -15,9 +29,9 @@ import {
   proposalFactEditHistoricalContent as originalProposalContent, PROPOSAL_FACT_EDIT_CONTROL, PROPOSAL_FACT_EDIT_AMENDMENT_PATH,
   verifyArtifactManualAdmission as verify, verifyArtifactManualUIAssertion as verifyUI,
   hasArtifactManualScope as has, artifactManualScopeViolations as violations,
-  assertArtifactManualActualScope as actual, resolveArtifactManualChangedFiles as changed, assertArtifactManualChangedScope as bind,
-  artifactManualProposalFiles as prior, artifactManualEvidenceFiles as evidence, artifactManualContextFiles as context,
-  artifactManualRejectionFiles as rejection, artifactManualHistoricalFiles as history, artifactManualCumulativeFiles as cumulative,
+  assertArtifactManualActualScope as reviewPrevious_actual, resolveArtifactManualChangedFiles as reviewPrevious_changed, assertArtifactManualChangedScope as reviewPrevious_bind,
+  artifactManualProposalFiles as reviewPrevious_prior, artifactManualEvidenceFiles as reviewPrevious_evidence, artifactManualContextFiles as reviewPrevious_context,
+  artifactManualRejectionFiles as reviewPrevious_rejection, artifactManualHistoricalFiles as reviewPrevious_history, artifactManualCumulativeFiles as reviewPrevious_cumulative,
   PROPOSAL_FACT_EDIT_BASE, PROPOSAL_FACT_EDIT_ALLOWED, EVIDENCE_SUBMISSION_ALLOWED, ASSESSMENT_CONTEXT_COMPATIBILITY_ALLOWED,
   PROPOSAL_REJECTION_ALLOWED, NEW_USER_GUIDE_BASE, ACTIVITY_DETAIL_BASE, ACTIVITY_DETAIL_ALLOWED,
   GRAPH_CANVAS_MARKERS, MOBILE_GRAPH_MARKERS, PROPOSAL_FACT_EDIT_MARKERS, type ArtifactManualGitOptions,

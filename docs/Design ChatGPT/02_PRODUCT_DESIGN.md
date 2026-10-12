@@ -1901,3 +1901,30 @@ Next Best Action
 > 2026-10-12 Artifact补充决定（历史延期段保留）：用户选择“手动验收＋每件首次100积分”。作品库增加用户验收（USER_CONFIRMED_ARTIFACT），不是CORE_VERIFIED或独立验证；首次100愿望积分，不加XP、不升Mastery、不提高Evidence。只允许本人活跃未归档作品，必须填写验收说明并确认；验收时标题/版本保存快照，与当前版本分开展示。同作品终生一次，改名/版本/恢复/换请求或策略不能二领。撤销保留历史并精确纠正100，已消费部分按原奖励账户产生待抵扣额度；现实成就仍零积分。合同20是本次唯一准入；当前开发中，0056正式升级未授权，旧延期文本是历史状态而非本轮完成证据。
 
 > Artifact本次纠正主验已完成：手动验收／每件首次100愿望积分／撤销审计的生产实现不变，完整151文件4358项与四宽主浏览器同源证据通过；V6历史fixture适配只修测试兼容，原116断言保留。当前最终46候选绑定及committed FINAL、合并、正式0056仍待，现行3020仍0055，不把测试通过当正式积分已启用。全部失败和归属见21。
+
+# Daily / Weekly Review 本地补齐（22准入）
+
+在原复盘页追加Daily客观汇总与显式Weekly AI分析。账本事实、AI推断、用户确认笔记分栏；无ACTIVE Season仍可读取与分析。采用仅生成草稿，Daily用原AD_HOC类型并记录来源，须用户再保存。Monthly后置；不新增Core权限或公网功能。当前实现中，未签产品/整站GO。
+
+> Review纠正验收当前：主v9真实Daily/Weekly两显式AI调用与采用非保存、390/760/1280/44px/键盘通过。行动建议只谈现实行为，XP/Mastery风险另栏；英文连写残余曾独审NO-GO，当前统一词元拦截并保留自然Export等实际行为正例。正式0056已完成（上方旧延期/未授权为历史），现实成就零积分，Artifact用户手动验收首次100愿望积分不属于XP或独立验证。当前尚待fresh独审/最终全套/清理/合并和新本地入口，不能把主测试当整站完成；不增加公网、Monthly或高级集成需求。
+
+
+## Review v10 最新接点（此前记录为历史）
+
+当前production/tests已绑定build-v10 `30T31mcIXH3NDul4_SOKP`，主六文件165/165、零skip/unhandled、child0，含8,100个XP大小写/Unicode空白/格式字符组合断言；type-v7/lint-v8均actualchild0。主Chrome-v16五组通过，Daily/Weekly各一次明确调用真实deepseek-flash，上游stop/615及621tokens、无reasoning，应用200/schema/reference有效；采用仅草稿、390/760/1280三宽18控件44px、10原生Tab、零页面错误。47静态文件两不同private值零命中，root.env.local不变；真实39表仅旧明确保存导致review/audit差异，Skill/Player/ledger均500。Chrome已关闭，serve-v10精确TERM143、source-after保持，pre-full-v10实际candidateClients=[]。
+
+Goodall v9独立真实115及SQL已执行并于05:43:35Z永久释放，此后无DB/HTTP重授；其v9发现大写X空白P漏检，旧432组合中324绕过，不把旧执行冒称v10。主v10仅修正action词元统一大小写连接及保留six people/fix problems等明确自然词边界，追加矩阵且保留旧全部断言；同Risk2只读纠正与最终42绑定仍待。最终main wholefull-v6现已启动、独占执行，尚无终态，不预写全套/候选GO/清理成功。第一次收尾WSL shell PATH未加引号导致括号语法错误，browser关闭成功但后续命令零执行；改直接exec后真实静态扫描/39表核验/精确停serve均成功，属于主工具错误。
+
+正式0056不重复、699/3021仍旧正式入口，备份/共享deps/root四保护与旧冻结53/46保持。后续完整零skip→精准合成栈及再生缓存清理→七文档/42manifest→candidateGO→selected42commit/ownCI→不同fresh committedFINAL当前真实运行→普通merge/postCI→新本机入口及最终本地需求审计；不签整站完成，不增加公网或Monthly要求。
+
+## Daily/Weekly Review 主验收收口（2026-10-12）
+
+完整whole-v8已actualchild0/null/null：159文件4678/4678、零skip/fail/unhandled；旧30s用例28771.93ms通过，原断言/时限不改。raw SHA256 1B8F5FC5C0A78DE00465CC2CA31AAC2A1D7E0EF05C0670D68863B15EBC4FFCC1，terminal B934CD60FB945A296655BA7EDA24670A76FF28B64C961F3D37AC15B1886A3F5B。主Chrome-v16/current build-v10及Goodall own v10六165纠正证据保留，独审v9 runtime115/SQL不冒称新v10执行。
+
+主精准清理回执207230D66ABFECE52171CE34E3344402EF0571EA4F8A17BE003DE461C247D6AA：原专属4容器/1卷→0，当前可再生cache90files/136927810逻辑bytes已删除，其他inventory/source368/BUILD_ID不变；不是Docker VHD物理空间保证。正式0056/备份/699入口3021/root四/共享deps/旧冻结保留。22不改，七audit更新后freeze42；尚待Goodall最终42 candidateGO，不提前提交/推送/merge或整站完成。随后仍须不同fresh committed FINAL+ownCI+新栈精准清理、普通merge/postCI及新正式本机入口。此前NO-GO/超时/工具失败历史保持，详见23最新段。
+
+## 同Risk2审计P2纠正（保留旧错误历史，待复绑）
+
+Goodall最终offline binding对上一清单90C0C653EF3F607382A6E6D4BDAAE66F4E60147737292FB375E60D338E40BC41签P0=0/P1=0/P2=1 NO-GO：历史将v9大小写行为写反，不能提交。此前“只对小写x+空白+p生效”和“大写X空白P漏检”是主记录错误，现明确撤回其事实效力但保留原错误文字。独审已完成的实际重建v9匹配规则是 `/X\p{White_Space}+P/gu`（区分大小写、没有i）；完整源表达式格式未恢复，不补造逐字源码。其已执行代表输入 `allocateX PAfter testing` 拒绝；`allocatex pafter testing`、`allocatex PAfter testing`、`allocateX pAfter testing` 均接受而违规绕过。432已执行组合中v9接受324/拒绝108，当前v10拒绝全部432，结论限定原矩阵，不泛化任意输入。
+
+本次只向七audit文档和root三计划追加准确更正，production/tests/source368/BUILD_ID/full-v8/browser-v16/disposal均不变，不以修改文档为由伪称重新执行测试。旧NO-GO清单保留为candidate-manifest-v1-no-go.json，新42需重新hash并由同一Risk2仅离线复绑，当前仍未candidateGO/commit/PR/merge。其DB/HTTP永久释放继续有效。首次通知reviewer工具误传id而非target，解析拒绝、未送达；改正确target才实际送达，属主调用错误，不是产品finding。

@@ -1,8 +1,12 @@
+// REVIEW_HISTORY_ADAPTER_BEGIN
+import { reviewHistoricalFunction } from "./helpers/governance-delta";
+const artifactManualStage7CHistoricalDelta = reviewHistoricalFunction(reviewPrevious_artifactManualStage7CHistoricalDelta);
+// REVIEW_HISTORY_ADAPTER_END
 // @vitest-environment jsdom
 // tests/stage7c-ui.test.tsx
 // Phase 4 — Stage 7C Artifact UI & Proposal Resolution Comprehensive Test Suite (Round 3 Final Frozen Closure)
 
-import { artifactManualLegacyProjection, artifactManualStage7CHistoricalDelta } from "./helpers/governance-delta";
+import { artifactManualLegacyProjection, artifactManualStage7CHistoricalDelta as reviewPrevious_artifactManualStage7CHistoricalDelta } from "./helpers/governance-delta";
 const resolveGovernanceChangedFiles = artifactManualLegacyProjection(artifactManualPrevious_resolveGovernanceChangedFiles, artifactManualStage7CHistoricalDelta);
 import React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";

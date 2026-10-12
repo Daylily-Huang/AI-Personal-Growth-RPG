@@ -16,6 +16,11 @@ import { BaseModal, PrimaryButton, SecondaryButton, SectionCard } from "@/compon
 import { SeasonStatusPill } from "@/components/journey/SeasonStatusPill";
 import { journeyInputClass, journeyLabelClass } from "@/components/journey/formStyles";
 import type { SeasonReview, SeasonSummary } from "@/lib/outer-loop/types";
+// REVIEW_INSIGHTS_IMPORT_BEGIN
+import ReviewInsightsPanel from "./ReviewInsightsPanel";
+import type { ReviewDraft } from "@/lib/review-insights/types";
+import { matchingReviewDraftPeriod, reviewDraftInputTime } from "@/lib/review-insights/client";
+// REVIEW_INSIGHTS_IMPORT_END
 
 interface ApiErrorPayload {
   error?: string;
@@ -67,6 +72,9 @@ export default function ReviewsClient({ initialSeasonId = null }: ReviewsClientP
   const [reflection, setReflection] = useState("");
   const [adjustments, setAdjustments] = useState("");
   const [amendmentReason, setAmendmentReason] = useState("");
+  // REVIEW_INSIGHTS_STATE_BEGIN
+  const [objectiveNote, setObjectiveNote] = useState<ReviewDraft["objectiveSummary"] | null>(null);
+  // REVIEW_INSIGHTS_STATE_END
 
   const load = useCallback(async () => {
     setError(null);
@@ -119,6 +127,10 @@ export default function ReviewsClient({ initialSeasonId = null }: ReviewsClientP
   async function submitPeriodicReview(event: React.FormEvent) {
     event.preventDefault();
     if (!editorSeasonId || !reflection.trim()) return;
+    // REVIEW_INSIGHTS_MATCH_BEGIN
+    const attachedPeriod = matchingReviewDraftPeriod(objectiveNote, periodStart, periodEnd, reviewType);
+    const attachedNote = attachedPeriod ? objectiveNote : null;
+    // REVIEW_INSIGHTS_MATCH_END
     setBusy(true);
     setError(null);
     try {
@@ -127,9 +139,9 @@ export default function ReviewsClient({ initialSeasonId = null }: ReviewsClientP
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           reviewType,
-          periodStart: toIso(periodStart),
-          periodEnd: toIso(periodEnd),
-          objectiveSummary: {},
+          periodStart: attachedPeriod?.start ?? toIso(periodStart), // REVIEW_INSIGHTS_PERIOD_START
+          periodEnd: attachedPeriod?.end ?? toIso(periodEnd), // REVIEW_INSIGHTS_PERIOD_END
+          objectiveSummary: attachedNote ?? {}, // REVIEW_INSIGHTS_OBJECTIVE_NOTE
           qualitativeReflection: reflection,
           criteriaEvaluation: [],
           tacticalAdjustments: adjustments || null,
@@ -153,6 +165,7 @@ export default function ReviewsClient({ initialSeasonId = null }: ReviewsClientP
   }
 
   function openAmendment(review: SeasonReview) {
+    setObjectiveNote(null); // REVIEW_INSIGHTS_CLEAR_AMENDMENT
     setAmendingReview(review);
     setReflection(review.qualitativeReflection);
     setAdjustments(review.tacticalAdjustments ?? "");
@@ -217,6 +230,7 @@ export default function ReviewsClient({ initialSeasonId = null }: ReviewsClientP
           <SecondaryButton onClick={() => void load()} disabled={busy} icon={<RefreshCw className="h-4 w-4" />}>刷新</SecondaryButton>
           <PrimaryButton
             onClick={() => {
+              setObjectiveNote(null); // REVIEW_INSIGHTS_CLEAR_MANUAL
               setAmendingReview(null);
               if (!editorSeasonId) setEditorSeasonId(activeSeasons[0]?.id ?? "");
               setEditorOpen(true);
@@ -228,6 +242,20 @@ export default function ReviewsClient({ initialSeasonId = null }: ReviewsClientP
           </PrimaryButton>
         </div>
       </header>
+
+      {/* REVIEW_INSIGHTS_PANEL_BEGIN */}
+      <ReviewInsightsPanel canAdopt={activeSeasons.length > 0} onAdopt={draft => {
+        setAmendingReview(null);
+        setEditorSeasonId(activeSeasons[0]?.id ?? "");
+        setReviewType(draft.period.mode === "DAILY" ? "AD_HOC" : "WEEKLY");
+        setPeriodStart(reviewDraftInputTime(draft.period.start));
+        setPeriodEnd(reviewDraftInputTime(draft.period.end));
+        setReflection(draft.reflection);
+        setAdjustments(draft.adjustments);
+        setObjectiveNote(draft.objectiveSummary);
+        setEditorOpen(true);
+      }} />
+      {/* REVIEW_INSIGHTS_PANEL_END */}
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <div className="rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--surface-base)] p-4">
@@ -334,8 +362,8 @@ export default function ReviewsClient({ initialSeasonId = null }: ReviewsClientP
           <label className={journeyLabelClass}>ACTIVE Season<select className={journeyInputClass} value={editorSeasonId} onChange={(e) => setEditorSeasonId(e.target.value)} required><option value="">选择赛季</option>{activeSeasons.map((season) => <option key={season.id} value={season.id}>{season.name}</option>)}</select></label>
           <label className={journeyLabelClass}>复盘类型<select className={journeyInputClass} value={reviewType} onChange={(e) => setReviewType(e.target.value as typeof reviewType)}><option value="WEEKLY">WEEKLY</option><option value="AD_HOC">AD_HOC</option></select></label>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <label className={journeyLabelClass}>周期开始<input type="datetime-local" className={journeyInputClass} value={periodStart} onChange={(e) => setPeriodStart(e.target.value)} required /></label>
-            <label className={journeyLabelClass}>周期结束<input type="datetime-local" className={journeyInputClass} value={periodEnd} onChange={(e) => setPeriodEnd(e.target.value)} required /></label>
+            <label className={journeyLabelClass}>周期开始<input data-review-draft-time="true" step="any" type="datetime-local" className={journeyInputClass} value={periodStart} onChange={(e) => { setPeriodStart(e.target.value); setObjectiveNote(null); }} required /></label>
+            <label className={journeyLabelClass}>周期结束<input data-review-draft-time="true" step="any" type="datetime-local" className={journeyInputClass} value={periodEnd} onChange={(e) => { setPeriodEnd(e.target.value); setObjectiveNote(null); }} required /></label>
           </div>
           <label className={journeyLabelClass}>定性反思<textarea className={`${journeyInputClass} min-h-32 resize-y`} value={reflection} onChange={(e) => setReflection(e.target.value)} required placeholder="发生了什么？哪些模式值得保留或修正？" /></label>
           <label className={journeyLabelClass}>战术调整（可选）<textarea className={`${journeyInputClass} min-h-24 resize-y`} value={adjustments} onChange={(e) => setAdjustments(e.target.value)} /></label>

@@ -1,6 +1,15 @@
+// REVIEW_HISTORY_ADAPTER_BEGIN
+import { reviewHistoricalFunction, reviewHistoricalReader } from "./helpers/governance-delta";
+const artifactManualProposalFiles = reviewHistoricalFunction(reviewPrevious_artifactManualProposalFiles);
+const artifactManualHistoricalFiles = reviewHistoricalFunction(reviewPrevious_artifactManualHistoricalFiles);
+const artifactManualHistoricalContent = reviewHistoricalFunction(reviewPrevious_artifactManualHistoricalContent);
+const artifactManualContextFiles = reviewHistoricalFunction(reviewPrevious_artifactManualContextFiles);
+const artifactManualRejectionFiles = reviewHistoricalFunction(reviewPrevious_artifactManualRejectionFiles);
+const readFileSync = reviewHistoricalReader(reviewPrevious_readFileSync);
+// REVIEW_HISTORY_ADAPTER_END
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { readFileSync as reviewPrevious_readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 import { ASSESSMENT_CONTEXT_BASE as BASE, ASSESSMENT_CONTEXT_CONTROL as CONTROL, ASSESSMENT_CONTEXT_ADMISSION_SHA as HASH,
   ASSESSMENT_CONTEXT_ALLOWED as ALLOWED, ASSESSMENT_CONTEXT_MARKERS as MARKERS, ASSESSMENT_CONTEXT_PRODUCTION as PRODUCTION,
@@ -22,7 +31,7 @@ import { isEvidenceSubmissionCheckout, assertEvidenceSubmissionActualScope, evid
   evidenceSubmissionHistoricalFiles, evidenceSubmissionRejectionFiles, evidenceSubmissionHistoricalContent,
   EVIDENCE_SUBMISSION_BASE } from "./helpers/governance-delta";
 // Only actual present-day calls get a fixed-endpoint adapter; every old synthetic model still exercises the original functions.
-import { artifactManualLegacyProjection, artifactManualProposalFiles, artifactManualHistoricalFiles, artifactManualHistoricalContent, artifactManualContextFiles, artifactManualRejectionFiles } from "./helpers/governance-delta";
+import { artifactManualLegacyProjection, artifactManualProposalFiles as reviewPrevious_artifactManualProposalFiles, artifactManualHistoricalFiles as reviewPrevious_artifactManualHistoricalFiles, artifactManualHistoricalContent as reviewPrevious_artifactManualHistoricalContent, artifactManualContextFiles as reviewPrevious_artifactManualContextFiles, artifactManualRejectionFiles as reviewPrevious_artifactManualRejectionFiles } from "./helpers/governance-delta";
 const assertProposalFactEditActualScope = artifactManualLegacyProjection(artifactManualPrevious_assertProposalFactEditActualScope, artifactManualProposalFiles);
 const proposalFactEditHistoricalFiles = artifactManualLegacyProjection(artifactManualPrevious_proposalFactEditHistoricalFiles, artifactManualHistoricalFiles);
 const proposalFactEditHistoricalContent = artifactManualLegacyProjection(artifactManualPrevious_proposalFactEditHistoricalContent, artifactManualHistoricalContent);

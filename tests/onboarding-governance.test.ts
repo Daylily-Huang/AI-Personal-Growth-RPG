@@ -1,11 +1,18 @@
-import { artifactManualLegacyProjection, artifactManualProposalFiles, artifactManualHistoricalFiles, artifactManualHistoricalContent } from "./helpers/governance-delta";
+// REVIEW_HISTORY_ADAPTER_BEGIN
+import { reviewHistoricalFunction, reviewHistoricalReader } from "./helpers/governance-delta";
+const artifactManualProposalFiles = reviewHistoricalFunction(reviewPrevious_artifactManualProposalFiles);
+const artifactManualHistoricalFiles = reviewHistoricalFunction(reviewPrevious_artifactManualHistoricalFiles);
+const artifactManualHistoricalContent = reviewHistoricalFunction(reviewPrevious_artifactManualHistoricalContent);
+const readFileSync = reviewHistoricalReader(reviewPrevious_readFileSync);
+// REVIEW_HISTORY_ADAPTER_END
+import { artifactManualLegacyProjection, artifactManualProposalFiles as reviewPrevious_artifactManualProposalFiles, artifactManualHistoricalFiles as reviewPrevious_artifactManualHistoricalFiles, artifactManualHistoricalContent as reviewPrevious_artifactManualHistoricalContent } from "./helpers/governance-delta";
 const assertProposalFactEditActualScope = artifactManualLegacyProjection(artifactManualPrevious_assertProposalFactEditActualScope, artifactManualProposalFiles);
 const proposalFactEditHistoricalFiles = artifactManualLegacyProjection(artifactManualPrevious_proposalFactEditHistoricalFiles, artifactManualHistoricalFiles);
 const proposalFactEditHistoricalContent = artifactManualLegacyProjection(artifactManualPrevious_proposalFactEditHistoricalContent, artifactManualHistoricalContent);
 import { isProposalFactEditCheckout, proposalFactEditHistoricalFiles as artifactManualPrevious_proposalFactEditHistoricalFiles, assertProposalFactEditActualScope as artifactManualPrevious_assertProposalFactEditActualScope, proposalFactEditHistoricalContent as artifactManualPrevious_proposalFactEditHistoricalContent } from "./helpers/governance-delta";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { readFileSync as reviewPrevious_readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 import {
   NEW_USER_GUIDE_BASE, NEW_USER_GUIDE_CONTROL, NEW_USER_GUIDE_PRODUCTION, NEW_USER_GUIDE_TESTS,

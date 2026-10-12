@@ -1,11 +1,18 @@
-import { artifactManualLegacyProjection, artifactManualHistoricalFiles, artifactManualHistoricalContent, artifactManualRejectionFiles } from "./helpers/governance-delta";
+// REVIEW_HISTORY_ADAPTER_BEGIN
+import { reviewHistoricalFunction, reviewHistoricalReader } from "./helpers/governance-delta";
+const artifactManualHistoricalFiles = reviewHistoricalFunction(reviewPrevious_artifactManualHistoricalFiles);
+const artifactManualHistoricalContent = reviewHistoricalFunction(reviewPrevious_artifactManualHistoricalContent);
+const artifactManualRejectionFiles = reviewHistoricalFunction(reviewPrevious_artifactManualRejectionFiles);
+const readFileSync = reviewHistoricalReader(reviewPrevious_readFileSync);
+// REVIEW_HISTORY_ADAPTER_END
+import { artifactManualLegacyProjection, artifactManualHistoricalFiles as reviewPrevious_artifactManualHistoricalFiles, artifactManualHistoricalContent as reviewPrevious_artifactManualHistoricalContent, artifactManualRejectionFiles as reviewPrevious_artifactManualRejectionFiles } from "./helpers/governance-delta";
 const proposalFactEditHistoricalFiles = artifactManualLegacyProjection(artifactManualPrevious_proposalFactEditHistoricalFiles, artifactManualHistoricalFiles);
 const proposalFactEditHistoricalContent = artifactManualLegacyProjection(artifactManualPrevious_proposalFactEditHistoricalContent, artifactManualHistoricalContent);
 const proposalFactEditRejectionFiles = artifactManualLegacyProjection(artifactManualPrevious_proposalFactEditRejectionFiles, artifactManualRejectionFiles);
 import { isProposalFactEditCheckout, proposalFactEditRejectionFiles as artifactManualPrevious_proposalFactEditRejectionFiles, proposalFactEditHistoricalFiles as artifactManualPrevious_proposalFactEditHistoricalFiles, proposalFactEditHistoricalContent as artifactManualPrevious_proposalFactEditHistoricalContent } from "./helpers/governance-delta";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { readFileSync as reviewPrevious_readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 import {
   PROPOSAL_REJECTION_BASE as BASE, PROPOSAL_REJECTION_CONTROL as CONTROL,

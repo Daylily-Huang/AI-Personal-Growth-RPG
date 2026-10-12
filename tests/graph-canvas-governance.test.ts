@@ -1,4 +1,9 @@
-import { artifactManualLegacyProjection, artifactManualProposalFiles, artifactManualHistoricalFiles } from "./helpers/governance-delta";
+// REVIEW_HISTORY_ADAPTER_BEGIN
+import { reviewHistoricalFunction } from "./helpers/governance-delta";
+const artifactManualProposalFiles = reviewHistoricalFunction(reviewPrevious_artifactManualProposalFiles);
+const artifactManualHistoricalFiles = reviewHistoricalFunction(reviewPrevious_artifactManualHistoricalFiles);
+// REVIEW_HISTORY_ADAPTER_END
+import { artifactManualLegacyProjection, artifactManualProposalFiles as reviewPrevious_artifactManualProposalFiles, artifactManualHistoricalFiles as reviewPrevious_artifactManualHistoricalFiles } from "./helpers/governance-delta";
 const assertProposalFactEditActualScope = artifactManualLegacyProjection(artifactManualPrevious_assertProposalFactEditActualScope, artifactManualProposalFiles);
 const proposalFactEditHistoricalFiles = artifactManualLegacyProjection(artifactManualPrevious_proposalFactEditHistoricalFiles, artifactManualHistoricalFiles);
 import { isProposalFactEditCheckout, assertProposalFactEditActualScope as artifactManualPrevious_assertProposalFactEditActualScope, proposalFactEditHistoricalFiles as artifactManualPrevious_proposalFactEditHistoricalFiles } from "./helpers/governance-delta";
