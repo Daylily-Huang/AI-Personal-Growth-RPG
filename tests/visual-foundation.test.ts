@@ -1,8 +1,13 @@
-import { artifactManualLegacyProjection, artifactManualProposalFiles, ARTIFACT_MANUAL_CONTROL, artifactManualScopeViolations } from "./helpers/governance-delta";
+// REVIEW_HISTORY_ADAPTER_BEGIN
+import { reviewHistoricalFunction, reviewHistoricalFs, REVIEW_INSIGHTS_CONTROL, reviewInsightsScopeViolations } from "./helpers/governance-delta";
+const artifactManualProposalFiles = reviewHistoricalFunction(reviewPrevious_artifactManualProposalFiles);
+const fs = reviewHistoricalFs(reviewPrevious_fs);
+// REVIEW_HISTORY_ADAPTER_END
+import { artifactManualLegacyProjection, artifactManualProposalFiles as reviewPrevious_artifactManualProposalFiles, ARTIFACT_MANUAL_CONTROL, artifactManualScopeViolations } from "./helpers/governance-delta";
 const assertProposalFactEditActualScope = artifactManualLegacyProjection(artifactManualPrevious_assertProposalFactEditActualScope, artifactManualProposalFiles);
 import { isProposalFactEditCheckout, assertProposalFactEditActualScope as artifactManualPrevious_assertProposalFactEditActualScope, PROPOSAL_FACT_EDIT_CONTROL, proposalFactEditScopeViolations } from "./helpers/governance-delta";
 import { describe, it, expect } from 'vitest';
-import fs from 'node:fs';
+import reviewPrevious_fs from 'node:fs';
 import path from 'node:path';
 import { compile } from 'tailwindcss';
 import { createRequire } from 'node:module';
@@ -156,6 +161,9 @@ export const AUTH_ENTRYPOINT_BACKEND = [
 ] as const;
 
 export function validateVisualMigrationDelta(changedFiles: string[]): VisualMigrationValidationResult {
+  // REVIEW_SCOPE_SELECTOR_BEGIN
+  if (changedFiles.includes(REVIEW_INSIGHTS_CONTROL)) return { isVisualPR: true, violations: reviewInsightsScopeViolations(changedFiles) };
+  // REVIEW_SCOPE_SELECTOR_END
   if (changedFiles.includes(ARTIFACT_MANUAL_CONTROL)) return { isVisualPR: true, violations: artifactManualScopeViolations(changedFiles) };
   if (changedFiles.includes(PROPOSAL_FACT_EDIT_CONTROL)) {
     return { isVisualPR: true, violations: proposalFactEditScopeViolations(changedFiles) };

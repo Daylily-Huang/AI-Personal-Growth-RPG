@@ -356,3 +356,44 @@
 - [complete exact-owned cleanup] 原4容器/1卷→0，其他容器inventory保持，删121623728byte构建cache，source/build/备份/共享deps/正式数据保留。disposal2529CFEF...DD113。
 - [pending narrow next gate] 冻结严格53/note与七旧docs完整prefix，Herschel最终离线候选裁决；其GO前不commit。之后selected53/ownCI/不同fresh committedFINAL/普通merge/postmainCI。
 - [pending separate authority] 正式0055当前批准、新备份恢复/迁移独审、新本机预览；真实AI/Verifier/附件/整站13步仍不由本切片证明。现有3019及正式0054保持。
+
+# Daily / Weekly Review 当前执行计划
+
+1准入已GO；2实现只读Daily/Weekly/AI/采用草稿；3新tests+旧治理真实历史投影；4定向/完整/真实DBHTTP/providerChrome/lint/type/build；5freshRisk2 candidate→selected42commit→ownCI→不同FINAL→ordinarymerge/postCI；6更新本机preview/启动器，独立验收并精确清理。正式0056与备份/共享deps/用户dirty受保护，整体goalactive。
+
+## Review corrective v7 当前接点（上方阶段pending为历史）
+
+- [complete main only] 六新离线140/140、治理145/145、两旧兼容235/235、四旧真实HTTP92/92、Growth11；build-v7 fpA8GcBivVaprg06FAgp4、type-v5/lint-v6 child0。v6前半段构建与完整中断均不是当前最终验收。
+- [complete main browser] Chrome-v14新构建Daily/Weekly真实deepseek-flash两明确调用、十一主题、采用只开草稿、三宽18控件44px/10Tab、零错误；静态47files/2private值零命中，39业务表除旧明确保存的Review/audit外不变，三XP500。模板/注入脚本分别hash绑定。
+- [in progress independent] fresh Locke原四P2已独立反例复核；主另复现英文残余allocateXP等，v7修复与六反例后待同Risk2新复核。完整whole-v5在修前精确取消143/零owned残留。双方主客户端终态后已明确独占DB grant，让独审115/readonlySQL先执行，永久release后主才最终wholefull-v6。顺序改变不降低任何终态门禁。
+- [pending] wholefull零skip/原30s断言、双方永久release与精确owned清理、七docs和42manifest、candidateGO→selected42/ownCI→不同freshFINAL→普通合并/postCI→新本机preview与启动器窄独审；以上未完成前不签整站完成。
+
+
+## Review v10 最新接点（此前记录为历史）
+
+当前production/tests已绑定build-v10 `30T31mcIXH3NDul4_SOKP`，主六文件165/165、零skip/unhandled、child0，含8,100个XP大小写/Unicode空白/格式字符组合断言；type-v7/lint-v8均actualchild0。主Chrome-v16五组通过，Daily/Weekly各一次明确调用真实deepseek-flash，上游stop/615及621tokens、无reasoning，应用200/schema/reference有效；采用仅草稿、390/760/1280三宽18控件44px、10原生Tab、零页面错误。47静态文件两不同private值零命中，root.env.local不变；真实39表仅旧明确保存导致review/audit差异，Skill/Player/ledger均500。Chrome已关闭，serve-v10精确TERM143、source-after保持，pre-full-v10实际candidateClients=[]。
+
+Goodall v9独立真实115及SQL已执行并于05:43:35Z永久释放，此后无DB/HTTP重授；其v9发现大写X空白P漏检，旧432组合中324绕过，不把旧执行冒称v10。主v10仅修正action词元统一大小写连接及保留six people/fix problems等明确自然词边界，追加矩阵且保留旧全部断言；同Risk2只读纠正与最终42绑定仍待。最终main wholefull-v6现已启动、独占执行，尚无终态，不预写全套/候选GO/清理成功。第一次收尾WSL shell PATH未加引号导致括号语法错误，browser关闭成功但后续命令零执行；改直接exec后真实静态扫描/39表核验/精确停serve均成功，属于主工具错误。
+
+正式0056不重复、699/3021仍旧正式入口，备份/共享deps/root四保护与旧冻结53/46保持。后续完整零skip→精准合成栈及再生缓存清理→七文档/42manifest→candidateGO→selected42commit/ownCI→不同fresh committedFINAL当前真实运行→普通merge/postCI→新本机入口及最终本地需求审计；不签整站完成，不增加公网或Monthly要求。
+
+
+## Whole-v7真实失败及只读Git运行器纠正（当前）
+
+wholefull-v7实际159文件/4678断言，4677pass/1fail/0skip/0unhandled，child1/null/null；唯一失败是原assessment-context-governance第135行十内容路径测试自有30000ms超时，实测36230.99ms，不是断言内容不符，不算全套通过。原30s与全部旧断言/新helper/当前production/tests均不改。
+主单用例诊断profile-target与v2均同样超时（仅该用例选择，其余156非选择skip不是全套证据）；首个NODE_OPTIONS观测hook未进入worker，没生成Git统计，改为主诊断setup后实测594次真实Git调用共36801.97ms，三命令类别/原始输出不改。一次只读统计Node表达式多括号报错已纠正；首次benchmark把execFileSync含空格单参数误当shell文本导致Gitshow路径错误，未产生结果回执，改实际参数数组后44unique×3对照逐字节相同。
+Git安装的cmd/git.exe是46480B启动器，mingw64/bin/git.exe为4422544B实际core；直接core的原594调用预测30.90s，进一步两环境真实对照决定仅rev-parse/show走原生Linux明确同git-dir/work-tree/-C，其余走Windows同安装core，预测27.24s。只改ignored git-bin/git执行后端，原参数拒绝/安全白名单及tmp独立fallback逐字保留；每次都是真实Git，无结果/refs/当前授权缓存，无新服务/镜像/依赖/全局配置。新unit-v15整份旧157仍在跑，未预写通过；若通过才whole-v8重新零skip，不把v7的4677与局部绿拼成完整绿。
+Goodall已经报告own v10六165/165、432反例旧324/新0和28正例；逆向v9两完整SHA保留独审history。原20份中18份保持（不是19），helper＋13旧tests14份不变。其115/SQL为v9历史，05:43:35Z/chunk5b22ff永久释放；原逐字全文当前不可恢复，只保留实际marker/time/tool/census，绝不伪造messageID/正文。仍待最终42/全套/精准清理，尚无candidateGO/提交/新PR。
+只准备了ignored selected42 commit/fresh FINAL config/只读dispatcher/精准disposer，未执行提交或第二栈启动；新FINALdisposer初稿括号syntaxcheck失败，修后--check0、从未执行删除。进程census补充实际exe识别Node显示MainThread，避免只看comm漏查；正式0056/3021/所有备份/共享deps/root四保护保持。
+
+## Daily/Weekly Review 主验收收口（2026-10-12）
+
+完整whole-v8已actualchild0/null/null：159文件4678/4678、零skip/fail/unhandled；旧30s用例28771.93ms通过，原断言/时限不改。raw SHA256 1B8F5FC5C0A78DE00465CC2CA31AAC2A1D7E0EF05C0670D68863B15EBC4FFCC1，terminal B934CD60FB945A296655BA7EDA24670A76FF28B64C961F3D37AC15B1886A3F5B。主Chrome-v16/current build-v10及Goodall own v10六165纠正证据保留，独审v9 runtime115/SQL不冒称新v10执行。
+
+主精准清理回执207230D66ABFECE52171CE34E3344402EF0571EA4F8A17BE003DE461C247D6AA：原专属4容器/1卷→0，当前可再生cache90files/136927810逻辑bytes已删除，其他inventory/source368/BUILD_ID不变；不是Docker VHD物理空间保证。正式0056/备份/699入口3021/root四/共享deps/旧冻结保留。22不改，七audit更新后freeze42；尚待Goodall最终42 candidateGO，不提前提交/推送/merge或整站完成。随后仍须不同fresh committed FINAL+ownCI+新栈精准清理、普通merge/postCI及新正式本机入口。此前NO-GO/超时/工具失败历史保持，详见23最新段。
+
+## 同Risk2审计P2纠正（保留旧错误历史，待复绑）
+
+Goodall最终offline binding对上一清单90C0C653EF3F607382A6E6D4BDAAE66F4E60147737292FB375E60D338E40BC41签P0=0/P1=0/P2=1 NO-GO：历史将v9大小写行为写反，不能提交。此前“只对小写x+空白+p生效”和“大写X空白P漏检”是主记录错误，现明确撤回其事实效力但保留原错误文字。独审已完成的实际重建v9匹配规则是 `/X\p{White_Space}+P/gu`（区分大小写、没有i）；完整源表达式格式未恢复，不补造逐字源码。其已执行代表输入 `allocateX PAfter testing` 拒绝；`allocatex pafter testing`、`allocatex PAfter testing`、`allocateX pAfter testing` 均接受而违规绕过。432已执行组合中v9接受324/拒绝108，当前v10拒绝全部432，结论限定原矩阵，不泛化任意输入。
+
+本次只向七audit文档和root三计划追加准确更正，production/tests/source368/BUILD_ID/full-v8/browser-v16/disposal均不变，不以修改文档为由伪称重新执行测试。旧NO-GO清单保留为candidate-manifest-v1-no-go.json，新42需重新hash并由同一Risk2仅离线复绑，当前仍未candidateGO/commit/PR/merge。其DB/HTTP永久释放继续有效。首次通知reviewer工具误传id而非target，解析拒绝、未送达；改正确target才实际送达，属主调用错误，不是产品finding。

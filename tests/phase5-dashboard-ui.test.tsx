@@ -1,4 +1,11 @@
-import { artifactManualLegacyProjection, assertArtifactManualActualScope, artifactManualProposalFiles, artifactManualHistoricalFiles } from "./helpers/governance-delta";
+// REVIEW_HISTORY_ADAPTER_BEGIN
+import { reviewHistoricalFunction, reviewHistoricalFs } from "./helpers/governance-delta";
+const assertArtifactManualActualScope = reviewHistoricalFunction(reviewPrevious_assertArtifactManualActualScope);
+const artifactManualProposalFiles = reviewHistoricalFunction(reviewPrevious_artifactManualProposalFiles);
+const artifactManualHistoricalFiles = reviewHistoricalFunction(reviewPrevious_artifactManualHistoricalFiles);
+const fs = reviewHistoricalFs(reviewPrevious_fs);
+// REVIEW_HISTORY_ADAPTER_END
+import { artifactManualLegacyProjection, assertArtifactManualActualScope as reviewPrevious_assertArtifactManualActualScope, artifactManualProposalFiles as reviewPrevious_artifactManualProposalFiles, artifactManualHistoricalFiles as reviewPrevious_artifactManualHistoricalFiles } from "./helpers/governance-delta";
 const isProposalFactEditCheckout = artifactManualLegacyProjection(artifactManualPrevious_isProposalFactEditCheckout, (cwd?: string) => { assertArtifactManualActualScope({ cwd }); return artifactManualPrevious_isProposalFactEditCheckout(cwd); });
 const assertProposalFactEditActualScope = artifactManualLegacyProjection(artifactManualPrevious_assertProposalFactEditActualScope, artifactManualProposalFiles);
 const proposalFactEditHistoricalFiles = artifactManualLegacyProjection(artifactManualPrevious_proposalFactEditHistoricalFiles, artifactManualHistoricalFiles);
@@ -21,7 +28,7 @@ import { isProposalFactEditCheckout as artifactManualPrevious_isProposalFactEdit
 import React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
-import fs from "node:fs";
+import reviewPrevious_fs from "node:fs";
 import path from "node:path";
 import {
   evaluateScopedPolicy,

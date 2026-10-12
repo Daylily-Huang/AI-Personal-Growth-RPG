@@ -1,11 +1,21 @@
+// REVIEW_HISTORY_ADAPTER_BEGIN
+import { reviewHistoricalFunction, reviewHistoricalReader } from "./helpers/governance-delta";
+const artifactManualProposalFiles = reviewHistoricalFunction(reviewPrevious_artifactManualProposalFiles);
+const artifactManualHistoricalFiles = reviewHistoricalFunction(reviewPrevious_artifactManualHistoricalFiles);
+const artifactManualHistoricalContent = reviewHistoricalFunction(reviewPrevious_artifactManualHistoricalContent);
+const artifactManualEvidenceFiles = reviewHistoricalFunction(reviewPrevious_artifactManualEvidenceFiles);
+const artifactManualContextFiles = reviewHistoricalFunction(reviewPrevious_artifactManualContextFiles);
+const artifactManualRejectionFiles = reviewHistoricalFunction(reviewPrevious_artifactManualRejectionFiles);
+const readFileSync = reviewHistoricalReader(reviewPrevious_readFileSync);
+// REVIEW_HISTORY_ADAPTER_END
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync as reviewPrevious_readFileSync, readdirSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { artifactManualProposalSyntheticModel, artifactManualProposalFixtureValidator } from "./helpers/governance-delta";
 const model = artifactManualProposalSyntheticModel(artifactManualPrevious_model);
 const verifyFixture = artifactManualProposalFixtureValidator(artifactManualPrevious_verifyFixture);
-import { artifactManualLegacyProjection, artifactManualProposalFiles, artifactManualHistoricalFiles, artifactManualHistoricalContent, artifactManualEvidenceFiles, artifactManualContextFiles, artifactManualRejectionFiles } from "./helpers/governance-delta";
+import { artifactManualLegacyProjection, artifactManualProposalFiles as reviewPrevious_artifactManualProposalFiles, artifactManualHistoricalFiles as reviewPrevious_artifactManualHistoricalFiles, artifactManualHistoricalContent as reviewPrevious_artifactManualHistoricalContent, artifactManualEvidenceFiles as reviewPrevious_artifactManualEvidenceFiles, artifactManualContextFiles as reviewPrevious_artifactManualContextFiles, artifactManualRejectionFiles as reviewPrevious_artifactManualRejectionFiles } from "./helpers/governance-delta";
 const actual = artifactManualLegacyProjection(artifactManualPrevious_actual, artifactManualProposalFiles);
 const history = artifactManualLegacyProjection(artifactManualPrevious_history, artifactManualHistoricalFiles);
 const content = artifactManualLegacyProjection(artifactManualPrevious_content, artifactManualHistoricalContent);

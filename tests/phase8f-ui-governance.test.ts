@@ -1,9 +1,15 @@
-import { artifactManualLegacyProjection, artifactManualProposalFiles, artifactManualHistoricalFiles, ARTIFACT_MANUAL_CONTROL, artifactManualScopeViolations } from "./helpers/governance-delta";
+// REVIEW_HISTORY_ADAPTER_BEGIN
+import { reviewHistoricalFunction, reviewHistoricalReader, REVIEW_INSIGHTS_CONTROL, reviewInsightsScopeViolations } from "./helpers/governance-delta";
+const artifactManualProposalFiles = reviewHistoricalFunction(reviewPrevious_artifactManualProposalFiles);
+const artifactManualHistoricalFiles = reviewHistoricalFunction(reviewPrevious_artifactManualHistoricalFiles);
+const readFileSync = reviewHistoricalReader(reviewPrevious_readFileSync);
+// REVIEW_HISTORY_ADAPTER_END
+import { artifactManualLegacyProjection, artifactManualProposalFiles as reviewPrevious_artifactManualProposalFiles, artifactManualHistoricalFiles as reviewPrevious_artifactManualHistoricalFiles, ARTIFACT_MANUAL_CONTROL, artifactManualScopeViolations } from "./helpers/governance-delta";
 const assertProposalFactEditActualScope = artifactManualLegacyProjection(artifactManualPrevious_assertProposalFactEditActualScope, artifactManualProposalFiles);
 const proposalFactEditHistoricalFiles = artifactManualLegacyProjection(artifactManualPrevious_proposalFactEditHistoricalFiles, artifactManualHistoricalFiles);
 import { isProposalFactEditCheckout, assertProposalFactEditActualScope as artifactManualPrevious_assertProposalFactEditActualScope, proposalFactEditHistoricalFiles as artifactManualPrevious_proposalFactEditHistoricalFiles, PROPOSAL_FACT_EDIT_CONTROL, proposalFactEditScopeViolations } from "./helpers/governance-delta";
 import { execFileSync } from "node:child_process";
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync as reviewPrevious_readFileSync, readdirSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 import { hasSkillBootstrapScope, SKILL_BOOTSTRAP_MARKERS, SKILL_BOOTSTRAP_PRODUCTION } from "./helpers/governance-delta";
 import { hasGraphCanvasScope, GRAPH_CANVAS_PRODUCTION } from "./helpers/governance-delta";
@@ -29,6 +35,9 @@ function violations(files: string[]) {
     .filter(file => !files.includes(control) || !uiPaths.has(file));
 }
 function currentScopeViolations(files: string[]) {
+  // REVIEW_SCOPE_SELECTOR_BEGIN
+  if (files.includes(REVIEW_INSIGHTS_CONTROL)) return reviewInsightsScopeViolations(files);
+  // REVIEW_SCOPE_SELECTOR_END
   if (files.includes(ARTIFACT_MANUAL_CONTROL)) return artifactManualScopeViolations(files);
   if (files.includes(PROPOSAL_FACT_EDIT_CONTROL)) return proposalFactEditScopeViolations(files);
   if (files.includes(EVIDENCE_SUBMISSION_CONTROL)) return evidenceSubmissionScopeViolations(files);

@@ -1444,3 +1444,101 @@ export function artifactManualProposalFixtureValidator(previous: (current: strin
     previous(current.replace(/\r\n/g, "\n").replace(fixed, 'return {activityId:randomUUID(),rawInput:"本人活动原文"'), accepted);
   };
 }
+
+// SiteReadiness22: append-only. Every preceding byte is accepted699 history.
+import { relative as reviewRelative } from "node:path";
+import type { readFileSync as ReviewReadFileSync } from "node:fs";
+export const REVIEW_INSIGHTS_BASE = "69978e833bf0af7444f1eda92f573b0b479ba3e0";
+export const REVIEW_INSIGHTS_CONTROL = "docs/SiteReadiness/22_DAILY_WEEKLY_REVIEW_CONTRACT.md";
+export const REVIEW_INSIGHTS_ADMISSION_SHA = "3F747778869709AC5CFBE66FF8933E0D926304E27AC9D0D93C76977009F020AC";
+export const REVIEW_INSIGHTS_PRODUCTION = ["src/lib/review-insights/types.ts", "src/lib/review-insights/validation.ts", "src/lib/review-insights/summary.ts", "src/lib/review-insights/repository.ts", "src/lib/review-insights/request.ts", "src/lib/review-insights/ai.ts", "src/lib/review-insights/http.ts", "src/lib/review-insights/client.ts", "src/components/journey/ReviewInsightsPanel.tsx", "src/components/journey/ReviewsClient.tsx", "src/app/api/reviews/summary/route.ts", "src/app/api/reviews/analyze/route.ts"] as const;
+export const REVIEW_INSIGHTS_TESTS = ["tests/review-insights-validation.test.ts", "tests/review-insights-summary.test.ts", "tests/review-insights-repository.test.ts", "tests/review-insights-ai.test.ts", "tests/review-insights-api.test.ts", "tests/review-insights-ui.test.tsx", "tests/review-insights-http.test.ts", "tests/review-insights-governance.test.ts"] as const;
+export const REVIEW_INSIGHTS_OLD_TESTS = ["tests/activity-detail-governance.test.ts", "tests/assessment-context-governance.test.ts", "tests/evidence-submission-governance.test.ts", "tests/graph-canvas-governance.test.ts", "tests/graph-mobile-governance.test.ts", "tests/onboarding-governance.test.ts", "tests/phase8f-ui-governance.test.ts", "tests/proposal-rejection-governance.test.ts", "tests/proposal-edit-governance.test.ts", "tests/visual-foundation.test.ts", "tests/phase5-dashboard-ui.test.tsx", "tests/stage7c-ui.test.tsx", "tests/artifact-acceptance-governance.test.ts"] as const;
+export const REVIEW_INSIGHTS_MARKERS = [REVIEW_INSIGHTS_CONTROL, "docs/Design ChatGPT/02_PRODUCT_DESIGN.md", "docs/Design ChatGPT/03_TECHNICAL_IMPLEMENTATION.md", ...REVIEW_INSIGHTS_PRODUCTION, ...REVIEW_INSIGHTS_TESTS] as const;
+export const REVIEW_INSIGHTS_ALLOWED = [...REVIEW_INSIGHTS_MARKERS, "docs/MASTER_PROJECT_HANDOFF.md", "docs/SiteReadiness/23_DAILY_WEEKLY_REVIEW_VERIFICATION.md", "findings.md", "progress.md", "task_plan.md", "tests/helpers/governance-delta.ts", ...REVIEW_INSIGHTS_OLD_TESTS] as const;
+export function hasReviewInsightsScope(files: readonly string[]): boolean { return REVIEW_INSIGHTS_MARKERS.every(file => files.includes(file)); }
+export function reviewInsightsScopeViolations(files: readonly string[]): string[] {
+  const allowed = new Set<string>(hasReviewInsightsScope(files) ? REVIEW_INSIGHTS_ALLOWED : []);
+  return [...(new Set(files).size === files.length ? [] : ["duplicate Review paths"]), ...files.filter(f => !allowed.has(f)), ...REVIEW_INSIGHTS_ALLOWED.filter(f => !files.includes(f)).map(f => `missing Review path: ${f}`)];
+}
+export type ReviewInsightsGitOptions = ArtifactManualGitOptions;
+export function isReviewInsightsCheckout(cwd = process.cwd()) { return proposalControlExists(activityMainPath(cwd, REVIEW_INSIGHTS_CONTROL)); }
+function reviewControl(options: ReviewInsightsGitOptions): string {
+  try { return options.readControl ? options.readControl() : readActivityMainControl(activityMainPath(options.cwd ?? process.cwd(), REVIEW_INSIGHTS_CONTROL), "utf8"); }
+  catch { throw Error("FAIL-CLOSED: Review control unreadable"); }
+}
+export function verifyReviewInsightsAdmission(text: string): void {
+  if (activityMainHash("sha256").update(text.replace(/\r\n/g, "\n")).digest("hex").toUpperCase() !== REVIEW_INSIGHTS_ADMISSION_SHA) throw Error("FAIL-CLOSED: Review control unbound");
+}
+function reviewHead(options: ReviewInsightsGitOptions, control = reviewControl(options)) {
+  verifyReviewInsightsAdmission(control);
+  const head = activityDetailRevision(options, "rev-parse HEAD");
+  if (activityDetailRevision(options, `merge-base ${REVIEW_INSIGHTS_BASE} HEAD`) !== REVIEW_INSIGHTS_BASE) throw Error("FAIL-CLOSED: Review ancestry differs");
+  return head;
+}
+function reviewRemote(options: ReviewInsightsGitOptions) {
+  const remote = activityDetailRevision(options, "rev-parse origin/main");
+  if (activityDetailRevision(options, `merge-base ${REVIEW_INSIGHTS_BASE} origin/main`) !== REVIEW_INSIGHTS_BASE) throw Error("FAIL-CLOSED: Review remote ancestry differs");
+  return remote;
+}
+function reviewWorking(options: ReviewInsightsGitOptions): string[] {
+  return [...contextPaths(activityDetailGit(options, `diff --no-renames --name-only -z ${REVIEW_INSIGHTS_BASE} --`), true), ...contextPaths(activityDetailGit(options, "ls-files --others --exclude-standard -z"), true)];
+}
+function reviewChanged(head: string, remote: string, options: ReviewInsightsGitOptions): GovernanceDelta {
+  const mode = head === remote ? "current-main-push" : "pr-branch";
+  if (mode === "current-main-push" && activityDetailRevision(options, 'rev-parse "HEAD^1"') !== REVIEW_INSIGHTS_BASE) throw Error("FAIL-CLOSED: Review main parent differs");
+  const range = REVIEW_INSIGHTS_BASE + (mode === "current-main-push" ? ".." : "...") + head;
+  return { mode, range, mergeBase: REVIEW_INSIGHTS_BASE, files: contextPaths(activityDetailGit(options, "diff --no-renames --name-only -z " + range)) };
+}
+export function resolveReviewInsightsChangedFiles(options: ReviewInsightsGitOptions = {}): GovernanceDelta { return reviewChanged(reviewHead(options), reviewRemote(options), options); }
+export function assertReviewInsightsChangedScope(delta: GovernanceDelta, options: ReviewInsightsGitOptions = {}) {
+  assertSameActivityRange(delta, resolveReviewInsightsChangedFiles(options), true);
+  assertCompleteActivityScope(delta.files, REVIEW_INSIGHTS_ALLOWED, reviewInsightsScopeViolations(delta.files));
+}
+export function assertReviewInsightsActualScope(options: ReviewInsightsGitOptions = {}): string[] {
+  const text = reviewControl(options), head = reviewHead(options, text), remote = reviewRemote(options), files = reviewWorking(options);
+  assertCompleteActivityScope(files, REVIEW_INSIGHTS_ALLOWED, reviewInsightsScopeViolations(files));
+  if (head !== REVIEW_INSIGHTS_BASE) { const delta = reviewChanged(head, remote, options); assertCompleteActivityScope(delta.files, REVIEW_INSIGHTS_ALLOWED, reviewInsightsScopeViolations(delta.files)); }
+  if (activityDetailRevision(options, "rev-parse HEAD") !== head || activityDetailRevision(options, "rev-parse origin/main") !== remote || reviewControl(options) !== text) throw Error("FAIL-CLOSED: Review binding drifted");
+  const finalFiles = reviewWorking(options);
+  assertCompleteActivityScope(finalFiles, REVIEW_INSIGHTS_ALLOWED, reviewInsightsScopeViolations(finalFiles));
+  if ([...finalFiles].sort().join("\0") !== [...files].sort().join("\0")) throw Error("FAIL-CLOSED: Review working paths drifted");
+  return files;
+}
+/** Real immutable699 endpoint, not fabricated present-day history. */
+export function reviewHistoricalArtifactOptions(options: ReviewInsightsGitOptions = {}): ArtifactManualGitOptions {
+  assertReviewInsightsActualScope(options);
+  const show = (file: string) => activityDetailGit(options, `show ${REVIEW_INSIGHTS_BASE}:"${file}"`);
+  return { cwd: options.cwd, readControl: () => show(ARTIFACT_MANUAL_CONTROL), readUIFixture: () => show(ARTIFACT_MANUAL_UI_TEST), readAPIFixture: () => show(ARTIFACT_MANUAL_API_TEST), execute(command) {
+    if (command === "rev-parse HEAD") return activityDetailRevision(options, `rev-parse ${REVIEW_INSIGHTS_BASE}`);
+    if (command === "rev-parse origin/main") return activityDetailRevision(options, `rev-parse ${ARTIFACT_MANUAL_BASE}`);
+    if (command === "ls-files --others --exclude-standard -z") return ""; // immutable committed endpoint, not current working tree
+    if (command === `merge-base ${ARTIFACT_MANUAL_BASE} HEAD`) return activityDetailGit(options, `merge-base ${ARTIFACT_MANUAL_BASE} ${REVIEW_INSIGHTS_BASE}`);
+    if (command === `merge-base ${ARTIFACT_MANUAL_BASE} origin/main`) return activityDetailGit(options, `merge-base ${ARTIFACT_MANUAL_BASE} ${ARTIFACT_MANUAL_BASE}`);
+    if (command === `diff --no-renames --name-only -z ${ARTIFACT_MANUAL_BASE} --` || command === `diff --no-renames --name-only -z ${ARTIFACT_MANUAL_BASE}...${REVIEW_INSIGHTS_BASE}`) return activityDetailGit(options, `diff --no-renames --name-only -z ${ARTIFACT_MANUAL_BASE} ${REVIEW_INSIGHTS_BASE}`);
+    if (command === `diff --no-renames --name-only -z ${PROPOSAL_FACT_EDIT_BASE} --`) return activityDetailGit(options, `diff --no-renames --name-only -z ${PROPOSAL_FACT_EDIT_BASE} ${REVIEW_INSIGHTS_BASE}`);
+    return activityDetailGit(options, command);
+  } };
+}
+/** Preserve every explicit old execute/provider; real calls get strict42 FIRST. */
+export function reviewHistoricalFunction<A extends unknown[], R>(previous: (...args: A) => R): (...args: A) => R {
+  return (...args: A): R => {
+    const last = args.at(-1), options = last && typeof last === "object" ? last as ReviewInsightsGitOptions : {};
+    if (["execute", "readControl", "readFixture", "readAmendment", "readUIFixture", "readAPIFixture"].some(key => Object.hasOwn(options, key)) || !isReviewInsightsCheckout(options.cwd)) return previous(...args);
+    const historical = reviewHistoricalArtifactOptions(options), next: unknown[] = [...args];
+    if (last && typeof last === "object") next[next.length - 1] = historical; else next.push(historical);
+    return previous(...next as A);
+  };
+}
+/** Local reader only; no global fs patch and no arbitrary-path historical reads. */
+export function reviewHistoricalReader(previous: typeof ReviewReadFileSync, cwd = process.cwd()): typeof ReviewReadFileSync {
+  return ((file: Parameters<typeof ReviewReadFileSync>[0], options?: Parameters<typeof ReviewReadFileSync>[1]) => {
+    const relative = typeof file === "string" ? reviewRelative(cwd, activityMainPath(cwd, file)).replace(/\\/g, "/") : "";
+    if (!isReviewInsightsCheckout(cwd) || ![...REVIEW_INSIGHTS_OLD_TESTS, "tests/helpers/governance-delta.ts"].includes(relative)) return previous(file, options);
+    assertReviewInsightsActualScope({ cwd });
+    const text = activityDetailGit({ cwd }, `show ${REVIEW_INSIGHTS_BASE}:"${relative}"`);
+    const encoding = typeof options === "string" ? options : options?.encoding;
+    return encoding ? Buffer.from(text, "utf8").toString(encoding) : Buffer.from(text, "utf8");
+  }) as typeof ReviewReadFileSync;
+}
+export function reviewHistoricalFs<T extends { readFileSync: typeof ReviewReadFileSync }>(previous: T): T { return { ...previous, readFileSync: reviewHistoricalReader(previous.readFileSync) }; }

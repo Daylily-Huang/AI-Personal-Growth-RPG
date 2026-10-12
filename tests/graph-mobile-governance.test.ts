@@ -1,10 +1,16 @@
-import { artifactManualLegacyProjection, artifactManualProposalFiles, artifactManualHistoricalFiles } from "./helpers/governance-delta";
+// REVIEW_HISTORY_ADAPTER_BEGIN
+import { reviewHistoricalFunction, reviewHistoricalReader } from "./helpers/governance-delta";
+const artifactManualProposalFiles = reviewHistoricalFunction(reviewPrevious_artifactManualProposalFiles);
+const artifactManualHistoricalFiles = reviewHistoricalFunction(reviewPrevious_artifactManualHistoricalFiles);
+const readFileSync = reviewHistoricalReader(reviewPrevious_readFileSync);
+// REVIEW_HISTORY_ADAPTER_END
+import { artifactManualLegacyProjection, artifactManualProposalFiles as reviewPrevious_artifactManualProposalFiles, artifactManualHistoricalFiles as reviewPrevious_artifactManualHistoricalFiles } from "./helpers/governance-delta";
 const assertProposalFactEditActualScope = artifactManualLegacyProjection(artifactManualPrevious_assertProposalFactEditActualScope, artifactManualProposalFiles);
 const proposalFactEditHistoricalFiles = artifactManualLegacyProjection(artifactManualPrevious_proposalFactEditHistoricalFiles, artifactManualHistoricalFiles);
 import { isProposalFactEditCheckout, assertProposalFactEditActualScope as artifactManualPrevious_assertProposalFactEditActualScope, proposalFactEditHistoricalFiles as artifactManualPrevious_proposalFactEditHistoricalFiles } from "./helpers/governance-delta";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { readFileSync as reviewPrevious_readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 import {
   MOBILE_GRAPH_BASE, MOBILE_GRAPH_CONTROL, MOBILE_GRAPH_PRODUCTION, MOBILE_GRAPH_MARKERS, MOBILE_GRAPH_ALLOWED,

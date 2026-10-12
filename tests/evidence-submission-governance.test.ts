@@ -1,6 +1,15 @@
+// REVIEW_HISTORY_ADAPTER_BEGIN
+import { reviewHistoricalFunction, reviewHistoricalReader } from "./helpers/governance-delta";
+const artifactManualHistoricalFiles = reviewHistoricalFunction(reviewPrevious_artifactManualHistoricalFiles);
+const artifactManualHistoricalContent = reviewHistoricalFunction(reviewPrevious_artifactManualHistoricalContent);
+const artifactManualEvidenceFiles = reviewHistoricalFunction(reviewPrevious_artifactManualEvidenceFiles);
+const artifactManualContextFiles = reviewHistoricalFunction(reviewPrevious_artifactManualContextFiles);
+const artifactManualRejectionFiles = reviewHistoricalFunction(reviewPrevious_artifactManualRejectionFiles);
+const readFileSync = reviewHistoricalReader(reviewPrevious_readFileSync);
+// REVIEW_HISTORY_ADAPTER_END
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync as reviewPrevious_readFileSync, readdirSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   EVIDENCE_SUBMISSION_BASE as BASE, EVIDENCE_SUBMISSION_CONTROL as CONTROL, EVIDENCE_SUBMISSION_ADMISSION_SHA as HASH,
@@ -23,7 +32,7 @@ import { phase8fCurrentScopeViolations as phase8f } from "./phase8f-ui-governanc
 const canonical = (value: string) => value.replace(/\r\n/g, "\n");
 const document = () => readFileSync(CONTROL, "utf8"), revision = (n: number) => String(n).repeat(40);
 const actualDiff = (from: string, to: string) => execFileSync("git", ["diff", "--no-renames", "--name-only", "-z", from, to], { encoding: "utf8" });
-import { artifactManualLegacyProjection, artifactManualHistoricalFiles, artifactManualHistoricalContent, artifactManualEvidenceFiles, artifactManualContextFiles, artifactManualRejectionFiles } from "./helpers/governance-delta";
+import { artifactManualLegacyProjection, artifactManualHistoricalFiles as reviewPrevious_artifactManualHistoricalFiles, artifactManualHistoricalContent as reviewPrevious_artifactManualHistoricalContent, artifactManualEvidenceFiles as reviewPrevious_artifactManualEvidenceFiles, artifactManualContextFiles as reviewPrevious_artifactManualContextFiles, artifactManualRejectionFiles as reviewPrevious_artifactManualRejectionFiles } from "./helpers/governance-delta";
 const proposalFactEditHistoricalFiles = artifactManualLegacyProjection(artifactManualPrevious_proposalFactEditHistoricalFiles, artifactManualHistoricalFiles);
 const proposalFactEditHistoricalContent = artifactManualLegacyProjection(artifactManualPrevious_proposalFactEditHistoricalContent, artifactManualHistoricalContent);
 const proposalFactEditEvidenceFiles = artifactManualLegacyProjection(artifactManualPrevious_proposalFactEditEvidenceFiles, artifactManualEvidenceFiles);
