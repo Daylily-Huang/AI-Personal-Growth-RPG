@@ -5,7 +5,9 @@ import path from "node:path";
 export const MONTHLY_BASE = "0398f69f8aeb7144e22b4011117b59525f068ca6";
 const REVIEW_HEAD = "f2f847cf24671eaa8c610a61e1a468a5e3798e57";
 const REVIEW_BASE = "69978e833bf0af7444f1eda92f573b0b479ba3e0";
+// Subsequent authorized UI-only amendment: SiteReadiness25, QuestCard and its dedicated regression tests.
 export const MONTHLY_ALLOWED = [
+  "docs/SiteReadiness/25_CUSTOM_QUEST_PROGRESS.md", "src/components/quests/QuestCard.tsx", "tests/quest-progress-custom.test.tsx",
   "docs/SiteReadiness/24_MONTHLY_REVIEW_AND_GAME_FEEDBACK.md", "task_plan.md", "progress.md", "findings.md",
   "src/lib/review-insights/types.ts", "src/lib/review-insights/validation.ts", "src/lib/review-insights/summary.ts", "src/lib/review-insights/client.ts", "src/lib/review-insights/ai.ts", "src/lib/review-insights/repository.ts", "src/lib/review-insights/monthly.ts",
   "src/components/journey/ReviewInsightsPanel.tsx", "src/components/journey/ReviewsClient.tsx", "src/components/journey/MonthlyGrowthReport.tsx",

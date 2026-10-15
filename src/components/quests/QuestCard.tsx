@@ -88,7 +88,7 @@ export interface QuestCardProps {
   hasChildren?: boolean;
   childrenCount?: number;
   onUpdateStatus: (id: string, s: QuestStatus) => void;
-  onUpdateProgress: (id: string, p: number) => void;
+  onUpdateProgress: (id: string, p: number) => void | Promise<void>;
   onDelete: (id: string) => void;
 }
 
@@ -100,6 +100,29 @@ export function QuestCard({
   onUpdateProgress,
   onDelete,
 }: QuestCardProps) {
+  const [increment, setIncrement] = React.useState("25");
+  const [savingProgress, setSavingProgress] = React.useState(false);
+  const [progressError, setProgressError] = React.useState<string | null>(null);
+  const progressInFlight = React.useRef(false);
+  const amount = Number(increment);
+  const validAmount = increment.trim() !== "" && Number.isFinite(amount) && amount > 0;
+
+  async function handleProgressSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!validAmount || quest.status !== "active" || progressInFlight.current) return;
+    progressInFlight.current = true;
+    setSavingProgress(true);
+    setProgressError(null);
+    try {
+      await onUpdateProgress(quest.id, Math.min(100, quest.progress + amount));
+    } catch {
+      setProgressError("进度保存失败，请重试");
+    } finally {
+      progressInFlight.current = false;
+      setSavingProgress(false);
+    }
+  }
+
   const typeMeta = QUEST_TYPE_META[quest.questType] ?? QUEST_TYPE_META.learning;
   const sizeMeta = QUEST_SIZE_META[quest.questSize] ?? QUEST_SIZE_META.standard;
 
@@ -265,15 +288,33 @@ export function QuestCard({
             <QuestProgress progress={quest.progress} size="sm" />
           </div>
           {quest.status === "active" && (
-            <button
-              type="button"
-              onClick={() => onUpdateProgress(quest.id, Math.min(100, quest.progress + 25))}
-              className="px-2 py-1 min-h-[var(--touch-target-min)] rounded-lg bg-[var(--surface-ground)] hover:bg-[var(--surface-raised)] border border-[var(--border-subtle)] text-xs font-mono text-[var(--text-secondary)] transition-colors cursor-pointer focus-visible:outline-[var(--focus-ring-width)] focus-visible:outline-[var(--focus-ring-color)]"
-              title="快速推进 +25%"
-              data-testid="quest-progress-bump"
-            >
-              +25%
-            </button>
+            <form onSubmit={handleProgressSubmit} className="flex flex-wrap items-center gap-1.5 shrink-0">
+              <label className="inline-flex items-center gap-1 text-[var(--text-secondary)]">
+                <span>增加</span>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  step="any"
+                  value={increment}
+                  onChange={(event) => setIncrement(event.target.value)}
+                  disabled={savingProgress}
+                  aria-label="增加进度（百分比）"
+                  className="w-20 min-h-[var(--touch-target-min)] rounded-lg border border-[var(--border-default)] bg-[var(--surface-base)] px-2 font-mono text-[var(--text-primary)] focus-visible:outline-[var(--focus-ring-width)] focus-visible:outline-[var(--focus-ring-color)]"
+                />
+                <span>%</span>
+              </label>
+              <button
+                type="submit"
+                disabled={!validAmount || savingProgress}
+                className="px-2 py-1 min-h-[var(--touch-target-min)] rounded-lg bg-[var(--surface-ground)] hover:bg-[var(--surface-raised)] border border-[var(--border-subtle)] text-xs font-mono text-[var(--text-secondary)] transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-[var(--focus-ring-width)] focus-visible:outline-[var(--focus-ring-color)]"
+                title="按输入的百分比增加进度，最高100%"
+                data-testid="quest-progress-bump"
+              >
+                {savingProgress ? "保存中…" : "增加"}
+              </button>
+              {progressError && <span role="alert" className="text-[var(--state-danger-text)]">{progressError}</span>}
+            </form>
           )}
         </div>
 
