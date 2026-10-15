@@ -7,7 +7,7 @@ const now = new Date("2026-10-12T12:00:00.000Z"), period = { mode: "DAILY", star
 describe("Review strict input and timestamps", () => {
   it("accepts explicit half-open period without interpreting the timezone as an offset", () => { expect(parseReviewPeriod(period, now)).toEqual(period); });
   it.each([
-    { mode: "MONTHLY" }, { timezone: "Mars/Unknown" }, { start: "2026-02-30T00:00:00.000Z" }, { start: period.end }, { end: "2026-10-13T00:00:00.000Z" },
+    { mode: "YEARLY" }, { timezone: "Mars/Unknown" }, { start: "2026-02-30T00:00:00.000Z" }, { start: period.end }, { end: "2026-10-13T00:00:00.000Z" },
     { start: "2026-10-09T00:00:00.000Z" }, { start: "2026-10-11T00:00:00Z" }, { start: "2026-10-11T00:00:00.000001Z" }, { userId: "forged" }, { facts: {} },
   ])("rejects malformed window/authority %j", delta => { expect(() => parseReviewPeriod({ ...period, ...delta }, now)).toThrow("REVIEW_INVALID_INPUT"); });
   it("accepts 25-hour DST day and rejects more than26 hours", () => {

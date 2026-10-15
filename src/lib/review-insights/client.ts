@@ -4,7 +4,7 @@ export function reviewDraftInputTime(iso: string): string {
   const value = new Date(iso); return new Date(value.getTime() - value.getTimezoneOffset() * 60000).toISOString().slice(0, -1);
 }
 export function matchingReviewDraftPeriod(note: ReviewDraft["objectiveSummary"] | null, startInput: string, endInput: string, reviewType: "AD_HOC" | "WEEKLY"): ReviewPeriod | null {
-  if (!note || reviewType !== (note.reviewMode === "DAILY" ? "AD_HOC" : "WEEKLY")) return null;
+  if (!note || reviewType !== (note.reviewMode === "WEEKLY" ? "WEEKLY" : "AD_HOC")) return null;
   const period = note.summary.period;
   // A local datetime during a DST fold is ambiguous. Keep the original instant
   // while the displayed fields remain unchanged; manual changes clear the note.
@@ -24,7 +24,10 @@ export function localReviewPeriod(date: string, mode: ReviewPeriod["mode"], now 
   const start = new Date(`${date}T00:00:00`);
   if (!Number.isFinite(start.getTime()) || localReviewDate(start) !== date) throw new ReviewError("REVIEW_INVALID_INPUT");
   if (mode === "WEEKLY") start.setDate(start.getDate() - (start.getDay() + 6) % 7);
-  const end = new Date(start); end.setDate(end.getDate() + (mode === "DAILY" ? 1 : 7));
+  if (mode === "MONTHLY") start.setDate(1);
+  const end = new Date(start);
+  if (mode === "MONTHLY") end.setMonth(end.getMonth() + 1);
+  else end.setDate(end.getDate() + (mode === "DAILY" ? 1 : 7));
   return parseReviewPeriod({ mode, start: start.toISOString(), end: new Date(Math.min(end.getTime(), now.getTime())).toISOString(), timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }, now);
 }
 async function payload(response: Response) {
@@ -40,6 +43,7 @@ export async function loadReviewSummary(period: ReviewPeriod, signal: AbortSigna
   plainReviewData(body);
   if (!body || typeof body !== "object" || Object.keys(body).length !== 1 || !Object.hasOwn(body, "summary")) throw new ReviewError("REVIEW_MALFORMED_DATA");
   const summary = parseReviewSummary((body as { summary: unknown }).summary);
+  if (summary.period.mode === "MONTHLY" && !summary.comparison) throw new ReviewError("REVIEW_MALFORMED_DATA");
   if (JSON.stringify(summary.period) !== JSON.stringify(period)) throw new ReviewError("REVIEW_MALFORMED_DATA");
   return summary;
 }
@@ -50,5 +54,5 @@ export async function requestReviewAnalysis(period: ReviewPeriod, signal: AbortS
 }
 export function reviewDraft(receipt: ReviewAnalysisReceipt): ReviewDraft {
   const r = parseReviewReceipt(receipt), a = r.analysis;
-  return { period: r.summary.period, reflection: [`【${r.summary.period.mode === "DAILY" ? "每日" : "每周"}复盘草稿：AI推断，待用户确认】`, a.overview, ...REVIEW_SECTIONS.map(key => `${REVIEW_SECTION_LABELS[key]}：${a[key].text}（${a[key].certainty === "supported" ? "有摘要引用，仍为推断" : "资料不足/推断"}）`), `不确定性：${a.uncertainties.join("；")}`].join("\n"), adjustments: a.adjustments.map((v, i) => `${i + 1}. ${v.text}`).join("\n"), objectiveSummary: { provenance: "USER_CONFIRMED_NOTE", reviewMode: r.summary.period.mode, summary: r.summary } };
+  return { period: r.summary.period, reflection: [`【${r.summary.period.mode === "DAILY" ? "每日" : r.summary.period.mode === "WEEKLY" ? "每周" : "月度"}复盘草稿：AI推断，待用户确认】`, a.overview, ...REVIEW_SECTIONS.map(key => `${REVIEW_SECTION_LABELS[key]}：${a[key].text}（${a[key].certainty === "supported" ? "有摘要引用，仍为推断" : "资料不足/推断"}）`), `不确定性：${a.uncertainties.join("；")}`].join("\n"), adjustments: a.adjustments.map((v, i) => `${i + 1}. ${v.text}`).join("\n"), objectiveSummary: { provenance: "USER_CONFIRMED_NOTE", reviewMode: r.summary.period.mode, summary: r.summary } };
 }

@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import SettlementFeedback, { settlementReceipt, type SettlementReceipt } from "@/components/dashboard/SettlementFeedback";
 import { useRouter } from "next/navigation";
 import type {
   Activity,
@@ -41,6 +42,10 @@ export default function DashboardPage() {
   const [rawInput, setRawInput] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [growthReceipt, setGrowthReceipt] = useState<SettlementReceipt | null>(null);
+  const shownReceipts = useRef(new Set<string>());
+  const [presentedReceipts, setPresentedReceipts] = useState<Set<string>>(() => new Set());
+  const notePresented = useCallback((id: string) => setPresentedReceipts(previous => previous.has(id) ? previous : new Set([...previous, id])), []);
 
   const load = useCallback(async () => {
     setLocalError(null);
@@ -184,6 +189,11 @@ export default function DashboardPage() {
         throw new Error(errData.error || "Failed to confirm assessment");
       }
 
+      const receipt = settlementReceipt(await res.json().catch(() => null), assessmentId);
+      if (receipt && !shownReceipts.current.has(receipt.id)) {
+        shownReceipts.current.add(receipt.id);
+        setGrowthReceipt({ ...receipt, previousPlayerLevel: dashboard?.player.playerLevel });
+      }
       setLocalLoading(true);
       await load();
     } catch (e) {
@@ -223,6 +233,7 @@ export default function DashboardPage() {
     <div className="relative flex w-full flex-col gap-6 max-w-7xl mx-auto pb-12">
       {/* 顶部问候栏 (h2, 真实无假姓名) */}
       <DashboardHeader onQuickLog={focusQuickLog} />
+      {growthReceipt ? <SettlementFeedback key={growthReceipt.id} receipt={growthReceipt} currentPlayerLevel={dashboard.recentGrowth.some(t => t.id === growthReceipt.id) ? dashboard.player.playerLevel : undefined} animateArrival={!presentedReceipts.has(growthReceipt.id)} onPresented={notePresented} onDismiss={() => setGrowthReceipt(null)} /> : null}
 
       {/* Non-blocking Error Toast/Alert */}
       {error ? (

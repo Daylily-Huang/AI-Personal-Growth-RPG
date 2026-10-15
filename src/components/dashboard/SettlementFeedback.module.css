@@ -1,0 +1,29 @@
+.receipt {
+  position: fixed;
+  right: max(1rem, env(safe-area-inset-right));
+  bottom: calc(var(--mobile-nav-height) + 1rem + env(safe-area-inset-bottom));
+  width: min(28rem, calc(100vw - 2rem));
+  max-height: calc(100dvh - var(--mobile-nav-height) - 6rem);
+  overflow-y: auto;
+  z-index: var(--z-toast);
+}
+
+.arrival {
+  animation: arrive 500ms ease-out both;
+}
+
+@media (min-width: 48rem) {
+  .receipt {
+    bottom: max(1rem, env(safe-area-inset-bottom));
+    max-height: min(50dvh, 20rem);
+  }
+}
+
+@keyframes arrive {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .arrival { animation: none; }
+}

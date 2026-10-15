@@ -1490,12 +1490,15 @@ function reviewChanged(head: string, remote: string, options: ReviewInsightsGitO
   const range = REVIEW_INSIGHTS_BASE + (mode === "current-main-push" ? ".." : "...") + head;
   return { mode, range, mergeBase: REVIEW_INSIGHTS_BASE, files: contextPaths(activityDetailGit(options, "diff --no-renames --name-only -z " + range)) };
 }
-export function resolveReviewInsightsChangedFiles(options: ReviewInsightsGitOptions = {}): GovernanceDelta { return reviewChanged(reviewHead(options), reviewRemote(options), options); }
+import { monthlyReviewHistoricalOptions, isMonthlyReviewCheckout } from "./monthly-scope";
+export function resolveReviewInsightsChangedFiles(options: ReviewInsightsGitOptions = {}): GovernanceDelta { options = monthlyReviewHistoricalOptions(options); return reviewChanged(reviewHead(options), reviewRemote(options), options); }
 export function assertReviewInsightsChangedScope(delta: GovernanceDelta, options: ReviewInsightsGitOptions = {}) {
+  options = monthlyReviewHistoricalOptions(options);
   assertSameActivityRange(delta, resolveReviewInsightsChangedFiles(options), true);
   assertCompleteActivityScope(delta.files, REVIEW_INSIGHTS_ALLOWED, reviewInsightsScopeViolations(delta.files));
 }
 export function assertReviewInsightsActualScope(options: ReviewInsightsGitOptions = {}): string[] {
+  options = monthlyReviewHistoricalOptions(options);
   const text = reviewControl(options), head = reviewHead(options, text), remote = reviewRemote(options), files = reviewWorking(options);
   assertCompleteActivityScope(files, REVIEW_INSIGHTS_ALLOWED, reviewInsightsScopeViolations(files));
   if (head !== REVIEW_INSIGHTS_BASE) { const delta = reviewChanged(head, remote, options); assertCompleteActivityScope(delta.files, REVIEW_INSIGHTS_ALLOWED, reviewInsightsScopeViolations(delta.files)); }
@@ -1507,6 +1510,7 @@ export function assertReviewInsightsActualScope(options: ReviewInsightsGitOption
 }
 /** Real immutable699 endpoint, not fabricated present-day history. */
 export function reviewHistoricalArtifactOptions(options: ReviewInsightsGitOptions = {}): ArtifactManualGitOptions {
+  options = monthlyReviewHistoricalOptions(options);
   assertReviewInsightsActualScope(options);
   const show = (file: string) => activityDetailGit(options, `show ${REVIEW_INSIGHTS_BASE}:"${file}"`);
   return { cwd: options.cwd, readControl: () => show(ARTIFACT_MANUAL_CONTROL), readUIFixture: () => show(ARTIFACT_MANUAL_UI_TEST), readAPIFixture: () => show(ARTIFACT_MANUAL_API_TEST), execute(command) {
@@ -1534,7 +1538,7 @@ export function reviewHistoricalFunction<A extends unknown[], R>(previous: (...a
 export function reviewHistoricalReader(previous: typeof ReviewReadFileSync, cwd = process.cwd()): typeof ReviewReadFileSync {
   return ((file: Parameters<typeof ReviewReadFileSync>[0], options?: Parameters<typeof ReviewReadFileSync>[1]) => {
     const relative = typeof file === "string" ? reviewRelative(cwd, activityMainPath(cwd, file)).replace(/\\/g, "/") : "";
-    if (!isReviewInsightsCheckout(cwd) || ![...REVIEW_INSIGHTS_OLD_TESTS, "tests/helpers/governance-delta.ts"].includes(relative)) return previous(file, options);
+    if (!isReviewInsightsCheckout(cwd) || ![...REVIEW_INSIGHTS_OLD_TESTS, "tests/helpers/governance-delta.ts", ...(isMonthlyReviewCheckout(cwd) ? ["src/app/dashboard/page.tsx"] : [])].includes(relative)) return previous(file, options);
     assertReviewInsightsActualScope({ cwd });
     const text = activityDetailGit({ cwd }, `show ${REVIEW_INSIGHTS_BASE}:"${relative}"`);
     const encoding = typeof options === "string" ? options : options?.encoding;

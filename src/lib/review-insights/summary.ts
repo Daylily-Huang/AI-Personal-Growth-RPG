@@ -1,4 +1,4 @@
-import { REVIEW_SAMPLE_LIMIT, REVIEW_SOURCES, REVIEW_VERSION, ReviewError, type ReviewData, type ReviewPeriod, type ReviewRow, type ReviewSource, type ReviewSummary } from "./types";
+import { REVIEW_SAMPLE_LIMIT, REVIEW_SOURCES, REVIEW_VERSION, MONTHLY_REVIEW_VERSION, ReviewError, type ReviewData, type ReviewPeriod, type ReviewRow, type ReviewSource, type ReviewSummary } from "./types";
 import { compareReviewTimestamps, parseReviewPeriod, parseReviewRow, parseReviewSummary } from "./validation";
 
 export function reviewLabel(value: unknown): string { return Array.from(String(value)).slice(0, 160).join(""); }
@@ -33,7 +33,7 @@ export function buildReviewSummary(period: ReviewPeriod, data: ReviewData): Revi
   }
   for (const [source, items] of [["activities", activitySample], ["skills", skillSample], ["mastery_events", masterySample], ["knowledge_nodes", knowledgeSample], ["artifacts", artifactSample], ["quests", questSample], ["xp_transactions", take(xp)], ["journal_entries", state ? [state] : []]] as [ReviewSource, ReviewRow[]][]) add(source, items);
   return parseReviewSummary({
-    version: REVIEW_VERSION, period, asOf: data.asOf, coverage: data.coverage, complete: data.coverage.every(c => c.complete),
+    version: period.mode === "MONTHLY" ? MONTHLY_REVIEW_VERSION : REVIEW_VERSION, period, asOf: data.asOf, coverage: data.coverage, complete: data.coverage.every(c => c.complete),
     counts: { activities: rows.activities.length, confirmedActivities: rows.activities.filter(r => r.status === "confirmed").length, xpEntries: xp.length, masteryEvents: rows.mastery_events.length, newSkills: newSkills.length, newKnowledgeNodes: rows.knowledge_nodes.length, newArtifacts: rows.artifacts.length },
     xp: { net: sum(xp), activity: sum(xp.filter(r => r.xp_type === "activity")), adjustment: sum(xp.filter(r => r.xp_type === "adjustment")), correction: sum(xp.filter(r => r.xp_type === "correction")), repeatedSettlements: xp.filter(r => r.xp_type === "activity" && Number(r.repetition_count) > 0).length, penalizedSettlements: xp.filter(r => r.xp_type === "activity" && Number(r.repetition_penalty) < 1).length, bySkill: bySkill.values, byDomain: byDomain.values, omittedSkillGroups: bySkill.omitted, omittedDomainGroups: byDomain.omitted },
     activities: activitySample.map(r => ({ id: r.id, title: reviewLabel(r.title), createdAt: r.created_at, status: r.status, totalMinutes: r.total_minutes, effectiveMinutes: r.effective_minutes })),

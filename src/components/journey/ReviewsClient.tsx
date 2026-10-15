@@ -247,7 +247,7 @@ export default function ReviewsClient({ initialSeasonId = null }: ReviewsClientP
       <ReviewInsightsPanel canAdopt={activeSeasons.length > 0} onAdopt={draft => {
         setAmendingReview(null);
         setEditorSeasonId(activeSeasons[0]?.id ?? "");
-        setReviewType(draft.period.mode === "DAILY" ? "AD_HOC" : "WEEKLY");
+        setReviewType(draft.period.mode === "WEEKLY" ? "WEEKLY" : "AD_HOC");
         setPeriodStart(reviewDraftInputTime(draft.period.start));
         setPeriodEnd(reviewDraftInputTime(draft.period.end));
         setReflection(draft.reflection);
@@ -285,7 +285,7 @@ export default function ReviewsClient({ initialSeasonId = null }: ReviewsClientP
         action={
           <select
             aria-label="按赛季筛选复盘"
-            className={`${journeyInputClass} min-w-40`}
+            className={`${journeyInputClass} min-h-11 min-w-40`}
             value={selectedSeasonId}
             onChange={(event) => setSelectedSeasonId(event.target.value)}
           >
