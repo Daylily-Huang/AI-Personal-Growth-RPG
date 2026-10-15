@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import SettlementFeedback, { settlementReceipt, type SettlementReceipt } from "@/components/dashboard/SettlementFeedback";
+import SettlementFeedback, { GrowthStage, GrowthRipple, settlementReceipt, type SettlementReceipt } from "@/components/dashboard/SettlementFeedback";
+import effects from "@/components/dashboard/SettlementFeedback.module.css";
 import { useRouter } from "next/navigation";
 import type {
   Activity,
@@ -230,7 +231,7 @@ export default function DashboardPage() {
   const fresh = isFreshDashboard(dashboard);
 
   return (
-    <div className="relative flex w-full flex-col gap-6 max-w-7xl mx-auto pb-12">
+    <GrowthStage className="relative flex w-full flex-col gap-6 max-w-7xl mx-auto pb-12">
       {/* 顶部问候栏 (h2, 真实无假姓名) */}
       <DashboardHeader onQuickLog={focusQuickLog} />
       {growthReceipt ? <SettlementFeedback key={growthReceipt.id} receipt={growthReceipt} currentPlayerLevel={dashboard.recentGrowth.some(t => t.id === growthReceipt.id) ? dashboard.player.playerLevel : undefined} animateArrival={!presentedReceipts.has(growthReceipt.id)} onPresented={notePresented} onDismiss={() => setGrowthReceipt(null)} /> : null}
@@ -253,7 +254,8 @@ export default function DashboardPage() {
         data-testid="dashboard-core-grid"
         className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch"
       >
-        <div className="lg:col-span-5">
+        <div className={`lg:col-span-5 ${effects.heroFrame}`}>
+          {growthReceipt && growthReceipt.amount > 0 ? <GrowthRipple key={growthReceipt.id} /> : null}
           <PlayerHeroCard dashboard={dashboard} />
         </div>
         <div className="lg:col-span-7">
@@ -302,6 +304,6 @@ export default function DashboardPage() {
 
       {/* LEVEL 4: Knowledge / Artifacts / Skills Overview Signals */}
       <OverviewSummaryCards dashboard={dashboard} />
-    </div>
+    </GrowthStage>
   );
 }
