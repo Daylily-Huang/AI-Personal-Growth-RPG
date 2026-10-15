@@ -1,6 +1,7 @@
 import { REVIEW_PAGE_SIZE, REVIEW_SOURCE_LIMIT, REVIEW_SOURCES, ReviewError, type ReviewData, type ReviewPeriod, type ReviewRow, type ReviewSource, type SourceCoverage } from "./types";
 import { compareReviewTimestamps, parseReviewPeriod, parseReviewRow, REVIEW_ROW_SCHEMAS } from "./validation";
 import { buildReviewSummary } from "./summary";
+import { previousReviewMonth, withMonthlyComparison } from "./monthly";
 
 export interface ReviewQuery extends PromiseLike<{ data: unknown; error: unknown }> {
   eq(column: string, value: unknown): ReviewQuery;
@@ -15,6 +16,15 @@ const CURRENT = new Set<ReviewSource>(["skills", "domains", "quests"]);
 export class ReviewInsightsRepository {
   constructor(private readonly client: ReviewReadClient, private readonly ownerId: string) {}
   async summarize(period: ReviewPeriod) {
+    if (period.mode === "MONTHLY") {
+      const previousPeriod = previousReviewMonth(period);
+      const current = await this.summarizePeriod(period);
+      const previous = await this.summarizePeriod(previousPeriod);
+      return withMonthlyComparison(current, previous);
+    }
+    return this.summarizePeriod(period);
+  }
+  private async summarizePeriod(period: ReviewPeriod) {
     const asOf = new Date().toISOString(), p = parseReviewPeriod(period, new Date(asOf));
     const rows = {} as ReviewData["rows"], coverage: SourceCoverage[] = [];
     for (const source of REVIEW_SOURCES) {

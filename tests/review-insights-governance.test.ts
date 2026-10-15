@@ -1,3 +1,4 @@
+import { restoreMonthlyOnboarding, restoreMonthlyReviewClient } from "./helpers/monthly-scope";
 import { execFileSync } from "node:child_process";
 import { readFileSync, readdirSync } from "node:fs";
 import { createHash } from "node:crypto";
@@ -25,7 +26,7 @@ function override(options: ReviewInsightsGitOptions, key: string, value: string 
   return { ...options, execute(command) { if (command === key || key === "diff" && command.startsWith("diff ")) { if (value instanceof Error) throw value; return value; } return options.execute!(command); } };
 }
 function restoreOld(text: string): string {
-  return canonical(text).replace(/^\/\/ REVIEW_HISTORY_ADAPTER_BEGIN\n[\s\S]*?^\/\/ REVIEW_HISTORY_ADAPTER_END\n/m, "")
+  return canonical(restoreMonthlyOnboarding(text)).replace(/^\/\/ REVIEW_HISTORY_ADAPTER_BEGIN\n[\s\S]*?^\/\/ REVIEW_HISTORY_ADAPTER_END\n/m, "")
     .replace(/^  \/\/ REVIEW_SCOPE_SELECTOR_BEGIN\n[\s\S]*?^  \/\/ REVIEW_SCOPE_SELECTOR_END\n/m, "")
     .replace(/\b(\w+) as reviewPrevious_(\w+)/g, (_m, original, alias) => original === alias ? original : original + " as " + alias)
     .replace(/\bimport reviewPrevious_fs from/g, "import fs from");
@@ -105,7 +106,7 @@ describe("Review22 current42 first, exact immutable699 old regression second", (
   }, 30000);
   it("ReviewsClient new marked islands reverse whole source; old FINAL logic unchanged", () => {
     const file = "src/components/journey/ReviewsClient.tsx", current = canonical(readFileSync(file, "utf8"));
-    const restored = current.replace(/^ *\/\/ REVIEW_INSIGHTS_(?:IMPORT|STATE|MATCH)_BEGIN\n[\s\S]*?^ *\/\/ REVIEW_INSIGHTS_(?:IMPORT|STATE|MATCH)_END\n/gm, "")
+    const restored = restoreMonthlyReviewClient(current).replace(/^ *\/\/ REVIEW_INSIGHTS_(?:IMPORT|STATE|MATCH)_BEGIN\n[\s\S]*?^ *\/\/ REVIEW_INSIGHTS_(?:IMPORT|STATE|MATCH)_END\n/gm, "")
       .replace(/\n      \{\/\* REVIEW_INSIGHTS_PANEL_BEGIN \*\/\}[\s\S]*?      \{\/\* REVIEW_INSIGHTS_PANEL_END \*\/\}\n/, "")
       .replace("objectiveSummary: attachedNote ?? {}, // REVIEW_INSIGHTS_OBJECTIVE_NOTE", "objectiveSummary: {},")
       .replace("periodStart: attachedPeriod?.start ?? toIso(periodStart), // REVIEW_INSIGHTS_PERIOD_START", "periodStart: toIso(periodStart),")

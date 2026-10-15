@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { REVIEW_SECTIONS, REVIEW_SOURCES, REVIEW_VERSION, ReviewAnalysisSchema, ReviewError, ReviewSummarySchema, type ReviewAnalysis, type ReviewAnalysisReceipt, type ReviewPeriod, type ReviewRow, type ReviewSource, type ReviewSummary } from "./types";
+import { REVIEW_SECTIONS, REVIEW_SOURCES, REVIEW_VERSION, MONTHLY_REVIEW_VERSION, ReviewAnalysisSchema, ReviewError, ReviewSummarySchema, type ReviewAnalysis, type ReviewAnalysisReceipt, type ReviewPeriod, type ReviewRow, type ReviewSource, type ReviewSummary } from "./types";
+import { previousReviewMonth, withMonthlyComparison } from "./monthly";
 
 export function plainReviewData(value: unknown): void {
   let nodes = 0;
@@ -45,10 +46,11 @@ const uuid = z.string().uuid().refine(v => v === v.toLowerCase()), time = z.stri
 export function parseReviewPeriod(value: unknown, now = new Date()): ReviewPeriod {
   try {
     plainReviewData(value);
-    const p = z.strictObject({ mode: z.enum(["DAILY", "WEEKLY"]), start: time, end: time, timezone: z.string().min(1).max(100) }).parse(value);
+    const p = z.strictObject({ mode: z.enum(["DAILY", "WEEKLY", "MONTHLY"]), start: time, end: time, timezone: z.string().min(1).max(100) }).parse(value);
     const a = Date.parse(p.start), b = Date.parse(p.end);
-    if (new Date(a).toISOString() !== p.start || new Date(b).toISOString() !== p.end || a >= b || b > now.getTime() || b - a > (p.mode === "DAILY" ? 26 : 8 * 24) * 3600000) throw Error();
+    if (new Date(a).toISOString() !== p.start || new Date(b).toISOString() !== p.end || a >= b || b > now.getTime() || b - a > (p.mode === "DAILY" ? 26 : p.mode === "WEEKLY" ? 8 * 24 : 32 * 24) * 3600000) throw Error();
     new Intl.DateTimeFormat("en", { timeZone: p.timezone }).format(now);
+    if (p.mode === "MONTHLY") previousReviewMonth(p);
     return p;
   } catch { throw new ReviewError("REVIEW_INVALID_INPUT"); }
 }
@@ -80,13 +82,19 @@ export function parseReviewSummary(value: unknown): ReviewSummary {
   try {
     plainReviewData(value); const result = ReviewSummarySchema.parse(value);
     parseReviewPeriod(result.period, new Date(result.asOf)); reviewTimestamp(result.asOf);
+    if (result.version !== (result.period.mode === "MONTHLY" ? MONTHLY_REVIEW_VERSION : REVIEW_VERSION)) throw Error();
     if (new Set(result.coverage.map(c => c.source)).size !== REVIEW_SOURCES.length || result.complete !== result.coverage.every(c => c.complete) || new Set(result.sourceRefs.map(s => s.ref)).size !== result.sourceRefs.length || result.sourceRefs.some(s => s.ref !== `${s.source}:${s.id}`)) throw Error();
+    if (result.comparison) {
+      const previous = parseReviewSummary(result.comparison.previous);
+      if (result.period.mode !== "MONTHLY" || previous.period.mode !== "MONTHLY" || previous.period.end !== result.period.start || previous.period.timezone !== result.period.timezone) throw Error();
+      if (withMonthlyComparison(result, previous).comparison!.partialCurrent !== result.comparison.partialCurrent) throw Error();
+    }
     return result;
   } catch { throw new ReviewError("REVIEW_MALFORMED_DATA"); }
 }
 export function parseReviewAnalysis(value: unknown, summary: ReviewSummary): ReviewAnalysis {
   try {
-    plainReviewData(value); const result = ReviewAnalysisSchema.parse(value), refs = new Set(summary.sourceRefs.map(r => r.ref));
+    plainReviewData(value); const result = ReviewAnalysisSchema.parse(value), refs = new Set([...summary.sourceRefs, ...(summary.comparison?.previous.sourceRefs ?? [])].map(r => r.ref));
     for (const item of [...REVIEW_SECTIONS.map(k => result[k]), ...result.adjustments]) {
       if (new Set(item.supportingIds).size !== item.supportingIds.length || item.supportingIds.some(id => !refs.has(id)) || item.certainty === "supported" && !item.supportingIds.length) throw Error();
     }
@@ -109,9 +117,10 @@ export function parseReviewAnalysis(value: unknown, summary: ReviewSummary): Rev
 export function parseReviewReceipt(value: unknown): ReviewAnalysisReceipt {
   try {
     plainReviewData(value);
-    const r = z.strictObject({ version: z.literal(REVIEW_VERSION), model: z.string().min(1).max(200), analyzedAt: time, summary: z.unknown(), analysis: z.unknown() }).parse(value);
+    const r = z.strictObject({ version: z.enum([REVIEW_VERSION, MONTHLY_REVIEW_VERSION]), model: z.string().min(1).max(200), analyzedAt: time, summary: z.unknown(), analysis: z.unknown() }).parse(value);
     const summary = parseReviewSummary(r.summary);
-    if (!summary.complete || Date.parse(r.analyzedAt) < Date.parse(summary.asOf)) throw Error();
+    if (r.version !== summary.version || !summary.complete || summary.comparison?.previous.complete === false || summary.period.mode === "MONTHLY" && !summary.comparison || Date.parse(r.analyzedAt) < Date.parse(summary.asOf)) throw Error();
+    if (summary.comparison && Date.parse(r.analyzedAt) < Date.parse(summary.comparison.previous.asOf)) throw Error();
     return { ...r, summary, analysis: parseReviewAnalysis(r.analysis, summary) };
   } catch { throw new ReviewError("REVIEW_AI_INVALID"); }
 }
