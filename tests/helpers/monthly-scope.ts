@@ -7,6 +7,9 @@ const REVIEW_HEAD = "f2f847cf24671eaa8c610a61e1a468a5e3798e57";
 const REVIEW_BASE = "69978e833bf0af7444f1eda92f573b0b479ba3e0";
 // Subsequent authorized UI-only amendment: SiteReadiness25, QuestCard and its dedicated regression tests.
 export const MONTHLY_ALLOWED = [
+  // Explicit Image28 amendment; local Windows OCR, no cloud image upload or growth mutation.
+  "docs/SiteReadiness/28_LOCAL_IMAGE_OCR.md", "src/lib/local-library/image.ts", "src/lib/local-library/ocr.ts", "scripts/local-image-ocr.ps1",
+  "src/app/api/local-library/ocr/route.ts", "tests/local-library-images.test.ts", "tests/local-library-ocr.test.ts",
   // Explicit Office27 amendment; browser-only extraction, no growth or database changes.
   "docs/SiteReadiness/27_LOCAL_OFFICE_TEXT_IMPORT.md", "src/lib/local-library/office.ts", "tests/local-library-office.test.ts",
   // Explicit local-library26 amendment; no changes to historical guards or growth rules.
