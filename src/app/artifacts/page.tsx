@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { InspectorDrawer } from "@/components/layout/InspectorDrawer";
 import { ArtifactAcceptancePanel } from "@/components/artifacts/ArtifactAcceptancePanel";
@@ -511,6 +512,7 @@ export default function ArtifactsPage() {
         </div>
 
         <div className="flex items-center gap-2.5 justify-end">
+          <Link href="/local-library" className="inline-flex min-h-11 items-center rounded-lg border border-[var(--border-default)] px-3 text-sm text-[var(--text-primary)] hover:bg-[var(--surface-ground)]">本地资料</Link>
           <SecondaryButton
             onClick={refreshArtifacts}
             icon={<RefreshCw aria-hidden="true" className="w-4 h-4" />}

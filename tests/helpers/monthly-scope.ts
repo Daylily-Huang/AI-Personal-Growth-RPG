@@ -7,6 +7,11 @@ const REVIEW_HEAD = "f2f847cf24671eaa8c610a61e1a468a5e3798e57";
 const REVIEW_BASE = "69978e833bf0af7444f1eda92f573b0b479ba3e0";
 // Subsequent authorized UI-only amendment: SiteReadiness25, QuestCard and its dedicated regression tests.
 export const MONTHLY_ALLOWED = [
+  // Explicit local-library26 amendment; no changes to historical guards or growth rules.
+  "README.md", "CHANGELOG.md", "docs/MASTER_PROJECT_HANDOFF.md", "docs/SiteReadiness/26_LOCAL_FOLDER_LIBRARY.md", "src/app/artifacts/page.tsx",
+  "src/app/local-library/page.tsx", "src/app/api/local-library/route.ts", "src/app/api/local-library/analyze/route.ts", "src/app/api/local-library/confirm/route.ts",
+  "src/lib/local-library/schema.ts", "src/lib/local-library/files.ts", "src/lib/local-library/ai.ts", "src/lib/local-library/http.ts", "src/lib/local-library/store.ts",
+  "tests/local-library.test.ts", "tests/local-library-ai.test.ts", "tests/local-library-ui.test.tsx", "tests/local-library-scope.test.ts",
   "docs/SiteReadiness/25_CUSTOM_QUEST_PROGRESS.md", "src/components/quests/QuestCard.tsx", "tests/quest-progress-custom.test.tsx",
   "docs/SiteReadiness/24_MONTHLY_REVIEW_AND_GAME_FEEDBACK.md", "task_plan.md", "progress.md", "findings.md",
   "src/lib/review-insights/types.ts", "src/lib/review-insights/validation.ts", "src/lib/review-insights/summary.ts", "src/lib/review-insights/client.ts", "src/lib/review-insights/ai.ts", "src/lib/review-insights/repository.ts", "src/lib/review-insights/monthly.ts",
