@@ -1,4 +1,4 @@
-import { fileLimit, isOfficePath, TEXT_LIMIT, supportedPath, type Source } from "./schema";
+import { fileLimit, isImagePath, isOfficePath, TEXT_LIMIT, supportedPath, type Source } from "./schema";
 
 export type FileEntry = { path: string; size: number; modifiedAt: number; read: () => Promise<File> };
 export type Directory = {
@@ -31,6 +31,7 @@ export async function scanDirectory(directory: Directory): Promise<{ files: File
 }
 export async function readSource(entry: FileEntry): Promise<Source> {
   if (!supportedPath(entry.path)) throw Error("文件类型或路径不支持");
+  if (isImagePath(entry.path)) throw Error("请先在本机识别图片文字并核对，再交给AI整理");
   const file = await entry.read();
   if (!file.size || file.size > fileLimit(entry.path)) throw Error(isOfficePath(entry.path) ? "文档为空或超过20MB，请拆分后重试" : "文件为空或超过128KB，请选择较小的文本文件");
   const bytes = await file.arrayBuffer();

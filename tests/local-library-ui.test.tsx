@@ -3,8 +3,9 @@ import React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import LocalLibraryPage from "@/app/local-library/page";
-const state = vi.hoisted(() => ({ memory: vi.fn(), scan: vi.fn(), read: vi.fn() }));
+const state = vi.hoisted(() => ({ memory: vi.fn(), scan: vi.fn(), read: vi.fn(), prepare: vi.fn(), imageSource: vi.fn() }));
 vi.mock("@/lib/local-library/files", () => ({ directoryMemory: state.memory, scanDirectory: state.scan, readSource: state.read }));
+vi.mock("@/lib/local-library/image", () => ({ prepareImage: state.prepare, imageSource: state.imageSource }));
 vi.mock("next/link", () => ({ default: ({ href, children, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => <a href={href} {...props}>{children}</a> }));
 const owner = "11111111-1111-4111-8111-111111111111", draftId = "22222222-2222-4222-8222-222222222222", itemId = "33333333-3333-4333-8333-333333333333";
 const source = { path: "notes/a.md", content: "对比两种方法", sha256: "a".repeat(64) };
@@ -13,10 +14,41 @@ const fetcher = vi.fn();
 function response(body: unknown, status = 200) { return Promise.resolve({ ok: status < 400, status, json: async () => body }); }
 beforeEach(() => {
   sessionStorage.clear(); state.memory.mockReset().mockResolvedValue(null); state.scan.mockReset().mockResolvedValue({ files: [{ path: source.path, size: 20, modifiedAt: 1 }], skipped: 0, limited: false }); state.read.mockReset().mockResolvedValue(source);
+  state.prepare.mockReset().mockResolvedValue({originalSha256:'c'.repeat(64),rasterSha256:'b'.repeat(64),base64:'YWJj',preview:'data:image/png;base64,YWJj',width:100,height:80});
+  state.imageSource.mockReset().mockImplementation(async (entry:{path:string},result:{text:string})=>({path:entry.path,content:result.text,sha256:'d'.repeat(64)}));
   const directory = { name: "notes", queryPermission: vi.fn(async () => "granted"), requestPermission: vi.fn(async () => "granted") };
   Object.defineProperty(window, "showDirectoryPicker", { configurable: true, value: vi.fn(async () => directory) });
-  fetcher.mockReset().mockImplementation((url: string) => url.endsWith("analyze") ? response({ draft }) : url.endsWith("confirm") ? response({ activityId: "activity-1", evidenceId: "evidence-1", replayed: false }) : response({ userId: owner, aiConfigured: true }));
+  fetcher.mockReset().mockImplementation((url: string) => url.endsWith("/ocr") ? response({text:'Sample 1 5，待核对',engine:'Windows OCR',language:'zh-Hans-CN',rasterSha256:'b'.repeat(64)}) : url.endsWith("analyze") ? response({ draft }) : url.endsWith("confirm") ? response({ activityId: "activity-1", evidenceId: "evidence-1", replayed: false }) : response({ userId: owner, aiConfigured: true }));
   vi.stubGlobal("fetch", fetcher);
+});
+async function connectImage(){
+  state.scan.mockResolvedValue({files:[{path:'notes/photo.png',size:200000,modifiedAt:1}],skipped:0,limited:false});
+  render(<LocalLibraryPage/>);await waitFor(()=>expect((screen.getByRole('button',{name:'选择文件夹'}) as HTMLButtonElement).disabled).toBe(false));fireEvent.click(screen.getByRole('button',{name:'选择文件夹'}));await screen.findByText('notes/photo.png');fireEvent.click(screen.getAllByRole('checkbox')[0]);
+}
+describe('image OCR preview before cloud AI',()=>{
+  it('scans without OCR and performs local OCR without cloud consent or confirmation',async()=>{
+    await connectImage();expect(state.prepare).not.toHaveBeenCalled();expect(fetcher.mock.calls.every(c=>c[0]==='/api/local-library')).toBe(true);
+    fireEvent.click(screen.getByRole('button',{name:'本机识别所选图片'}));const text=await screen.findByLabelText('识别文字：notes/photo.png');expect((text as HTMLTextAreaElement).value).toBe('Sample 1 5，待核对');expect(screen.getByRole('img',{name:'待核对图片：notes/photo.png'})).toBeTruthy();
+    expect(fetcher.mock.calls.some(c=>c[0].endsWith('/analyze')||c[0].endsWith('/confirm'))).toBe(false);expect((screen.getByRole('button',{name:'交给AI整理建议'}) as HTMLButtonElement).disabled).toBe(true);
+  });
+  it('editing OCR revokes previous AI consent, then submits corrected text without image bytes',async()=>{
+    await connectImage();fireEvent.click(screen.getByRole('button',{name:'本机识别所选图片'}));const text=await screen.findByLabelText('识别文字：notes/photo.png');
+    const consent=screen.getByRole('checkbox',{name:/允许将以上所选文本/});fireEvent.click(consent);fireEvent.change(text,{target:{value:'Sample 15，用户核对后仍待独立验证'}});expect((consent as HTMLInputElement).checked).toBe(false);
+    fireEvent.click(consent);fireEvent.click(screen.getByRole('button',{name:'交给AI整理建议'}));await screen.findByRole('button',{name:'确认记录活动与证据'});
+    const call=fetcher.mock.calls.find(c=>c[0].endsWith('/analyze'))!,body=JSON.parse(call[1].body);expect(body.files[0].content).toBe('Sample 15，用户核对后仍待独立验证');expect(body.files[0].path).toBe('notes/photo.png');expect(call[1].body).not.toContain('base64');expect(fetcher.mock.calls.some(c=>c[0].endsWith('/confirm'))).toBe(false);
+  });
+  it('allows local recognition with AI unavailable',async()=>{
+    fetcher.mockImplementation((url:string)=>url.endsWith('/ocr')?response({text:'本机识别',engine:'Windows OCR',language:'zh-Hans-CN',rasterSha256:'b'.repeat(64)}):response({userId:owner,aiConfigured:false}));
+    await connectImage();expect((screen.getByRole('button',{name:'本机识别所选图片'}) as HTMLButtonElement).disabled).toBe(false);fireEvent.click(screen.getByRole('button',{name:'本机识别所选图片'}));await screen.findByLabelText('识别文字：notes/photo.png');expect((screen.getByRole('button',{name:'交给AI整理建议'}) as HTMLButtonElement).disabled).toBe(true);
+  });
+  it('never sends a failed or stale image text source to AI',async()=>{
+    await connectImage();fireEvent.click(screen.getByRole('button',{name:'本机识别所选图片'}));await screen.findByLabelText('识别文字：notes/photo.png');state.imageSource.mockRejectedValue(Error('原图片已变化，请重新识别'));
+    fireEvent.click(screen.getByRole('checkbox',{name:/允许将以上所选文本/}));fireEvent.click(screen.getByRole('button',{name:'交给AI整理建议'}));expect((await screen.findByRole('alert')).textContent).toContain('原图片已变化');expect(fetcher.mock.calls.some(c=>c[0].endsWith('/analyze'))).toBe(false);
+  });
+  it('clears image previews on disconnect',async()=>{await connectImage();fireEvent.click(screen.getByRole('button',{name:'本机识别所选图片'}));await screen.findByLabelText('识别文字：notes/photo.png');fireEvent.click(screen.getByRole('button',{name:'断开连接'}));await waitFor(()=>expect(screen.queryByLabelText('识别文字：notes/photo.png')).toBeNull());});
+  it('does not invent text when local OCR fails',async()=>{
+    await connectImage();fetcher.mockImplementation((url:string)=>url.endsWith('/ocr')?response({error:'图片中未识别出文字'},422):response({userId:owner,aiConfigured:true}));fireEvent.click(screen.getByRole('button',{name:'本机识别所选图片'}));expect((await screen.findByRole('alert')).textContent).toContain('未识别出文字');expect(screen.queryByLabelText('识别文字：notes/photo.png')).toBeNull();expect(fetcher.mock.calls.some(c=>c[0].endsWith('/analyze'))).toBe(false);
+  });
 });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 async function connect() { render(<LocalLibraryPage />); await waitFor(() => expect((screen.getByRole("button", { name: "选择文件夹" }) as HTMLButtonElement).disabled).toBe(false)); fireEvent.click(screen.getByRole("button", { name: "选择文件夹" })); await screen.findByText(source.path); }
