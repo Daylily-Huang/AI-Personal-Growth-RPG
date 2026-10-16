@@ -3,6 +3,7 @@ import { z } from "zod";
 export const LIBRARY_VERSION = "local-library-v1";
 export const BODY_LIMIT = 300_000;
 export const FILE_LIMIT = 128_000;
+export const OFFICE_LIMIT = 20 * 1024 * 1024;
 export const TEXT_LIMIT = 64_000;
 export const MAX_FILES = 8;
 const text = (max: number) => z.string().trim().min(1).max(max).refine(s => !s.includes("\0") && s.isWellFormed());
@@ -19,7 +20,9 @@ export type LibraryDraft = { id: string; expiresAt: string; model: string; items
 export type Confirmation = z.infer<typeof ConfirmSchema>;
 export type LibraryReceipt = { activityId: string; evidenceId: string; replayed: boolean };
 
-const EXTENSIONS = new Set(["md", "mdx", "txt", "r", "py", "js", "jsx", "ts", "tsx", "json", "csv", "html", "css", "tex", "ipynb"]);
+const EXTENSIONS = new Set(["md", "mdx", "txt", "r", "py", "js", "jsx", "ts", "tsx", "json", "csv", "html", "css", "tex", "ipynb", "pptx", "docx"]);
+export const isOfficePath = (name: string) => /\.(pptx|docx)$/i.test(name);
+export const fileLimit = (name: string) => isOfficePath(name) ? OFFICE_LIMIT : FILE_LIMIT;
 export function supportedPath(name: string): boolean {
   return sourcePath.safeParse(name).success && EXTENSIONS.has(name.split(".").at(-1)?.toLowerCase() ?? "") &&
     !name.split("/").some(p => /^(node_modules|vendor|dist|build|__pycache__|coverage|credentials|secrets?)$/i.test(p)) &&

@@ -30,13 +30,13 @@
 
 桌面Chrome/Edge支持记住连接，重开后可按提示重新授权；其他浏览器使用一次性目录选择。刷新清单是手动操作，不在后台监听；断开连接会清除记住的目录，进一步撤销权限可在浏览器站点设置操作。
 
-首版读取UTF-8的Markdown、TXT、R/Python/JS/TS、JSON/CSV、HTML/CSS、TeX与Notebook文本。每文件最高128KB，每次最多8份、合计64,000字符；最多扫描200个可用文件、2,000项目、8层子目录。隐藏目录、依赖及明显密钥文件会跳过，但仍需用户检查敏感资料。**PDF、Office文档和图片暂不解析正文。** 正文哈希基于去除首尾空白后的UTF-8文本，用于来源版本去重，不冒充原文件的二进制哈希。
+支持PPTX幻灯片文字与演讲备注、DOCX正文及表格文字，浏览器本地提取，每文档最高20MiB。文本文件继续读取UTF-8的Markdown、TXT、R/Python/JS/TS、JSON/CSV、HTML/CSS、TeX与Notebook，每文本文件最高128KB。每次最多8份、提取文字合计64,000字符；最多扫描200个可用文件、2,000项目、8层子目录。隐藏目录、依赖及明显密钥文件会跳过，但仍需用户检查敏感资料。**PDF、旧PPT/DOC、图片及嵌入图片中的文字暂不识别。** Word页眉页脚、脚注、批注及PPT图表/SmartArt独立数据部件暂不读取；超限、加密、损坏或无文字会明确报错，整批不发送、不自动截断。 正文哈希基于去除首尾空白后的UTF-8文本，用于来源版本去重，不冒充原文件的二进制哈希。
 
 同一相对名称和同一正文版本重复确认会返回原活动。活动与证据沿用两个现有操作：证据失败时活动仍可能已保存，页面保留原请求用于补交证据。创建结果不明时停止自动重建，需先检查活动历史。未保存的AI建议有效1小时，服务重启后需要重新分析。
 
 ## 最近开发进展
 
-本轮开发基于2026-10-16已核实的合并基线 [PR #65](https://github.com/Daylily-Huang/AI-Personal-Growth-RPG/pull/65)，提交 `8fd9becf`。
+本轮文档读取补充基于已合并的 [PR #66](https://github.com/Daylily-Huang/AI-Personal-Growth-RPG/pull/66)，提交 `5037a69b`。
 
 - [PR #59](https://github.com/Daylily-Huang/AI-Personal-Growth-RPG/pull/59)：活动材料提交，保持未验证证据边界。
 - [PR #60](https://github.com/Daylily-Huang/AI-Personal-Growth-RPG/pull/60)：事实修订和AI重评。
@@ -45,9 +45,10 @@
 - [PR #63](https://github.com/Daylily-Huang/AI-Personal-Growth-RPG/pull/63)：月度复盘、上月对照与真实成长反馈。
 - [PR #64](https://github.com/Daylily-Huang/AI-Personal-Growth-RPG/pull/64)：动效与开关。
 - [PR #65](https://github.com/Daylily-Huang/AI-Personal-Growth-RPG/pull/65)：自定义任务进度增量。
-- 本轮：本地资料文件夹与AI建议流程，以及README/开发进度同步；以本轮PR检查结果为最终验收依据。
+- [PR #66](https://github.com/Daylily-Huang/AI-Personal-Growth-RPG/pull/66)：本地资料文件夹与AI建议流程，4,831完整数据库测试通过。
+- 本轮补充：本地PPTX/DOCX文字提取，修复选中文档被全部跳过的问题。
 
-PWA、手机局域网访问、更多外部服务集成、PDF/Office正文解析仍是后续候选，未列为已完成。公网发布不在当前范围。
+PWA、手机局域网访问、更多外部服务集成、PDF与旧版Office正文解析仍是后续候选，未列为已完成。公网发布不在当前范围。
 
 ## 技术与数据边界
 
