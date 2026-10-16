@@ -12,8 +12,8 @@ const scratch: string[] = [];
 afterEach(async () => { for (const directory of scratch.splice(0)) await rm(directory, { recursive: true, force: true }); });
 const hash = (s: string) => createHash("sha256").update(s).digest("hex");
 describe("local file boundaries", () => {
-  it.each(["notes/learn.md", "notes/model.R", "work/main.py", "work/data.csv", "work/example.tsx"])("accepts text %s", name => expect(supportedPath(name)).toBe(true));
-  it.each(["/absolute.md", "C:/Users/test.md", "notes/../outside.md", "notes/.env", "notes/.git/data.md", "notes/node_modules/test.js", "notes/password.txt", "notes/密钥.txt", "notes/report.pdf", "notes/report.docx", "notes/image.png"])("rejects %s", name => expect(supportedPath(name)).toBe(false));
+  it.each(["notes/learn.md", "notes/model.R", "work/main.py", "work/data.csv", "work/example.tsx", "notes/report.docx", "notes/slides.pptx"])("accepts supported source %s", name => expect(supportedPath(name)).toBe(true));
+  it.each(["/absolute.md", "C:/Users/test.md", "notes/../outside.md", "notes/.env", "notes/.git/data.md", "notes/node_modules/test.js", "notes/password.txt", "notes/密钥.txt", "notes/report.pdf", "notes/report.doc", "notes/image.png"])("rejects %s", name => expect(supportedPath(name)).toBe(false));
   it("requires explicit consent, unique sources, strict fields and a bounded batch", () => {
     const file = { path: "notes/a.md", content: "原始笔记", sha256: hash("原始笔记") };
     expect(AnalyzeSchema.safeParse({ files: [file], consent: true }).success).toBe(true);

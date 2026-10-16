@@ -1,4 +1,4 @@
-import { FILE_LIMIT, supportedPath, type Source } from "./schema";
+import { fileLimit, isOfficePath, TEXT_LIMIT, supportedPath, type Source } from "./schema";
 
 export type FileEntry = { path: string; size: number; modifiedAt: number; read: () => Promise<File> };
 export type Directory = {
@@ -19,7 +19,7 @@ export async function scanDirectory(directory: Directory): Promise<{ files: File
       else if (supportedPath(filePath)) {
         try {
           const file = await entry.getFile();
-          if (file.size > FILE_LIMIT || !file.size) { skipped++; continue; }
+          if (file.size > fileLimit(filePath) || !file.size) { skipped++; continue; }
           files.push({ path: filePath, size: file.size, modifiedAt: file.lastModified, read: () => entry.getFile() });
         } catch { skipped++; }
       } else skipped++;
@@ -32,11 +32,14 @@ export async function scanDirectory(directory: Directory): Promise<{ files: File
 export async function readSource(entry: FileEntry): Promise<Source> {
   if (!supportedPath(entry.path)) throw Error("文件类型或路径不支持");
   const file = await entry.read();
-  if (!file.size || file.size > FILE_LIMIT) throw Error("文件为空或超过128KB，请选择较小的文本文件");
+  if (!file.size || file.size > fileLimit(entry.path)) throw Error(isOfficePath(entry.path) ? "文档为空或超过20MB，请拆分后重试" : "文件为空或超过128KB，请选择较小的文本文件");
   const bytes = await file.arrayBuffer();
-  const content = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  const content = isOfficePath(entry.path)
+    ? await (await import("./office")).extractOffice(new Uint8Array(bytes), entry.path)
+    : new TextDecoder("utf-8", { fatal: true }).decode(bytes);
   if (!content.trim() || content.includes("\0") || !content.isWellFormed()) throw Error("文件不是可读取的UTF-8文本");
-  // Hash exactly the transmitted (untrimmed) UTF-8 text, including a possible BOM normalization.
+  if (content.trim().length > TEXT_LIMIT) throw Error("文字超过64,000字符，请拆分文件后重试；不会自动截断");
+  // Bind the source version to exactly the transmitted, trimmed UTF-8 text.
   const canonical = new TextEncoder().encode(content.trim());
   const digest = await crypto.subtle.digest("SHA-256", canonical);
   return { path: entry.path, sha256: [...new Uint8Array(digest)].map(b => b.toString(16).padStart(2, "0")).join(""), content: content.trim() };

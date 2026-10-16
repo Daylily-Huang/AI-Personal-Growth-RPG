@@ -50,6 +50,20 @@ describe("local library interaction", () => {
     const liveList = [file]; fireEvent.change(screen.getByLabelText("选择资料文件夹"), { target: { files: liveList } }); liveList.splice(0);
     await screen.findByText(source.path); expect(state.read).not.toHaveBeenCalled();
   });
+  it("lists PPTX and DOCX above 128KB in the fallback without reading or sending files", async () => {
+    Object.defineProperty(window, "showDirectoryPicker", { configurable: true, value: undefined });
+    render(<LocalLibraryPage />); await waitFor(() => expect((screen.getByRole("button", { name: "选择文件夹" }) as HTMLButtonElement).disabled).toBe(false));
+    const files = ["report.pptx", "notes.docx"].map(name => { const file = new File([new Uint8Array(200000)], name); Object.defineProperty(file, "webkitRelativePath", { value: `notes/${name}` }); return file; });
+    fireEvent.change(screen.getByLabelText("选择资料文件夹"), { target: { files } });
+    await screen.findByText("notes/report.pptx"); expect(screen.getByText("notes/notes.docx")).toBeTruthy(); expect(state.read).not.toHaveBeenCalled(); expect(fetcher.mock.calls.every(c => c[0] === "/api/local-library")).toBe(true);
+  });
+  it("identifies a failed Office file and sends nothing when extraction fails", async () => {
+    state.scan.mockResolvedValue({ files: [{ path: "notes/report.pptx", size: 200000, modifiedAt: 1 }], skipped: 0, limited: false });
+    state.read.mockRejectedValue(Error("文档已加密，请另存后重试"));
+    render(<LocalLibraryPage />); await waitFor(() => expect((screen.getByRole("button", { name: "选择文件夹" }) as HTMLButtonElement).disabled).toBe(false)); fireEvent.click(screen.getByRole("button", { name: "选择文件夹" })); await screen.findByText("notes/report.pptx");
+    fireEvent.click(screen.getAllByRole("checkbox")[0]); fireEvent.click(screen.getAllByRole("checkbox")[1]); fireEvent.click(screen.getByRole("button", { name: "交给AI整理建议" }));
+    expect((await screen.findByRole("alert")).textContent).toContain("notes/report.pptx：文档已加密"); expect(fetcher.mock.calls.some(c => c[0].endsWith("analyze") || c[0].endsWith("confirm"))).toBe(false);
+  });
   it("unlocks editing when validation rejects the request before creating an activity", async () => {
     await analyze(); fetcher.mockImplementation((url: string) => url.endsWith("confirm") ? response({ error: "证据过长" }, 400) : response({ userId: owner, aiConfigured: true }));
     fireEvent.click(screen.getByRole("button", { name: "确认记录活动与证据" })); await screen.findByRole("alert");

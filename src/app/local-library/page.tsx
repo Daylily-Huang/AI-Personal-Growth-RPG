@@ -8,7 +8,7 @@ import { SecondaryButton } from "@/components/ui/SecondaryButton";
 import { GlassPanel } from "@/components/ui/GlassPanel";
 import { journeyInputClass, journeyLabelClass } from "@/components/journey/formStyles";
 import { directoryMemory, readSource, scanDirectory, type Directory, type FileEntry } from "@/lib/local-library/files";
-import { AnalyzeSchema, FILE_LIMIT, MAX_FILES, supportedPath, type Confirmation, type LibraryDraft, type LibraryReceipt } from "@/lib/local-library/schema";
+import { AnalyzeSchema, fileLimit, MAX_FILES, TEXT_LIMIT, supportedPath, type Confirmation, type LibraryDraft, type LibraryReceipt } from "@/lib/local-library/schema";
 
 type PickerWindow = Window & { showDirectoryPicker?: (options: { mode: "read"; id: string }) => Promise<Directory> };
 class LibraryClientError extends Error { constructor(message: string, readonly status: number) { super(message); } }
@@ -61,7 +61,7 @@ export default function LocalLibraryPage() {
     if (permission !== "granted" && await handle.requestPermission({ mode: "read" }) !== "granted") throw Error("未取得文件夹读取权限；可重新授权或断开连接");
     const result = await scanDirectory(handle);
     resetSuggestions(); setFiles(result.files);
-    setNotice(`找到 ${result.files.length} 个可读取文本文件，跳过 ${result.skipped} 项（不支持、隐藏、过大或不可访问）。${result.limited ? "已达到扫描上限，请连接更小的子文件夹。" : "尚未发送给AI。"}`);
+    setNotice(`找到 ${result.files.length} 个可读取文件，跳过 ${result.skipped} 项（不支持、隐藏、过大或不可访问）。${result.limited ? "已达到扫描上限，请连接更小的子文件夹。" : "尚未发送给AI。"}`);
   }
   function connect() {
     const showPicker = (window as PickerWindow).showDirectoryPicker;
@@ -80,10 +80,10 @@ export default function LocalLibraryPage() {
     // Snapshot before the input is cleared or an awaited auth check runs.
     const all = Array.from(list);
     void run(async () => {
-      const entries = all.filter(file => supportedPath(file.webkitRelativePath) && file.size > 0 && file.size <= FILE_LIMIT).slice(0, 200)
+      const entries = all.filter(file => supportedPath(file.webkitRelativePath) && file.size > 0 && file.size <= fileLimit(file.webkitRelativePath)).slice(0, 200)
         .map(file => ({ path: file.webkitRelativePath, size: file.size, modifiedAt: file.lastModified, read: async () => file }));
       resetSuggestions(); setDirectory(null); setFolderName(all[0]?.webkitRelativePath.split("/")[0] ?? "已选择文件夹"); setFiles(entries);
-      setNotice(`找到 ${entries.length} 个文本文件；本浏览器需每次重新选择目录，不能记住读取权限。尚未发送给AI。`);
+      setNotice(`找到 ${entries.length} 个可读取文件，跳过 ${all.length - entries.length} 项；本浏览器需每次重新选择目录，不能记住读取权限。尚未发送给AI。`);
     });
   }
   function disconnect() {
@@ -103,7 +103,11 @@ export default function LocalLibraryPage() {
     void run(async () => {
       if (!consent) throw Error("请先确认允许所选内容交给AI整理");
       const generation = ++sequence.current;
-      const sources = await Promise.all(files.filter(f => selected.includes(f.path)).map(readSource));
+      const sources = []; let total = 0;
+      for (const file of files.filter(f => selected.includes(f.path))) {
+        try { const source = await readSource(file); total += source.content.length; if (total > TEXT_LIMIT) throw Error("所选文字合计超过64,000字符，请减少文件数量或拆分文档；本次未发送给AI"); sources.push(source); }
+        catch (error) { throw Error(`${file.path}：${error instanceof Error ? error.message : "文字提取失败"}`); }
+      }
       const input = AnalyzeSchema.parse({ consent: true, files: sources });
       const data = await api<{ draft: LibraryDraft }>("/analyze", input);
       if (generation === sequence.current) { setDraft(data.draft); setSaved({}); setNotice("AI建议尚未记录。请核对事实、修改文字，或拒绝不合适的建议。"); }
@@ -149,7 +153,7 @@ export default function LocalLibraryPage() {
           {folderName && <SecondaryButton className={buttonClass} disabled={busy} onClick={disconnect}><Unplug className="h-4 w-4" aria-hidden />断开连接</SecondaryButton>}
           <input ref={picker} type="file" multiple {...{ webkitdirectory: "" }} hidden aria-label="选择资料文件夹" onChange={e => { fallback(e.target.files); e.target.value = ""; }} />
         </div>
-        <p className="text-xs leading-relaxed text-[var(--text-muted)]">支持UTF-8的Markdown、TXT、R/Python/JS/TS、JSON/CSV、HTML/CSS、TeX和Notebook文本。每文件最高128KB，每次最多8份、合计64,000字符。PDF、Office和图片暂不解析正文；隐藏目录、依赖及明显的密钥文件会跳过。请另行取消勾选私人或敏感资料。</p>
+        <p className="text-xs leading-relaxed text-[var(--text-muted)]">支持PPTX幻灯片文字与备注、DOCX正文与表格文字（每文件最高20MB），以及UTF-8的Markdown、TXT、代码等文本（每文件最高128KB）。文档在本机提取文字，原文件不上传；每次最多8份、合计64,000字符，超限会提示拆分，不自动截断。PDF、旧版PPT/DOC、图片及嵌入图片中的文字暂不识别；隐藏目录、依赖及明显的密钥文件会跳过。请另行取消勾选私人或敏感资料。</p>
       </GlassPanel>
       {error && <div role="alert" className="rounded-lg border border-[var(--danger)] p-4 text-sm text-[var(--danger)]">{error}</div>}
       {notice && <p role="status" className="text-sm text-[var(--text-secondary)]">{notice}</p>}
