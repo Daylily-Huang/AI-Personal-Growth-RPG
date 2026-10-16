@@ -40,7 +40,7 @@ export function parseOCR(output: string, raster: Buffer): OCRResult {
   if (raw && typeof raw === "object" && "error" in raw) { const code = String(raw.error); throw new LibraryError(errors[code] ?? "本机文字识别失败，请重试或换用清晰图片", code === "OCR_UNAVAILABLE" ? 503 : 422); }
   const parsed = outputSchema.safeParse(raw); if (!parsed.success) throw new LibraryError("本机文字识别结果无效，未生成建议", 503);
   // Windows separates Chinese word tokens with spaces; retain Latin and numeric spacing.
-  const text = parsed.data.text.replace(/([\p{Script=Han}\u3000-\u303f\uff00-\uffef]) +(?=[\p{Script=Han}\u3000-\u303f\uff00-\uffef])/gu, "$1");
+  const text = parsed.data.text.replace(/([\p{Script=Han}\u3000-\u303f\uff01-\uff0f\uff1a-\uff20\uff3b-\uff40\uff5b-\uff65]) +(?=[\p{Script=Han}\u3000-\u303f\uff01-\uff0f\uff1a-\uff20\uff3b-\uff40\uff5b-\uff65])/gu, "$1");
   return { ...parsed.data, text, rasterSha256: createHash("sha256").update(raster).digest("hex") };
 }
 const shared = globalThis as typeof globalThis & { __rpgLocalOCR?: { busy: boolean } };
