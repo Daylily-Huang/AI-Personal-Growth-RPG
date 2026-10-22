@@ -1,3 +1,7 @@
+## 2026-10-23 — Commercial quality foundation (candidate)
+
+Persistent workspace navigation across all product areas, mobile Today/Tasks/Artifacts/More, searchable page finder with keyboard/focus handling, public workflow/privacy help, and safe Next16.3.1 loading/error/404 recovery. Does not change growth, confirmation, backend, database or AI configuration. Commercial release readiness remains in progress; see docs/CommercialReadiness/00_MASTER_PLAN.md.
+
 ## 2026-10-23 多个本地资料文件夹
 
 - 可同时添加多个本地文件夹，分别刷新/断开，按来源查看并跨目录选择文件；同名文件保持独立。

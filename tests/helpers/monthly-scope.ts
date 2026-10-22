@@ -1,3 +1,4 @@
+import { commercialHistoricalFiles } from "./commercial-scope";
 import { TASK_FIRST_FILES, taskFirstProtectedHash } from "./task-first-scope";
 import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -62,7 +63,7 @@ export function assertMonthlyScope(cwd = process.cwd(), git: Git = gitAt(cwd)): 
   const read = () => {
     const raw = [git(["diff", "--no-renames", "--name-only", "-z", MONTHLY_BASE, "--"]), git(["ls-files", "--others", "--exclude-standard", "-z"])];
     if (raw.some(value => value && !value.endsWith("\0"))) throw Error("FAIL-CLOSED: monthly paths");
-    const files = raw.flatMap(value => value.split("\0").filter(Boolean));
+    const files = commercialHistoricalFiles(MONTHLY_BASE, raw.flatMap(value => value.split("\0").filter(Boolean)), cwd);
     if (new Set(files).size !== files.length || files.length !== MONTHLY_ALLOWED.length || files.some(file => !(MONTHLY_ALLOWED as readonly string[]).includes(file))) throw Error("FAIL-CLOSED: monthly scope");
     return files.sort();
   };

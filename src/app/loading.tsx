@@ -1,0 +1,1 @@
+export default function Loading() { return <div role="status" aria-live="polite" aria-busy="true" className="mx-auto w-full max-w-xl p-8 text-[var(--text-secondary)]"><p className="font-medium text-[var(--text-primary)]">正在打开页面…</p><p className="mt-2 text-sm">你可以继续使用导航，不用重复点击。</p></div>; }
