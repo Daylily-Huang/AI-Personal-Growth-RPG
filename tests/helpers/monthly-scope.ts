@@ -1,3 +1,4 @@
+import { TASK_FIRST_FILES, taskFirstProtectedHash } from "./task-first-scope";
 import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import path from "node:path";
@@ -10,6 +11,8 @@ export const MONTHLY_ALLOWED = [
   // Explicit Image28 amendment; local Windows OCR, no cloud image upload or growth mutation.
   "docs/SiteReadiness/28_LOCAL_IMAGE_OCR.md", "src/lib/local-library/image.ts", "src/lib/local-library/ocr.ts", "scripts/local-image-ocr.ps1",
   "src/app/api/local-library/ocr/route.ts", "tests/local-library-images.test.ts", "tests/local-library-ocr.test.ts",
+  // Explicit TaskFirst29 amendment; display/navigation only, no backend or growth mutation.
+  ...TASK_FIRST_FILES.filter(file => !["CHANGELOG.md", "src/app/dashboard/page.tsx", "task_plan.md", "tests/helpers/monthly-scope.ts", "tests/local-library-scope.test.ts"].includes(file)),
   // Explicit Office27 amendment; browser-only extraction, no growth or database changes.
   "docs/SiteReadiness/27_LOCAL_OFFICE_TEXT_IMPORT.md", "src/lib/local-library/office.ts", "tests/local-library-office.test.ts",
   // Explicit local-library26 amendment; no changes to historical guards or growth rules.
@@ -38,6 +41,8 @@ export function restoreMonthlyReviewClient(source: string): string {
 /** Original onboarding freeze proves its accepted Dashboard; new behavior has
  * separate current-scope and settlement feedback tests. This cannot admit HEAD. */
 export function monthlyOnboardingProtectedHash(file: string, original: () => string, cwd = process.cwd()): string {
+  // TaskFirst29: invert display text only; retain the whole-component historical hash assertion.
+  if (file === "src/components/dashboard/QuickLogCard.tsx") return taskFirstProtectedHash(file, original, cwd);
   if (file !== "src/app/dashboard/page.tsx" || !isMonthlyReviewCheckout(cwd)) return original();
   assertMonthlyScope(cwd);
   return gitAt(cwd)(["rev-parse", `${MONTHLY_BASE}:${file}`]).trim();

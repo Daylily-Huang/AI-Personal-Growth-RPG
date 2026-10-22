@@ -19,7 +19,7 @@ export function QuickLogCard({
 }: QuickLogCardProps) {
   return (
     <SectionCard
-      title="Quick Log — 记录你刚才在现实中做了什么"
+      title="做完以后：记录实际行动和结果"
       icon={<Plus className="h-5 w-5 text-[var(--text-secondary)] shrink-0" />}
       className="p-5 sm:p-6 rounded-2xl shadow-[var(--shadow-card)]"
     >
@@ -45,7 +45,7 @@ export function QuickLogCard({
         </PrimaryButton>
       </form>
       <p className="mt-2.5 text-xs text-[var(--text-muted)]">
-        AI 只会生成 Proposal；你确认后，服务器 Growth Engine 才会计算并写入 XP Ledger。
+        AI 会先给出成长建议，你可以核对、修改或拒绝；只有确认后，系统才会按规则结算经验。
       </p>
     </SectionCard>
   );
