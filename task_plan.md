@@ -413,3 +413,9 @@ Goodall已经报告own v10六165/165、432反例旧324/新0和28正例；逆向v
 Goodall最终offline binding对上一清单90C0C653EF3F607382A6E6D4BDAAE66F4E60147737292FB375E60D338E40BC41签P0=0/P1=0/P2=1 NO-GO：历史将v9大小写行为写反，不能提交。此前“只对小写x+空白+p生效”和“大写X空白P漏检”是主记录错误，现明确撤回其事实效力但保留原错误文字。独审已完成的实际重建v9匹配规则是 `/X\p{White_Space}+P/gu`（区分大小写、没有i）；完整源表达式格式未恢复，不补造逐字源码。其已执行代表输入 `allocateX PAfter testing` 拒绝；`allocatex pafter testing`、`allocatex PAfter testing`、`allocateX pAfter testing` 均接受而违规绕过。432已执行组合中v9接受324/拒绝108，当前v10拒绝全部432，结论限定原矩阵，不泛化任意输入。
 
 本次只向七audit文档和root三计划追加准确更正，production/tests/source368/BUILD_ID/full-v8/browser-v16/disposal均不变，不以修改文档为由伪称重新执行测试。旧NO-GO清单保留为candidate-manifest-v1-no-go.json，新42需重新hash并由同一Risk2仅离线复绑，当前仍未candidateGO/commit/PR/merge。其DB/HTTP永久释放继续有效。首次通知reviewer工具误传id而非target，解析拒绝、未送达；改正确target才实际送达，属主调用错误，不是产品finding。
+
+
+## 2026-10-22 任务优先的首页流程
+
+目标：解决功能入口并列、日常使用顺序不清晰的问题。基线为当前已交付6dfa8802，独立副本开发，原站点/数据/根目录用户修改保留。
+步骤：梳理实际入口（完成）→任务优先UI候选（完成）→相关测试/样式/Turbopack类型构建与浏览器核验（完成：47+119、lint0、三宽交互）→独立核验、CI及按证据交付清理（待）。范围与验收见 docs/SiteReadiness/29_TASK_FIRST_USER_FLOW.md。

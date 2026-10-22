@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { TaskFirstGuide } from "@/components/dashboard/TaskFirstGuide";
 import SettlementFeedback, { GrowthStage, GrowthRipple, settlementReceipt, type SettlementReceipt } from "@/components/dashboard/SettlementFeedback";
 import effects from "@/components/dashboard/SettlementFeedback.module.css";
 import { useRouter } from "next/navigation";
@@ -229,6 +230,11 @@ export default function DashboardPage() {
   }
 
   const fresh = isFreshDashboard(dashboard);
+  const focusReview = () => {
+    const section = document.getElementById("growth-review-step");
+    section?.scrollIntoView({ behavior: "auto", block: "start" });
+    section?.focus();
+  };
 
   return (
     <GrowthStage className="relative flex w-full flex-col gap-6 max-w-7xl mx-auto pb-12">
@@ -246,7 +252,9 @@ export default function DashboardPage() {
         </div>
       ) : null}
 
-      {/* Fresh Onboarding Card (Only shown for completely fresh user) */}
+      <TaskFirstGuide dashboard={dashboard} onQuickLog={focusQuickLog} onReview={focusReview} />
+
+      {/* The action guide is also available to returning users. */}
       {fresh && <EmptyState onFocusQuickLog={focusQuickLog} />}
 
       {/* LEVEL 1 & 2: Player Identity & Current Action Quests */}
@@ -254,11 +262,11 @@ export default function DashboardPage() {
         data-testid="dashboard-core-grid"
         className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch"
       >
-        <div className={`lg:col-span-5 ${effects.heroFrame}`}>
+        <div className={`order-2 lg:order-1 lg:col-span-5 ${effects.heroFrame}`}>
           {growthReceipt && growthReceipt.amount > 0 ? <GrowthRipple key={growthReceipt.id} /> : null}
           <PlayerHeroCard dashboard={dashboard} />
         </div>
-        <div className="lg:col-span-7">
+        <div className="order-1 lg:order-2 lg:col-span-7">
           <QuestsOverview
             mainQuest={dashboard.mainQuest}
             activeQuests={dashboard.activeQuests}
@@ -276,12 +284,18 @@ export default function DashboardPage() {
         />
       </div>
 
-      {/* Pending Proposals & Assessments (Plural Artifact Resolutions) */}
-      <PendingProposals
-        assessments={dashboard.pendingAssessments}
-        confirmingId={confirmingId}
-        onConfirm={handleConfirm}
-      />
+      {/* A stable destination exists even when there are no pending proposals. */}
+      <section id="growth-review-step" tabIndex={-1} aria-labelledby="growth-review-title" className="scroll-mt-24 space-y-3 rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]">
+        <div>
+          <h2 id="growth-review-title" className="font-serif text-lg font-semibold text-[var(--text-primary)]">下一步：核对成长建议</h2>
+          <p className="mt-1 text-sm text-[var(--text-secondary)]">{dashboard.pendingAssessments.length ? "先核对事实和证据，确认准确后再结算；也可以修改或拒绝。" : "目前没有待核对的成长建议。完成一次实际行动后，先在上方记录结果。"}</p>
+        </div>
+        <PendingProposals
+          assessments={dashboard.pendingAssessments}
+          confirmingId={confirmingId}
+          onConfirm={handleConfirm}
+        />
+      </section>
 
       {/* Pending Mastery Verifications */}
       <PendingVerifications verifications={dashboard.pendingMasteryVerifications} />
