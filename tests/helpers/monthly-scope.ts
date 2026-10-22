@@ -1,4 +1,4 @@
-import { TASK_FIRST_FILES } from "./task-first-scope";
+import { TASK_FIRST_FILES, taskFirstProtectedHash } from "./task-first-scope";
 import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import path from "node:path";
@@ -41,6 +41,8 @@ export function restoreMonthlyReviewClient(source: string): string {
 /** Original onboarding freeze proves its accepted Dashboard; new behavior has
  * separate current-scope and settlement feedback tests. This cannot admit HEAD. */
 export function monthlyOnboardingProtectedHash(file: string, original: () => string, cwd = process.cwd()): string {
+  // TaskFirst29: invert display text only; retain the whole-component historical hash assertion.
+  if (file === "src/components/dashboard/QuickLogCard.tsx") return taskFirstProtectedHash(file, original, cwd);
   if (file !== "src/app/dashboard/page.tsx" || !isMonthlyReviewCheckout(cwd)) return original();
   assertMonthlyScope(cwd);
   return gitAt(cwd)(["rev-parse", `${MONTHLY_BASE}:${file}`]).trim();

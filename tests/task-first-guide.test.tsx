@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
-import { assertTaskFirstScope } from "./helpers/task-first-scope";
+import { assertTaskFirstScope, restoreTaskFirstQuickLog } from "./helpers/task-first-scope";
 import { TaskFirstGuide } from "@/components/dashboard/TaskFirstGuide";
 import type { DashboardSnapshot } from "@/lib/store/types";
 vi.mock("next/link", () => ({ default: ({ children, prefetch, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement> & { prefetch?: boolean }) => { void prefetch; return <a {...props}>{children}</a>; } }));
@@ -20,6 +20,15 @@ const renderGuide = (dashboard = makeSnapshot()) => {
   return { ...view, onQuickLog, onReview };
 };
 describe("task-first daily workflow", () => {
+  it("restores the entire frozen record component and rejects ambiguous display amendments", () => {
+    const file = "src/components/dashboard/QuickLogCard.tsx";
+    const current = readFileSync(file, "utf8");
+    const original = execFileSync("git", ["show", `6dfa88020dd767d95443f2c9ecbf240d7e39ac9a:${file}`], { encoding: "utf8" }).replace(/\r\n/g, "\n");
+    expect(restoreTaskFirstQuickLog(current)).toBe(original);
+    expect(restoreTaskFirstQuickLog(current + "\n// unrelated change\n")).not.toBe(original);
+    expect(() => restoreTaskFirstQuickLog(current.replace("做完以后：记录实际行动和结果", "其他文案"))).toThrow("FAIL-CLOSED");
+    expect(() => restoreTaskFirstQuickLog(current + 'title="做完以后：记录实际行动和结果"')).toThrow("FAIL-CLOSED");
+  });
   it("admits only the eleven disclosed UI, documentation and guard files", () => { expect(assertTaskFirstScope()).toHaveLength(11); });
   it("provides a usable next action without requiring skills or any prior activity", () => {
     renderGuide();

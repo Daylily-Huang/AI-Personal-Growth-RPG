@@ -23,7 +23,7 @@ describe("local-library explicit authorization preserves prior freezes", () => {
   });
   it("the old monthly guard restores exactly after removing only the explicit new allowlist", () => {
     const file = "tests/helpers/monthly-scope.ts", current = normalized(readFileSync(file, "utf8"));
-    const restored = current.replace(/^import \{ TASK_FIRST_FILES \} from "\.\/task-first-scope";\r?\n/m, "").replace(/^  \/\/ Explicit TaskFirst29[^\n]*\n  \.\.\.TASK_FIRST_FILES[^\n]*\n/m, "").replace(/^  \/\/ Explicit Image28 amendment[^\n]*\n(?:  [^\n]*\n){2}/m, "").replace(/^  \/\/ Explicit Office27 amendment[^\n]*\n  [^\n]*\n/m, "").replace(/^  \/\/ Explicit local-library26 amendment[^\n]*\n(?:  [^\n]*\n){4}/m, "");
+    const restored = current.replace(/^import \{ TASK_FIRST_FILES, taskFirstProtectedHash \} from "\.\/task-first-scope";\r?\n/m, "").replace(/^  \/\/ TaskFirst29: invert[^\n]*\n  if \(file === "src\/components\/dashboard\/QuickLogCard\.tsx"\)[^\n]*\n/m, "").replace(/^  \/\/ Explicit TaskFirst29[^\n]*\n  \.\.\.TASK_FIRST_FILES[^\n]*\n/m, "").replace(/^  \/\/ Explicit Image28 amendment[^\n]*\n(?:  [^\n]*\n){2}/m, "").replace(/^  \/\/ Explicit Office27 amendment[^\n]*\n  [^\n]*\n/m, "").replace(/^  \/\/ Explicit local-library26 amendment[^\n]*\n(?:  [^\n]*\n){4}/m, "");
     expect(restored).toBe(normalized(git("show", `${BASE}:${file}`)));
   });
   it("Office/image extensions change only explicit paths and leave original AI, HTTP, confirmation and dependencies intact", () => {
