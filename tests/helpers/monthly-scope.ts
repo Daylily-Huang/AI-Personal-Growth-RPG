@@ -11,6 +11,9 @@ export const MONTHLY_ALLOWED = [
   // Explicit Image28 amendment; local Windows OCR, no cloud image upload or growth mutation.
   "docs/SiteReadiness/28_LOCAL_IMAGE_OCR.md", "src/lib/local-library/image.ts", "src/lib/local-library/ocr.ts", "scripts/local-image-ocr.ps1",
   "src/app/api/local-library/ocr/route.ts", "tests/local-library-images.test.ts", "tests/local-library-ocr.test.ts",
+  // Explicit MultiFolder30 amendment; browser handle collection only, no server authority changes.
+  "docs/SiteReadiness/30_MULTI_FOLDER_LIBRARY.md", "src/lib/local-library/folders.ts", "tests/local-library-folders.test.ts",
+  "tests/local-library-multi-folder-ui.test.tsx", "tests/helpers/multi-folder-scope.ts",
   // Explicit TaskFirst29 amendment; display/navigation only, no backend or growth mutation.
   ...TASK_FIRST_FILES.filter(file => !["CHANGELOG.md", "src/app/dashboard/page.tsx", "task_plan.md", "tests/helpers/monthly-scope.ts", "tests/local-library-scope.test.ts"].includes(file)),
   // Explicit Office27 amendment; browser-only extraction, no growth or database changes.

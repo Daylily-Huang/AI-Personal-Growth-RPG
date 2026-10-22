@@ -1,3 +1,4 @@
+import { multiFolderHistoricalFiles, withMultiFolderScope } from "./multi-folder-scope";
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
@@ -19,7 +20,8 @@ export const TASK_FIRST_FILES = [
 export function hasTaskFirstScope(cwd = process.cwd()) { return existsSync(path.join(cwd, "docs/SiteReadiness/29_TASK_FIRST_USER_FLOW.md")); }
 export function assertTaskFirstScope(cwd = process.cwd()) {
   const git = (...args: string[]) => execFileSync("git", args, { cwd, encoding: "utf8", maxBuffer: 16e6 });
-  const actual = [...git("diff", "--no-renames", "--name-only", "-z", TASK_FIRST_BASE, "--").split("\0"), ...git("ls-files", "--others", "--exclude-standard", "-z").split("\0")].filter(Boolean);
+  let actual = [...git("diff", "--no-renames", "--name-only", "-z", TASK_FIRST_BASE, "--").split("\0"), ...git("ls-files", "--others", "--exclude-standard", "-z").split("\0")].filter(Boolean);
+  actual = multiFolderHistoricalFiles(TASK_FIRST_BASE, actual, cwd);
   if (actual.length !== new Set(actual).size || JSON.stringify([...actual].sort()) !== JSON.stringify([...TASK_FIRST_FILES].sort())) throw Error("FAIL-CLOSED: task-first scope differs from its exact eleven authorized files");
   return actual;
 }
@@ -28,7 +30,7 @@ export function assertTaskFirstScope(cwd = process.cwd()) {
 export function withTaskFirstScope(files: readonly string[], cwd = process.cwd()): string[] {
   if (!hasTaskFirstScope(cwd)) return [...files];
   assertTaskFirstScope(cwd);
-  return [...new Set([...files, ...TASK_FIRST_FILES])];
+  return withMultiFolderScope([...new Set([...files, ...TASK_FIRST_FILES])], cwd);
 }
 
 // Invert only the two authorized display strings. The historical caller still

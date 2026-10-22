@@ -5,6 +5,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import LocalLibraryPage from "@/app/local-library/page";
 const state = vi.hoisted(() => ({ memory: vi.fn(), scan: vi.fn(), read: vi.fn(), prepare: vi.fn(), imageSource: vi.fn() }));
 vi.mock("@/lib/local-library/files", () => ({ directoryMemory: state.memory, scanDirectory: state.scan, readSource: state.read }));
+vi.mock("@/lib/local-library/folders", async importOriginal => ({ ...await importOriginal<typeof import("@/lib/local-library/folders")>(), folderMemory: state.memory }));
 vi.mock("@/lib/local-library/image", () => ({ prepareImage: state.prepare, imageSource: state.imageSource }));
 vi.mock("next/link", () => ({ default: ({ href, children, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => <a href={href} {...props}>{children}</a> }));
 const owner = "11111111-1111-4111-8111-111111111111", draftId = "22222222-2222-4222-8222-222222222222", itemId = "33333333-3333-4333-8333-333333333333";
@@ -35,7 +36,7 @@ describe('image OCR preview before cloud AI',()=>{
     await connectImage();fireEvent.click(screen.getByRole('button',{name:'本机识别所选图片'}));const text=await screen.findByLabelText('识别文字：notes/photo.png');
     const consent=screen.getByRole('checkbox',{name:/允许将以上所选文本/});fireEvent.click(consent);fireEvent.change(text,{target:{value:'Sample 15，用户核对后仍待独立验证'}});expect((consent as HTMLInputElement).checked).toBe(false);
     fireEvent.click(consent);fireEvent.click(screen.getByRole('button',{name:'交给AI整理建议'}));await screen.findByRole('button',{name:'确认记录活动与证据'});
-    const call=fetcher.mock.calls.find(c=>c[0].endsWith('/analyze'))!,body=JSON.parse(call[1].body);expect(body.files[0].content).toBe('Sample 15，用户核对后仍待独立验证');expect(body.files[0].path).toBe('notes/photo.png');expect(call[1].body).not.toContain('base64');expect(fetcher.mock.calls.some(c=>c[0].endsWith('/confirm'))).toBe(false);
+    const call=fetcher.mock.calls.find(c=>c[0].endsWith('/analyze'))!,body=JSON.parse(call[1].body);expect(body.files[0].content).toBe('Sample 15，用户核对后仍待独立验证');expect(body.files[0].path).toMatch(/^[a-f0-9-]{36}\/notes\/photo\.png$/);expect(call[1].body).not.toContain('base64');expect(fetcher.mock.calls.some(c=>c[0].endsWith('/confirm'))).toBe(false);
   });
   it('allows local recognition with AI unavailable',async()=>{
     fetcher.mockImplementation((url:string)=>url.endsWith('/ocr')?response({text:'本机识别',engine:'Windows OCR',language:'zh-Hans-CN',rasterSha256:'b'.repeat(64)}):response({userId:owner,aiConfigured:false}));
