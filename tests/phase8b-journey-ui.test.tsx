@@ -57,13 +57,13 @@ describe("Phase 8B Round 4 — Journey UI", () => {
     vi.unstubAllGlobals();
   });
 
-  test("Journey uses a dedicated single AppShell wrapper without changing the historical root route classifier", () => {
-    expect(isProductRoute("/journey/seasons")).toBe(false);
-    expect(isProductRoute("/journey/reviews")).toBe(false);
+  test("Journey uses the persistent global shell while retaining its section navigation", () => {
+    expect(isProductRoute("/journey/seasons")).toBe(true);
+    expect(isProductRoute("/journey/reviews")).toBe(true);
 
     const layout = source("src/app/journey/layout.tsx");
-    expect(layout).toContain("<AppShellProvider>");
-    expect(layout).toContain("<AppShell");
+    expect(layout).not.toContain("<AppShellProvider>");
+    expect(layout).not.toContain("<AppShell");
     expect(layout).toContain("<JourneyNav />");
   });
 

@@ -1,68 +1,16 @@
 "use client";
-
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { NAV_ITEMS, isNavItemActive } from "./AppSidebar";
-
-export interface MobileNavProps {
-  className?: string;
-}
-
-export function MobileNav({ className = "" }: MobileNavProps) {
-  const pathname = usePathname();
-
-  return (
-    <nav
-      aria-label="移动端底部导航"
-      data-testid="mobile-nav"
-      className={`fixed bottom-0 left-0 right-0 z-[var(--z-header)] md:hidden h-[var(--mobile-nav-height)] bg-[var(--surface-overlay)] backdrop-blur-[var(--glass-blur-xl)] border-t border-[var(--border-subtle)] flex items-center justify-around px-1 select-none ${className}`}
-    >
-      {NAV_ITEMS.map((item) => {
-        const Icon = item.icon;
-        const isActive = isNavItemActive(pathname, item);
-
-        if (item.disabled) {
-          return (
-            <div
-              key={item.href}
-              data-testid={`mobile-nav-disabled-${item.label}`}
-              className="flex flex-col items-center justify-center min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] text-[var(--text-disabled)] cursor-not-allowed opacity-50"
-              aria-disabled="true"
-            >
-              <Icon className="w-5 h-5" />
-              <span className="text-xs mt-0.5">{item.label}</span>
-            </div>
-          );
-        }
-
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            aria-label={item.label}
-            data-testid={`mobile-nav-${item.href.slice(1)}`}
-            data-active={isActive}
-            aria-current={isActive ? "page" : undefined}
-            className={`flex flex-col items-center justify-center min-h-[var(--touch-target-min)] min-w-[var(--touch-target-min)] px-1 py-1 rounded-[var(--radius-sm)] transition-colors duration-[var(--duration-fast)] relative ${
-              isActive
-                ? "text-[var(--selection-neutral-text)] font-[var(--font-weight-semibold)]"
-                : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-            }`}
-          >
-            <Icon className="w-5 h-5" />
-            <span className="text-xs mt-0.5 tracking-tight">{item.mobileLabel ?? item.label}</span>
-
-            {/* Active Neutral Indicator Dot */}
-            {isActive && (
-              <div
-                data-testid="mobile-active-indicator"
-                className="absolute top-1 right-2 w-1.5 h-1.5 rounded-full bg-[var(--selection-neutral-indicator)]"
-              />
-            )}
-          </Link>
-        );
-      })}
-    </nav>
-  );
+import { Ellipsis, LayoutDashboard, Scroll, FolderGit2 } from "lucide-react";
+import { isWorkspaceRoute, matchesRoute } from "@/lib/navigation";
+export interface MobileNavProps { className?: string; onOpenNavigation?: () => void }
+const primary = [{ href: "/dashboard", label: "今天", icon: LayoutDashboard }, { href: "/quests", label: "任务", icon: Scroll }, { href: "/artifacts", label: "作品", icon: FolderGit2 }];
+export function MobileNav({ className = "", onOpenNavigation }: MobileNavProps) {
+  const pathname = usePathname(), moreActive = isWorkspaceRoute(pathname) && !primary.some(item => matchesRoute(pathname, item.href));
+  const base = "flex min-h-11 min-w-11 flex-1 flex-col items-center justify-center gap-1 rounded-lg px-1 py-2 text-xs focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)] ";
+  return <nav aria-label="移动端底部导航" data-testid="mobile-nav" className={"fixed bottom-0 left-0 right-0 z-[var(--z-header)] flex h-[var(--mobile-nav-height)] items-center justify-around border-t border-[var(--border-subtle)] bg-[var(--surface-overlay)] px-2 pb-[env(safe-area-inset-bottom)] backdrop-blur-[var(--glass-blur-xl)] md:hidden " + className}>
+    {primary.map(item => { const active = matchesRoute(pathname, item.href), Icon = item.icon; return <Link key={item.href} href={item.href} aria-label={item.label} data-testid={"mobile-nav-" + item.href.slice(1)} data-active={active} aria-current={active ? "page" : undefined} className={base + (active ? "font-semibold text-[var(--selection-neutral-text)]" : "text-[var(--text-muted)]")}><Icon className="h-5 w-5" aria-hidden="true" /><span>{item.label}</span>{active && <span data-testid="mobile-active-indicator" aria-hidden="true" className="h-1 w-1 rounded-full bg-[var(--selection-neutral-indicator)]" />}</Link>; })}
+    <button type="button" onClick={onOpenNavigation} aria-label="更多页面" aria-haspopup="dialog" data-testid="mobile-nav-more" data-active={moreActive} className={base + (moreActive ? "font-semibold text-[var(--selection-neutral-text)]" : "text-[var(--text-muted)]")}><Ellipsis className="h-5 w-5" aria-hidden="true" /><span>更多</span>{moreActive && <span data-testid="mobile-active-indicator" aria-hidden="true" className="h-1 w-1 rounded-full bg-[var(--selection-neutral-indicator)]" />}</button>
+  </nav>;
 }

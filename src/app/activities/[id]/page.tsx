@@ -108,7 +108,7 @@ function ActivityDetail({ id }: { id: string }) {
 export default function ActivityDetailPage() {
   const params = useParams<{ id: string }>();
   const id = typeof params.id === "string" ? params.id : "";
-  return <main className="mx-auto w-full min-w-0 max-w-4xl space-y-6 px-4 py-8 sm:px-6" aria-labelledby="activity-detail-title">
+  return <section className="mx-auto w-full min-w-0 max-w-4xl space-y-6 px-4 py-8 sm:px-6" aria-labelledby="activity-detail-title">
     <header className="space-y-3">
       <p className="text-sm text-[var(--text-muted)]">回到真实行动</p>
       <h1 id="activity-detail-title" className="font-serif text-3xl font-bold text-[var(--text-primary)]">活动原文</h1>
@@ -116,5 +116,5 @@ export default function ActivityDetailPage() {
       <Link href="/dashboard" prefetch={false} className={linkClass}>返回仪表盘</Link>
     </header>
     <ActivityDetail key={id} id={id} />
-  </main>;
+  </section>;
 }

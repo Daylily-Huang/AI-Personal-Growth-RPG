@@ -1,0 +1,5 @@
+"use client";
+const action = { minHeight: 44, display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "10px 16px", border: "1px solid #d3d8db", borderRadius: 10, color: "#205582", background: "#fff", textDecoration: "none", font: "inherit", cursor: "pointer" } as const;
+export default function GlobalError({ retry }: { error: Error & { digest?: string }; retry: () => void }) {
+  return <html lang="zh-CN"><head><title>页面恢复 · AI Personal Growth RPG</title></head><body style={{ margin: 0, color: "#17334a", background: "#f7f6f2", fontFamily: "system-ui, sans-serif" }}><main style={{ maxWidth: 560, margin: "8vh auto", padding: 24, lineHeight: 1.8 }}><p>AI Personal Growth RPG</p><h1 style={{ fontSize: 28 }}>网站暂时没能加载</h1><p>请稍后重新加载。若刚提交过记录，恢复后先查看记录状态，再决定是否重新提交。</p><div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}><button type="button" onClick={retry} style={action}>重新加载</button><a href="/dashboard" style={action}>回到今天</a><a href="/help" style={action}>使用帮助</a></div></main></body></html>;
+}

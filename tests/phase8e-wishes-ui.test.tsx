@@ -289,13 +289,14 @@ describe("Phase 8E Wishes UI", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(document.activeElement).toBe(opener); expect(posts()).toHaveLength(0);
   });
-  test("desktop and mobile expose both sections, with segment-safe active states", () => {
+  test("desktop exposes both sections; mobile More identifies secondary routes without overcrowding", () => {
     pathname = "/journey/journal";
     render(<><AppSidebar collapsed={false} onToggleCollapse={() => {}} /><MobileNav /></>);
     for (const link of screen.getAllByRole("link", { name: "成长旅程" })) expect(link.getAttribute("aria-current")).toBe("page");
-    expect(screen.getAllByRole("link", { name: "心愿" })).toHaveLength(2);
-    expect(within(screen.getByTestId("mobile-nav")).getAllByRole("link")).toHaveLength(7);
+    expect(screen.getAllByRole("link", { name: "心愿" })).toHaveLength(1);
+    expect(screen.getByTestId("mobile-nav-more").getAttribute("data-active")).toBe("true");
+    expect(within(screen.getByTestId("mobile-nav")).getAllByRole("link")).toHaveLength(3);
     cleanup(); pathname = "/journey-other"; render(<MobileNav />);
-    expect(screen.getByRole("link", { name: "成长旅程" }).getAttribute("aria-current")).toBeNull();
+    expect(screen.getByTestId("mobile-nav-more").getAttribute("data-active")).toBe("false");
   });
 });

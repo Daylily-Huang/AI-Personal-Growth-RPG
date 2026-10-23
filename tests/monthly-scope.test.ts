@@ -1,3 +1,4 @@
+import { restoreCommercialGuard } from "./helpers/commercial-scope";
 import { describe, expect, it } from "vitest";
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
@@ -22,7 +23,7 @@ describe("Current month/effects scope remains separate from immutable Review reg
     expect(monthlyReviewHistoricalOptions(options)).toBe(options);
   });
   it("Review regression's entire old body restores exactly, including models and timeouts", () => {
-    const current = readFileSync("tests/review-insights-governance.test.ts", "utf8").replace(/\r\n/g, "\n")
+    const current = restoreCommercialGuard("tests/review-insights-governance.test.ts", readFileSync("tests/review-insights-governance.test.ts", "utf8").replace(/\r\n/g, "\n"))
       .replace('import { restoreMonthlyOnboarding, restoreMonthlyReviewClient } from "./helpers/monthly-scope";\n', "")
       .replace('restoreMonthlyReviewClient(current).replace', 'current.replace')
       .replace('canonical(restoreMonthlyOnboarding(text))', 'canonical(text)');

@@ -18,8 +18,8 @@ let fetchMock: ReturnType<typeof vi.fn>;
 beforeEach(() => { nav.params = { id: id() }; nav.router = { replace: vi.fn() }; vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "http://127.0.0.1:54331"); vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "public-test-key"); fetchMock = vi.fn().mockResolvedValue(response({ activity: fixture() })); vi.stubGlobal("fetch", fetchMock); });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 describe("Activity detail visible original text", () => {
-  test("one main/h1, fixed return, literal full raw text and same-origin private GET", async () => {
-    render(<ActivityDetailPage />); const pre = await screen.findByTestId("activity-raw-input");
+  test("one composed main/h1, fixed return, literal full raw text and same-origin private GET", async () => {
+    render(<main><ActivityDetailPage /></main>); const pre = await screen.findByTestId("activity-raw-input");
     expect(pre.textContent).toBe(raw); expect(pre.querySelector("script")).toBeNull(); expect(pre.className).not.toMatch(/truncate|line-clamp/);
     expect(pre.className).toContain("whitespace-pre-wrap"); expect(screen.getAllByRole("main")).toHaveLength(1); expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
     expect(screen.getByRole("link", { name: "返回仪表盘" }).getAttribute("href")).toBe("/dashboard");

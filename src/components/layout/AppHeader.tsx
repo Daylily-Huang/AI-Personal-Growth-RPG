@@ -3,8 +3,9 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronRight, Sparkles, User } from "lucide-react";
+import { ChevronRight, Sparkles, User, Search } from "lucide-react";
 import type { DashboardSnapshot } from "@/lib/store/types";
+import { navigationTitle } from "@/lib/navigation";
 import { useOptionalAppShell } from "./AppShellContext";
 
 export interface AppHeaderProps {
@@ -13,16 +14,10 @@ export interface AppHeaderProps {
   dashboard?: DashboardSnapshot | null;
   userEmail?: string | null;
   onLogout?: () => void;
+  onOpenNavigation?: () => void;
   className?: string;
 }
 
-const ROUTE_NAME_MAP: Record<string, string> = {
-  "/dashboard": "仪表盘",
-  "/quests": "任务志",
-  "/skills": "技能谱",
-  "/knowledge": "知识图",
-  "/artifacts": "产出台",
-};
 
 export function AppHeader({
   title,
@@ -30,6 +25,7 @@ export function AppHeader({
   dashboard: propDashboard,
   userEmail: propUserEmail,
   onLogout,
+  onOpenNavigation,
   className = "",
 }: AppHeaderProps) {
   const pathname = usePathname();
@@ -40,7 +36,7 @@ export function AppHeader({
   const userEmail = propUserEmail !== undefined ? propUserEmail : (shellCtx ? shellCtx.userEmail : null);
 
   // Resolve current title from prop or route map
-  const displayTitle = title || ROUTE_NAME_MAP[pathname] || "工作区";
+  const displayTitle = title || navigationTitle(pathname);
 
   const resolvedBreadcrumbs = breadcrumbs || [
     { label: "AI RPG", href: "/dashboard" },
@@ -126,7 +122,8 @@ export function AppHeader({
       </div>
 
       {/* Right: Progression Meter, Pending Indicator & User Identity */}
-      <div className="flex items-center gap-3 lg:gap-5 shrink-0">
+      <div className="flex items-center gap-2 lg:gap-5 shrink-0">
+        {onOpenNavigation && <button type="button" onClick={onOpenNavigation} aria-label="查找页面和操作（Ctrl或Command加K）" className="inline-flex h-11 min-w-11 items-center justify-center gap-2 rounded-lg px-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--surface-hover-neutral)]"><Search className="h-4 w-4" aria-hidden="true" /><span className="hidden xl:inline">查找页面</span></button>}
         {/* Pending Assessment Indicator (Compact icon+number below lg; verbose on lg+) */}
         {pendingAssessmentsCount > 0 && (
           <div

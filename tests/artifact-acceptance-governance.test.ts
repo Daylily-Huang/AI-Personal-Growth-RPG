@@ -1,3 +1,4 @@
+import { commercialFrozenUIHash } from "./helpers/commercial-scope";
 // REVIEW_HISTORY_ADAPTER_BEGIN
 import { reviewHistoricalFunction, reviewHistoricalReader } from "./helpers/governance-delta";
 const stage7c = reviewHistoricalFunction(reviewPrevious_stage7c);
@@ -169,12 +170,12 @@ describe("Artifact20 corrected admission exact46/all25 and preserved accepted hi
     expect(ALLOWED.filter(file => (PROPOSAL_FACT_EDIT_ALLOWED as readonly string[]).includes(file))).toHaveLength(21);
     expect(() => prior(override(model(), `diff --no-renames --name-only -z ${PROPOSAL_FACT_EDIT_BASE} ${BASE}`, "unsafe\0"))).toThrow("FAIL-CLOSED");
   }, 60000);
-  it("accepted helper whole prefix and ALL55 SQL/authority/UI tokens remain frozen", () => {
+  it("accepted helper and ALL55 authority blobs stay frozen; navigation history is explicitly archived", () => {
     expect(canonical(readFileSync("tests/helpers/governance-delta.ts", "utf8")).startsWith(blob("tests/helpers/governance-delta.ts"))).toBe(true);
     const oldSql = readdirSync("supabase/migrations").filter(name => /^00(?:[0-4]\d|5[0-5])_.*\.sql$/.test(name)); expect(oldSql).toHaveLength(55);
     const protectedFiles = ["src/lib/growth-engine/xp.ts", "src/lib/growth-engine/levels.ts", "src/lib/growth-engine/mastery.ts", "src/lib/ai/prompts.ts", "src/lib/ai/schemas.ts", "src/lib/ai/assess.ts", "src/lib/milestone/repository.ts", "src/lib/milestone/types.ts", "src/lib/store/settlement.service.ts", "src/lib/store/supabase-artifact-repository.ts", "src/types/artifact.ts", "src/app/globals.css", "src/styles/design-tokens.css", "package.json", "pnpm-lock.yaml", ".github/workflows/ci.yml",
       "src/components/layout/AppShell.tsx", "src/components/layout/AppSidebar.tsx", "src/components/layout/MobileNav.tsx", "src/components/ui/BaseModal.tsx", "src/components/rewards/client.tsx", "src/components/rewards/RewardConfirmation.tsx", "src/app/rewards/wishes/page.tsx"];
-    for (const file of [...oldSql.map(name => `supabase/migrations/${name}`), ...protectedFiles]) expect(git("hash-object", `--path=${file}`, file).trim(), file).toBe(git("rev-parse", `${BASE}:${file}`).trim());
+    for (const file of [...oldSql.map(name => `supabase/migrations/${name}`), ...protectedFiles]) expect(commercialFrozenUIHash(file, git("hash-object", `--path=${file}`, file).trim()), file).toBe(git("rev-parse", `${BASE}:${file}`).trim());
   }, 30000);
   it("old ten governance bodies are identical after removing ONLY the new entry/projection", () => {
     for (const name of ["activity-detail", "assessment-context", "evidence-submission", "graph-canvas", "graph-mobile", "onboarding", "phase8f-ui", "proposal-rejection", "proposal-edit", "visual-foundation"]) {

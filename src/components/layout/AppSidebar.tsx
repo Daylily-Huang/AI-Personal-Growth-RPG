@@ -14,6 +14,8 @@ import {
   Shield,
   Compass,
   Gift,
+  FolderOpen,
+  CircleHelp,
 } from "lucide-react";
 
 export interface NavItem {
@@ -33,7 +35,7 @@ export function isNavItemActive(pathname: string, item: NavItem): boolean {
 export const NAV_ITEMS: NavItem[] = [
   {
     href: "/dashboard",
-    label: "仪表盘",
+    label: "今天",
     icon: LayoutDashboard,
   },
   {
@@ -56,8 +58,10 @@ export const NAV_ITEMS: NavItem[] = [
     label: "产出台",
     icon: FolderGit2,
   },
+  { href: "/local-library", label: "本地资料", icon: FolderOpen },
   { href: "/journey/seasons", activePrefix: "/journey", label: "成长旅程", mobileLabel: "旅程", icon: Compass },
   { href: "/rewards/wishes", activePrefix: "/rewards", label: "心愿", icon: Gift },
+  { href: "/help", label: "使用帮助", icon: CircleHelp },
 ];
 
 export interface AppSidebarProps {

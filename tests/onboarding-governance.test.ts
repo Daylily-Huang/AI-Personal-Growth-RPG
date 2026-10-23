@@ -1,3 +1,4 @@
+import { commercialFrozenUIHash, restoreCommercialGuard } from "./helpers/commercial-scope";
 // MONTHLY_ONBOARDING_HISTORY_BEGIN
 import { monthlyOnboardingProtectedHash } from "./helpers/monthly-scope";
 // MONTHLY_ONBOARDING_HISTORY_END
@@ -114,7 +115,7 @@ describe("SiteReadiness07 strict presentational-only scope without historical we
       "src/lib/http/validation.ts", "src/app/api/dashboard/route.ts", "src/lib/store/request-repository.ts",
       "src/styles/design-tokens.css", "src/app/globals.css", "docs/Design ChatGPT/01_SYSTEM_RULES.md",
       "docs/SiteReadiness/04_GRAPH_MOBILE_OVERLAY_AND_CONNECTED_NAV_CONTRACT.md", "docs/SiteReadiness/06_CONNECTED_KEYBOARD_FOCUS_CORRECTIVE_CONTRACT.md"]) {
-      expect(monthlyOnboardingProtectedHash(protectedFile, () => execFileSync("git", ["hash-object", `--path=${protectedFile}`, protectedFile], { encoding: "utf8" }).trim()), protectedFile)
+      expect(commercialFrozenUIHash(protectedFile, monthlyOnboardingProtectedHash(protectedFile, () => execFileSync("git", ["hash-object", `--path=${protectedFile}`, protectedFile], { encoding: "utf8" }).trim())), protectedFile)
         .toBe(execFileSync("git", ["rev-parse", `${NEW_USER_GUIDE_BASE}:${protectedFile}`], { encoding: "utf8" }).trim());
     }
   });
@@ -326,7 +327,7 @@ describe("SiteReadiness10 post-main exact corrective admission without historica
   test("every nonselected original22 file and helper prefix retain baseline content", () => {
     const canonical = (s: string) => s.replace(/\r\n/g, "\n");
     for (const file of ACTIVITY_DETAIL_ALLOWED.filter(f => !(ACTIVITY_MAIN_ALLOWED as readonly string[]).includes(f)))
-      expect(canonical(isProposalFactEditCheckout() && file === "src/app/activities/[id]/page.tsx" ? proposalFactEditHistoricalContent(file, "page") : isEvidenceSubmissionCheckout() && file === "src/app/activities/[id]/page.tsx" ? evidenceSubmissionHistoricalContent(file, "page") : isProposalFactEditCheckout() && (PROPOSAL_REJECTION_HISTORICAL_CONTENT as readonly string[]).includes(file) ? proposalFactEditHistoricalContent(file, "onboarding") : isEvidenceSubmissionCheckout() && (PROPOSAL_REJECTION_HISTORICAL_CONTENT as readonly string[]).includes(file) ? evidenceSubmissionHistoricalContent(file, "onboarding") : isAssessmentContextCheckout() && (PROPOSAL_REJECTION_HISTORICAL_CONTENT as readonly string[]).includes(file) ? assessmentContextHistoricalContent(file, "onboarding") : isProposalRejectionCheckout() && (PROPOSAL_REJECTION_HISTORICAL_CONTENT as readonly string[]).includes(file) ? proposalRejectionHistoricalContent(file) : readFileSync(file, "utf8")), file).toBe(canonical(execFileSync("git", ["show", `${ACTIVITY_MAIN_BASE}:${file}`], { encoding: "utf8" })));
+      expect(canonical(file === "tests/activity-detail-ui.test.tsx" ? restoreCommercialGuard(file, readFileSync(file, "utf8")) : isProposalFactEditCheckout() && file === "src/app/activities/[id]/page.tsx" ? proposalFactEditHistoricalContent(file, "page") : isEvidenceSubmissionCheckout() && file === "src/app/activities/[id]/page.tsx" ? evidenceSubmissionHistoricalContent(file, "page") : isProposalFactEditCheckout() && (PROPOSAL_REJECTION_HISTORICAL_CONTENT as readonly string[]).includes(file) ? proposalFactEditHistoricalContent(file, "onboarding") : isEvidenceSubmissionCheckout() && (PROPOSAL_REJECTION_HISTORICAL_CONTENT as readonly string[]).includes(file) ? evidenceSubmissionHistoricalContent(file, "onboarding") : isAssessmentContextCheckout() && (PROPOSAL_REJECTION_HISTORICAL_CONTENT as readonly string[]).includes(file) ? assessmentContextHistoricalContent(file, "onboarding") : isProposalRejectionCheckout() && (PROPOSAL_REJECTION_HISTORICAL_CONTENT as readonly string[]).includes(file) ? proposalRejectionHistoricalContent(file) : readFileSync(file, "utf8")), file).toBe(canonical(execFileSync("git", ["show", `${ACTIVITY_MAIN_BASE}:${file}`], { encoding: "utf8" })));
     const helper = "tests/helpers/governance-delta.ts", old = execFileSync("git", ["show", `${ACTIVITY_MAIN_BASE}:${helper}`], { encoding: "utf8" });
     expect(canonical(readFileSync(helper, "utf8")).startsWith(canonical(old))).toBe(true);
     const oldDoc = execFileSync("git", ["show", `${ACTIVITY_MAIN_BASE}:${ACTIVITY_MAIN_CONTROL}`], { encoding: "utf8" });

@@ -1,3 +1,4 @@
+import { commercialHistoricalFiles, withCommercialFiles } from "./commercial-scope";
 import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import path from "node:path";
@@ -16,18 +17,19 @@ export function assertMultiFolderFiles(actual: readonly string[]) {
   if (!equal(actual, MULTI_FOLDER_FILES)) throw Error("FAIL-CLOSED: only the thirteen disclosed multi-folder files are authorized");
 }
 export function assertMultiFolderScope(cwd = process.cwd()): string[] {
-  const actual = [...paths(git(cwd, "diff", "--no-renames", "--name-only", "-z", MULTI_FOLDER_BASE, "--")), ...paths(git(cwd, "ls-files", "--others", "--exclude-standard", "-z"))];
+  const actual = commercialHistoricalFiles(MULTI_FOLDER_BASE, [...paths(git(cwd, "diff", "--no-renames", "--name-only", "-z", MULTI_FOLDER_BASE, "--")), ...paths(git(cwd, "ls-files", "--others", "--exclude-standard", "-z"))], cwd);
   assertMultiFolderFiles(actual);
   return actual;
 }
 export function withMultiFolderScope(files: readonly string[], cwd = process.cwd()): string[] {
   if (!hasMultiFolderScope(cwd)) return [...files];
   assertMultiFolderScope(cwd);
-  return [...new Set([...files, ...MULTI_FOLDER_FILES])];
+  return withCommercialFiles([...new Set([...files, ...MULTI_FOLDER_FILES])], cwd);
 }
 /** Current exact scope is checked before a historical range can be projected. */
 export function multiFolderHistoricalFiles(base: string, actual: string[], cwd = process.cwd()): string[] {
   if (!hasMultiFolderScope(cwd)) return actual;
+  actual = commercialHistoricalFiles(base, actual, cwd);
   assertMultiFolderScope(cwd);
   const historical = paths(git(cwd, "diff", "--no-renames", "--name-only", "-z", base, MULTI_FOLDER_BASE, "--"));
   if (!equal(actual, [...new Set([...historical, ...MULTI_FOLDER_FILES])])) throw Error("FAIL-CLOSED: unexpected historical/current multi-folder composition");

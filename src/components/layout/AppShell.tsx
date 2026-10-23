@@ -1,7 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { NavigationDialog } from "./NavigationDialog";
+import { isEditingTarget } from "@/lib/navigation";
 import { AppEnvironment } from "./AppEnvironment";
 import { AppSidebar } from "./AppSidebar";
 import { AppHeader } from "./AppHeader";
@@ -37,6 +39,17 @@ export function AppShell({
   const shellCtx = useOptionalAppShell();
 
   const [localCollapsed, setLocalCollapsed] = useState(false);
+  const [navigationOpen, setNavigationOpen] = useState(false);
+  const closeNavigation = useCallback(() => setNavigationOpen(false), []);
+  const openNavigation = useCallback(() => setNavigationOpen(true), []);
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.defaultPrevented || event.isComposing || event.altKey || event.shiftKey || !(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== "k" || event.composedPath().some(isEditingTarget)) return;
+      event.preventDefault(); setNavigationOpen(previous => !previous);
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   const desktopCollapsed = shellCtx ? shellCtx.desktopCollapsed : localCollapsed;
   const toggleSidebar = shellCtx
@@ -68,6 +81,7 @@ export function AppShell({
       data-testid="app-shell-root"
       className={`min-h-screen relative flex flex-col bg-[var(--bg-deep-void)] text-[var(--text-primary)] font-sans antialiased ${className}`}
     >
+      <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[9999] focus:rounded-lg focus:bg-[var(--surface-base)] focus:p-3 focus:text-[var(--text-primary)]">跳转到正文</a>
       {/* 1. Global Environmental Background + Veil */}
       <AppEnvironment />
 
@@ -95,6 +109,7 @@ export function AppShell({
           dashboard={dashboard}
           userEmail={userEmail}
           onLogout={handleLogout}
+          onOpenNavigation={openNavigation}
         />
 
         {/* 4. Main Workspace */}
@@ -104,7 +119,8 @@ export function AppShell({
       </div>
 
       {/* 5. Mobile Bottom Navigation */}
-      <MobileNav />
+      <MobileNav onOpenNavigation={openNavigation} />
+      {navigationOpen && <NavigationDialog onClose={closeNavigation} />}
     </div>
   );
 }

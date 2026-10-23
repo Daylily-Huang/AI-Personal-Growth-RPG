@@ -4,14 +4,9 @@ import React from "react";
 import { usePathname } from "next/navigation";
 import { AppShell } from "./AppShell";
 import { AppShellProvider } from "./AppShellContext";
+import { PRODUCT_ROUTES, isWorkspaceRoute } from "@/lib/navigation";
 
-export const PRODUCT_ROUTE_PREFIXES = [
-  "/dashboard",
-  "/quests",
-  "/skills",
-  "/knowledge",
-  "/artifacts",
-] as const;
+export const PRODUCT_ROUTE_PREFIXES = PRODUCT_ROUTES;
 
 /**
  * Segment-safe product route classifier.
@@ -19,9 +14,7 @@ export const PRODUCT_ROUTE_PREFIXES = [
  * while keeping non-product routes (/login, /, /api/*, unknown public paths) outside the shell.
  */
 export function isProductRoute(pathname: string): boolean {
-  return PRODUCT_ROUTE_PREFIXES.some(
-    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
-  );
+  return isWorkspaceRoute(pathname);
 }
 
 export interface AppShellBoundaryProps {
@@ -31,7 +24,7 @@ export interface AppShellBoundaryProps {
 /**
  * Global AppShell Boundary for the Application.
  * Preserves a single, persistent AppShell instance across all authenticated product
- * routes (/dashboard, /quests, /skills, /knowledge, /artifacts), ensuring sidebar collapse
+ * routes (including journey, rewards, local files and activity detail), ensuring sidebar collapse
  * state and session data are NOT reset on navigation, while cleanly excluding /login and public routes.
  */
 export function AppShellBoundary({ children }: AppShellBoundaryProps) {

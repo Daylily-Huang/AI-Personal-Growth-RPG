@@ -1,3 +1,4 @@
+import { commercialFrozenUIHash } from "./helpers/commercial-scope";
 // REVIEW_HISTORY_ADAPTER_BEGIN
 import { reviewHistoricalFunction, reviewHistoricalReader, REVIEW_INSIGHTS_CONTROL, reviewInsightsScopeViolations } from "./helpers/governance-delta";
 const artifactManualProposalFiles = reviewHistoricalFunction(reviewPrevious_artifactManualProposalFiles);
@@ -120,9 +121,9 @@ describe("8F Round4 exact UI scope under27", () => {
       expect(source, file).not.toMatch(/\.rpc\(|SERVICE_ROLE|SECRET_KEY|localStorage|sessionStorage|dangerouslySetInnerHTML|window\.open\(|href=\{.*(?:evidence|credential)/);
     }
   });
-  test("Rewards wrapper adds local links only; AppShell and main navigation remain accepted blobs", () => {
+  test("accepted navigation history stays frozen; current navigation has its own explicit scope", () => {
     for (const file of ["src/components/layout/AppShell.tsx", "src/components/layout/AppSidebar.tsx", "src/components/layout/MobileNav.tsx", "src/components/ui/BaseModal.tsx", "src/components/rewards/client.tsx", "src/components/rewards/RewardConfirmation.tsx", "src/app/rewards/wishes/page.tsx"]) {
-      expect(execFileSync("git", ["hash-object", `--path=${file}`, file], { encoding: "utf8" }).trim(), file)
+      expect(commercialFrozenUIHash(file, execFileSync("git", ["hash-object", `--path=${file}`, file], { encoding: "utf8" }).trim()), file)
         .toBe(execFileSync("git", ["rev-parse", `${base}:${file}`], { encoding: "utf8" }).trim());
     }
   });

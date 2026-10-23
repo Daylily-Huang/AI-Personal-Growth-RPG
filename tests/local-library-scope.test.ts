@@ -1,3 +1,4 @@
+import { restoreCommercialMonthly } from "./helpers/commercial-scope";
 import { restoreMultiFolderMonthly } from "./helpers/multi-folder-scope";
 import { withTaskFirstScope } from "./helpers/task-first-scope";
 import { execFileSync } from "node:child_process";
@@ -23,7 +24,7 @@ describe("local-library explicit authorization preserves prior freezes", () => {
     expect(restored).toBe(normalized(git("show", `${BASE}:${file}`)));
   });
   it("the old monthly guard restores exactly after removing only the explicit new allowlist", () => {
-    const file = "tests/helpers/monthly-scope.ts", current = restoreMultiFolderMonthly(normalized(readFileSync(file, "utf8")));
+    const file = "tests/helpers/monthly-scope.ts", current = restoreMultiFolderMonthly(restoreCommercialMonthly(normalized(readFileSync(file, "utf8"))));
     const restored = current.replace(/^import \{ TASK_FIRST_FILES, taskFirstProtectedHash \} from "\.\/task-first-scope";\r?\n/m, "").replace(/^  \/\/ TaskFirst29: invert[^\n]*\n  if \(file === "src\/components\/dashboard\/QuickLogCard\.tsx"\)[^\n]*\n/m, "").replace(/^  \/\/ Explicit TaskFirst29[^\n]*\n  \.\.\.TASK_FIRST_FILES[^\n]*\n/m, "").replace(/^  \/\/ Explicit Image28 amendment[^\n]*\n(?:  [^\n]*\n){2}/m, "").replace(/^  \/\/ Explicit Office27 amendment[^\n]*\n  [^\n]*\n/m, "").replace(/^  \/\/ Explicit local-library26 amendment[^\n]*\n(?:  [^\n]*\n){4}/m, "");
     expect(restored).toBe(normalized(git("show", `${BASE}:${file}`)));
   });
