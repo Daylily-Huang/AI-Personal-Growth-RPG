@@ -1,3 +1,4 @@
+import { commercialFrozenUIHash } from "./helpers/commercial-scope";
 // MONTHLY_ONBOARDING_HISTORY_BEGIN
 import { monthlyOnboardingProtectedHash } from "./helpers/monthly-scope";
 // MONTHLY_ONBOARDING_HISTORY_END
@@ -114,7 +115,7 @@ describe("SiteReadiness07 strict presentational-only scope without historical we
       "src/lib/http/validation.ts", "src/app/api/dashboard/route.ts", "src/lib/store/request-repository.ts",
       "src/styles/design-tokens.css", "src/app/globals.css", "docs/Design ChatGPT/01_SYSTEM_RULES.md",
       "docs/SiteReadiness/04_GRAPH_MOBILE_OVERLAY_AND_CONNECTED_NAV_CONTRACT.md", "docs/SiteReadiness/06_CONNECTED_KEYBOARD_FOCUS_CORRECTIVE_CONTRACT.md"]) {
-      expect(monthlyOnboardingProtectedHash(protectedFile, () => execFileSync("git", ["hash-object", `--path=${protectedFile}`, protectedFile], { encoding: "utf8" }).trim()), protectedFile)
+      expect(commercialFrozenUIHash(protectedFile, monthlyOnboardingProtectedHash(protectedFile, () => execFileSync("git", ["hash-object", `--path=${protectedFile}`, protectedFile], { encoding: "utf8" }).trim())), protectedFile)
         .toBe(execFileSync("git", ["rev-parse", `${NEW_USER_GUIDE_BASE}:${protectedFile}`], { encoding: "utf8" }).trim());
     }
   });

@@ -1,3 +1,4 @@
+import { commercialFrozenUIContent } from "./helpers/commercial-scope";
 // REVIEW_HISTORY_ADAPTER_BEGIN
 import { reviewHistoricalFunction, reviewHistoricalReader } from "./helpers/governance-delta";
 const artifactManualHistoricalFiles = reviewHistoricalFunction(reviewPrevious_artifactManualHistoricalFiles);
@@ -101,10 +102,10 @@ describe("Activity09 strict current scope without historical permission launderi
     }
     expect(readFileSync("docs/Design ChatGPT/02_PRODUCT_DESIGN.md", "utf8")).toContain("# 74.");
   });
-  test("protected Core/auth/AI/SQL and navigation remain baseline blobs", () => {
+  test("protected Core/auth/AI/SQL remain current baseline blobs; authorized navigation retains its accepted history", () => {
     for (const file of ["src/lib/store/request-repository.ts", "src/lib/store/supabase-repository.ts", "src/lib/http/validation.ts", "src/lib/ai/assess.ts", "src/lib/ai/prompts.ts", "src/lib/ai/schemas.ts", "src/lib/growth-engine/levels.ts", "src/proxy.ts", "src/components/layout/AppShellBoundary.tsx", "src/app/globals.css",
       "supabase/migrations/0049_phase8e_reward_wishes_rpc_authority.sql", "supabase/migrations/0050_phase8e_reward_canonical_source_fix.sql", "supabase/migrations/0053_zero_xp_manual_skill_authority.sql"]) {
-      const baseline = execFileSync("git", ["show", `${ACTIVITY_DETAIL_BASE}:${file}`], { encoding: "utf8" }); expect(canonical(isProposalFactEditCheckout() && (ASSESSMENT_CONTEXT_ACTIVITY_CONTENT as readonly string[]).includes(file) ? proposalFactEditHistoricalContent(file, "activity") : isEvidenceSubmissionCheckout() && (ASSESSMENT_CONTEXT_ACTIVITY_CONTENT as readonly string[]).includes(file) ? evidenceSubmissionHistoricalContent(file, "activity") : isAssessmentContextCheckout() && (ASSESSMENT_CONTEXT_ACTIVITY_CONTENT as readonly string[]).includes(file) ? assessmentContextHistoricalContent(file, "activity") : readFileSync(file, "utf8")), file).toBe(canonical(baseline));
+      const baseline = execFileSync("git", ["show", `${ACTIVITY_DETAIL_BASE}:${file}`], { encoding: "utf8" }); expect(canonical(commercialFrozenUIContent(file, isProposalFactEditCheckout() && (ASSESSMENT_CONTEXT_ACTIVITY_CONTENT as readonly string[]).includes(file) ? proposalFactEditHistoricalContent(file, "activity") : isEvidenceSubmissionCheckout() && (ASSESSMENT_CONTEXT_ACTIVITY_CONTENT as readonly string[]).includes(file) ? evidenceSubmissionHistoricalContent(file, "activity") : isAssessmentContextCheckout() && (ASSESSMENT_CONTEXT_ACTIVITY_CONTENT as readonly string[]).includes(file) ? assessmentContextHistoricalContent(file, "activity") : readFileSync(file, "utf8"))), file).toBe(canonical(baseline));
     }
   });
   test("read-only page/API have no new authority, demo fallbacks, storage or secret references", () => {

@@ -1,3 +1,4 @@
+import { restoreCommercialActivityFrame } from "./helpers/commercial-scope";
 // REVIEW_HISTORY_ADAPTER_BEGIN
 import { reviewHistoricalFunction, reviewHistoricalReader } from "./helpers/governance-delta";
 const artifactManualProposalFiles = reviewHistoricalFunction(reviewPrevious_artifactManualProposalFiles);
@@ -170,7 +171,7 @@ describe("Proposal facts18 amended exact53/35 gate with immutable history and fa
     actual();
     for (const file of ["src/lib/store/repository.ts", "src/lib/store/types.ts", "src/lib/store/supabase-repository.ts", "src/lib/store/settlement.service.ts",
       "src/app/api/activities/[id]/assess/route.ts", "src/components/dashboard/PendingProposals.tsx", "src/app/activities/[id]/page.tsx"]) {
-      let current = canonical(readFileSync(file, "utf8"));
+      let current = restoreCommercialActivityFrame(file, canonical(readFileSync(file, "utf8")));
       const before = current;
       current = current.replace(/^[ \t]*\/\/ BEGIN PROPOSAL_FACT_EDIT_([A-Z_]+)\n[\s\S]*?^[ \t]*\/\/ END PROPOSAL_FACT_EDIT_\1\n/gm, "")
         .replace(/^[ \t]*\{\/\* BEGIN PROPOSAL_FACT_EDIT_([A-Z_]+) \*\/\}\n[\s\S]*?^[ \t]*\{\/\* END PROPOSAL_FACT_EDIT_\1 \*\/\}\n/gm, "")

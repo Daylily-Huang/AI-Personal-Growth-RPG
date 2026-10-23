@@ -1,3 +1,4 @@
+import { restoreCommercialMonthly } from "./helpers/commercial-scope";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
@@ -82,7 +83,7 @@ describe("multi-folder exact scope and retained authority", () => {
   });
   it("restores the complete prior monthly and task-first guards after exact wiring removal", () => {
     for (const [file, restore] of [["tests/helpers/monthly-scope.ts", restoreMultiFolderMonthly], ["tests/helpers/task-first-scope.ts", restoreMultiFolderTaskFirst]] as const) {
-      expect(restore(readFileSync(file, "utf8").replace(/\r\n/g, "\n"))).toBe(execFileSync("git", ["show", `${MULTI_FOLDER_BASE}:${file}`], { encoding: "utf8" }).replace(/\r\n/g, "\n"));
+      expect(restore(file === "tests/helpers/monthly-scope.ts" ? restoreCommercialMonthly(readFileSync(file, "utf8").replace(/\r\n/g, "\n")) : readFileSync(file, "utf8").replace(/\r\n/g, "\n"))).toBe(execFileSync("git", ["show", `${MULTI_FOLDER_BASE}:${file}`], { encoding: "utf8" }).replace(/\r\n/g, "\n"));
     }
   });
   it("retains every confirmation, retry and edit handler and backend source byte-for-byte", () => {

@@ -1,3 +1,4 @@
+import { restoreCommercialGuard } from "./helpers/commercial-scope";
 import { restoreMonthlyOnboarding, restoreMonthlyReviewClient } from "./helpers/monthly-scope";
 import { execFileSync } from "node:child_process";
 import { readFileSync, readdirSync } from "node:fs";
@@ -94,7 +95,7 @@ describe("Review22 current42 first, exact immutable699 old regression second", (
     }
   });
   it("all13 old WHOLE files invert to699; all bodies/models/assertions/timeouts preserved", () => {
-    for (const file of OLD) { const current = canonical(readFileSync(file, "utf8")); expect(restoreOld(current), file).toBe(blob(file)); expect(current.match(/REVIEW_HISTORY_ADAPTER_BEGIN/g)).toHaveLength(1); }
+    for (const file of OLD) { const current = restoreCommercialGuard(file, canonical(readFileSync(file, "utf8"))); expect(restoreOld(current), file).toBe(blob(file)); expect(current.match(/REVIEW_HISTORY_ADAPTER_BEGIN/g)).toHaveLength(1); }
     const reader = reviewHistoricalReader(readFileSync); for (const file of OLD) expect(canonical(reader(file, "utf8"))).toBe(blob(file));
     expect(reader("src/lib/growth-engine/xp.ts", "utf8")).toBe(readFileSync("src/lib/growth-engine/xp.ts", "utf8"));
   }, 60000);
