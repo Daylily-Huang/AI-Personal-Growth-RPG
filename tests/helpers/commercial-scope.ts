@@ -34,6 +34,7 @@ export const COMMERCIAL_FILES = [
   "tests/helpers/multi-folder-scope.ts",
   "tests/local-library-folders.test.ts",
   "tests/local-library-scope.test.ts",
+  "tests/monthly-scope.test.ts",
   "tests/navigation-dialog.test.tsx",
   "tests/navigation.test.ts",
   "tests/onboarding-governance.test.ts",
@@ -158,11 +159,15 @@ export const COMMERCIAL_GUARD_PATCHES: Record<string, readonly (readonly [string
   "tests/onboarding-governance.test.ts": [
     [
       "",
-      "import { commercialFrozenUIHash } from \"./helpers/commercial-scope\";\n"
+      "import { commercialFrozenUIHash, restoreCommercialGuard } from \"./helpers/commercial-scope\";\n"
     ],
     [
       "monthlyOnboardingProtectedHash(protectedFile, () => execFileSync(\"git\", [\"hash-object\", `--path=${protectedFile}`, protectedFile], { encoding: \"utf8\" }).trim())",
       "commercialFrozenUIHash(protectedFile, monthlyOnboardingProtectedHash(protectedFile, () => execFileSync(\"git\", [\"hash-object\", `--path=${protectedFile}`, protectedFile], { encoding: \"utf8\" }).trim()))"
+    ],
+    [
+      "expect(canonical(isProposalFactEditCheckout() && file === \"src/app/activities/[id]/page.tsx\"",
+      "expect(canonical(file === \"tests/activity-detail-ui.test.tsx\" ? restoreCommercialGuard(file, readFileSync(file, \"utf8\")) : isProposalFactEditCheckout() && file === \"src/app/activities/[id]/page.tsx\""
     ]
   ],
   "tests/proposal-edit-governance.test.ts": [
@@ -203,6 +208,16 @@ export const COMMERCIAL_GUARD_PATCHES: Record<string, readonly (readonly [string
     [
       "one main/h1, fixed return, literal full raw text and same-origin private GET",
       "one composed main/h1, fixed return, literal full raw text and same-origin private GET"
+    ]
+  ],
+  "tests/monthly-scope.test.ts": [
+    [
+      "",
+      "import { restoreCommercialGuard } from \"./helpers/commercial-scope\";\n"
+    ],
+    [
+      "const current = readFileSync(\"tests/review-insights-governance.test.ts\", \"utf8\").replace(/\\r\\n/g, \"\\n\")",
+      "const current = restoreCommercialGuard(\"tests/review-insights-governance.test.ts\", readFileSync(\"tests/review-insights-governance.test.ts\", \"utf8\").replace(/\\r\\n/g, \"\\n\"))"
     ]
   ]
 };
